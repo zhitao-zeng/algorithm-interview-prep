@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { questions } from '../questions.js';
 import { detailSections, validateQuestionCard } from '../quiz-core.js';
+import { readFileSync } from 'node:fs';
 
 const beginnerFixture = {
   id: 'fixture',
@@ -138,6 +139,21 @@ test('快速详情按初学者学习顺序展示', () => {
     detailSections(beginnerFixture, 'quick').map((section) => section.key),
     ['beginnerSummary', 'code', 'complexity', 'followUps', 'pitfalls'],
   );
+});
+
+test('深入详情按分步学习顺序返回全部渲染类型', () => {
+  const sections = detailSections(beginnerFixture, 'deep');
+  assert.deepEqual(
+    sections.map((section) => section.type),
+    ['text', 'concepts', 'steps', 'steps', 'code', 'lineNotes', 'text', 'cards', 'qa', 'list'],
+  );
+  assert.deepEqual(
+    sections.map((section) => Array.isArray(section.value)),
+    [false, true, true, true, false, true, false, true, true, true],
+  );
+  // 复习模式应默认展开完整初学者内容；该断言在实现前应先失败。
+  const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /detailLevel:\s*'deep'/);
 });
 
 test('第三批题卡的示例类型与复杂度说明一致', () => {
