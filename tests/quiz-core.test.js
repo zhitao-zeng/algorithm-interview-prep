@@ -26,7 +26,7 @@ const beginnerFixture = {
 };
 
 test('现有 60 道题均通过基础内容校验', () => {
-  assert.equal(questions.length, 77);
+  assert.equal(questions.length, 87);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -250,6 +250,28 @@ test('语音大模型与 RL 后训练题卡满足完整初学者学习契约', (
     'rvq', 'continuous-vs-discrete-speech', 'thinker-talker', 'full-duplex',
     'speech-training-stages', 'mdp-basics', 'value-q-advantage', 'bellman-qlearning',
     'policy-gradient', 'actor-critic', 'ppo', 'rlhf', 'grpo', 'sft-dpo-rlhf',
+  ]);
+  const cards = questions.filter((question) => ids.has(question.id));
+
+  assert.equal(cards.length, ids.size);
+  for (const id of ids) {
+    assert.equal(questions.filter((question) => question.id === id).length, 1, `题目 ${id} 应只出现一次`);
+  }
+  for (const question of cards) {
+    assert.equal(validateQuestionCard(question, { beginner: true }).valid, true, question.title);
+    assert.match(question.code, /def |class |from |import /, `${question.title} 应提供完整 Python 代码`);
+    assert.ok(question.lineByLine.length >= 3, `${question.title} 应至少有三段逐行讲解`);
+    assert.ok(question.workedExample.length >= 2, `${question.title} 应至少有两步演练`);
+    assert.ok(question.followUps.every((followUp) => typeof followUp === 'object' && followUp.answer), `${question.title} 追问必须带完整答案对象`);
+  }
+});
+
+test('大模型推理原理题卡满足完整初学者学习契约', () => {
+  const ids = new Set([
+    'inf-why-slow', 'inf-transformer-compute', 'inf-prefill-decode',
+    'inf-prefill-compute-bound', 'inf-first-token-slow', 'inf-ttft-tpot',
+    'inf-batch-throughput', 'inf-gpu-util-low', 'inf-arithmetic-intensity',
+    'inf-compute-vs-memory-bound',
   ]);
   const cards = questions.filter((question) => ids.has(question.id));
 
