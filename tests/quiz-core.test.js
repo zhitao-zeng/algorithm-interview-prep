@@ -178,3 +178,41 @@ test('模型手写与 ASR 专项题卡满足完整初学者学习契约', () => 
     assert.ok(question.followUps.every((followUp) => typeof followUp === 'object' && followUp.answer), `${question.title} 追问必须带完整答案对象`);
   }
 });
+
+test('CTC prefix beam 正确处理 blank 分隔的重复 token', () => {
+  const card = questions.find((question) => question.id === 'ctc-prefix-beam');
+  const assertion = `
+import math
+scores = [[math.log(0.05), math.log(0.9)], [math.log(0.9), math.log(0.05)], [math.log(0.05), math.log(0.9)]]
+assert ctc_prefix_beam(scores, 0, beam_size=3) == [1, 1]
+`;
+  const result = spawnSync('python3', ['-c', `${card.code}\n${assertion}`], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('模型题卡声明关键输入边界与复杂度', () => {
+  const beam = questions.find((question) => question.id === 'beam-search');
+  assert.match(beam.complexity, /log V/);
+  assert.match(beam.code, /beam_size <= 0|beam_size<=0/);
+  assert.match(beam.code, /finished/);
+  const ctc = questions.find((question) => question.id === 'ctc-prefix-beam');
+  assert.match(ctc.complexity, /log\(beam·V\)|log\(beam/);
+  const kmeans = questions.find((question) => question.id === 'kmeans');
+  assert.match(kmeans.code, /iterations <= 0|iterations<=0/);
+  const conv = questions.find((question) => question.id === 'convolution');
+  assert.match(conv.code, /kernel larger|kh > h\+2\*padding/);
+  const stream = questions.find((question) => question.id === 'streaming-cache');
+  assert.match(stream.code, /left_context < 0|left_context<0/);
+  const ce = questions.find((question) => question.id === 'cross-entropy');
+  assert.match(ce.code, /labels out of range|labels < 0/);
+  const bce = questions.find((question) => question.id === 'bce');
+  assert.match(bce.code, /targets must be in \[0,1\]|invalid reduction/);
+  const topk = questions.find((question) => question.id === 'topk-sampling');
+  assert.match(topk.code, /isfinite/);
+  const rms = questions.find((question) => question.id === 'rmsnorm');
+  assert.match(rms.code, /weight\.ndim|weight.shape\[0\]/);
+  const rnnt = questions.find((question) => question.id === 'rnnt-greedy');
+  assert.match(rnnt.code, /max_symbols_per_frame.*positive/);
+  const nms = questions.find((question) => question.id === 'nms');
+  assert.match(nms.code, /threshold must be in \[0,1\]/);
+});

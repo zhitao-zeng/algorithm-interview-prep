@@ -836,6 +836,27 @@ enhance('nms', {
   pitfalls: ['order 更新时错误包含已取出的首元素。', '把不同类别的框混在一起抑制。'],
 });
 
+enhance('ctc-prefix-beam', {
+  complexity: '时间 O(T·beam·V log(beam·V))（含候选排序），峰值空间 O(beam·V·T)（候选前缀 tuple）',
+  code: py('import math\n\ndef _logadd(a, b):\n    if a == -math.inf: return b\n    if b == -math.inf: return a\n    m = max(a, b); return m + math.log(math.exp(a-m)+math.exp(b-m))\n\ndef ctc_prefix_beam(log_probs, blank, beam_size=3):\n    if beam_size <= 0: raise ValueError("beam_size must be positive")\n    if not log_probs: return []\n    vocab = len(log_probs[0])\n    if not 0 <= blank < vocab: raise ValueError("blank out of range")\n    beams = {(): (0.0, -math.inf)}\n    for frame in log_probs:\n        if len(frame) != vocab: raise ValueError("inconsistent vocabulary size")\n        next_scores = {}\n        for prefix, (pb, pnb) in beams.items():\n            total = _logadd(pb, pnb); old = next_scores.get(prefix, (-math.inf, -math.inf))\n            next_scores[prefix] = (_logadd(old[0], total + float(frame[blank])), old[1])\n            for token, value in enumerate(frame):\n                if token == blank: continue\n                lp = float(value); last = prefix[-1] if prefix else None\n                if token == last:\n                    same = next_scores.get(prefix, (-math.inf, -math.inf))\n                    next_scores[prefix] = (same[0], _logadd(same[1], pnb + lp))\n                    extended = prefix + (token,); ext = next_scores.get(extended, (-math.inf, -math.inf))\n                    next_scores[extended] = (ext[0], _logadd(ext[1], pb + lp))\n                else:\n                    extended = prefix + (token,); ext = next_scores.get(extended, (-math.inf, -math.inf))\n                    next_scores[extended] = (ext[0], _logadd(ext[1], total + lp))\n        beams = dict(sorted(next_scores.items(), key=lambda item: _logadd(*item[1]), reverse=True)[:beam_size])\n    return list(max(beams.items(), key=lambda item: _logadd(*item[1]))[0])'),
+});
+
+enhance('rmsnorm', {
+  code: py('import torch\n\ndef rms_norm(x, weight, eps=1e-6):\n    x = torch.as_tensor(x, dtype=torch.float32); weight = torch.as_tensor(weight, dtype=x.dtype)\n    if weight.ndim != 1 or weight.shape[0] != x.shape[-1]: raise ValueError("weight must be shape (D,)")\n    rms = torch.sqrt(x.square().mean(dim=-1, keepdim=True) + eps)\n    return x/rms * weight'),
+});
+
+enhance('rnnt-greedy', {
+  code: py('import numpy as np\n\ndef rnnt_greedy(encoder, predictor_start, joint, predictor_step, blank, max_symbols_per_frame=5):\n    if max_symbols_per_frame <= 0: raise ValueError("max_symbols_per_frame must be positive")\n    state = predictor_start(); output = []\n    for frame in encoder:\n        for _ in range(max_symbols_per_frame):\n            token = int(np.asarray(joint(frame, state)).argmax())\n            if token == blank: break\n            output.append(token); state = predictor_step(token, state)\n    return output'),
+});
+
+enhance('streaming-cache', {
+  code: py('import numpy as np\n\ndef streaming_encode(chunks, encode_chunk, left_context=16):\n    if left_context < 0: raise ValueError("left_context must be non-negative")\n    cache = None; outputs = []\n    for chunk in chunks:\n        chunk = np.asarray(chunk, dtype=float)\n        context = chunk if cache is None else np.concatenate([cache, chunk], axis=0)\n        old_len = 0 if cache is None else len(cache)\n        outputs.append(encode_chunk(context, old_len))\n        cache = context[-left_context:] if left_context else context[:0]\n    return outputs, cache'),
+});
+
+enhance('nms', {
+  code: py('import numpy as np\n\ndef nms(boxes, scores, threshold=0.5):\n    boxes, scores = np.asarray(boxes, float), np.asarray(scores, float)\n    if boxes.ndim != 2 or boxes.shape[1:] != (4,) or scores.shape != (len(boxes),): raise ValueError("boxes must be (N,4), scores (N,)")\n    if not 0 <= threshold <= 1: raise ValueError("threshold must be in [0,1]")\n    order = scores.argsort()[::-1]; keep = []\n    while order.size:\n        i = int(order[0]); keep.append(i); rest = order[1:]; survivors = []\n        for j in rest:\n            ax1,ay1,ax2,ay2=boxes[i]; bx1,by1,bx2,by2=boxes[int(j)]\n            iw=max(0.0,min(ax2,bx2)-max(ax1,bx1)); ih=max(0.0,min(ay2,by2)-max(ay1,by1)); inter=iw*ih\n            aa=max(0.0,ax2-ax1)*max(0.0,ay2-ay1); ab=max(0.0,bx2-bx1)*max(0.0,by2-by1); union=aa+ab-inter\n            if (inter/union if union else 0.0) <= threshold: survivors.append(int(j))\n        order=np.asarray(survivors,dtype=int)\n    return keep'),
+});
+
 enhance('convolution', {
   beginnerSummary: '输入单通道图像 x 形状 (H,W)、核形状 (K,K)，stride S、padding P；输出尺寸 floor((H+2P-K)/S)+1 与宽度同理。代码按深度学习的互相关（不翻核）。',
   prerequisites: ['每个输出像素是滑窗与 kernel 的逐元素乘加。', 'padding 先在边缘补零，stride 决定窗口每次移动多少格。'],
@@ -846,6 +867,27 @@ enhance('convolution', {
   edgeCases: ['kernel 大于补零后图像时输出尺寸可能非正，应先检查', 'stride>1 会下采样', 'padding=0 是无边界补零的 valid 模式'],
   followUps: [{ question: '为什么叫卷积却不翻转 kernel？', answer: '深度学习框架通常实现互相关，训练会学习到等价方向；数学卷积若严格定义需翻转核。' }, { question: '多通道如何扩展？', answer: '输入增加 C 维，窗口对每个通道求和；每个输出通道拥有一组 (C,kh,kw) 核并加 bias。' }],
   pitfalls: ['输出尺寸漏掉 +2P 或 stride。', '切片终点使用 ox+kw 而忘记乘 stride。'],
+});
+
+enhance('ctc-prefix-beam', {
+  complexity: '时间 O(T·beam·V log(beam·V))（含候选排序），峰值空间 O(beam·V·T)（候选前缀 tuple）',
+  code: py('import math\n\ndef _logadd(a, b):\n    if a == -math.inf: return b\n    if b == -math.inf: return a\n    m = max(a, b); return m + math.log(math.exp(a-m)+math.exp(b-m))\n\ndef ctc_prefix_beam(log_probs, blank, beam_size=3):\n    if beam_size <= 0: raise ValueError("beam_size must be positive")\n    if not log_probs: return []\n    vocab = len(log_probs[0])\n    if not 0 <= blank < vocab: raise ValueError("blank out of range")\n    beams = {(): (0.0, -math.inf)}\n    for frame in log_probs:\n        if len(frame) != vocab: raise ValueError("inconsistent vocabulary size")\n        next_scores = {}\n        for prefix, (pb, pnb) in beams.items():\n            total = _logadd(pb, pnb); old = next_scores.get(prefix, (-math.inf, -math.inf))\n            next_scores[prefix] = (_logadd(old[0], total + float(frame[blank])), old[1])\n            for token, value in enumerate(frame):\n                if token == blank: continue\n                lp = float(value); last = prefix[-1] if prefix else None\n                if token == last:\n                    same = next_scores.get(prefix, (-math.inf, -math.inf))\n                    next_scores[prefix] = (same[0], _logadd(same[1], pnb + lp))\n                    extended = prefix + (token,); ext = next_scores.get(extended, (-math.inf, -math.inf))\n                    next_scores[extended] = (ext[0], _logadd(ext[1], pb + lp))\n                else:\n                    extended = prefix + (token,); ext = next_scores.get(extended, (-math.inf, -math.inf))\n                    next_scores[extended] = (ext[0], _logadd(ext[1], total + lp))\n        beams = dict(sorted(next_scores.items(), key=lambda item: _logadd(*item[1]), reverse=True)[:beam_size])\n    return list(max(beams.items(), key=lambda item: _logadd(*item[1]))[0])'),
+});
+
+enhance('rmsnorm', {
+  code: py('import torch\n\ndef rms_norm(x, weight, eps=1e-6):\n    x = torch.as_tensor(x, dtype=torch.float32); weight = torch.as_tensor(weight, dtype=x.dtype)\n    if weight.ndim != 1 or weight.shape[0] != x.shape[-1]: raise ValueError("weight must be shape (D,)")\n    rms = torch.sqrt(x.square().mean(dim=-1, keepdim=True) + eps)\n    return x/rms * weight'),
+});
+
+enhance('rnnt-greedy', {
+  code: py('import numpy as np\n\ndef rnnt_greedy(encoder, predictor_start, joint, predictor_step, blank, max_symbols_per_frame=5):\n    if max_symbols_per_frame <= 0: raise ValueError("max_symbols_per_frame must be positive")\n    state = predictor_start(); output = []\n    for frame in encoder:\n        for _ in range(max_symbols_per_frame):\n            token = int(np.asarray(joint(frame, state)).argmax())\n            if token == blank: break\n            output.append(token); state = predictor_step(token, state)\n    return output'),
+});
+
+enhance('streaming-cache', {
+  code: py('import numpy as np\n\ndef streaming_encode(chunks, encode_chunk, left_context=16):\n    if left_context < 0: raise ValueError("left_context must be non-negative")\n    cache = None; outputs = []\n    for chunk in chunks:\n        chunk = np.asarray(chunk, dtype=float)\n        context = chunk if cache is None else np.concatenate([cache, chunk], axis=0)\n        old_len = 0 if cache is None else len(cache)\n        outputs.append(encode_chunk(context, old_len))\n        cache = context[-left_context:] if left_context else context[:0]\n    return outputs, cache'),
+});
+
+enhance('nms', {
+  code: py('import numpy as np\n\ndef nms(boxes, scores, threshold=0.5):\n    boxes, scores = np.asarray(boxes, float), np.asarray(scores, float)\n    if boxes.ndim != 2 or boxes.shape[1:] != (4,) or scores.shape != (len(boxes),): raise ValueError("boxes must be (N,4), scores (N,)")\n    if not 0 <= threshold <= 1: raise ValueError("threshold must be in [0,1]")\n    order = scores.argsort()[::-1]; keep = []\n    while order.size:\n        i = int(order[0]); keep.append(i); rest = order[1:]; survivors = []\n        for j in rest:\n            ax1,ay1,ax2,ay2=boxes[i]; bx1,by1,bx2,by2=boxes[int(j)]\n            iw=max(0.0,min(ax2,bx2)-max(ax1,bx1)); ih=max(0.0,min(ay2,by2)-max(ay1,by1)); inter=iw*ih\n            aa=max(0.0,ax2-ax1)*max(0.0,ay2-ay1); ab=max(0.0,bx2-bx1)*max(0.0,by2-by1); union=aa+ab-inter\n            if (inter/union if union else 0.0) <= threshold: survivors.append(int(j))\n        order=np.asarray(survivors,dtype=int)\n    return keep'),
 });
 
 enhance('attention', {
@@ -942,4 +984,46 @@ enhance('streaming-cache', {
   edgeCases: ['首个 chunk 没有历史缓存', 'left_context=0 表示无历史上下文', 'chunk 为空时应由 encode_chunk 定义行为'],
   followUps: [{ question: '如何降低首字延迟？', answer: '减小 chunk 和右上下文，或采用更早的稳定前缀提交；代价是吞吐和上下文可能下降。' }, { question: '为什么缓存必须截断？', answer: '无限缓存会让每个 chunk 的注意力和显存随音频总长度线性增长，最终失去流式优势。' }],
   pitfalls: ['只缓存输出不缓存卷积左上下文，导致 chunk 边界断裂。', 'cache 与 chunk 维度不一致，拼接后产生隐性广播或错误。'],
+});
+
+// 边界与数值安全修订。
+enhance('cross-entropy', {
+  code: py('import numpy as np\n\ndef cross_entropy(logits, labels):\n    logits = np.asarray(logits, dtype=float)  # (B,C)\n    labels = np.asarray(labels, dtype=int)\n    if logits.ndim != 2 or logits.shape[0] == 0 or labels.shape != (logits.shape[0],):\n        raise ValueError("logits must be non-empty (B,C), labels must be (B,)")\n    if np.any(labels < 0) or np.any(labels >= logits.shape[1]):\n        raise ValueError("labels out of range")\n    shifted = logits - logits.max(axis=1, keepdims=True)\n    logsumexp = np.log(np.exp(shifted).sum(axis=1))\n    log_prob = shifted - logsumexp[:, None]\n    return float(-log_prob[np.arange(logits.shape[0]), labels].mean())'),
+});
+
+enhance('bce', {
+  code: py('import numpy as np\n\ndef bce_with_logits(logits, targets, reduction="mean"):\n    x = np.asarray(logits, dtype=float); y = np.asarray(targets, dtype=float)\n    if x.shape != y.shape: raise ValueError("logits and targets must have the same shape")\n    if np.any((y < 0) | (y > 1)): raise ValueError("targets must be in [0,1]")\n    if reduction not in ("none", "sum", "mean"): raise ValueError("invalid reduction")\n    loss = np.maximum(x, 0.0) - x*y + np.log1p(np.exp(-np.abs(x)))\n    if reduction == "none": return loss\n    if reduction == "sum": return float(loss.sum())\n    return float(loss.mean())'),
+});
+
+enhance('batchnorm', {
+  code: py('import numpy as np\n\ndef batch_norm(x, gamma, beta, running_mean, running_var, training=True, momentum=0.1, eps=1e-5):\n    x = np.asarray(x, dtype=float); gamma, beta = np.asarray(gamma), np.asarray(beta)\n    running_mean, running_var = np.asarray(running_mean), np.asarray(running_var)\n    if x.ndim != 2 or gamma.shape != (x.shape[1],) or beta.shape != (x.shape[1],): raise ValueError("BN shapes must be (B,C) and (C,)")\n    if running_mean.shape != gamma.shape or running_var.shape != gamma.shape: raise ValueError("running stats shape mismatch")\n    if not 0 <= momentum <= 1: raise ValueError("momentum must be in [0,1]")\n    if training:\n        mean, var = x.mean(axis=0), x.var(axis=0)\n        running_mean[...] = (1-momentum)*running_mean + momentum*mean\n        running_var[...] = (1-momentum)*running_var + momentum*var\n    else: mean, var = running_mean, running_var\n    return gamma*(x-mean)/np.sqrt(var+eps) + beta'),
+});
+
+enhance('topk-sampling', {
+  code: py('import numpy as np\n\ndef top_k_sample(logits, k, rng=None):\n    logits = np.asarray(logits, dtype=float)\n    if logits.ndim != 1 or not 1 <= k <= logits.size: raise ValueError("invalid logits or k")\n    if not np.all(np.isfinite(logits)): raise ValueError("top-k logits must be finite")\n    idx = np.argpartition(logits, -k)[-k:]; values = logits[idx]\n    probs = np.exp(values-values.max()); probs /= probs.sum()\n    generator = np.random.default_rng() if rng is None else rng\n    return int(generator.choice(idx, p=probs))'),
+});
+
+enhance('beam-search', {
+  complexity: '时间 O(T·beam·V log V)，候选排序另有 O(T·beam² log beam)；峰值空间 O(beam²·T)（候选完整序列），保留束 O(beam·T)',
+  beginnerSummary: '束搜索维护最多 beam_size 条序列及累计 log 概率。EOS 只标记序列完成、不作为普通输出 token；每步按分数保留候选。',
+  edgeCases: ['beam_size<=0 或 eos 越界立即报错', '没有 EOS 时运行到 max 步返回当前最高分', '存在完成序列时最终优先从完成序列选最高分'],
+  code: py('import numpy as np\n\ndef beam_search(log_probs, beam_size=3, eos=0):\n    log_probs = np.asarray(log_probs, dtype=float)  # (T,V,V)\n    if log_probs.ndim != 3: raise ValueError("log_probs must be (T,V,V)")\n    if beam_size <= 0: raise ValueError("beam_size must be positive")\n    vocab = log_probs.shape[-1]\n    if log_probs.shape[1] != vocab or not 0 <= eos < vocab: raise ValueError("invalid EOS or vocabulary shape")\n    beams = [((), 0.0, False)]; finished = []\n    for t in range(log_probs.shape[0]):\n        candidates = []\n        for seq, score, done in beams:\n            if done: candidates.append((seq, score, True)); continue\n            row = log_probs[t, seq[-1] if seq else 0]\n            for token in np.argsort(row)[-beam_size:]:\n                token = int(token); new_score = score + float(row[token])\n                if token == eos: candidates.append((seq, new_score, True))\n                else: candidates.append((seq+(token,), new_score, False))\n        candidates.sort(key=lambda item: item[1], reverse=True)\n        beams = candidates[:beam_size]\n        finished.extend(item for item in beams if item[2])\n        if beams and all(done for _, _, done in beams): break\n    pool = finished if finished else beams\n    return list(max(pool, key=lambda item: item[1])[0]) if pool else []'),
+});
+
+enhance('kmeans', {
+  code: py('import numpy as np\n\ndef kmeans(x, k, iterations=20, seed=0):\n    x = np.asarray(x, dtype=float)\n    if x.ndim != 2 or not 1 <= k <= len(x): raise ValueError("invalid x or k")\n    if iterations <= 0: raise ValueError("iterations must be positive")\n    rng = np.random.default_rng(seed); centers = x[rng.choice(len(x), size=k, replace=False)].copy()\n    for _ in range(iterations):\n        dist = ((x[:, None, :]-centers[None, :, :])**2).sum(axis=2); labels = dist.argmin(axis=1)\n        for j in range(k):\n            members = x[labels == j]\n            centers[j] = members.mean(axis=0) if len(members) else x[dist.min(axis=1).argmax()]\n    final_dist = ((x[:, None, :]-centers[None, :, :])**2).sum(axis=2)\n    return final_dist.argmin(axis=1), centers'),
+});
+
+enhance('ctc-prefix-beam', {
+  complexity: '时间 O(T·beam·V log(beam·V))（含候选排序），峰值空间 O(beam·V·T)（候选前缀 tuple）',
+  code: py('import math\n\ndef _logadd(a,b):\n    if a == -math.inf: return b\n    if b == -math.inf: return a\n    m=max(a,b); return m+math.log(math.exp(a-m)+math.exp(b-m))\n\ndef ctc_prefix_beam(log_probs, blank, beam_size=3):\n    if beam_size<=0: raise ValueError("beam_size must be positive")\n    if not log_probs: return []\n    vocab=len(log_probs[0]); beams={(): (0.0,-math.inf)}\n    for frame in log_probs:\n        if len(frame)!=vocab or not 0<=blank<vocab: raise ValueError("invalid log_probs or blank")\n        nxt={}\n        for prefix,(pb,pnb) in beams.items():\n            total=_logadd(pb,pnb); old=nxt.get(prefix,(-math.inf,-math.inf))\n            nxt[prefix]=(_logadd(old[0],total+float(frame[blank])),old[1])\n            for token,value in enumerate(frame):\n                if token==blank: continue\n                lp=float(value); last=prefix[-1] if prefix else None\n                if token==last:\n                    same=nxt.get(prefix,(-math.inf,-math.inf)); nxt[prefix]=(same[0],_logadd(same[1],pnb+lp))\n                    ext=prefix+(token,); prev=nxt.get(ext,(-math.inf,-math.inf)); nxt[ext]=(prev[0],_logadd(prev[1],pb+lp))\n                else:\n                    ext=prefix+(token,); prev=nxt.get(ext,(-math.inf,-math.inf)); nxt[ext]=(prev[0],_logadd(prev[1],total+lp))\n        beams=dict(sorted(nxt.items(),key=lambda item:_logadd(*item[1]),reverse=True)[:beam_size])\n    return list(max(beams.items(),key=lambda item:_logadd(*item[1]))[0])'),
+});
+enhance('rmsnorm', { code: py('import torch\n\ndef rms_norm(x,weight,eps=1e-6):\n    x=torch.as_tensor(x,dtype=torch.float32); weight=torch.as_tensor(weight,dtype=x.dtype)\n    if weight.ndim!=1 or weight.shape[0]!=x.shape[-1]: raise ValueError("weight must be shape (D,)")\n    return x/torch.sqrt(x.square().mean(dim=-1,keepdim=True)+eps)*weight') });
+enhance('rnnt-greedy', { code: py('import numpy as np\n\ndef rnnt_greedy(encoder,predictor_start,joint,predictor_step,blank,max_symbols_per_frame=5):\n    if max_symbols_per_frame<=0: raise ValueError("max_symbols_per_frame must be positive")\n    state=predictor_start(); out=[]\n    for frame in encoder:\n        for _ in range(max_symbols_per_frame):\n            token=int(np.asarray(joint(frame,state)).argmax())\n            if token==blank: break\n            out.append(token); state=predictor_step(token,state)\n    return out') });
+enhance('streaming-cache', { code: py('import numpy as np\n\ndef streaming_encode(chunks,encode_chunk,left_context=16):\n    if left_context<0: raise ValueError("left_context must be non-negative")\n    cache=None; outputs=[]\n    for chunk in chunks:\n        chunk=np.asarray(chunk,dtype=float); context=chunk if cache is None else np.concatenate([cache,chunk],axis=0)\n        outputs.append(encode_chunk(context,0 if cache is None else len(cache))); cache=context[-left_context:] if left_context else context[:0]\n    return outputs,cache') });
+enhance('nms', { code: py('import numpy as np\n\ndef nms(boxes,scores,threshold=0.5):\n    boxes,scores=np.asarray(boxes,float),np.asarray(scores,float)\n    if boxes.ndim!=2 or boxes.shape[1:]!=(4,) or scores.shape!=(len(boxes),): raise ValueError("boxes must be (N,4), scores (N,)")\n    if not 0<=threshold<=1: raise ValueError("threshold must be in [0,1]")\n    order=scores.argsort()[::-1]; keep=[]\n    while order.size:\n        i=int(order[0]); keep.append(i); rest=order[1:]; survivors=[]\n        for j in rest:\n            ax1,ay1,ax2,ay2=boxes[i]; bx1,by1,bx2,by2=boxes[int(j)]; iw=max(0,min(ax2,bx2)-max(ax1,bx1)); ih=max(0,min(ay2,by2)-max(ay1,by1)); inter=iw*ih; aa=max(0,ax2-ax1)*max(0,ay2-ay1); ab=max(0,bx2-bx1)*max(0,by2-by1); union=aa+ab-inter\n            if (inter/union if union else 0)<=threshold: survivors.append(int(j))\n        order=np.asarray(survivors,dtype=int)\n    return keep') });
+enhance('convolution', {
+  edgeCases: ['stride<=0 或 padding<0 报错', 'kernel 大于补零后图像时报错', 'padding=0 是 valid 模式'],
+  complexity: '时间 O(HW·K²)，空间 O(HW)',
+  code: py('import numpy as np\n\ndef conv2d(image, kernel, stride=1, padding=0):\n    image, kernel = np.asarray(image, float), np.asarray(kernel, float)\n    if image.ndim != 2 or kernel.ndim != 2: raise ValueError("image and kernel must be 2-D")\n    if stride <= 0 or padding < 0: raise ValueError("invalid stride or padding")\n    h, w = image.shape; kh, kw = kernel.shape\n    if kh > h+2*padding or kw > w+2*padding: raise ValueError("kernel larger than padded image")\n    padded = np.pad(image, ((padding,padding),(padding,padding)))\n    oh = (h+2*padding-kh)//stride + 1; ow = (w+2*padding-kw)//stride + 1\n    out = np.empty((oh, ow), float)\n    for oy in range(oh):\n        for ox in range(ow): out[oy,ox] = (padded[oy*stride:oy*stride+kh, ox*stride:ox*stride+kw]*kernel).sum()\n    return out'),
 });
