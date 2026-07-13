@@ -62,6 +62,16 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
     && card[field].length >= minimum
     && card[field].every(isNonEmptyString)
   );
+  const hasValidFollowUps = () => (
+    Array.isArray(card?.followUps)
+    && card.followUps.length >= 2
+    && (
+      card.followUps.every(isNonEmptyString)
+      || card.followUps.every(
+        (followUp) => isNonEmptyString(followUp?.question) && isNonEmptyString(followUp?.answer),
+      )
+    )
+  );
   const scalarFields = [
     'id',
     'prompt',
@@ -92,7 +102,7 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
     if (field in (card ?? {}) && !hasNonEmptyStrings(field)) addMissing(field);
   }
 
-  if (!beginner && !hasNonEmptyStrings('followUps', 2)) addMissing('followUps');
+  if (!beginner && !hasValidFollowUps()) addMissing('followUps');
   if (Array.isArray(card?.edgeCases) && card.edgeCases.length < 3) addMissing('edgeCases');
   if (Array.isArray(card?.pitfalls) && card.pitfalls.length < 2) addMissing('pitfalls');
   if (Array.isArray(card?.followUpAnswers) && card.followUpAnswers.length < 2) {

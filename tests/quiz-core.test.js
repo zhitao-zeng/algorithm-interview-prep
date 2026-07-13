@@ -42,6 +42,19 @@ test('初学者卡片满足学习内容契约', () => {
   }
 });
 
+test('默认校验接受迁移后的问答对象', () => {
+  assert.equal(validateQuestionCard(beginnerFixture).valid, true);
+});
+
+test('默认校验仍接受旧版字符串追问', () => {
+  const legacyFixture = {
+    ...beginnerFixture,
+    followUps: ['为什么这样做？', '复杂度是多少？'],
+  };
+
+  assert.equal(validateQuestionCard(legacyFixture).valid, true);
+});
+
 test('快速详情按初学者学习顺序展示', () => {
   assert.deepEqual(
     detailSections(beginnerFixture, 'quick').map((section) => section.key),
