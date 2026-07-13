@@ -118,6 +118,21 @@ test('数组窗口与二分 TopK 代码行为覆盖关键边界', () => {
   assert.match(window.workedExample[1], /\[-1,-3,5\]/);
 });
 
+test('搜索图与动态规划第三批题卡满足完整初学者学习契约', () => {
+  const ids = new Set(['46', '78', '39', '79', '994', '200', '53', '121', '198', '55', '1143', '139', '416', '72']);
+  const cards = questions.filter((question) => ids.has(question.id));
+  assert.equal(cards.length, ids.size);
+  for (const id of ids) {
+    assert.equal(questions.filter((question) => question.id === id).length, 1, `题目 ${id} 应只出现一次`);
+  }
+  for (const question of cards) {
+    assert.equal(validateQuestionCard(question, { beginner: true }).valid, true, question.title);
+    assert.match(question.code, /def |class |from |import /, `${question.title} 应提供完整 Python 代码`);
+    assert.ok(question.lineByLine.length >= 3, `${question.title} 应至少有三段逐行讲解`);
+    assert.ok(question.workedExample.length >= 2, `${question.title} 应至少有两步演练`);
+  }
+});
+
 test('快速详情按初学者学习顺序展示', () => {
   assert.deepEqual(
     detailSections(beginnerFixture, 'quick').map((section) => section.key),

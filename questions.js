@@ -345,6 +345,360 @@ export const questions = [
   q('streaming-cache', 'ASR 专项', 'Hard', '流式 ASR 缓存', 'Transformer/Conformer 流式识别如何缓存。', '缓存历史 KV 或左上下文；每个 chunk 只算新增帧，并控制右上下文带来的延迟。', py('cache=init_cache()\nfor chunk in stream:\n    y,cache=encoder(chunk,cache,left_context=L)\n    partial=decoder.step(y,decoder_cache)\n    emit_stable_prefix(partial)'), '每 chunk 约 O(chunk·context)，缓存 O(context)', { followUps: ['如何降低首字延迟？', '缓存为何要截断？'], followUpAnswers: ['减小 chunk 和右上下文，或使用更早的稳定前缀策略。', '无限缓存会使计算和显存随音频长度线性增长。'] }),
 ];
 
+// 第三批题卡的完整初学者内容：保留题目顺序，只替换迁移阶段的占位代码和讲解。
+const enhance = (id, fields) => Object.assign(questions.find((question) => question.id === id), fields);
+enhance('46', {
+  beginnerSummary: '排列要求每个位置都放一个尚未使用的数字；走到底就得到一种顺序，退回一步时必须撤销选择。',
+  prerequisites: ['回溯状态由 path（当前顺序）和 used（数字是否占用）组成。', 'path[:] 是快照，不能把之后会变化的同一个列表直接放进答案。'],
+  workedExample: ['nums=[1,2,3] 先选 1，再选 2、3 得到 [1,2,3]。', '退回到 [1,2] 撤销 3，再换成其他未使用数字；最终得到 6 种顺序。'],
+  derivation: ['暴力枚举 n! 个顺序仍需避免同一层重复占用数字。', '每层选择一个未使用下标，递归返回后恢复 used 和 path，搜索树的每条根到叶路径恰好对应一个排列。'],
+  code: py(`def permute(nums):
+    result = []
+    path = []
+    used = [False] * len(nums)
+
+    def dfs():
+        if len(path) == len(nums):
+            result.append(path[:])
+            return
+        for i, value in enumerate(nums):
+            if used[i]:
+                continue
+            used[i] = True
+            path.append(value)
+            dfs()
+            path.pop()
+            used[i] = False
+
+    dfs()
+    return result`),
+  lineByLine: ['used 按下标记录某个元素是否已经放入当前 path。', '达到 n 个元素时复制 path，随后 return 让上一层尝试下一个选择。', '递归调用后先 pop，再把 used[i] 恢复为 False，保证兄弟分支互不污染。', '空数组的 dfs 立即收集一个空排列 [[]]。'],
+  edgeCases: ['空数组返回 [[]]，表示唯一的空排列', '单元素只有一个排列', '题目保证无重复；若允许重复值需先排序并跳过同层重复'],
+  followUps: [{ question: '为什么要标记下标而不是值？', answer: '这样即使输入出现相同值也能区分两个位置；无重复题目中两者都可行，但下标更稳健。' }, { question: '如何只求排列数量？', answer: '无需保存 path 和 result，返回 n! 或在回溯叶子处累加计数即可，从 O(n·n!) 的输出空间降为 O(n)。' }],
+  pitfalls: ['忘记复制 path 导致所有答案最后都指向空列表。', '忘记恢复 used 会让后续排列缺少元素。'],
+});
+enhance('78', {
+  beginnerSummary: '每个元素只有“选入”或“不选入”两条分支；到达数组末尾时，当前 path 就是一份子集。',
+  prerequisites: ['子集不考虑元素顺序，因此递归下标只向右移动。', '每个叶子都要复制 path，空集是必然存在的结果。'],
+  workedExample: ['nums=[1,2]：根节点不选 1 得到空集或 [2]。', '选 1 的分支再决定 2，得到 [1] 和 [1,2]，总共 4 个子集。'],
+  derivation: ['每个元素二选一，搜索树有 2^n 个叶子。', '也可在每次进入 dfs 时收集当前 path，再从 start 开始尝试后续元素，天然避免排列重复。'],
+  code: py(`def subsets(nums):
+    result = []
+    path = []
+
+    def dfs(start):
+        result.append(path[:])
+        for i in range(start, len(nums)):
+            path.append(nums[i])
+            dfs(i + 1)
+            path.pop()
+
+    dfs(0)
+    return result`),
+  lineByLine: ['每次进入 dfs 都先收集当前 path，所以空集和中间层组合都会出现。', 'i 从 start 开始，保证后面元素不会回到前面形成重复排列。', '递归完成后 pop 撤销本层选择，继续尝试同层下一个元素。'],
+  edgeCases: ['空数组返回 [[]]', '输入有重复值时若要求去重需排序并跳过同层相等元素', '子集数量为 2^n，输出本身占主要空间'],
+  followUps: [{ question: '为什么递归参数是 i+1？', answer: '当前元素只能使用一次，下一层必须从它右边开始；若允许重复使用才会传 i。' }, { question: '如何生成固定大小 k 的子集？', answer: '只有 len(path)==k 时收集，并在剩余元素不足以凑满 k 时剪枝。' }],
+  pitfalls: ['把 start 写成 0 会重复生成同一组合的不同排列。', '只在叶子收集会漏掉空集和中间长度的子集。'],
+});
+enhance('39', {
+  beginnerSummary: '组合中的数字可重复使用，但同一层只能从当前下标及其右侧挑选，避免 [2,3] 与 [3,2] 重复。',
+  prerequisites: ['先排序，使 candidates[i] > remain 时可以提前停止。', '递归传 i 而不是 i+1，表示当前数字还可以再次使用。'],
+  workedExample: ['candidates=[2,3,6,7]、target=7：从 2 开始得到 [2,2,3]。', '继续从起点尝试 7 得到 [7]；路径和超过 target 的分支立即返回。'],
+  derivation: ['枚举所有序列会产生大量排列重复。', 'start 约束选择下标不下降，remain 记录还差多少；remain==0 收集，remain<0 或候选过大剪枝。'],
+  code: py(`def combination_sum(candidates, target):
+    candidates = sorted(set(candidates))
+    result = []
+    path = []
+
+    def dfs(start, remain):
+        if remain == 0:
+            result.append(path[:])
+            return
+        for i in range(start, len(candidates)):
+            value = candidates[i]
+            if value > remain:
+                break
+            path.append(value)
+            dfs(i, remain - value)
+            path.pop()
+
+    dfs(0, target)
+    return result`),
+  lineByLine: ['sorted(set(...)) 让剪枝成立并消除输入中的重复候选。', 'remain==0 是成功终止；path[:] 保存当前组合。', '递归使用 i 而非 i+1，体现数字可以重复使用。', 'for 循环退出前 pop，恢复现场。'],
+  edgeCases: ['target=0 返回一个空组合 [[]]', '空候选或 target<0 返回空列表', '候选必须为正数；若含 0 或负数需额外防止无限递归'],
+  followUps: [{ question: '为什么不会生成 [3,2]？', answer: '下一层 start 不小于当前 i，只允许下标不下降，因此组合按非降序构造。' }, { question: '每个候选只能用一次怎么办？', answer: '把递归参数改为 i+1；若同层去重，还要排序并跳过 candidates[i]==candidates[i-1]。' }],
+  pitfalls: ['误传 i+1 会漏掉重复使用当前数字的合法答案。', '未排序就 break 会错误剪掉后续较小候选。'],
+});
+enhance('79', {
+  beginnerSummary: '从每个与单词首字母相同的格子出发，四方向走；当前格暂时改成 #，递归失败后必须恢复原字母。',
+  prerequisites: ['路径不能重复使用同一格，visited 可用原地标记实现。', 'k 表示正在匹配 word[k]；匹配完最后一个字母即可成功。'],
+  workedExample: ['board=[A,B;C,D]、word="AB"：从 A 向右走到 B，k 到末尾返回 True。', '若某条路把 A 标成 # 后走不通，恢复 A，才能从其他起点或方向再次尝试。'],
+  derivation: ['单纯 DFS 若不记录路径会在环中重复使用格子。', '每次进入格子先检查边界、字符和访问状态；退出前恢复现场，使不同分支共享同一棋盘。'],
+  code: py(`def exist(board, word):
+    if not word:
+        return True
+    if not board or not board[0]:
+        return False
+    rows, cols = len(board), len(board[0])
+
+    def dfs(r, c, k):
+        if k == len(word):
+            return True
+        if r < 0 or r >= rows or c < 0 or c >= cols or board[r][c] != word[k]:
+            return False
+        original = board[r][c]
+        board[r][c] = '#'
+        found = any(dfs(r + dr, c + dc, k + 1)
+                    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)))
+        board[r][c] = original
+        return found
+
+    return any(dfs(r, c, 0) for r in range(rows) for c in range(cols))`),
+  lineByLine: ['边界和字符检查放在访问前，避免越界或匹配错误字母。', 'original 保存字符，# 标记当前路径已占用。', '四个方向任一成功就返回 True，但无论成功与否都恢复 original。', '遍历所有起点，任何一个起点成功即可结束。'],
+  edgeCases: ['空 word 约定返回 True', '空棋盘返回 False（非空 word）', '单行或单列棋盘仍只能按相邻方向移动'],
+  followUps: [{ question: '为什么恢复现场不能省略？', answer: '同一个格子可能属于另一条候选路径；不恢复会把失败分支的标记泄漏给后续搜索。' }, { question: '如何降低搜索量？', answer: '先比较棋盘字符计数与 word 计数，必要时从出现更少的一端反向搜索；也可按相邻字符频率排序方向。' }],
+  pitfalls: ['先递归再标记会让相邻回到当前格。', '用全局 visited 却不按路径撤销，会错误阻断合法分支。'],
+});
+enhance('994', {
+  beginnerSummary: '所有腐烂橘子在同一时刻开始传播；BFS 每处理一层就是过去 1 分钟，最后检查是否仍有新鲜橘子。',
+  prerequisites: ['队列保存待扩散的腐烂坐标，入队时立即把新鲜橘子改为 2。', 'fresh 计数让我们区分已经没有新鲜橘子和永远无法到达的情况。'],
+  workedExample: ['网格 [[2,1,1],[0,1,1]]：初始队列只有 (0,0)，第一层感染两个邻居。', '按层继续传播，fresh 变成 0 时返回经过的分钟数；若被 0 隔断则返回 -1。'],
+  derivation: ['逐个腐烂源做 DFS 会重复计算时间且无法表达同时发生。', '多源 BFS 把所有源放在同一层，层数就是到达每格的最短分钟数。'],
+  code: py(`from collections import deque
+
+def oranges_rotting(grid):
+    if not grid or not grid[0]:
+        return 0
+    rows, cols = len(grid), len(grid[0])
+    queue = deque()
+    fresh = 0
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == 2:
+                queue.append((r, c))
+            elif grid[r][c] == 1:
+                fresh += 1
+    minutes = 0
+    while queue and fresh:
+        for _ in range(len(queue)):
+            r, c = queue.popleft()
+            for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                nr, nc = r + dr, c + dc
+                if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                    grid[nr][nc] = 2
+                    fresh -= 1
+                    queue.append((nr, nc))
+        minutes += 1
+    return minutes if fresh == 0 else -1`),
+  lineByLine: ['扫描时把所有腐烂橘子一起入队，并统计 fresh。', '固定本轮 len(queue)，保证新入队橘子在下一分钟处理。', '感染时立即改为 2 并减少 fresh，避免重复入队。', '队列耗尽仍有 fresh 说明存在隔离区域，返回 -1。'],
+  edgeCases: ['没有新鲜橘子返回 0', '没有腐烂源但有新鲜橘子返回 -1', '空网格返回 0'],
+  followUps: [{ question: '为什么必须多源同时入队？', answer: '多个腐烂源在同一分钟并行传播；统一初始层才能得到每个橘子的最短腐烂时间。' }, { question: '如何不修改输入？', answer: '复制 grid 或额外维护 visited/状态矩阵，代价是 O(mn) 额外空间。' }],
+  pitfalls: ['忘记按层计时会把同一分钟的传播误算成多分钟。', '出队时才标记会导致同一新鲜橘子被重复入队。'],
+});
+enhance('200', {
+  beginnerSummary: '扫描每个格子；遇到陆地就把岛屿数量加一，并用 DFS/BFS 把这个四连通陆地整体淹没，之后不会重复计数。',
+  prerequisites: ['四连通只允许上、下、左、右，不包含对角线。', '访问过的陆地可以原地改成 "0"，也可用 visited 集合记录。'],
+  workedExample: ['网格 [[1,1,0],[0,1,0],[0,0,1]]：左上陆地触发一次 flood，淹没三个相连格。', '最后右下孤立的 1 再触发一次，答案为 2。'],
+  derivation: ['对每个陆地单独判断会重复遍历同一连通块。', '发现一个新岛后一次 flood 访问其所有成员；每格最多进出一次，整体线性。'],
+  code: py(`from collections import deque
+
+def num_islands(grid):
+    if not grid or not grid[0]:
+        return 0
+    rows, cols = len(grid), len(grid[0])
+    islands = 0
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] != '1':
+                continue
+            islands += 1
+            grid[r][c] = '0'
+            queue = deque([(r, c)])
+            while queue:
+                cr, cc = queue.popleft()
+                for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    nr, nc = cr + dr, cc + dc
+                    if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == '1':
+                        grid[nr][nc] = '0'
+                        queue.append((nr, nc))
+    return islands`),
+  lineByLine: ['遇到非 1 格直接跳过，只有未访问陆地才增加 islands。', '入队前立刻淹没起点，保证同一格不会重复入队。', 'BFS 四方向扩展整个连通块，水和对角线都不会连岛。', '外层扫描结束后每个岛只计数一次。'],
+  edgeCases: ['空网格返回 0', '全是 0 返回 0', '单个 1 或只有对角相邻的 1 分别计数'],
+  followUps: [{ question: '可以用 DFS 吗？', answer: '可以，递归或显式栈都能淹没连通块；显式队列更不容易触发 Python 递归深度限制。' }, { question: '为什么入队时就改成 0？', answer: '若等出队才标记，同一陆地可能被多个邻居重复发现，队列会膨胀。' }],
+  pitfalls: ['把对角线也当连通会少算岛屿。', '调用未定义的 flood 辅助函数会使代码无法独立运行。'],
+});
+
+enhance('53', {
+  beginnerSummary: '把 cur 定义为“必须以当前位置结尾”的最大和；当前数可以单独开新子数组，也可以接在旧 cur 后面。',
+  prerequisites: ['连续子数组不能跳过元素。', '全负数组不能把答案初始化为 0，必须从第一个数开始。'],
+  workedExample: ['[-2,1,-3,4]：cur 从 -2 开始，读到 1 时重启为 1。', '读到 4 时比较 4 与 -3+4，重启得到 4；全程 best 记录最大值。'],
+  derivation: ['枚举起点终点是 O(n²)。', '若前缀 cur 为负，接下去只会拖累后面的和，因此在每个位置比较 x 与 cur+x 即可丢弃负前缀。'],
+  code: py(`def max_sub_array(nums):
+    if not nums:
+        return 0
+    cur = best = nums[0]
+    for value in nums[1:]:
+        cur = max(value, cur + value)
+        best = max(best, cur)
+    return best`),
+  lineByLine: ['空输入按约定返回 0。', 'cur 和 best 从首元素初始化，兼容全负数组。', 'cur 比较重启与延续两种选择。', 'best 维护所有结尾位置状态的最大值。'],
+  edgeCases: ['空数组返回 0', '全负数组返回最大（最不负）元素', '单元素直接返回该元素'],
+  followUps: [{ question: '如何返回子数组边界？', answer: '记录 start；当 value 大于 cur+value 时把 start 设为当前位置，并在刷新 best 时保存 start、end。' }, { question: '为什么丢弃负 cur 是安全的？', answer: '任何后缀接上负数都会比从后一个位置重新开始更小，不可能成为更优前缀。' }],
+  pitfalls: ['用 0 初始化会把全负答案错误变成 0。', '把题目连续子数组误当成可跳过元素的子序列。'],
+});
+enhance('121', {
+  beginnerSummary: '每天只能先买后卖一次；扫描时保存之前见过的最低价格，今天卖出所得利润就是 price-min_price。',
+  prerequisites: ['买入下标必须早于卖出下标。', '不交易的利润是 0，所以答案不能为负。'],
+  workedExample: ['prices=[7,1,5,3,6,4]：最低价先变成 1。', '卖出 6 时利润 5，之后价格 4 不会超过当前 best。'],
+  derivation: ['枚举买卖日是 O(n²)。', '对每个卖出日，最优买入一定是此前最低价；一次扫描同时更新低点和利润。'],
+  code: py(`def max_profit(prices):
+    lowest = float('inf')
+    profit = 0
+    for price in prices:
+        lowest = min(lowest, price)
+        profit = max(profit, price - lowest)
+    return profit`),
+  lineByLine: ['lowest 初始化为正无穷，第一天价格会成为最低点。', '先更新最低价，保证只能用过去或当天买入。', 'price-lowest 是以今天卖出的最佳利润。', '空数组循环不执行，返回 0。'],
+  edgeCases: ['空数组或单价格返回 0', '价格单调下降时不交易，返回 0', '价格相同不产生利润'],
+  followUps: [{ question: '如何返回买卖日期？', answer: '更新 lowest 时保存 low_day；刷新 profit 时同时保存 low_day 和当前 day。' }, { question: '允许多次交易时还能用这个状态吗？', answer: '不能；需要持有/不持有状态 DP，或在无手续费时累加每天上涨。' }],
+  pitfalls: ['先用未来最低价再计算会违反时间顺序。', '把负利润返回给调用者，忽略不交易选项。'],
+});
+enhance('198', {
+  beginnerSummary: '处理前 i 间房屋时，最后一间只有“抢”或“不抢”：不抢沿用前一间最优，抢则加上前两间最优。',
+  prerequisites: ['相邻房屋不能同时抢。', 'dp[i] 表示前 i 间（不是下标 i）能得到的最大金额。'],
+  workedExample: ['[2,7,9,3,1]：前两间最优为 0、2、7。', '处理 9 时比较不抢 7 与抢 2+9=11，后面继续得到 12。'],
+  derivation: ['每种抢法暴力枚举会指数增长。', '转移 dp_i=max(dp_{i-1}, dp_{i-2}+value) 只依赖两个前状态，可滚动保存。'],
+  code: py(`def rob(nums):
+    two_back = one_back = 0
+    for amount in nums:
+        two_back, one_back = one_back, max(one_back, two_back + amount)
+    return one_back`),
+  lineByLine: ['两个 0 表示还没有房屋时的基线。', 'two_back 是处理当前前两间的结果，one_back 是前一间结果。', '元组赋值同时推进状态，避免覆盖仍要使用的 two_back。', '空列表自然返回 0。'],
+  edgeCases: ['空数组返回 0', '单屋返回其金额', '金额全为 0 时答案为 0'],
+  followUps: [{ question: '如何恢复抢了哪些房屋？', answer: '保留完整 dp 后从末尾比较 dp[i-1] 与 dp[i-2]+nums[i-1]，沿较优转移反向走。' }, { question: '房屋首尾相邻（环形）怎么办？', answer: '分别求不抢第一间和不抢最后一间的线性结果，取较大值。' }],
+  pitfalls: ['把 prev 变量更新顺序写错会丢失 dp[i-2]。', '错误允许相邻房屋同时抢。'],
+});
+enhance('55', {
+  beginnerSummary: 'far 是扫描到目前为止最远能到达的下标；若当前 i 已超过 far，说明中间出现不可达断点。',
+  prerequisites: ['nums[i] 表示从 i 最多向右跳多少格。', '只需判断可达性，不需要真的枚举每次跳几格。'],
+  workedExample: ['[2,3,1,1,4]：从 0 可到 2，处理 1 时 far 更新到 4。', '[3,2,1,0,4]：far 到 3 后，i=4 超过 far，返回 False。'],
+  derivation: ['DFS 枚举跳法会指数爆炸。', '所有已访问位置的最大覆盖区间可合并为 far；每次只扩展 far，不必保留路径。'],
+  code: py(`def can_jump(nums):
+    if not nums:
+        return False
+    far = 0
+    for i, jump in enumerate(nums):
+        if i > far:
+            return False
+        far = max(far, i + jump)
+        if far >= len(nums) - 1:
+            return True
+    return True`),
+  lineByLine: ['空数组没有起点，按约定返回 False。', 'i>far 说明当前位置不可达，立即失败。', '用 i+jump 更新最远覆盖范围。', '一旦覆盖末尾即可提前成功。'],
+  edgeCases: ['空数组返回 False，单元素返回 True', '起点为 0 且数组更长时返回 False', '末尾是 0 不影响已提前到达的情况'],
+  followUps: [{ question: '为什么不需要选择具体跳跃长度？', answer: '只要某个已达位置能覆盖更远边界，其他较短跳法不会增加可达范围；far 已概括全部可能性。' }, { question: '如何求最少跳跃次数？', answer: '按 far 和当前层边界做 BFS 式贪心，每次扩展一层并计数。' }],
+  pitfalls: ['把 i==far 当成不可达，实际上该位置仍可处理。', '空数组与单元素的约定混淆。'],
+});
+enhance('1143', {
+  beginnerSummary: 'dp[i][j] 表示 a 前 i 个字符与 b 前 j 个字符的最长公共子序列长度；字符相等接左上，不等则跳过一边。',
+  prerequisites: ['子序列允许删除字符但不能改变剩余顺序。', '空前缀与任何字符串的 LCS 都是 0。'],
+  workedExample: ['a="abcde"、b="ace"：a 与 a 相等，dp[1][1]=1。', '遇到 b 与 c 不等时取上方/左方较大值，最终 dp[5][3]=3（ace）。'],
+  derivation: ['暴力枚举子序列组合数量指数级。', '最后字符相等时一定可配对；不等时最优解必跳过其中一个，因此取两个子问题最大值。'],
+  code: py(`def longest_common_subsequence(a, b):
+    rows, cols = len(a), len(b)
+    dp = [[0] * (cols + 1) for _ in range(rows + 1)]
+    for i in range(1, rows + 1):
+        for j in range(1, cols + 1):
+            if a[i - 1] == b[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[rows][cols]`),
+  lineByLine: ['多开一行一列 0，统一表示空前缀。', 'i、j 对应当前前缀末尾字符 a[i-1]、b[j-1]。', '相等时沿左上并加一，不等时只能跳过一侧。', '右下角就是完整字符串的答案。'],
+  edgeCases: ['任一字符串为空返回 0', '完全相同返回较短长度', '没有公共字符返回 0'],
+  followUps: [{ question: '如何恢复具体 LCS 字符串？', answer: '从右下角回溯：相等就记录字符并走左上，不等就走 dp 较大的上方或左方。' }, { question: '空间能否压缩？', answer: '只求长度时保留一维 dp 并从左到右更新，同时用 prev_diag 保存左上旧值。' }],
+  pitfalls: ['把子串（必须连续）和子序列混淆。', '相等时错误取 max 上方/左方会漏掉当前配对。'],
+});
+enhance('139', {
+  beginnerSummary: 'dp[i] 表示 s 的前 i 个字符能否被词典拆开；若存在 j<i，dp[j] 为真且 s[j:i] 在词典中，则 dp[i] 为真。',
+  prerequisites: ['字符串切片 s[j:i] 左闭右开。', 'dp[0]=True 表示空前缀是可拆的起点。'],
+  workedExample: ['s="leetcode"、词典 {leet,code}：dp[4] 因 leet 为真。', '处理 i=8 时找到 j=4 且 code 在词典中，dp[8]=True。'],
+  derivation: ['递归尝试每个切分点会重复计算相同前缀。', '按结束位置递推，所有更短前缀已确定；集合查词平均 O(1)。'],
+  code: py(`def word_break(s, word_dict):
+    words = set(word_dict)
+    dp = [False] * (len(s) + 1)
+    dp[0] = True
+    for end in range(1, len(s) + 1):
+        for start in range(end):
+            if dp[start] and s[start:end] in words:
+                dp[end] = True
+                break
+    return dp[-1]`),
+  lineByLine: ['words=set 让词典查询清晰且快速。', 'dp[0] 是空前缀基线。', 'end 固定当前要证明的前缀长度，start 枚举最后一个词的起点。', '找到一个合法切分就 break，不必继续试其他起点。'],
+  edgeCases: ['空字符串返回 True（零个词即可拼出）', '词典为空时非空字符串返回 False', '词典中有重复词不影响集合判断'],
+  followUps: [{ question: '如何返回一种拆分方案？', answer: 'dp[end] 变为保存前驱 start；命中时记录 parent[end]=start，最后从 n 反向切片。' }, { question: '如何优化长词典？', answer: '按最大词长限制 start 范围，或使用 Trie 从每个可达位置向前匹配。' }],
+  pitfalls: ['dp[0] 忘记设 True 会导致所有前缀都无法启动。', '把不可达状态当成空字符串误判。'],
+});
+enhance('416', {
+  beginnerSummary: '两组和相等等价于从 nums 中选出一个子集，其和等于总和的一半；一维布尔背包记录每个和是否可达。',
+  prerequisites: ['总和为奇数时不可能平分。', '每个数字只能使用一次，所以容量循环必须从大到小。'],
+  workedExample: ['[1,5,11,5] 总和 22，目标 11；先用 1、5 更新可达和。', '遇到 11 时 dp[11] 变真，表示找到子集 [11]，另一组为 [1,5,5]。'],
+  derivation: ['枚举所有子集是 O(2^n)。', 'dp[sum] 表示是否能用已处理数字凑出 sum；倒序更新防止同一数字在本轮被重复使用。'],
+  code: py(`def can_partition(nums):
+    total = sum(nums)
+    if total % 2:
+        return False
+    target = total // 2
+    dp = [False] * (target + 1)
+    dp[0] = True
+    for value in nums:
+        for current in range(target, value - 1, -1):
+            dp[current] = dp[current] or dp[current - value]
+    return dp[target]`),
+  lineByLine: ['奇数总和直接返回 False，避免创建无意义的表。', 'dp[0]=True 表示不选任何数即可凑出 0。', '容量从 target 倒序，读取的是上一轮状态。', 'dp[target] 即是否存在目标子集。'],
+  edgeCases: ['空数组总和为 0，返回 True（两组都为空）', '单个正数无法平分，通常返回 False', '若题目允许负数，需改用集合 DP；本实现假设非负整数'],
+  followUps: [{ question: '为什么不能正序更新？', answer: '正序会让刚写入的 dp[current] 在同一轮再次被使用，相当于重复选择同一个数字。' }, { question: '如何恢复具体子集？', answer: '保存每个和第一次变真的 value 和前驱和，最后从 target 反向追踪选择。' }],
+  pitfalls: ['把奇数总和继续除法会产生错误目标。', '未说明非负数前提就直接处理负数输入。'],
+});
+enhance('72', {
+  beginnerSummary: '编辑距离允许替换、删除、插入。dp[i][j] 是 ref 前 i 个词/字符变成 hyp 前 j 个的最少操作；回溯前驱可把操作区分为 S、D、I。',
+  prerequisites: ['dp[i][0]=i（全删除），dp[0][j]=j（全插入）。', 'WER 按词统计，S/D/I 分别是替换、删除、插入，分母是参考词数。'],
+  workedExample: ['ref="kitten"、hyp="sitting"：末尾 n/g 不等，可从替换、删除、插入三种前驱取最小。', '回溯到相等字符只走左上；其余按前驱累计 S、D 或 I，距离为 3。'],
+  derivation: ['最后一步若字符相等不增加代价；否则分别尝试删除 ref、插入 hyp、替换两者。', '从右下沿满足等式的前驱反向走，按 token 计数即可得到 WER 的 S+D+I。'],
+  code: py(`def edit_distance_with_ops(ref, hyp):
+    m, n = len(ref), len(hyp)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            same = ref[i - 1] == hyp[j - 1]
+            dp[i][j] = dp[i - 1][j - 1] if same else 1 + min(
+                dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    i, j = m, n
+    substitutions = deletions = insertions = 0
+    while i or j:
+        if i and j and ref[i - 1] == hyp[j - 1] and dp[i][j] == dp[i - 1][j - 1]:
+            i, j = i - 1, j - 1
+        elif i and j and dp[i][j] == dp[i - 1][j - 1] + 1:
+            substitutions += 1
+            i, j = i - 1, j - 1
+        elif i and dp[i][j] == dp[i - 1][j] + 1:
+            deletions += 1
+            i -= 1
+        else:
+            insertions += 1
+            j -= 1
+    return {'distance': dp[m][n], 'S': substitutions, 'D': deletions, 'I': insertions,
+            'wer': (substitutions + deletions + insertions) / m if m else 0.0}`),
+  lineByLine: ['首行首列写入全插入/全删除的基线，避免访问未定义 dp。', '每格比较三种前驱，字符相等时沿左上且不增加代价。', '回溯优先匹配相等，其次按等式识别替换、删除、插入。', '参考长度 m 为 0 时 WER 约定返回 0，避免除零。'],
+  edgeCases: ['ref 和 hyp 都空时距离和 WER 都为 0', 'ref 为空且 hyp 非空时全是插入，WER 约定为 0', '按字符传入可得到字符编辑距离；按词列表传入即可统计 WER'],
+  followUps: [{ question: '为什么不能只看距离就得到 WER？', answer: '同一个最短距离可能由不同数量的替换、删除、插入组成；WER 需要沿具体前驱回溯并分类。' }, { question: '如何压缩空间？', answer: '只要距离可用两行；若仍需操作序列，可保存父指针，或用 Hirschberg 等分治方法。' }],
+  pitfalls: ['直接使用未定义的 dp/ref/hyp 片段会无法运行。', '把 WER 分母写成 hyp 长度，正确分母应是参考词数。'],
+});
+
 const maxPathCard = questions.find((question) => question.id === '124');
 maxPathCard.code = py('class TreeNode:\n    def __init__(self, val=0, left=None, right=None): self.val, self.left, self.right = val, left, right\ndef max_path_sum(root):\n    if not root:\n        return 0\n    best = float("-inf")\n    def dfs(node):\n        nonlocal best\n        if not node: return 0\n        left, right = max(0, dfs(node.left)), max(0, dfs(node.right))\n        best = max(best, node.val + left + right)\n        return node.val + max(left, right)\n    dfs(root)\n    return best');
 maxPathCard.beginnerSummary = '路径可任意起止；向父节点只能返回一条向下分支，当前节点可合并左右更新答案。空树没有路径，约定返回 0。';
