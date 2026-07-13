@@ -52,6 +52,13 @@ function renderList() {
 function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = text; block.append(h, p); return block; }
 function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); li.textContent = item; list.append(li); }); block.append(h, list); return block; }
 function codeSection(title, code) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const wrap = document.createElement('div'); wrap.className = 'code-wrap'; const pre = document.createElement('pre'); const codeEl = document.createElement('code'); codeEl.setAttribute('aria-label', title); codeEl.textContent = code; pre.append(codeEl); wrap.append(pre); block.append(h, wrap); return block; }
+function diagramSection(title, diagram) {
+  if (!diagram) return document.createDocumentFragment();
+  const block = document.createElement('section'); block.className = 'detail-section';
+  const h = document.createElement('h3'); h.textContent = title;
+  const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title); pre.textContent = diagram;
+  block.append(h, pre); return block;
+}
 function lineNotesSection(title, notes) {
   const block = document.createElement('section'); block.className = 'detail-section';
   const h = document.createElement('h3'); h.textContent = title;
@@ -76,6 +83,7 @@ function qaSection(title, entries) {
   return block;
 }
 function renderSection(section) {
+  if (section.type === 'diagram') return diagramSection(section.title, section.value);
   if (section.type === 'code') return codeSection(section.title, section.value);
   if (section.type === 'lineNotes') return lineNotesSection(section.title, section.value);
   if (section.type === 'qa') return qaSection(section.title, section.value);

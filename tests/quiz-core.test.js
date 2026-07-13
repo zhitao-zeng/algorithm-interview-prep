@@ -137,7 +137,7 @@ test('搜索图与动态规划第三批题卡满足完整初学者学习契约',
 test('快速详情按初学者学习顺序展示', () => {
   assert.deepEqual(
     detailSections(beginnerFixture, 'quick').map((section) => section.key),
-    ['beginnerSummary', 'code', 'complexity', 'followUps', 'pitfalls'],
+    ['beginnerSummary', 'diagram', 'code', 'complexity', 'followUps', 'pitfalls'],
   );
 });
 
@@ -145,11 +145,11 @@ test('深入详情按分步学习顺序返回全部渲染类型', () => {
   const sections = detailSections(beginnerFixture, 'deep');
   assert.deepEqual(
     sections.map((section) => section.type),
-    ['text', 'concepts', 'steps', 'steps', 'code', 'lineNotes', 'text', 'cards', 'qa', 'list'],
+    ['text', 'diagram', 'concepts', 'steps', 'steps', 'code', 'lineNotes', 'text', 'cards', 'qa', 'list'],
   );
   assert.deepEqual(
     sections.map((section) => Array.isArray(section.value)),
-    [false, true, true, true, false, true, false, true, true, true],
+    [false, false, true, true, true, false, true, false, true, true, true],
   );
   // 复习模式应默认展开完整初学者内容；该断言在实现前应先失败。
   const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');

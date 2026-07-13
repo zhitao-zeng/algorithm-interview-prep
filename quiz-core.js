@@ -30,6 +30,7 @@ export function formatRemaining(seconds) {
 export function detailSections(card, level = 'quick') {
   const quick = [
     ['beginnerSummary', '入门概览', 'text'],
+    ['diagram', '解题图例', 'diagram'],
     ['code', 'Python 标准代码', 'code'],
     ['complexity', '复杂度', 'text'],
     ['followUps', '常见追问', 'qa'],
@@ -37,6 +38,7 @@ export function detailSections(card, level = 'quick') {
   ];
   const deep = [
     ['beginnerSummary', '入门概览', 'text'],
+    ['diagram', '解题图例', 'diagram'],
     ['prerequisites', '前置概念', 'concepts'],
     ['workedExample', '示例演练', 'steps'],
     ['derivation', '推导过程', 'steps'],
