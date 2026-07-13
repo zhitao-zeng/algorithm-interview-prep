@@ -215,4 +215,7 @@ test('模型题卡声明关键输入边界与复杂度', () => {
   assert.match(rnnt.code, /max_symbols_per_frame.*positive/);
   const nms = questions.find((question) => question.id === 'nms');
   assert.match(nms.code, /threshold must be in \[0,1\]/);
+  assert.match(ctc.code, /len\(log_probs\) == 0/);
+  assert.match(ce.code, /labels must be integers/);
+  assert.match(ce.code, /logits.shape\[1\] == 0/);
 });
