@@ -156,6 +156,14 @@ test('深入详情按分步学习顺序返回全部渲染类型', () => {
   assert.match(appSource, /detailLevel:\s*'deep'/);
 });
 
+test('模拟模式切题入口统一重置揭晓进度', () => {
+  const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  assert.match(appSource, /function selectQuestion\(id\)/);
+  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, category, state\.query\)\[0\]\?\.id\)/);
+  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, state\.category, state\.query\)\[0\]\?\.id\)/);
+  assert.match(appSource, /state\.revealIndex = 0/);
+});
+
 test('第三批题卡的示例类型与复杂度说明一致', () => {
   const islands = questions.find((question) => question.id === '200');
   assert.match(islands.workedExample[0], /['"]1['"]/);

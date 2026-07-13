@@ -13,13 +13,18 @@ function loadMastered() { try { return new Set(JSON.parse(localStorage.getItem(s
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
 function activeQuestions() { return state.mode === 'mock' ? state.mockQuestions : filterQuestions(questions, state.category, state.query); }
 function selectedQuestion() { return activeQuestions().find((q) => q.id === state.selectedId) || activeQuestions()[0]; }
+function selectQuestion(id) {
+  state.selectedId = id;
+  state.revealIndex = 0;
+  if (state.mode === 'review') state.detailLevel = 'deep';
+}
 
 function renderCategories() {
   el('category-list').replaceChildren(...categories.map((category) => {
     const button = document.createElement('button');
     button.className = `category ${state.category === category ? 'active' : ''}`;
     button.textContent = category;
-    button.addEventListener('click', () => { state.category = category; state.selectedId = filterQuestions(questions, category, state.query)[0]?.id; state.detailLevel = 'deep'; render(); });
+    button.addEventListener('click', () => { state.category = category; selectQuestion(filterQuestions(questions, category, state.query)[0]?.id); render(); });
     return button;
   }));
 }
@@ -38,9 +43,7 @@ function renderList() {
     const prompt = document.createElement('p'); prompt.textContent = q.prompt;
     card.append(meta, title, prompt);
     card.addEventListener('click', () => {
-      state.selectedId = q.id;
-      state.revealIndex = 0;
-      if (state.mode === 'review') state.detailLevel = 'deep';
+      selectQuestion(q.id);
       render();
     });
     return card;
@@ -122,6 +125,6 @@ function tick() { state.remaining = Math.max(0, state.remaining - 1); el('timer'
 function render() { renderMode(); renderCategories(); renderProgress(); renderList(); renderDetail(); el('timer').textContent = formatRemaining(state.remaining); }
 function startMock() { state.mode = 'mock'; state.mockQuestions = sampleQuestions(questions, 5); state.selectedId = state.mockQuestions[0]?.id; state.revealIndex = 0; state.detailLevel = 'deep'; state.remaining = 2700; clearInterval(state.timerId); state.timerId = setInterval(tick, 1000); render(); }
 function returnReview() { state.mode = 'review'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
-el('search-input').addEventListener('input', (event) => { state.query = event.target.value; state.selectedId = filterQuestions(questions, state.category, state.query)[0]?.id; state.detailLevel = 'deep'; render(); });
-el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; el('search-input').value = ''; state.selectedId = questions[0].id; state.detailLevel = 'deep'; render(); });
+el('search-input').addEventListener('input', (event) => { state.query = event.target.value; selectQuestion(filterQuestions(questions, state.category, state.query)[0]?.id); render(); });
+el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; el('search-input').value = ''; selectQuestion(questions[0].id); render(); });
 el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview); render();
