@@ -255,3 +255,13 @@ export const questions = [
   }),
   q('streaming-cache', 'ASR 专项', 'Hard', '流式 ASR 缓存', 'Transformer/Conformer 流式识别如何缓存。', '缓存历史 KV 或左上下文；每个 chunk 只算新增帧，并控制右上下文带来的延迟。', py('cache=init_cache()\nfor chunk in stream:\n    y,cache=encoder(chunk,cache,left_context=L)\n    partial=decoder.step(y,decoder_cache)\n    emit_stable_prefix(partial)'), '每 chunk 约 O(chunk·context)，缓存 O(context)', { followUps: ['如何降低首字延迟？', '缓存为何要截断？'], followUpAnswers: ['减小 chunk 和右上下文，或使用更早的稳定前缀策略。', '无限缓存会使计算和显存随音频长度线性增长。'] }),
 ];
+
+const maxPathCard = questions.find((question) => question.id === '124');
+maxPathCard.code = py('class TreeNode:\n    def __init__(self, val=0, left=None, right=None): self.val, self.left, self.right = val, left, right\ndef max_path_sum(root):\n    if not root:\n        return 0\n    best = float("-inf")\n    def dfs(node):\n        nonlocal best\n        if not node: return 0\n        left, right = max(0, dfs(node.left)), max(0, dfs(node.right))\n        best = max(best, node.val + left + right)\n        return node.val + max(left, right)\n    dfs(root)\n    return best');
+maxPathCard.beginnerSummary = '路径可任意起止；向父节点只能返回一条向下分支，当前节点可合并左右更新答案。空树没有路径，约定返回 0。';
+maxPathCard.workedExample = ['20 的左右贡献是 15、7。', '15→20→7 的和 42 更新答案；若输入为空树，函数直接返回 0。'];
+maxPathCard.lineByLine = ['函数开头先把空树定义为路径和 0，避免返回负无穷。', 'best 用负无穷兼容全负的非空树。', 'max(0, ...) 去掉会拖累路径的负贡献。', '返回给父节点时只能选择一条向下分支。'];
+
+const codecCard = questions.find((question) => question.id === '297');
+codecCard.code = py('class TreeNode:\n    def __init__(self, val=0, left=None, right=None): self.val, self.left, self.right = val, left, right\nclass Codec:\n    def serialize(self, root):\n        parts = []\n        def visit(node):\n            if not node:\n                parts.append("#")\n                return\n            parts.append(str(node.val))\n            visit(node.left)\n            visit(node.right)\n        visit(root)\n        return ",".join(parts)\n    def deserialize(self, data):\n        tokens = iter(data.split(","))\n        def build():\n            value = next(tokens)\n            if value == "#": return None\n            node = TreeNode(int(value))\n            node.left, node.right = build(), build()\n            return node\n        return build()');
+codecCard.lineByLine = ['TreeNode 定义题设节点类型。', 'serialize 只创建一个 parts 列表，visit 通过 append 依次写入 token。', '最后一次 join 把 token 合成字符串，因此退化树也只线性处理每个节点。', 'deserialize 用迭代器按同一前序规则递归重建左右孩子。'];

@@ -71,6 +71,16 @@ test('链表与二叉树第一批题卡满足完整初学者学习契约', () =>
   }
 });
 
+test('树题代码处理空树并以线性方式序列化', () => {
+  const maxPath = questions.find((question) => question.id === '124');
+  const codec = questions.find((question) => question.id === '297');
+
+  assert.match(maxPath.code, /if not root:\n        return 0/);
+  assert.match(codec.code, /parts = \[\]/);
+  assert.match(codec.code, /parts\.append\(/);
+  assert.match(codec.code, /","\.join\(parts\)/);
+});
+
 test('快速详情按初学者学习顺序展示', () => {
   assert.deepEqual(
     detailSections(beginnerFixture, 'quick').map((section) => section.key),
