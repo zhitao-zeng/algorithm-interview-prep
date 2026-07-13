@@ -243,3 +243,11 @@ test('模型题卡声明关键输入边界与复杂度', () => {
   assert.match(ce.code, /labels must be integers/);
   assert.match(ce.code, /logits.shape\[1\] == 0/);
 });
+
+test('GitHub Pages 工作流声明正确的部署步骤', () => {
+  const workflow = readFileSync(new URL('../.github/workflows/deploy-pages.yml', import.meta.url), 'utf8');
+  assert.match(workflow, /branches:\s*\[main\]/);
+  assert.match(workflow, /actions\/configure-pages@v5/);
+  assert.match(workflow, /actions\/upload-pages-artifact@v3/);
+  assert.match(workflow, /actions\/deploy-pages@v4/);
+});
