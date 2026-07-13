@@ -714,3 +714,232 @@ maxPathCard.lineByLine = ['函数开头先把空树定义为路径和 0，避免
 const codecCard = questions.find((question) => question.id === '297');
 codecCard.code = py('class TreeNode:\n    def __init__(self, val=0, left=None, right=None): self.val, self.left, self.right = val, left, right\nclass Codec:\n    def serialize(self, root):\n        parts = []\n        def visit(node):\n            if not node:\n                parts.append("#")\n                return\n            parts.append(str(node.val))\n            visit(node.left)\n            visit(node.right)\n        visit(root)\n        return ",".join(parts)\n    def deserialize(self, data):\n        tokens = iter(data.split(","))\n        def build():\n            value = next(tokens)\n            if value == "#": return None\n            node = TreeNode(int(value))\n            node.left, node.right = build(), build()\n            return node\n        return build()');
 codecCard.lineByLine = ['TreeNode 定义题设节点类型。', 'serialize 只创建一个 parts 列表，visit 通过 append 依次写入 token。', '最后一次 join 把 token 合成字符串，因此退化树也只线性处理每个节点。', 'deserialize 用迭代器按同一前序规则递归重建左右孩子。'];
+
+// 模型手写与 ASR 专项：完整初学者内容与可独立运行实现。
+enhance('cross-entropy', {
+  beginnerSummary: '输入 logits 形状 (B,C) 与整数标签 y 形状 (B,)，输出平均损失。每行先减最大值不会改变 softmax，却能避免 exp 溢出。',
+  prerequisites: ['logits 是未归一化类别分数，y[i] 是样本 i 的正确类别下标。', 'softmax 概率和为 1，交叉熵是正确类概率的负对数。'],
+  workedExample: ['logits=[[2,1,0]] 减最大值后为 [0,-1,-2]，指数都安全。', 'y=[0] 时损失为正确类负对数概率，正确类分数越大损失越小。'],
+  derivation: ['logsumexp(z)=m+log(sum(exp(z-m)))，m=max(z) 在 softmax 分子分母中相消。', '按 y 索引 log 概率并对 B 个样本求平均。'],
+  code: py('import numpy as np\n\ndef cross_entropy(logits, labels):\n    logits = np.asarray(logits, dtype=float)  # (B, C)\n    labels = np.asarray(labels, dtype=int)     # (B,)\n    if logits.ndim != 2 or labels.shape != (logits.shape[0],):\n        raise ValueError("logits must be (B,C), labels must be (B,)")\n    shifted = logits - logits.max(axis=1, keepdims=True)\n    logsumexp = np.log(np.exp(shifted).sum(axis=1))\n    log_prob = shifted - logsumexp[:, None]\n    return float(-log_prob[np.arange(logits.shape[0]), labels].mean())'),
+  lineByLine: ['np.asarray 固定 batch 和类别维度。', 'shifted 减行最大值，logsumexp 稳定计算归一化常数。', 'log_prob 是逐类对数概率，按 labels 取正确类。', 'mean 汇总成标量损失。'],
+  edgeCases: ['空 batch 需由调用者定义行为', '类别下标越界会报错', '极大 logits 仍保持有限值'],
+  followUps: [{ question: '为什么不用先 softmax 再 log？', answer: '先 softmax 可能溢出或下溢为 0，随后 log 得到 inf；log-sum-exp 直接在对数域更稳定。' }, { question: '标签能用 one-hot 吗？', answer: '可以用 -(target*log_prob).sum(axis=1).mean()，整数标签版本更省内存。' }],
+  pitfalls: ['忘记按 batch 平均导致 loss 尺度随 B 变化。', '把最大值跨样本求，破坏每个样本独立归一化。'],
+});
+
+enhance('bce', {
+  beginnerSummary: '输入同形状 logits x 与 0/1 标签 y，输出 BCE。直接使用 logits 的稳定公式，避免 sigmoid 饱和时出现 log(0)。',
+  prerequisites: ['logit 是 sigmoid 前的实数，sigmoid(x)=1/(1+e^-x)。', 'BCE=-y log σ(x)-(1-y)log(1-σ(x))，标签也可为软 0~1 值。'],
+  workedExample: ['x=0、y=1 时损失约 0.693，表示模型没有偏向。', 'x=50、y=1 时稳定公式接近 0，不会计算 log(1-1) 得 NaN。'],
+  derivation: ['BCE 可化为 max(x,0)-x*y+log1p(exp(-abs(x)))。', 'max、abs 与 log1p 让正负两侧指数都保持安全。'],
+  code: py('import numpy as np\n\ndef bce_with_logits(logits, targets, reduction="mean"):\n    x = np.asarray(logits, dtype=float)\n    y = np.asarray(targets, dtype=float)\n    if x.shape != y.shape:\n        raise ValueError("logits and targets must have the same shape")\n    loss = np.maximum(x, 0.0) - x*y + np.log1p(np.exp(-np.abs(x)))\n    if reduction == "none": return loss\n    if reduction == "sum": return float(loss.sum())\n    return float(loss.mean())'),
+  lineByLine: ['检查 logits 与 targets 逐元素对齐。', 'maximum 项处理正 logits 的线性部分。', 'log1p(exp(-abs(x))) 在两侧保持有限。', 'reduction 控制逐元素、总和或均值。'],
+  edgeCases: ['极大正负 logits 仍有限', 'targets 应在 [0,1]', '空输入的 mean 行为需约定'],
+  followUps: [{ question: 'logit 的梯度是什么？', answer: '梯度为 sigmoid(x)-y；正样本 logit 太小时梯度为负，会推动它增大。' }, { question: '类别不平衡怎么办？', answer: '可给正负样本加 class weight 或 focal loss，但仍使用稳定 logits 公式。' }],
+  pitfalls: ['先 sigmoid 再手写 log 会在饱和区产生 inf。', '把标签当成 0/255 而未归一化。'],
+});
+
+enhance('batchnorm', {
+  beginnerSummary: '输入 x 形状 (B,C)，沿 batch 维归一化每个通道。训练用当前均值方差并更新 running 统计；评估固定使用 running 统计。',
+  prerequisites: ['均值和方差沿 axis=0 计算，每个通道各有一个统计量。', 'gamma、beta 形状 (C,)，eps 防止方差为零时除零。'],
+  workedExample: ['x=[[1,3],[3,5]] 的均值为 [2,4]，方差为 [1,1]，标准化约为 [[-1,-1],[1,1]]。', 'eval 即使 batch=1 也使用训练累计统计，结果不依赖同批样本。'],
+  derivation: ['训练态 y=gamma*(x-mu)/sqrt(var+eps)+beta，并用 momentum 更新 running。', '推理态跳过当前 batch 估计，保证线上输出稳定。'],
+  code: py('import numpy as np\n\ndef batch_norm(x, gamma, beta, running_mean, running_var, training=True, momentum=0.1, eps=1e-5):\n    x = np.asarray(x, dtype=float)  # (B,C)\n    gamma, beta = np.asarray(gamma), np.asarray(beta)\n    if training:\n        mean, var = x.mean(axis=0), x.var(axis=0)\n        running_mean[...] = (1-momentum)*running_mean + momentum*mean\n        running_var[...] = (1-momentum)*running_var + momentum*var\n    else:\n        mean, var = running_mean, running_var\n    return gamma*(x-mean)/np.sqrt(var+eps) + beta'),
+  lineByLine: ['mean/var 跨 batch 维，保留通道维。', '训练态原地更新 running 数组。', 'eval 分支使用固定统计，避免单样本方差不可靠。', '广播 gamma、beta 后输出仍为 (B,C)。'],
+  edgeCases: ['B=1 时方差为 0，eps 保证有限', 'running_var 必须非负且长度为 C', '卷积特征通常要沿 N,H,W 聚合'],
+  followUps: [{ question: 'momentum 会写反吗？', answer: '本实现新值=(1-momentum)*旧+momentum*当前；不同框架命名可能相反，需核对文档。' }, { question: 'BN 与 LayerNorm 差异？', answer: 'BN 跨 batch，受 batch 大小影响；LayerNorm 对每个样本的 hidden 维统计，更适合小 batch 序列。' }],
+  pitfalls: ['eval 仍用当前 batch 统计导致结果漂移。', '忘记更新 running 或让 running 参与梯度。'],
+});
+
+enhance('dropout', {
+  beginnerSummary: '输入任意形状 x，训练随机丢弃元素并将保留值除以 keep_prob；推理直接返回 x，保持两阶段期望尺度一致。',
+  prerequisites: ['Bernoulli 掩码决定元素是否保留。', 'inverted scaling 使 E[mask*x/p]=x。'],
+  workedExample: ['keep_prob=0.5、x=[2,4]、mask=[1,0] 时输出 [4,0]，多次平均接近 [2,4]。', 'training=False 时不采样、不缩放，恒等返回。'],
+  derivation: ['保留概率 p 时输出 mask*x/p，期望为 p*x/p=x。', '因此缩放提前放训练阶段，推理无需额外操作。'],
+  code: py('import numpy as np\n\ndef dropout(x, keep_prob=0.5, training=True, rng=None):\n    x = np.asarray(x, dtype=float)\n    if not 0 < keep_prob <= 1: raise ValueError("keep_prob must be in (0,1]")\n    if not training: return x.copy()\n    generator = np.random.default_rng() if rng is None else rng\n    mask = generator.random(x.shape) < keep_prob\n    return x*mask/keep_prob'),
+  lineByLine: ['检查 keep_prob 防止除零。', 'eval 直接返回副本且数值不变。', '生成与 x 同形状的随机掩码。', '保留值除以 keep_prob 保持期望尺度。'],
+  edgeCases: ['keep_prob=1 等价恒等映射', 'keep_prob<=0 报错', '固定 rng 可复现测试'],
+  followUps: [{ question: '为什么 eval 不乘 keep_prob？', answer: '训练阶段已除以 keep_prob，使训练输出期望等于原输入，eval 直接使用原输入即可。' }, { question: 'Dropout 与 BN 如何排序？', answer: '常把 dropout 放在线性层或激活后，避免在 BN 前破坏统计；最终仍需实验验证。' }],
+  pitfalls: ['训练忘记除 keep_prob，导致输出偏小。', '推理忘记关闭 dropout，结果每次随机。'],
+});
+
+enhance('positional-encoding', {
+  beginnerSummary: '给长度 L、隐藏维 d 的序列生成形状 (L,d) 的固定位置向量；偶数维 sin、奇数维 cos，让注意力知道 token 的顺序。',
+  prerequisites: ['pos 是 0..L-1 的位置，维度 i 使用不同频率。', '正弦余弦值在 [-1,1]，可直接与 token embedding 相加。'],
+  workedExample: ['L=2,d=4 时位置 0 的偶数维 sin(0)=0、奇数维 cos(0)=1。', '位置 1 使用不同波长，得到另一行向量；与 embedding 相加后形状仍为 (L,d)。'],
+  derivation: ['PE[pos,2i]=sin(pos/10000^(2i/d))，PE[pos,2i+1]=cos(pos/10000^(2i/d))。', '不同维度的频率组合编码绝对位置，且位移可表示为线性变换。'],
+  code: py('import numpy as np\n\ndef positional_encoding(length, dim):\n    pos = np.arange(length, dtype=float)[:, None]\n    even = np.arange(0, dim, 2)\n    angle = pos / np.power(10000.0, even / dim)\n    pe = np.zeros((length, dim), dtype=float)\n    pe[:, 0::2] = np.sin(angle)\n    pe[:, 1::2] = np.cos(angle[:, :pe[:, 1::2].shape[1]])\n    return pe'),
+  lineByLine: ['pos[:,None] 生成 (L,1)，便于广播到各频率。', 'even 选择偶数维并计算对应角度。', 'zeros 预分配 (L,d)，切片写入 sin/cos。', '返回可与 (L,d) embedding 相加的矩阵。'],
+  edgeCases: ['dim=1 时没有奇数 cos 维，切片仍安全', 'length=0 返回形状 (0,d)', 'd 必须为正整数'],
+  followUps: [{ question: '为什么 embedding 维度必须一致？', answer: '位置编码要与 token embedding 逐元素相加，形状必须同为 (L,d)；否则无法广播到每个通道。' }, { question: '可学习位置编码有何不同？', answer: '可学习表能适应训练长度但外推较弱；正弦编码无额外参数，可直接扩展到更长序列。' }],
+  pitfalls: ['奇偶维频率指数写成 i/d 而非 2i/d。', '把位置编码沿 batch 维错误广播。'],
+});
+
+enhance('topk-sampling', {
+  beginnerSummary: '输入词表 logits 形状 (V,)，只保留最大的 k 个 token；其余概率设为 0，并在保留集合内重新归一化后采样一个下标。',
+  prerequisites: ['logits 不是概率，采样前需要 softmax。', '截断后必须再次归一化，否则概率和小于 1。'],
+  workedExample: ['logits=[2,1,0]、k=2 时保留下标 0、1，概率按 exp(2)、exp(1) 重新归一化。', 'k>=V 时等价普通 categorical 采样，k=1 时退化为贪心 argmax。'],
+  derivation: ['选取 top-k 集合 S，将 S 外 logit 置为 -inf。', '对 S 使用减最大值的 softmax，p_i=exp(z_i-m)/sum_j∈S exp(z_j-m)。'],
+  code: py('import numpy as np\n\ndef top_k_sample(logits, k, rng=None):\n    logits = np.asarray(logits, dtype=float)\n    if logits.ndim != 1 or not 1 <= k <= logits.size: raise ValueError("invalid logits or k")\n    idx = np.argpartition(logits, -k)[-k:]\n    values = logits[idx]\n    probs = np.exp(values-values.max()); probs /= probs.sum()\n    generator = np.random.default_rng() if rng is None else rng\n    return int(generator.choice(idx, p=probs))'),
+  lineByLine: ['检查一维词表 logits 和 k 范围。', 'argpartition 取得 k 个候选，无需完整排序。', '对候选减最大值后指数化并归一化。', 'rng.choice 按候选概率返回原词表下标。'],
+  edgeCases: ['k=1 返回最大 logit 下标', 'k=V 保留全部词表', '全为 -inf 的 logits 无法归一化，应提前拒绝'],
+  followUps: [{ question: 'Top-k 与 Top-p 如何组合？', answer: '先按概率排序取累计和不超过 p 的最小集合，再可叠加 k 上限；两者都要在截断后重新归一化。' }, { question: '为什么采样前还要除温度？', answer: 'logits/temperature 会控制分布尖锐程度；温度越低越接近贪心，越高越随机，再执行 top-k。' }],
+  pitfalls: ['把 top-k 概率直接当作已归一化分布。', '在 softmax 后用 -inf 乘概率，造成 NaN。'],
+});
+
+enhance('beam-search', {
+  beginnerSummary: '束搜索维护最多 beam_size 条序列及其累计 log 概率。每步扩展候选、保留全局分数最高的束，遇到 EOS 可提前结束。',
+  prerequisites: ['累计 log 概率用加法，避免很多小概率相乘下溢。', 'beam 是 (token 序列, score, finished) 状态，而非只保存最后 token。'],
+  workedExample: ['beam=2 时第一步保留 A(-0.1)、B(-0.2)，丢弃 C(-1.0)。', '下一步同时扩展 A/B，比较所有新分数；即使 B 当前较低，也可能因后续概率更高而胜出。'],
+  derivation: ['对每条活跃 beam 取词表候选并加上 token logprob。', '按累计分数排序截断到 beam_size；完成 EOS 的序列不再扩展，最终在完成束中取最高分。'],
+  code: py('import numpy as np\n\ndef beam_search(log_probs, beam_size=3, eos=0):\n    # log_probs[t, prefix_last, token] 是示例条件分数，形状 (T,V,V)\n    log_probs = np.asarray(log_probs, dtype=float)\n    beams = [((), 0.0, False)]\n    for t in range(log_probs.shape[0]):\n        candidates = []\n        for seq, score, done in beams:\n            if done: candidates.append((seq, score, True)); continue\n            row = log_probs[t, seq[-1] if seq else 0]\n            for token in np.argsort(row)[-beam_size:]:\n                token = int(token); candidates.append((seq+(token,), score+float(row[token]), token == eos))\n        candidates.sort(key=lambda item: item[1], reverse=True)\n        beams = candidates[:beam_size]\n        if all(done for _, _, done in beams): break\n    return list(max(beams, key=lambda item: item[1])[0])'),
+  lineByLine: ['log_probs 用 (T,V,V) 示例条件分数，函数不依赖外部模型。', 'beams 保存完整序列、累计分数和是否结束。', '每步取候选 token，加 logprob 后统一排序截断。', '全部结束或时间轴耗尽时返回最高分序列。'],
+  edgeCases: ['beam_size=1 就是贪心搜索', '没有 EOS 时运行到 max 步后返回当前最高分', '长度偏置可用 length penalty 修正'],
+  followUps: [{ question: '为什么累计 log 概率可以相加？', answer: '路径概率是每步条件概率的乘积，取对数后乘积变成加法，同时避免下溢。' }, { question: '如何处理不同长度的偏置？', answer: '短序列少乘几项天然分数较高，可除以长度或使用 length penalty，再比较最终 beam。' }],
+  pitfalls: ['只保留每条 beam 的局部最优而非全局候选。', 'EOS 后仍继续扩展，导致完成序列被污染。'],
+});
+
+enhance('kmeans', {
+  beginnerSummary: '给 n 个 d 维样本 x，K-Means 交替执行 E 步分配最近中心和 M 步求簇均值，输出标签与中心；空簇需重新放置中心。',
+  prerequisites: ['欧氏距离平方可用向量差平方和比较，省去开平方。', '每轮目标函数是样本到所属中心的距离平方和。'],
+  workedExample: ['x=[[0],[1],[9],[10]]、K=2 初始中心 [0],[10]，E 步标签为 0,0,1,1。', 'M 步中心更新为 [0.5],[9.5]；若某簇为空，用离当前中心最远样本重置它。'],
+  derivation: ['固定中心时最近中心分配使距离最小；固定标签时均值使平方误差最小。', '交替更新单调降低目标（但可能陷入局部最优），多次随机初始化可改善结果。'],
+  code: py('import numpy as np\n\ndef kmeans(x, k, iterations=20, seed=0):\n    x = np.asarray(x, dtype=float)  # (n,d)\n    if not 1 <= k <= len(x): raise ValueError("invalid k")\n    rng = np.random.default_rng(seed)\n    centers = x[rng.choice(len(x), size=k, replace=False)].copy()\n    for _ in range(iterations):\n        dist = ((x[:, None, :]-centers[None, :, :])**2).sum(axis=2)\n        labels = dist.argmin(axis=1)\n        for j in range(k):\n            members = x[labels == j]\n            centers[j] = members.mean(axis=0) if len(members) else x[dist.min(axis=1).argmax()]\n    return labels, centers'),
+  lineByLine: ['随机抽取 K 个不同样本作为初始中心。', 'dist 形状 (n,K)，argmin 得到每个样本标签。', '每个非空簇取成员均值更新中心。', '空簇重置为离最近中心最远的样本，避免 NaN。'],
+  edgeCases: ['K>n 或 K<=0 应报错', '重复样本可能产生空簇，重置策略保证有限', '不同 seed 可能得到不同局部最优'],
+  followUps: [{ question: '如何选择 K？', answer: '可用 elbow 曲线、silhouette 分数或业务先验；K-Means 本身不自动决定 K。' }, { question: '为什么需要标准化特征？', answer: '平方距离会被量纲大的维度支配，先标准化或使用合适距离能让各特征贡献可比。' }],
+  pitfalls: ['空簇直接取 mean 得到 NaN。', '把标签更新和中心更新顺序写反，破坏 E/M 交替。'],
+});
+
+enhance('iou', {
+  beginnerSummary: '输入两个 xyxy 框 [x1,y1,x2,y2]，输出交并比 IoU=交集面积/并集面积，范围 0~1；边界相切时交集为 0。',
+  prerequisites: ['x2>x1、y2>y1 表示合法框，宽高用右下减左上。', '并集面积=框 A 面积+框 B 面积-交集面积，避免重叠重复计算。'],
+  workedExample: ['A=[0,0,2,2]、B=[1,1,3,3]，交集是 1x1=1，并集为 4+4-1=7。', '两框仅在边界相切时宽或高为 0，IoU 应为 0 而不是负值。'],
+  derivation: ['交集左上取坐标最大值，右下取最小值。', '宽高分别 max(0,right-left)、max(0,bottom-top)，再按面积公式求比值。'],
+  code: py('def iou(box_a, box_b):\n    ax1, ay1, ax2, ay2 = box_a\n    bx1, by1, bx2, by2 = box_b\n    iw = max(0.0, min(ax2, bx2)-max(ax1, bx1))\n    ih = max(0.0, min(ay2, by2)-max(ay1, by1))\n    inter = iw*ih\n    area_a = max(0.0, ax2-ax1)*max(0.0, ay2-ay1)\n    area_b = max(0.0, bx2-bx1)*max(0.0, by2-by1)\n    union = area_a+area_b-inter\n    return inter/union if union else 0.0'),
+  lineByLine: ['解包四个边界坐标，明确 xyxy 而非 xywh。', '交集左上取 max、右下取 min。', 'max(0) 处理不重叠和相切边界。', '并集为两面积减交集，空框返回 0。'],
+  edgeCases: ['完全不重叠 IoU=0', '一个框退化为零面积时 IoU=0', '坐标反向时本实现按零面积处理'],
+  followUps: [{ question: '为什么不能把宽高写成 abs？', answer: '交集要求边界有重叠；不重叠时应取 0，abs 会把没有交集的间隔误当成正宽。' }, { question: 'IoU 阈值如何影响 NMS？', answer: '阈值低会更激进地抑制相邻框，阈值高会保留更多重叠框；需按目标密集程度调节。' }],
+  pitfalls: ['忘记从并集减交集，导致比值可能小于 1。', '相切时产生负宽高并得到负面积。'],
+});
+
+enhance('nms', {
+  beginnerSummary: '输入 boxes 形状 (N,4)、scores 形状 (N,)，按分数从高到低保留框，并删除与已保留框 IoU 大于阈值的框，输出索引。',
+  prerequisites: ['NMS 假设同一类别框竞争；多类别应按类别分别执行。', 'IoU 衡量重叠程度，score 决定优先保留谁。'],
+  workedExample: ['两个高度重叠框分数 0.9、0.8 且 IoU=0.7、阈值 0.5：先保留 0.9，再抑制 0.8。', '与其 IoU=0.2 的第三个框不会被删除，最终索引包含两个框。'],
+  derivation: ['将索引按分数降序排序，取最高者加入 keep。', '只保留与该框 IoU<=threshold 的剩余索引，循环直到为空；朴素实现 O(N²)。'],
+  code: py('import numpy as np\n\ndef nms(boxes, scores, threshold=0.5):\n    boxes, scores = np.asarray(boxes, float), np.asarray(scores, float)\n    order = scores.argsort()[::-1]\n    keep = []\n    while order.size:\n        i = int(order[0]); keep.append(i)\n        rest = order[1:]\n        survivors = []\n        for j in rest:\n            ax1, ay1, ax2, ay2 = boxes[i]; bx1, by1, bx2, by2 = boxes[int(j)]\n            iw = max(0.0, min(ax2,bx2)-max(ax1,bx1)); ih = max(0.0, min(ay2,by2)-max(ay1,by1))\n            inter = iw*ih; aa = max(0.0,ax2-ax1)*max(0.0,ay2-ay1); ab = max(0.0,bx2-bx1)*max(0.0,by2-by1)\n            union = aa+ab-inter; overlap = inter/union if union else 0.0\n            if overlap <= threshold: survivors.append(int(j))\n        order = np.asarray(survivors, dtype=int)\n    return keep'),
+  lineByLine: ['argsort 生成按 score 降序的候选索引。', '取 order[0] 作为当前最高分并加入 keep。', '逐个计算与当前框 IoU，超过阈值者被抑制。', '剩余索引继续循环，直到候选为空。'],
+  edgeCases: ['boxes 为空返回空列表', 'threshold=0 只允许不重叠框', '不同类别必须分组以免互相抑制'],
+  followUps: [{ question: 'Soft-NMS 有何不同？', answer: 'Soft-NMS 不直接删除重叠框，而是按 IoU 连续降低其分数，密集目标场景通常召回更好。' }, { question: '为什么先取最高分？', answer: 'NMS 的贪心假设最高分框最可信；保留它后删除冲突框能用简单 O(N²) 得到稳定结果。' }],
+  pitfalls: ['order 更新时错误包含已取出的首元素。', '把不同类别的框混在一起抑制。'],
+});
+
+enhance('convolution', {
+  beginnerSummary: '输入单通道图像 x 形状 (H,W)、核形状 (K,K)，stride S、padding P；输出尺寸 floor((H+2P-K)/S)+1 与宽度同理。代码按深度学习的互相关（不翻核）。',
+  prerequisites: ['每个输出像素是滑窗与 kernel 的逐元素乘加。', 'padding 先在边缘补零，stride 决定窗口每次移动多少格。'],
+  workedExample: ['H=W=5,K=3,P=1,S=1，输出尺寸 floor((5+2-3)/1)+1=5。', '角落窗口含补零，中心窗口覆盖原图 3x3；stride=2 时输出为 3x3。'],
+  derivation: ['补零后有效高宽为 H+2P、W+2P。', '窗口左上从 oy*S、ox*S 开始，所有合法窗口数给出输出尺寸。'],
+  code: py('import numpy as np\n\ndef conv2d(image, kernel, stride=1, padding=0):\n    image, kernel = np.asarray(image, float), np.asarray(kernel, float)\n    h, w = image.shape; kh, kw = kernel.shape\n    padded = np.pad(image, ((padding,padding),(padding,padding)))\n    oh = (h+2*padding-kh)//stride + 1; ow = (w+2*padding-kw)//stride + 1\n    out = np.empty((oh, ow), float)\n    for oy in range(oh):\n        for ox in range(ow):\n            patch = padded[oy*stride:oy*stride+kh, ox*stride:ox*stride+kw]\n            out[oy, ox] = (patch*kernel).sum()\n    return out'),
+  lineByLine: ['np.pad 扩展边界，保持中心与边缘统一处理。', 'oh/ow 使用 floor 输出尺寸公式。', '双循环枚举输出位置并切出 KxK patch。', 'patch*kernel 求和得到互相关值。'],
+  edgeCases: ['kernel 大于补零后图像时输出尺寸可能非正，应先检查', 'stride>1 会下采样', 'padding=0 是无边界补零的 valid 模式'],
+  followUps: [{ question: '为什么叫卷积却不翻转 kernel？', answer: '深度学习框架通常实现互相关，训练会学习到等价方向；数学卷积若严格定义需翻转核。' }, { question: '多通道如何扩展？', answer: '输入增加 C 维，窗口对每个通道求和；每个输出通道拥有一组 (C,kh,kw) 核并加 bias。' }],
+  pitfalls: ['输出尺寸漏掉 +2P 或 stride。', '切片终点使用 ox+kw 而忘记乘 stride。'],
+});
+
+enhance('attention', {
+  beginnerSummary: 'Q、K、V 形状分别为 (B,H,Lq,D)、(B,H,Lk,D)、(B,H,Lk,Dv)。计算 QKᵀ/√D，先应用布尔 mask，再沿 key 维 softmax，输出 (B,H,Lq,Dv)。',
+  prerequisites: ['点积衡量 query 与 key 的相似度，softmax 把相似度变成权重。', 'mask=True 表示允许关注；缩放 √D 防止维度大时 softmax 饱和。'],
+  workedExample: ['单头 Q=[1,0]、K=[[1,0],[0,1]] 时分数为 [1,0]/√2，权重偏向第一个 key。', 'causal mask 在位置 t 屏蔽 t 之后的 key，softmax 前设为 -inf，输出不会看到未来。'],
+  derivation: ['scores=QKᵀ/√D，形状 (B,H,Lq,Lk)。', 'masked softmax 每个 query 行权重和为 1，最后 weights@V 得到加权值。'],
+  code: py('import math\nimport torch\n\ndef scaled_attention(q, k, v, mask=None):\n    # q:(B,H,Lq,D), k:(B,H,Lk,D), v:(B,H,Lk,Dv)\n    scores = q @ k.transpose(-1, -2) / math.sqrt(q.shape[-1])\n    if mask is not None:\n        scores = scores.masked_fill(~mask, torch.finfo(scores.dtype).min)\n    weights = torch.softmax(scores, dim=-1)\n    return weights @ v, weights'),
+  lineByLine: ['矩阵乘法得到每个 query 对所有 key 的分数。', '除以 sqrt(D) 控制点积方差。', 'softmax 前将禁止位置设为极小值。', 'weights@v 输出每行 value 的凸组合。'],
+  edgeCases: ['全 mask 行会产生无意义分布，应在上游保证至少一个可见 key', 'Lq 与 Lk 可不同用于 cross attention', 'mask 需能广播到 (B,H,Lq,Lk)'],
+  followUps: [{ question: '为什么除以 √D？', answer: '若 Q、K 各维独立单位方差，点积方差约为 D；除以 √D 将标准差缩回约 1，避免 softmax 饱和。' }, { question: 'Self 与 Cross Attention 差异？', answer: 'Self 的 Q/K/V 来自同一序列；Cross 的 Q 来自解码器，K/V 来自编码器，长度可不同。' }],
+  pitfalls: ['mask 放在 softmax 后会破坏归一化。', '把最后一维 Dv 误当成 key 长度 Lk。'],
+});
+
+enhance('rmsnorm', {
+  beginnerSummary: '输入 x 形状 (...,D)，沿最后 hidden 维计算均方根，不减均值；输出仍为 (...,D)，只乘可学习 weight。eps 放在开方前防零除。',
+  prerequisites: ['RMS=sqrt(mean(x²)+eps) 衡量向量尺度。', 'weight 形状 (D,) 通过广播恢复每个通道的可学习比例。'],
+  workedExample: ['x=[3,4] 时 RMS=sqrt(12.5)，归一化后两个分量平方均值约为 1。', '全零向量依赖 eps 得到有限的 0，而不是 NaN。'],
+  derivation: ['rms=(mean(x²)+eps)^1/2；y=x/rms*weight。', '与 LayerNorm 不同，RMSNorm 不中心化，因此计算更少。'],
+  code: py('import torch\n\n\ndef rms_norm(x, weight, eps=1e-6):\n    x = torch.as_tensor(x, dtype=torch.float32)\n    weight = torch.as_tensor(weight, dtype=x.dtype)\n    if x.shape[-1] != weight.numel(): raise ValueError("weight must match hidden size")\n    rms = torch.sqrt(x.square().mean(dim=-1, keepdim=True) + eps)\n    return x/rms * weight'),
+  lineByLine: ['转换输入并固定最后一维为 hidden。', '检查 weight 长度与 hidden size 对齐。', 'mean(...,keepdim=True) 保留广播维度。', '除 RMS 后乘可学习 weight，返回原形状。'],
+  edgeCases: ['全零向量由 eps 防止除零', '半精度下 eps 不宜过小', '输入可包含 batch 与 sequence 前缀维'],
+  followUps: [{ question: '与 LayerNorm 的关键差异？', answer: 'LayerNorm 先减均值再除标准差并常带 bias；RMSNorm 只除均方根，保留均值方向。' }, { question: '为什么大模型常用 RMSNorm？', answer: '它省去均值计算和 bias，计算略少，同时实践中能保持稳定的尺度控制。' }],
+  pitfalls: ['把均方根写成 mean(x) 或标准差。', '沿 batch 维求均值，导致不同 token 互相影响。'],
+});
+
+enhance('conv1d', {
+  beginnerSummary: '输入单通道序列 x 长度 L、kernel 长度 K；stride S、padding P 后输出长度 floor((L+2P-K)/S)+1。框架语义是互相关，不翻转 kernel。',
+  prerequisites: ['每个输出位置取连续 K 个时间采样与 kernel 点积。', 'padding 在序列两端补零，stride 控制窗口移动步长。'],
+  workedExample: ['x=[1,2,3]、kernel=[1,1]、stride=1、padding=0，输出 [3,5]。', 'padding=1 时窗口含边界零，输出长度为 4，首个值是 1。'],
+  derivation: ['补零后长度 L+2P；合法起点数量给出 floor((L+2P-K)/S)+1。', '多通道时对每个输入通道的乘积求和，再为每个输出通道加 bias。'],
+  code: py('import numpy as np\n\ndef conv1d(x, kernel, stride=1, padding=0):\n    x, kernel = np.asarray(x, float), np.asarray(kernel, float)\n    if stride <= 0 or padding < 0: raise ValueError("invalid stride or padding")\n    padded = np.pad(x, (padding, padding))\n    out_len = (len(x)+2*padding-len(kernel))//stride + 1\n    if out_len <= 0: return np.empty(0, dtype=float)\n    return np.array([(padded[i*stride:i*stride+len(kernel)]*kernel).sum() for i in range(out_len)])'),
+  lineByLine: ['np.pad 在时间轴两端补零。', '输出公式显式包含原长度、padding、kernel 和 stride。', '按 stride 取连续窗口并与 kernel 点积。', '输出数组长度与公式一致。'],
+  edgeCases: ['kernel 大于补零后输入返回空数组', 'stride>1 会下采样', 'padding 窗口边界含零'],
+  followUps: [{ question: 'dilation 如何改变感受野？', answer: '窗口内采样间隔变为 dilation，等效核宽为 dilation*(K-1)+1，参数量不变但看到更长上下文。' }, { question: 'Conv1d 如何用于语音？', answer: '沿时间轴提取局部声学模式，stride 可做下采样；真实模型还要处理 batch、channel 和 bias。' }],
+  pitfalls: ['把数学卷积翻核与框架互相关混淆。', '输出长度漏掉 padding 或 stride。'],
+});
+
+enhance('ctc-greedy', {
+  beginnerSummary: '输入每帧 argmax 后的 token 列表 tokens（长度 T）和 blank 标记；先合并相邻重复，再删除 blank，输出 token 序列。',
+  prerequisites: ['CTC blank 表示该帧不输出字符。', '重复合并只针对相邻帧，blank 会打断重复关系。'],
+  workedExample: ['路径 [a,a,blank,b,b] 先合并为 [a,blank,b]，再删 blank 得 [a,b]。', '路径 [a,blank,a] 不能合并两个 a，因为 blank 将它们分开，输出 [a,a]。'],
+  derivation: ['扫描保持 prev；当前 token 与 prev 相同则跳过，否则先判断是否为 blank。', '顺序必须是“合并连续重复后删 blank”；先删 blank 会错误合并跨 blank 的字符。'],
+  code: py('def ctc_greedy(tokens, blank):\n    output, previous = [], None\n    for token in tokens:\n        if token != previous and token != blank:\n            output.append(token)\n        previous = token\n    return output'),
+  lineByLine: ['output 收集最终 token，previous 保存上一帧原始 token。', '相邻重复先被跳过，blank 不加入输出。', '每帧更新 previous，blank 能打断重复关系。', '扫描结束返回最多 T 个 token 的列表。'],
+  edgeCases: ['全 blank 输出空列表', '单帧输入直接返回一个非 blank token', '空 tokens 返回空列表'],
+  followUps: [{ question: '为什么先合并再删 blank？', answer: 'CTC 规则只合并相邻重复；[a,blank,a] 中 blank 打断相邻关系，先删 blank 会错误变成一个 a。' }, { question: '贪心一定是最优吗？', answer: '不一定；它逐帧取局部最大，可能遗漏多条稍低概率但联合概率更高的路径，beam search 可缓解。' }],
+  pitfalls: ['先过滤 blank 再去重，错误合并跨 blank 字符。', '把所有重复 token 都合并，而不是只合并相邻重复。'],
+});
+
+enhance('ctc-prefix-beam', {
+  beginnerSummary: '前缀束搜索为每个前缀分别维护以 blank 结尾的 p_b 和以非 blank 结尾的 p_nb；两者转移规则不同，最后合并得到前缀总分。',
+  prerequisites: ['同一前缀可由多条对齐路径产生，概率要在 log 域用 logaddexp 相加。', '若新字符等于前缀末字符，只能从 blank 状态扩展，避免错误合并重复。'],
+  workedExample: ['前缀 (a,) 的 p_b 表示末帧 blank，p_nb 表示末帧 a；下一帧 blank 会让两者都回到 p_b。', '扩展字符 a 时仅从 p_b 进入 (a,a)，扩展 b 时可从 p_b+p_nb 进入 (a,b)。'],
+  derivation: ['blank 转移保持前缀；非 blank 转移新增字符，或在重复字符规则下只从 blank 扩展。', '每帧按 p_b+p_nb 排序截断 beam，最终取总 log 概率最高的前缀。'],
+  code: py('import math\n\ndef _logadd(a, b):\n    if a == -math.inf: return b\n    if b == -math.inf: return a\n    m = max(a, b); return m + math.log(math.exp(a-m)+math.exp(b-m))\n\ndef ctc_prefix_beam(log_probs, blank, beam_size=3):\n    # log_probs: (T,V)，每行已是 log softmax\n    beams = {(): (0.0, -math.inf)}  # prefix -> (p_blank, p_nonblank)\n    for frame in log_probs:\n        next_scores = {}\n        for prefix, (pb, pnb) in beams.items():\n            total = _logadd(pb, pnb)\n            old = next_scores.get(prefix, (-math.inf, -math.inf))\n            value = old[0]\n            value = _logadd(value, total + float(frame[blank]))\n            next_scores[prefix] = (value, old[1])\n            for token, lp in enumerate(frame):\n                if token == blank: continue\n                last = prefix[-1] if prefix else None\n                new_prefix = prefix if token == last else prefix + (token,)\n                base = pb if token == last else total\n                old = next_scores.get(new_prefix, (-math.inf, -math.inf))\n                nb = _logadd(old[1], base + float(lp))\n                next_scores[new_prefix] = (old[0], nb)\n        beams = dict(sorted(next_scores.items(), key=lambda item: _logadd(*item[1]), reverse=True)[:beam_size])\n    return list(max(beams.items(), key=lambda item: _logadd(*item[1]))[0])'),
+  lineByLine: ['_logadd 在概率相加时保持对数数值稳定。', 'beams 值对分别表示 blank/nonblank 结尾分数。', 'blank 保持前缀，非 blank 按重复规则决定是否追加 token。', '每帧按合并分数截断，最终返回最高总分前缀。'],
+  edgeCases: ['全 blank 返回空前缀', 'beam_size=1 退化为近似贪心', '空帧序列返回空前缀'],
+  followUps: [{ question: '如何融合语言模型？', answer: '扩展新前缀时加入 λ·LM(prefix+token) 与长度奖励，再按总分排序。' }, { question: '为什么必须区分 p_b/p_nb？', answer: '重复字符从 nonblank 直接扩展会违反 CTC 合并规则；只有区分末尾状态才能正确计算。' }],
+  pitfalls: ['把 p_b、p_nb 当成普通概率直接相加，长序列会下溢。', '重复字符总是追加或总是不追加，忽略末尾 blank。'],
+});
+
+enhance('rnnt', {
+  beginnerSummary: 'RNN-T 在二维格点 (t,u) 上前向递推：t 是 encoder 帧数、u 是已输出标签数。blank 走到 (t+1,u)，label 走到 (t,u+1)，总复杂度 O(TU)。',
+  prerequisites: ['logp_blank 形状 (T,U+1)，logp_label 形状 (T,U)，元素是 log 概率。', 'alpha[t,u] 是到达格点的对数总概率，多个路径用 logaddexp 合并。'],
+  workedExample: ['从 (0,0) 可先输出标签到 (0,1)，也可 blank 到 (1,0)；两条路径概率相加。', '到 (T,U) 表示所有 T 帧与 U 个标签均消费完，alpha[T,U] 是序列概率。'],
+  derivation: ['按 t、u 遍历，每格向右（label）和向下（blank）转移。', '初始 alpha[0,0]=0，其余 -inf；使用 logaddexp 防止多路径下溢。'],
+  code: py('import numpy as np\n\ndef rnnt_forward(logp_blank, logp_label):\n    logp_blank, logp_label = np.asarray(logp_blank,float), np.asarray(logp_label,float)\n    T, up1 = logp_blank.shape\n    if logp_label.shape != (T, up1-1): raise ValueError("inconsistent RNNT shapes")\n    alpha = np.full((T+1, up1), -np.inf)\n    alpha[0,0] = 0.0\n    for t in range(T+1):\n        for u in range(up1):\n            if not np.isfinite(alpha[t,u]): continue\n            if t < T:\n                alpha[t+1,u] = np.logaddexp(alpha[t+1,u], alpha[t,u]+logp_blank[t,u])\n            if t < T and u < up1-1:\n                alpha[t,u+1] = np.logaddexp(alpha[t,u+1], alpha[t,u]+logp_label[t,u])\n    return float(alpha[T, up1-1]), alpha'),
+  lineByLine: ['检查两张概率表的 T、U 维一致。', 'alpha 初始化为负无穷，仅起点为 0。', 'blank 在 t<T 时推进时间轴。', 'label 在 t<T 且 u<U 时推进标签轴，并用 logaddexp 合并路径。'],
+  edgeCases: ['T=0 或 U=0 时只允许相应空路径', '非法形状应立即报错', '极小概率用对数域保持有限'],
+  followUps: [{ question: '为什么 label 转移不推进 t？', answer: 'RNN-T 允许同一声学帧输出多个标签，prediction 网络沿 u 轴前进；blank 才表示消费当前帧。' }, { question: '如何降低 O(TU) 空间？', answer: '若只求总分可按 u 或 t 滚动保存一行；若要回溯对齐则需保存父指针或完整格点。' }],
+  pitfalls: ['把 blank 和 label 方向写反。', '在 t=T 后仍访问 logp_label[t] 越界。'],
+});
+
+enhance('rnnt-greedy', {
+  beginnerSummary: '给定 T 个 encoder 帧、joint 函数和 predictor 状态：每帧反复取最大 token；blank 才推进下一帧，非 blank 输出并更新 predictor，且每帧设置最大输出数 M。',
+  prerequisites: ['blank 表示结束当前帧，非 blank 不消耗时间。', 'prediction state 依赖已输出 token，输出后必须更新。'],
+  workedExample: ['帧 0 的 joint 依次预测“你”“好”“blank”，输出两个 token 后才进入帧 1。', '若某帧始终预测非 blank，M 上限会打断循环并推进时间，避免死循环。'],
+  derivation: ['外层按 encoder 时间 t，内层最多循环 M 次。', 'argmax 得到 token；blank break，否则追加 token 并调用 predictor_step。'],
+  code: py('import numpy as np\n\ndef rnnt_greedy(encoder, predictor_start, joint, predictor_step, blank, max_symbols_per_frame=5):\n    state = predictor_start()\n    output = []\n    for frame in encoder:  # frame shape (D,)\n        for _ in range(max_symbols_per_frame):\n            logits = np.asarray(joint(frame, state))  # (V,)\n            token = int(logits.argmax())\n            if token == blank: break\n            output.append(token)\n            state = predictor_step(token, state)\n    return output'),
+  lineByLine: ['初始化 predictor state，output 保存转写 token。', '外层逐帧处理 encoder 表示。', '内层限制每帧最多 M 个非 blank 输出。', 'blank 结束当前帧，否则更新 state 并继续同帧解码。'],
+  edgeCases: ['连续 blank 立即推进时间', '单帧多个 token 需要 predictor 状态串联', 'M<=0 应在调用前拒绝'],
+  followUps: [{ question: '与 CTC greedy 最大差别？', answer: 'RNN-T 非 blank 不推进时间且依赖 prediction 网络，可一帧输出多个 token；CTC 每帧独立取一个。' }, { question: '如何提高准确率？', answer: '使用 RNN-T beam search、语言模型融合或更强的 encoder/predictor。' }],
+  pitfalls: ['非 blank 后忘记更新 predictor state。', '没有 max_symbols_per_frame 导致单帧无限循环。'],
+});
+
+enhance('streaming-cache', {
+  beginnerSummary: '流式模型按 chunk 输入新帧，只缓存最近 left_context 帧或 Transformer KV；每次返回新输出与更新后的有限缓存，避免重复计算全部历史。',
+  prerequisites: ['chunk_size 决定延迟与吞吐，left_context 决定模型可见历史。', '缓存必须在 chunk 边界拼接，不能丢掉跨边界卷积/注意力所需上下文。'],
+  workedExample: ['chunk1=[0..3]、chunk2=[4..7]、left_context=2；处理 chunk2 时输入缓存 [2,3] 加新帧 [4..7]。', '更新后只保留最后两帧 [6,7]，下个 chunk 不会让缓存无限增长。'],
+  derivation: ['维护 cache 拼接 context+chunk，encoder 只产生新 chunk 的输出。', '处理完成后 cache=context_plus_chunk[-left_context:]；解码器状态另行持续更新。'],
+  code: py('import numpy as np\n\ndef streaming_encode(chunks, encode_chunk, left_context=16):\n    cache = np.empty((0,), dtype=float)\n    outputs = []\n    for chunk in chunks:\n        chunk = np.asarray(chunk, dtype=float)\n        context = np.concatenate([cache, chunk])\n        encoded = encode_chunk(context, len(cache))  # 只返回新 chunk 对应输出\n        outputs.append(encoded)\n        cache = context[-left_context:] if left_context else np.empty((0,), dtype=float)\n    return outputs, cache'),
+  lineByLine: ['cache 初始为空一维帧序列。', '拼接旧上下文和新 chunk，encode_chunk 知道旧长度即可丢弃旧输出。', '只保存新输出，避免重复发射历史帧。', '切片保留最后 left_context 帧，控制显存和计算。'],
+  edgeCases: ['首个 chunk 没有历史缓存', 'left_context=0 表示无历史上下文', 'chunk 为空时应由 encode_chunk 定义行为'],
+  followUps: [{ question: '如何降低首字延迟？', answer: '减小 chunk 和右上下文，或采用更早的稳定前缀提交；代价是吞吐和上下文可能下降。' }, { question: '为什么缓存必须截断？', answer: '无限缓存会让每个 chunk 的注意力和显存随音频总长度线性增长，最终失去流式优势。' }],
+  pitfalls: ['只缓存输出不缓存卷积左上下文，导致 chunk 边界断裂。', 'cache 与 chunk 维度不一致，拼接后产生隐性广播或错误。'],
+});

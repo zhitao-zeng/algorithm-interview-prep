@@ -156,3 +156,25 @@ test('第三批题卡的示例类型与复杂度说明一致', () => {
   assert.match(maxSubArray.workedExample[1], /-2\+4=2/);
   assert.doesNotMatch(maxSubArray.code, /nums\[1:\]/);
 });
+
+test('模型手写与 ASR 专项题卡满足完整初学者学习契约', () => {
+  const ids = new Set([
+    'cross-entropy', 'bce', 'batchnorm', 'dropout', 'positional-encoding',
+    'topk-sampling', 'beam-search', 'kmeans', 'iou', 'nms', 'convolution',
+    'attention', 'rmsnorm', 'conv1d', 'ctc-greedy', 'ctc-prefix-beam',
+    'rnnt', 'rnnt-greedy', 'streaming-cache',
+  ]);
+  const cards = questions.filter((question) => ids.has(question.id));
+
+  assert.equal(cards.length, ids.size);
+  for (const id of ids) {
+    assert.equal(questions.filter((question) => question.id === id).length, 1, `题目 ${id} 应只出现一次`);
+  }
+  for (const question of cards) {
+    assert.equal(validateQuestionCard(question, { beginner: true }).valid, true, question.title);
+    assert.match(question.code, /def |class |from |import /, `${question.title} 应提供完整 Python 代码`);
+    assert.ok(question.lineByLine.length >= 3, `${question.title} 应至少有三段逐行讲解`);
+    assert.ok(question.workedExample.length >= 2, `${question.title} 应至少有两步演练`);
+    assert.ok(question.followUps.every((followUp) => typeof followUp === 'object' && followUp.answer), `${question.title} 追问必须带完整答案对象`);
+  }
+});
