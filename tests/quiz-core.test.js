@@ -63,6 +63,9 @@ test('链表与二叉树第一批题卡满足完整初学者学习契约', () =>
   const cards = questions.filter((question) => ids.has(question.id));
 
   assert.equal(cards.length, ids.size);
+  for (const id of ids) {
+    assert.equal(questions.filter((question) => question.id === id).length, 1, `题目 ${id} 应只出现一次`);
+  }
   for (const question of cards) {
     assert.equal(validateQuestionCard(question, { beginner: true }).valid, true, question.title);
     assert.match(question.code, /def |class |from |import /, `${question.title} 应提供完整 Python 代码`);
@@ -79,6 +82,19 @@ test('树题代码处理空树并以线性方式序列化', () => {
   assert.match(codec.code, /parts = \[\]/);
   assert.match(codec.code, /parts\.append\(/);
   assert.match(codec.code, /","\.join\(parts\)/);
+});
+
+test('数组窗口与二分 TopK 第二批题卡满足完整初学者学习契约', () => {
+  const ids = new Set(['3', '1', '42', '128', '239', '334', '33', '153', '347', '4', '215']);
+  const cards = questions.filter((question) => ids.has(question.id));
+
+  assert.equal(cards.length, ids.size);
+  for (const question of cards) {
+    assert.equal(validateQuestionCard(question, { beginner: true }).valid, true, question.title);
+    assert.match(question.code, /def |class |from |import /, `${question.title} 应提供完整 Python 代码`);
+    assert.ok(question.lineByLine.length >= 3, `${question.title} 应至少有三段逐行讲解`);
+    assert.ok(question.workedExample.length >= 2, `${question.title} 应至少有两步演练`);
+  }
 });
 
 test('快速详情按初学者学习顺序展示', () => {
