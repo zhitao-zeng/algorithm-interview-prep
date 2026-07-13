@@ -29,45 +29,49 @@ export function formatRemaining(seconds) {
 
 export function detailSections(card, level = 'quick') {
   const quick = [
-    ['quickAnswer', '快速结论', 'text'],
+    ['beginnerSummary', '入门概览', 'text'],
     ['code', 'Python 标准代码', 'code'],
     ['complexity', '复杂度', 'text'],
-    ['followUps', '常见追问', 'list'],
+    ['followUps', '常见追问', 'qa'],
     ['pitfalls', '易错点', 'list'],
   ];
   const deep = [
-    ['bruteForce', '暴力解法', 'text'],
+    ['beginnerSummary', '入门概览', 'text'],
+    ['prerequisites', '前置概念', 'concepts'],
+    ['workedExample', '示例演练', 'steps'],
     ['derivation', '推导过程', 'steps'],
-    ['invariant', '不变量', 'text'],
-    ['walkthrough', '手动演练', 'text'],
+    ['code', 'Python 标准代码', 'code'],
+    ['lineByLine', '逐行讲解', 'lineNotes'],
+    ['complexity', '复杂度', 'text'],
     ['edgeCases', '边界情况', 'cards'],
-    ['codeNotes', '代码要点', 'list'],
+    ['followUps', '常见追问', 'qa'],
+    ['pitfalls', '易错点', 'list'],
   ];
-  const fields = level === 'deep' ? [...quick, ...deep] : quick;
+  const fields = level === 'deep' ? deep : quick;
   return fields.map(([key, title, type]) => ({ key, title, type, value: card?.[key] }));
 }
 
-export function validateQuestionCard(card) {
+export function validateQuestionCard(card, { beginner = false } = {}) {
   const missing = [];
   const addMissing = (field) => {
     if (!missing.includes(field)) missing.push(field);
   };
+  const isNonEmptyString = (value) => typeof value === 'string' && value.trim();
+  const hasNonEmptyStrings = (field, minimum = 1) => (
+    Array.isArray(card?.[field])
+    && card[field].length >= minimum
+    && card[field].every(isNonEmptyString)
+  );
   const scalarFields = [
     'id',
     'prompt',
     'quickAnswer',
-    'bruteForce',
-    'invariant',
-    'walkthrough',
     'code',
     'complexity',
   ];
   const arrayFields = [
     'derivation',
-    'codeNotes',
     'edgeCases',
-    'followUps',
-    'followUpAnswers',
     'pitfalls',
   ];
 
@@ -76,18 +80,21 @@ export function validateQuestionCard(card) {
   }
 
   for (const field of arrayFields) {
-    if (
-      !Array.isArray(card?.[field])
-      || card[field].length === 0
-      || card[field].some((item) => typeof item !== 'string' || !item.trim())
-    ) {
-      addMissing(field);
-    }
+    if (!hasNonEmptyStrings(field)) addMissing(field);
   }
 
+  const legacyScalarFields = ['bruteForce', 'invariant', 'walkthrough'];
+  const legacyArrayFields = ['codeNotes', 'followUpAnswers'];
+  for (const field of legacyScalarFields) {
+    if (field in (card ?? {}) && !isNonEmptyString(card[field])) addMissing(field);
+  }
+  for (const field of legacyArrayFields) {
+    if (field in (card ?? {}) && !hasNonEmptyStrings(field)) addMissing(field);
+  }
+
+  if (!beginner && !hasNonEmptyStrings('followUps', 2)) addMissing('followUps');
   if (Array.isArray(card?.edgeCases) && card.edgeCases.length < 3) addMissing('edgeCases');
   if (Array.isArray(card?.pitfalls) && card.pitfalls.length < 2) addMissing('pitfalls');
-  if (Array.isArray(card?.followUps) && card.followUps.length < 2) addMissing('followUps');
   if (Array.isArray(card?.followUpAnswers) && card.followUpAnswers.length < 2) {
     addMissing('followUpAnswers');
   }
@@ -97,6 +104,22 @@ export function validateQuestionCard(card) {
     && card.followUps.length !== card.followUpAnswers.length
   ) {
     addMissing('followUpAnswers');
+  }
+
+  if (beginner) {
+    if (!isNonEmptyString(card?.beginnerSummary)) addMissing('beginnerSummary');
+    for (const field of ['prerequisites', 'workedExample', 'lineByLine']) {
+      if (!hasNonEmptyStrings(field, 2)) addMissing(field);
+    }
+    if (
+      !Array.isArray(card?.followUps)
+      || card.followUps.length < 2
+      || card.followUps.some(
+        (followUp) => !isNonEmptyString(followUp?.question) || !isNonEmptyString(followUp?.answer),
+      )
+    ) {
+      addMissing('followUps');
+    }
   }
 
   return { valid: missing.length === 0, missing };
