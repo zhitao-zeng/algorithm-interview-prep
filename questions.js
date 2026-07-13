@@ -102,4 +102,10730 @@ export const questions = [
   {"id":"kv-quant-loss","category":"KV Cache","difficulty":"Medium","title":"KV Cache 量化的精度损失","prompt":"KV Cache 量化可能造成什么精度损失？","quickAnswer":"KV 量化把浮点 K/V 映射到低精度整数，引入舍入与截断误差，会轻微扰动注意力分数分布。主要风险点：异常值(outlier)被压扁导致关键 token 注意力偏移、长上下文累积误差、以及不同层/头敏感度不一。实践中 INT8/FP8 通常近乎无损，INT4 若缩放不当会明显掉点，需用 per-token/per-head 缩放与异常值处理。","approach":"损失来自舍入/截断；风险在 outlier、长上下文累积、层间敏感度差异。","explanationFocus":"是什么：KV 量化引入舍入误差，可能扰动注意力分布；风险集中在 outlier、长程累积与敏感头。","bruteForce":"无脑 INT4 全局缩放 → outlier 被压扁，重要 token 注意力错位。","derivation":["为什么需要：要知道量化的边界，才能选精度与缩放策略。","怎么实现（控损）：用 per-token/per-head 对称缩放、对 outlier 单独处理、分层选择精度。","有什么代价：越激进（INT4）缩放越敏感；额外缩放元数据与反量化开销。","怎么评测：长上下文基准 + 敏感任务上对比困惑度/准确率，看 P99 是否劣化。"],"invariant":"误差随量化比特数下降而上升；per-token 缩放通常显著优于 per-tensor。","walkthrough":"某层 K 含一个超大值：全局缩放把它压到接近 0，该 token 注意力被错误抑制；改用 per-token 缩放后恢复。","edgeCases":["不同层敏感度差异大，可混合精度（敏感层留 FP16）。","长上下文误差逐 token 累积。","某些头（如检索相关）对 KV 精度更敏感。"],"code":"# Python\ndef per_token_scale(tensor):\n    # 比全局缩放更稳: 每个 token 独立缩放\n    scale = tensor.abs().amax(dim=-1, keepdim=True) / 127\n    return torch.round(tensor / scale).to(torch.int8), scale\n\ndef mse(a, b):\n    return ((a - b)**2).mean()","codeNotes":["per-token 缩放能压制 outlier 伤害。","可分层混合精度保敏感层。"],"complexity":"量化 O(元素)；误差评估 O(元素)；INT4 需更细缩放才有可比质量。","followUps":[{"question":"怎么判断某层 KV 能不能量化？","answer":"看该层 K/V 的数值范围与 outlier 程度；范围集中、无极端值的可放心 INT8/INT4，范围宽或 outlier 多的层用 per-token 缩放或保留高精度。"},{"question":"INT4 KV 还有救吗？","answer":"有，配合 per-head 缩放、异常值裁剪/单独处理、甚至分层混合精度，可在多数任务保持可用，但工程复杂度上升。"}],"followUpAnswers":["分层混合精度。","per-token/per-head 缩放。"],"pitfalls":["全局缩放被 outlier 拖垮。","假定所有层同样耐量化。"],"beginnerSummary":"速记缩写偶尔会写错一两个字，多数时候无碍，但若是人名、术语这种关键信息写错，整句意思就偏了。KV 量化同理：大部分 token 误差无害，可一旦把“关键句”的笔记记歪，模型对该句的注意力就错位。用“逐句单独校对”（per-token 缩放）能大幅避免。","prerequisites":["量化引入舍入误差。","注意力对 K/V 敏感。","outlier 会放大误差。"],"workedExample":["全局缩放下某 outlier K 被压平 → 该 token 注意力被错误抑制。","per-token 缩放后恢复；INT8 通常 P99 无损。"],"lineByLine":["量化=浮点映射整数, 有舍入。","误差扰动注意力分布。","风险: outlier/长程累积/敏感头。","per-token缩放+混合精度可控损。"],"diagram":"损失来源:\n 舍入/截断误差\n outlier 被压扁 → 关键token注意力错位\n 长上下文误差累积\n 层/头敏感度不一\n对策: per-token缩放, 混合精度, outlier处理"},
   {"id":"kv-prefix-cache","category":"KV Cache","difficulty":"Medium","title":"Prefix Cache","prompt":"Prefix Cache 是什么？","quickAnswer":"Prefix Cache（前缀缓存）把“相同前缀 prompt”的 KV Cache 缓存下来，后续请求若共享该前缀（如相同的系统提示、Few-shot 示例、长文档），直接复用已算好的 KV，跳过这部分 Prefill。它跨请求复用计算，显著降低 TTFT 与重复算力，是 Continuous Batching 系统（如 vLLM）的常见优化。","approach":"按前缀复用 KV，跳过重复 Prefill。","explanationFocus":"是什么：Prefix Cache 把公共前缀（系统提示等）的 KV 缓存并跨请求复用，省去重复 Prefill。","bruteForce":"每请求都重算相同的系统提示 → 浪费算力、抬高 TTFT。","derivation":["为什么需要：大量请求共享同一段前缀（system prompt），重复算浪费。","怎么实现：以前缀 token 序列为 key 缓存其 KV；新请求命中则直接拼接，从非共享处开始算。","有什么代价：需管理缓存生命周期与失效；prefix 部分要完全相同才能命中。","怎么评测：看前缀命中率、TTFT 降幅、Prefill FLOPs 节省。"],"invariant":"相同前缀的 KV 只算一次，被所有命中请求共享。","walkthrough":"100 个请求都用同一 500-token 系统提示：首次算并缓存，其余 99 个直接复用，省下 99 次 500-token Prefill。","edgeCases":["前缀必须 token 级完全相同才命中。","长文档问答：文档作前缀，多问题共享。","PagedAttention 用逻辑/物理块映射支持前缀共享。"],"code":"# Python\nprefix_cache = {}\ndef get_prefix_kv(prefix_ids):\n    key = tuple(prefix_ids)          # 前缀token序列作key\n    return prefix_cache.get(key)      # 命中则复用KV, 否则None","codeNotes":["vLLM 的 Prefix Caching 基于块哈希自动命中。","与 PagedAttention 的分块 KV 天然契合。"],"complexity":"命中时该前缀 Prefill 复杂度降为 O(0)；缓存查找 O(prefix_len) 哈希。","followUps":[{"question":"Prefix Cache 和 KV Cache 什么关系？","answer":"KV Cache 是单请求内复用历史 K/V；Prefix Cache 是跨请求复用“相同前缀”的 KV，是 KV Cache 思想在请求间的扩展。"},{"question":"什么场景收益最大？","answer":"所有请求带相同系统提示、长文档多轮问答、Few-shot 模板——前缀越长、共享请求越多，收益越大。"}],"followUpAnswers":["系统提示统一化以提升命中率。","长文档作共享前缀。"],"pitfalls":["前缀不完全一致导致不命中。","忽略缓存失效管理。"],"beginnerSummary":"公司每周例会都用同一份开场白。与其每人每次重读开场白，不如把开场白的笔记贴在墙上，大家直接复用。Prefix Cache 就是这面“公共笔记墙”：相同开头（系统提示/长文档）只算一次，后面所有请求直接抄，省时省力、首响更快。","prerequisites":["多请求共享相同前缀。","前缀 KV 可复用。","需按前缀索引缓存。"],"workedExample":["100 请求共享 500-token 系统提示：省 99 次重复 Prefill。","命中后 TTFT 大幅下降。"],"lineByLine":["以前缀 token 序列为 key 缓存 KV。","新请求命中则复用。","从非共享处开始计算。","省去重复 Prefill。"],"diagram":"请求A: [SYS]... → 算KV并缓存\n请求B: [SYS]... → 命中, 复用KV, 跳过Prefill\n请求C: [SYS]... → 命中, 复用\n(SAME prefix → 只算一次)"},
   {"id":"kv-shared-prefix","category":"KV Cache","difficulty":"Medium","title":"多请求共享 System Prompt 的 KV 复用","prompt":"多个请求有相同 System Prompt 时如何复用计算？","quickAnswer":"把相同的 System Prompt 当作共享前缀，用 Prefix Cache 缓存其 KV：第一个请求算完并缓存该前缀的 KV，后续请求直接复用，不再对这一段做 Prefill。实现上通常用前缀（块）哈希命中、配合 PagedAttention 的分块 KV 让多个请求的物理块指向同一份前缀 KV，从而省算力、降 TTFT。","approach":"相同 system prompt = 共享前缀 → Prefix Cache + 分块共享 KV。","explanationFocus":"是什么：多个请求复用同一 system prompt 的 KV，通过前缀哈希命中 + 分页 KV 块共享实现跨请求免重算。","bruteForce":"每个请求都重算 system prompt → 算力浪费、TTFT 升高。","derivation":["为什么需要：生产中 system prompt 常很长且高度一致，重复 Prefill 代价大。","怎么实现：对 prompt 前缀做块哈希，命中则映射物理 KV 块到共享前缀；新请求只算差异部分。","有什么代价：需保证前缀完全一致；引用计数管理共享块生命周期，防止误回收。","怎么评测：测前缀命中率、首请求外其余请求的 TTFT 与 Prefill FLOPs 节省。"],"invariant":"共享前缀的 KV 物理上只存一份，被多个逻辑请求引用。","walkthrough":"system prompt 512 token、100 并发：首次算 512-token 前缀 KV 并共享，其余 99 请求 Prefill 从 512 处开始，省下近全部前缀算力。","edgeCases":["前缀稍有不同（如时间戳）即不命中 → 需规范化 prompt。","共享块引用计数归零才回收。","多轮对话历史也可作为可复用前缀。"],"code":"# Python\ndef lookup_shared_prefix(prefix_ids, cache):\n    h = hash(tuple(prefix_ids))        # 块/前缀哈希\n    return cache.get(h)\n\ndef attach_shared(shared_kv, own_kv):\n    return shared_kv + own_kv          # 复用前缀, 拼接自有部分","codeNotes":["vLLM 自动按块哈希做 prefix caching。","共享前缀块需引用计数管理。"],"complexity":"命中请求前缀 Prefill 复杂度≈0；哈希查找 O(prefix) 可忽略。","followUps":[{"question":"和 Continuous Batching 怎么配合？","answer":"Continuous Batching 在调度层把命中共享前缀的请求并入 batch，它们跳过前缀 Prefill 直接进 Decode/后续计算，进一步提升吞吐。"},{"question":"前缀不完全一样怎么办？","answer":"尽量规范化（把易变内容如时间放到尾部），或拆成“固定前缀+可变部分”，只缓存固定前缀以保命中率。"}],"followUpAnswers":["把易变内容放 prompt 尾部。","用块级哈希提升局部命中。"],"pitfalls":["system prompt 含变量导致不命中。","共享块回收不当引发错误。"],"beginnerSummary":"同一个开场白被 100 个人用，没必要 100 个人各算一遍笔记。把开场白笔记固定在“公共区”，100 人直接引用同一份，只在自己特有的部分另记。既省了 99 份重复劳动，大家也能更快开口——这正是共享 system prompt 的 KV 复用。","prerequisites":["system prompt 多请求相同。","前缀 KV 可跨请求共享。","需哈希命中与引用管理。"],"workedExample":["512-token 系统提示 ×100 并发：仅首请求算前缀，其余复用。","其余请求 TTFT 接近“无前缀”成本。"],"lineByLine":["system prompt 作共享前缀。","块哈希命中 → 复用 KV。","多个请求引用同一物理块。","差异部分单独计算。"],"diagram":"SYS(512tok)\n  ├─ 请求1: 算KV, 缓存(引用1)\n  ├─ 请求2: 命中, 引用2, 跳过Prefill\n  └─ 请求3: 命中, 引用3, 跳过Prefill\n物理KV只存一份, 逻辑多引用"},
+  {
+  "id": "cb-what",
+  "category": "Continuous Batching",
+  "difficulty": "Easy",
+  "title": "Continuous Batching 是什么",
+  "prompt": "推理服务里的 Continuous Batching 是什么？",
+  "quickAnswer": "Continuous Batching 是推理调度方式：不再等整个 batch 的所有请求都生成完才换下一批，而是每个迭代（每个 decode step）动态把已完成的请求移出、把排队中的新请求填进来，使 GPU 始终被填满。它把调度粒度从\"整批\"细化到\"token 步\"。",
+  "approach": "以 token 为粒度调度，完成即释放、空位即补新。",
+  "explanationFocus": "是什么：Continuous Batching 以迭代/token 为粒度调度请求，完成即释放 slot、新请求即时补位，告别静态整批等待。",
+  "bruteForce": "静态 Batching：凑满一个 batch 才开始，且要等最长请求结束，短请求被长请求拖住。",
+  "derivation": [
+    "为什么需要：静态 batching 中请求长短不一，必须等最慢的请求结束才能整体换下一批，短请求早早算完却空占 slot，GPU 利用率低、延迟高。",
+    "怎么实现：调度器在每个 decode step 后检查完成的请求并释放其 KV slot；从等待队列取新请求填入空闲 slot，与仍在跑的请求一起进入下一步迭代。",
+    "有什么代价：需要更精细的显存/KV 管理（配合 PagedAttention），并维护每个请求独立的状态与 mask；实现比静态 batching 复杂。",
+    "怎么评测：对比相同负载下静态 vs 连续的吞吐(TPS)、平均/尾延迟、GPU 利用率，看长尾与并发改善。"
+  ],
+  "invariant": "任意时刻 GPU 上跑的 slot 数 = min(并发上限, 等待+运行中请求数)，尽力填满。",
+  "walkthrough": "batch 上限 4：步1 跑 [A,B,C,D]；步2 A 完成释放，新请求 E 补入 → 仍跑满 4；若用静态 batching，A 完成也要等 D，期间 slot 浪费。",
+  "edgeCases": [
+    "请求长短极度不均：静态 batching 浪费最严重，连续 batching 收益最大。",
+    "突发流量：新请求可在任意步插入，无需等整批。",
+    "所有请求同时完成：退化为小 batch，此时需尽快补位避免空跑。"
+  ],
+  "code": "# Python\ndef schedule_step(waiting, running, max_batch):\n    # 释放已完成请求\n    still = [r for r in running if not r.done]\n    # 用等待请求填补空位\n    free = max_batch - len(still)\n    while free > 0 and waiting:\n        still.append(waiting.pop(0)); free -= 1\n    return still  # 下一步迭代要跑的请求",
+  "codeNotes": [
+    "真实系统按 token 步调度，不是整句完成才释放。",
+    "KV slot 的分配/释放由 PagedAttention 配合管理。"
+  ],
+  "complexity": "调度本身 O(并发)；吞吐随有效并发提升，尾延迟显著下降。",
+  "followUps": [
+    {
+      "question": "Continuous Batching 和静态 Batching 最大区别？",
+      "answer": "静态要等整批最慢请求结束才换下一批，短请求被拖；连续在每个 token 步动态换入换出，slot 始终尽量填满。"
+    },
+    {
+      "question": "它对 KV Cache 有什么要求？",
+      "answer": "要求 KV 能按需分配/释放而非整批预留，所以通常配合 PagedAttention 这类分页显存管理。"
+    }
+  ],
+  "followUpAnswers": [
+    "PagedAttention 负责 KV 按需分配。",
+    "以 token 步而非整批为调度单位。"
+  ],
+  "pitfalls": [
+    "以为 batching 只是\"凑一批\"——连续 batching 关键是\"逐 token 步换入换出\"。",
+    "忽略它依赖精细的 KV 显存管理。"
+  ],
+  "beginnerSummary": "想象餐厅每桌吃饭速度不同。静态排法要等最慢那桌吃完才翻台，快吃完的桌只能干等；连续排法是谁吃完谁立刻走、门口等位客马上补坐，每张桌子尽量不停业。GPU 就像餐桌，Continuous Batching 让算力不被慢请求空占。",
+  "prerequisites": [
+    "推理是逐 token 自回归生成。",
+    "一个 batch 内请求长短不一。",
+    "GPU 希望尽量被填满才高效。"
+  ],
+  "workedExample": [
+    "batch 上限 4，步1 跑[A,B,C,D]；A 在第2步完成立即释放。",
+    "新请求 E 第2步补入，仍跑满4，无空 slot 浪费。"
+  ],
+  "lineByLine": [
+    "每个 decode step 后扫描完成的请求。",
+    "释放其 KV slot。",
+    "从等待队列按空闲数补入新请求。",
+    "合并后仍跑满上限进入下一步。"
+  ],
+  "diagram": "静态: [A,B,C,D] 全完成才换批 → 空等\n连续: 步1[A,B,C,D] 步2 A完成→补E →[B,C,D,E] 始终满"
+},
+  {
+  "id": "cb-why-needed",
+  "category": "Continuous Batching",
+  "difficulty": "Easy",
+  "title": "为什么需要 Continuous Batching",
+  "prompt": "为什么推理服务非得上 Continuous Batching，静态 batching 哪里浪费了？",
+  "quickAnswer": "因为真实流量里请求长短差异极大，静态 batching 必须等整批最慢请求结束才换下一批，导致\"气泡\"(bubble)：已完成请求空占算力、新请求被挡在门外。Continuous Batching 把调度降到 token 步，消除这种空闲，GPU 利用率和吞吐都能翻倍级提升。",
+  "approach": "从\"整批同步\"改为\"逐步异步\"，让完成即释放、排队即补入。",
+  "explanationFocus": "是什么：Continuous Batching 存在的根因是静态 batching 的整批同步造成算力气泡，需要更细粒度调度来填洞。",
+  "bruteForce": "静态 batching：等整批最慢请求生成完才整体换批，短请求提前算完也只能干等。",
+  "derivation": [
+    "为什么需要：线上请求输出长度分布极不均（几字到上千字），静态 batching 按\"最慢者\"对齐，快请求产生的空闲时间称为气泡，GPU 实际利用率可能不到 50%。",
+    "怎么实现：将调度单位从\"请求\"降为\"decode step\"，每步独立决定哪些 slot 释放、哪些新请求进入，气泡被新请求填掉。",
+    "有什么代价：需要能按 slot 而非按请求分配显存（KV），并精确维护每个请求独立的 position/attention 状态，调度逻辑更复杂。",
+    "怎么评测：在固定 QPS 与长度分布下对比吞吐与 P99 延迟，气泡率越低收益越大。"
+  ],
+  "invariant": "GPU 空闲 slot 数趋近于 0 是连续 batching 追求的不变量。",
+  "walkthrough": "10 个请求，9 个 10 token、1 个 1000 token。静态批：9 个早完成却要陪跑到第 1000 步，浪费约 9*(1000-10)=8910 步算力；连续批：9 个完成立刻让位新请求，仅剩长请求独占。",
+  "edgeCases": [
+    "极端长尾：1 个超长请求 + 大量短请求，静态浪费爆炸。",
+    "全部等长：连续与静态收益接近，但仍能平滑插入新请求。",
+    "请求极少：可能始终填不满，连续 batching 退化为普通批。"
+  ],
+  "code": "# Python\ndef bubble_steps(static_batch):\n    longest = max(r.length for r in static_batch)\n    wasted = sum(longest - r.length for r in static_batch)\n    return wasted  # 静态批的空转步数",
+  "codeNotes": [
+    "气泡步数 = 各请求与最长请求的长度差之和。",
+    "连续 batching 通过即走即补把 wasted 压到接近 0。"
+  ],
+  "complexity": "消除的气泡量与长度方差正相关；吞吐提升可达数倍。",
+  "followUps": [
+    {
+      "question": "气泡(bubble)具体指什么？",
+      "answer": "指某个 decode step 中，已完成但仍被占用的 slot 既不出有效算力也不接受新请求，造成的 GPU 空转。"
+    },
+    {
+      "question": "是不是所有场景都需要它？",
+      "answer": "等长、低并发、请求稀少的场景收益有限；高并发、长尾分布明显时才收益最大。"
+    }
+  ],
+  "followUpAnswers": [
+    "气泡=已完成请求空占 slot 的空转步。",
+    "高并发长尾分布时收益最大。"
+  ],
+  "pitfalls": [
+    "只盯着平均延迟，忽视长尾气泡才是主因。",
+    "以为加 GPU 就能解决，本质是调度粒度问题。"
+  ],
+  "beginnerSummary": "十个人一起排队过闸机，偏要等最慢那个磨蹭完才放下一拨，前面九个早就过完却堵在通道里。连续批就像谁过完谁立刻让位、后面人马上补上，闸机几乎不停。这就是消除\"气泡\"。",
+  "prerequisites": [
+    "推理按 token 步自回归生成。",
+    "请求输出长度差异大。",
+    "GPU 按 batch 并行，空 slot 即浪费。"
+  ],
+  "workedExample": [
+    "批内 9 个短(10) + 1 个长(1000)。",
+    "静态：陪跑到 1000 步共浪费 8910 步；连续：短请求完成即释放。"
+  ],
+  "lineByLine": [
+    "算出批内最长请求长度。",
+    "每个较短请求都陪跑 (最长-自身) 步。",
+    "累加得到气泡总步数。",
+    "连续 batching 目标就是让该浪费趋零。"
+  ],
+  "diagram": "静态: 步1..步1000 全占 ── 9个早完却空转\n连续: 步1..10 短请求完成→释放→补新请求"
+},
+  {
+  "id": "cb-static-problems",
+  "category": "Continuous Batching",
+  "difficulty": "Medium",
+  "title": "静态 Batching 的问题",
+  "prompt": "静态 Batching（Static Batching）有哪些典型问题？",
+  "quickAnswer": "静态 batching 有三个主要问题：(1) padding 浪费——为对齐长度给短序列补 pad，这些 pad 仍占算力；(2) 气泡/等待——必须等整批最慢请求结束才换批，短请求空占；(3) 显存按最大长度预留，长尾请求撑爆 batch 容量。Continuous Batching 逐个击破这些问题。",
+  "approach": "把静态批的\"对齐 + 整批同步 + 整批预留\"三点逐一换成动态策略。",
+  "explanationFocus": "是什么：静态 Batching 指预先凑满固定 batch、对齐长度、等整批结束后统一换下一批的调度方式，其问题集中在 padding、气泡与显存预留。",
+  "bruteForce": "每个 batch 取固定数量请求，padding 到相同长度，等最长请求生成完毕再整体出队。",
+  "derivation": [
+    "为什么需要：理解静态批的问题才能论证连续的必要性——padding 让无意义 token 参与计算，气泡让算力空转，显存预留让 batch 容量被少数长请求吃掉。",
+    "怎么实现：静态批通常在预处理阶段把序列 pad 到 batch 内最大长度，attention 用 mask 屏蔽 pad；换批以请求为单位整体进行。",
+    "有什么代价：pad 比例越高浪费越大；整批等待导致 P99 延迟差；为安全预留显存使并发上限被迫调低。",
+    "怎么评测：统计 pad token 占比、平均气泡步、实际可达并发数，对比连续方案。"
+  ],
+  "invariant": "静态批内有效计算占比 = 真实 token 数 / (pad 后 token 数)，越低越浪费。",
+  "walkthrough": "batch=4，长度 [4, 32, 8, 64]，pad 到 64 → pad 后共 256 token，真实仅 108，有效占比 42%，近六成算力打水漂。",
+  "edgeCases": [
+    "长度方差小：padding 浪费低，静态批尚可接受。",
+    "个别超长请求：拉高整体 pad 长度，连累整批。",
+    "batch 末尾凑不满：剩余 slot 全 pad，浪费放大。"
+  ],
+  "code": "# Python\ndef padding_waste(lengths):\n    max_len = max(lengths)\n    padded = sum(max_len for _ in lengths)\n    real = sum(lengths)\n    return 1 - real / padded  # pad 浪费比例",
+  "codeNotes": [
+    "pad 到 batch 内最大长度，越长尾浪费越高。",
+    "连续 batching 不强制同长度，天然免 padding。"
+  ],
+  "complexity": "浪费比例随长度方差增大；换批等待使尾延迟劣化。",
+  "followUps": [
+    {
+      "question": "padding 和气泡哪个更致命？",
+      "answer": "高并发长尾下气泡（等待）通常更致命，因为它直接拉高 P99；短序列密集时 padding 浪费也不可忽视。"
+    },
+    {
+      "question": "静态批能不能不 pad？",
+      "answer": "不 pad 就无法组成规整张量并行计算，GPU 核要求规整形状，所以静态批必须 pad 或分桶。"
+    }
+  ],
+  "followUpAnswers": [
+    "长尾下气泡更致命，拉高 P99。",
+    "静态批必须 pad 才能规整并行。"
+  ],
+  "pitfalls": [
+    "把\"对齐长度\"和\"等整批\"混为一谈，其实是两个独立问题。",
+    "以为显存预留只影响内存，其实它压低了可达并发。"
+  ],
+  "beginnerSummary": "静态批像把不同身高的人硬塞进同样高的箱子，矮的周围塞满泡沫（padding）；又像全班必须等最慢的同学交卷才能下课（气泡）。两种做法都让有用的空间和时间被白白占用。",
+  "prerequisites": [
+    "attention 需要规整张量。",
+    "batch 内长度不齐需 padding。",
+    "显存按预留长度分配。"
+  ],
+  "workedExample": [
+    "长度 [4,32,8,64] pad 到 64。",
+    "256 token 中仅 108 有效，浪费 58%。"
+  ],
+  "lineByLine": [
+    "取 batch 内最大长度。",
+    "每个序列 pad 到该长度。",
+    "求和得 pad 后总 token。",
+    "用 1 - 真实/总 得到浪费比例。"
+  ],
+  "diagram": "静态批: [4,32,8,64] → pad 到 64 → 泡沫占 58%\n问题: padding + 气泡 + 显存预留"
+},
+  {
+  "id": "cb-release-slot",
+  "category": "Continuous Batching",
+  "difficulty": "Medium",
+  "title": "请求完成即释放 slot",
+  "prompt": "Continuous Batching 里\"请求完成即释放 slot、新请求即时插入\"是怎么做到的？",
+  "quickAnswer": "每个 decode step 后，调度器检查哪些请求已生成 EOS 或达到最大长度，立即标记其 slot/显存为可复用；同时从等待队列按空闲 slot 数取出新请求填入。关键在于 slot 是按需分配、独立释放的，不是整批绑定，所以新请求能在任意步插入而非等整批结束。",
+  "approach": "维护 running/waiting 两个集合与空闲 slot 计数，每步做\"释放→补位\"。",
+  "explanationFocus": "是什么：把每个请求的占用从\"整批生命周期\"拆成\"独立 slot 生命周期\"，完成一个释放一个，空闲一个补一个。",
+  "bruteForce": "整批一起进、一起出，所有 slot 绑定到同一批请求直到全部完成。",
+  "derivation": [
+    "为什么需要：如果不独立释放，短请求完成后其 slot 仍被本批占用，无法接新请求，回到气泡问题。",
+    "怎么实现：每步遍历 running，done 的请求回收其 KV 页与位置；计算 free = capacity - 剩余数，按 free 从 waiting 取新请求初始化并加入下一步。",
+    "有什么代价：需要请求级状态机与 KV 页表追踪，回收时要保证不破坏仍在跑请求的连续性。",
+    "怎么评测：看稳态下 slot 利用率曲线是否贴近容量上限，以及新请求排队延迟(queuing delay)。"
+  ],
+  "invariant": "running 数 + waiting 已排部分 = 总待服务数；free = capacity - running 始终被尽量补满。",
+  "walkthrough": "capacity=8，running=8。步5 有 3 个完成 → running=5, free=3；从 waiting 取 3 个新请求补入 → running 回到 8。",
+  "edgeCases": [
+    "waiting 为空：free 无法补满，GPU 欠载。",
+    "瞬间大量完成：一次性腾出很多 slot，需快速批量补位。",
+    "新请求初始化慢：补位本身引入少量延迟。"
+  ],
+  "code": "# Python\ndef reclaim_and_fill(running, waiting, capacity):\n    done = [r for r in running if r.finished]\n    for r in done:\n        r.free_kv()  # 释放 KV 页\n    live = [r for r in running if not r.finished]\n    while len(live) < capacity and waiting:\n        live.append(waiting.pop(0).init())\n    return live",
+  "codeNotes": [
+    "释放以请求为单位，与其 KV 页绑定。",
+    "补位按 free 数量，不超 capacity。"
+  ],
+  "complexity": "每步 O(capacity)；补位使吞吐随到达率自适应。",
+  "followUps": [
+    {
+      "question": "释放 slot 后 KV 显存怎么处理？",
+      "answer": "交给分页显存管理器(如 PagedAttention)把该请求占用的页标记空闲，可被后续请求复用，无需整块重分配。"
+    },
+    {
+      "question": "新请求插入会不会打乱 position？",
+      "answer": "不会，每个请求维护自己的 position 计数与因果 mask，彼此独立，插入只新增一条独立序列状态。"
+    }
+  ],
+  "followUpAnswers": [
+    "KV 页标记空闲供复用。",
+    "各请求独立 position/mask。"
+  ],
+  "pitfalls": [
+    "把 slot 释放想成整批，实际是逐请求。",
+    "忽略释放后要立即补位，否则腾出的 slot 空转。"
+  ],
+  "beginnerSummary": "停车场每个车位独立计费：谁开走谁立刻空出，门口排队车马上停进来，不需要等整排车一起走。Continuous Batching 的车位就是 GPU 的 slot，独立释放让车位几乎不空。",
+  "prerequisites": [
+    "slot 对应一段 KV 显存。",
+    "请求有完成(EOS/长度)判定。",
+    "waiting 队列保存排队请求。"
+  ],
+  "workedExample": [
+    "capacity=8 全满，步5 完成 3 个。",
+    "释放后补 3 个新请求，重新满载。"
+  ],
+  "lineByLine": [
+    "扫描 running 找出已完成请求。",
+    "逐个释放其 KV 页。",
+    "统计剩余 live 请求。",
+    "按空闲数从 waiting 补入新请求。"
+  ],
+  "diagram": "running[8] --完成3--> 释放3 --> free=3\nwaiting 取3 --> running 回到[8]"
+},
+  {
+  "id": "cb-iteration-scheduling",
+  "category": "Continuous Batching",
+  "difficulty": "Medium",
+  "title": "iteration-level 调度原理",
+  "prompt": "iteration-level / token-level 调度的核心原理是什么？",
+  "quickAnswer": "iteration-level 调度把调度决策频率从\"一个请求的一生\"提高到\"每个 decode 迭代\"。在每个 token 生成步，调度器独立决定：哪些请求继续生成、哪些已完成释放、哪些新请求加入。这样 GPU 在每一步都看到最新的请求集合，实现了真正的细粒度复用。",
+  "approach": "把时间轴切成 decode step，每步重算 running/waiting 分配。",
+  "explanationFocus": "是什么：iteration-level 调度指以单个 decode step 为决策周期，每步动态重组 batch 成员，而非以请求为周期的静态分组。",
+  "bruteForce": "request-level 调度：请求进批后直到生成结束才离开，期间 batch 成员不变。",
+  "derivation": [
+    "为什么需要：request-level 调度在请求生成期间锁死 batch 成员，导致气泡；只有把决策周期压到每步才能随时换人。",
+    "怎么实现：每个 step 先执行一步前向（对所有当前 running），再据输出是否 EOS 更新 running，并补充 waiting，形成闭环。",
+    "有什么代价：每步都要做调度判断与可能的显存操作，调度开销虽小但需正确维护跨步状态。",
+    "怎么评测：对比 request-level 与 iteration-level 在相同到达率下的吞吐与排队延迟。"
+  ],
+  "invariant": "每一步执行的 batch = 上一步 live 集合 ∪ 本步新补入集合，且规模 ≤ capacity。",
+  "walkthrough": "step t: running={A,B,C}；A 出 EOS → 释放；waiting 取 D 补入 → step t+1 running={B,C,D}。",
+  "edgeCases": [
+    "某步无请求完成也无新到达：batch 规模不变。",
+    "多请求同一步完成：批量释放再批量补位。",
+    "capacity 已满且无完成：新请求只能继续排队。"
+  ],
+  "code": "# Python\ndef iteration_step(running, waiting, capacity):\n    outputs = model_forward(running)  # 各请求推进一步\n    finished = [r for r in running if outputs[r].eos]\n    live = [r for r in running if r not in finished]\n    while len(live) < capacity and waiting:\n        live.append(waiting.pop(0))\n    return live, finished",
+  "codeNotes": [
+    "先统一推进一步前向，再决定去留。",
+    "决策频率 = 每 token 步一次。"
+  ],
+  "complexity": "每步 O(capacity) 调度 + 一次前向；吞吐随有效并发上升。",
+  "followUps": [
+    {
+      "question": "iteration-level 和 request-level 本质区别？",
+      "answer": "决策周期不同：前者每 token 步重组 batch，后者整个请求生命周期内 batch 固定。"
+    },
+    {
+      "question": "调度频率提高会不会拖慢前向？",
+      "answer": "调度是轻量逻辑，相对一次前向开销极小，收益远大于成本。"
+    }
+  ],
+  "followUpAnswers": [
+    "决策周期: 每步 vs 每请求。",
+    "调度开销远小于前向。"
+  ],
+  "pitfalls": [
+    "以为频率只是数值差异，其实是消除气泡的关键。",
+    "在每步前向前忘记先更新完成状态。"
+  ],
+  "beginnerSummary": "request-level 像组团旅游，一伙人绑定到行程结束；iteration-level 像地铁每站上下客，每到一站都有人下车、新人上车，车（GPU）始终接近满载。",
+  "prerequisites": [
+    "decode 每步只产一个 token。",
+    "EOS 标志请求结束。",
+    "前向按当前 batch 执行。"
+  ],
+  "workedExample": [
+    "step t running={A,B,C}，A 出 EOS。",
+    "释放 A，补 D，step t+1={B,C,D}。"
+  ],
+  "lineByLine": [
+    "对当前 running 执行一步前向。",
+    "根据 EOS 标记完成请求。",
+    "保留未完成的 live。",
+    "按空闲补入 waiting 请求。"
+  ],
+  "diagram": "step t: [A,B,C] → forward → A EOS\nstep t+1: [B,C] + D → [B,C,D]"
+},
+  {
+  "id": "cb-padding-waste",
+  "category": "Continuous Batching",
+  "difficulty": "Easy",
+  "title": "可变长序列与 padding 浪费",
+  "prompt": "为什么可变长序列会导致 padding 浪费，又是怎么被 Continuous Batching 解决的？",
+  "quickAnswer": "为在 GPU 上规整并行，静态批必须把短序列 pad 到批内最长长度，这些 pad token 也要过一遍 attention 却毫无意义，白白吃算力与显存。Continuous Batching 不要求批内等长——它按请求独立管理长度与 KV，每个请求只计算自己的真实 token，从根本上消除 padding。",
+  "approach": "用\"逐请求独立长度 + 分页 KV\"替代\"整批对齐长度\"。",
+  "explanationFocus": "是什么：padding 浪费源于静态批对规整张量的要求，而连续 batching 通过请求级独立长度管理天然免 padding。",
+  "bruteForce": "把 batch 内所有序列 pad 到 max_len，再整体做 attention（mask 掉 pad）。",
+  "derivation": [
+    "为什么需要：GPU 算子偏好规整形状，静态批只能靠 padding 凑齐，长度方差越大浪费越夸张。",
+    "怎么实现：连续 batching 中每个请求维护自己的序列长度与 KV 页，attention 仅对自身历史 token 计算，不需要与其他请求对齐。",
+    "有什么代价：不同长度请求拼在同一 batch 需要支持变长/分块注意力（如 ragged tensor 或分页），kernel 实现更复杂。",
+    "怎么评测：统计 pad token 占比下降，以及相同算力下有效 token 吞吐提升。"
+  ],
+  "invariant": "连续批内无 pad token，每个位置的算力都对应真实 token。",
+  "walkthrough": "长度 [10, 500, 20]，静态 pad 到 500 → 980 个 pad token 空算；连续批各算各的，0 padding。",
+  "edgeCases": [
+    "极长短混合：padding 浪费最严重，连续收益最大。",
+    "几乎等长：padding 本来就少，收益有限。",
+    "超长单请求：连续批中它独占，不影响他人。"
+  ],
+  "code": "# Python\ndef pad_overhead(seqs):\n    m = max(len(s) for s in seqs)\n    pads = sum(m - len(s) for s in seqs)\n    return pads  # 静态批必算的无用 token 数",
+  "codeNotes": [
+    "pad 数 = Σ(max_len - 各长度)。",
+    "连续批没有 max_len 概念。"
+  ],
+  "complexity": "节省的算力正比于 pad 占比，长尾场景可达 50%+。",
+  "followUps": [
+    {
+      "question": "连续批不做 padding，attention 怎么算？",
+      "answer": "用变长/分页注意力，每个请求只对自己已生成的 KV 做因果注意力，不同请求长度互不干扰。"
+    },
+    {
+      "question": "padding 还会影响显存吗？",
+      "answer": "会，pad 也占 KV 缓存与激活，连续批释放这部分后可用显存更高、并发更大。"
+    }
+  ],
+  "followUpAnswers": [
+    "变长/分页注意力按请求独立算。",
+    "pad 也占 KV，连续批省下显存。"
+  ],
+  "pitfalls": [
+    "以为只要 batch 小就无所谓 padding。",
+    "把 padding 浪费和气泡当成同一回事。"
+  ],
+  "beginnerSummary": "把高矮不一的人排进统一高度的格子，矮的周围填泡沫。泡沫不占座位但占箱子体积还增加搬运重量——这就是 padding。连续批让每个人用自己的真实高度，泡沫消失。",
+  "prerequisites": [
+    "GPU 偏好规整张量。",
+    "attention 对历史 token 计算。",
+    "KV 随序列长度增长。"
+  ],
+  "workedExample": [
+    "长度 [10,500,20] pad 到 500。",
+    "980 个 pad 空算；连续批 0 padding。"
+  ],
+  "lineByLine": [
+    "找批内最大长度。",
+    "每个短序列补到该长度。",
+    "累加得到 pad 总数。",
+    "连续批取消该步骤。"
+  ],
+  "diagram": "静态: 10,500,20 → 全 pad 到 500 (浪费980)\n连续: 各算各的真实长度, 0 pad"
+},
+  {
+  "id": "cb-throughput-compare",
+  "category": "Continuous Batching",
+  "difficulty": "Medium",
+  "title": "与 static batching 的吞吐对比",
+  "prompt": "怎么量化对比 Continuous Batching 和静态 Batching 的吞吐收益？",
+  "quickAnswer": "用相同模型、相同硬件、相同到达率与长度分布做压测，核心指标是有效 token 吞吐(TPS，含输入输出)、平均与 P99 延迟、GPU 利用率。连续批因消除气泡与 padding，通常在高并发下吞吐可提升 2-4 倍，P99 显著下降，且能支撑更高并发上限。",
+  "approach": "控制变量做 A/B，画吞吐-延迟曲线与利用率。",
+  "explanationFocus": "是什么：吞吐对比是在固定负载下测\"单位时间内完成的有效 token 数\"，连续批通过提高 slot 利用率把曲线整体抬升。",
+  "bruteForce": "静态批下简单统计总 token / 总耗时作为吞吐。",
+  "derivation": [
+    "为什么需要：要证明收益必须可量化，否则只是定性口号；吞吐与延迟是最直接的业务语言。",
+    "怎么实现：以 Poisson 或真实 trace 注入请求，记录每请求入队、首 token、完成时间；汇总 TPS = 总生成 token / 总耗时，延迟分位数。",
+    "有什么代价：压测需覆盖不同到达率与长度分布，单点数据易误导；需排除冷启动与预热。",
+    "怎么评测：绘吞吐随 QPS 变化曲线，观察连续批在饱和区的优势与拐点。"
+  ],
+  "invariant": "相同模型/硬件下，连续批的 TPS(QPS→饱和) 应稳定高于静态批。",
+  "walkthrough": "A100 上 LLaMA-7B，QPS=32，长度分布幂律：静态 TPS≈1800，连续 TPS≈5400，提升 3x；P99 由 4.2s 降到 1.1s。",
+  "edgeCases": [
+    "低 QPS：两者都填不满，差异小。",
+    "超饱和 QPS：排队主导，吞吐趋于上限但延迟飙升。",
+    "极短输出：静态批 padding 少，差距收窄。"
+  ],
+  "code": "# Python\ndef effective_tps(total_tokens, wall_time):\n    return total_tokens / wall_time  # 有效 token 吞吐\n\ndef speedup(tps_cont, tps_static):\n    return tps_cont / tps_static  # 吞吐提升倍数",
+  "codeNotes": [
+    "算有效 token（真实输出），不含 pad。",
+    "speedup = 连续/静态，通常 2-4x。"
+  ],
+  "complexity": "收益随并发与长度方差放大；低载时趋近 1x。",
+  "followUps": [
+    {
+      "question": "吞吐提升 4 倍是怎么来的？",
+      "answer": "主要来自消除气泡（短请求不再陪跑）与去除 padding，二者在长尾高并发下叠加放大。"
+    },
+    {
+      "question": "只看吞吐够吗？",
+      "answer": "不够，还要看 P99 延迟与利用率，吞吐高但尾延迟爆炸对用户无意义。"
+    }
+  ],
+  "followUpAnswers": [
+    "气泡+padding 双重消除叠加。",
+    "需同时看 P99 与利用率。"
+  ],
+  "pitfalls": [
+    "在低 QPS 下测出\"无差异\"就否定连续批。",
+    "把 pad token 也算进吞吐虚高。"
+  ],
+  "beginnerSummary": "同样一辆货车（GPU），静态批像半车货就发车还不让中途装卸，连续批像随到随装、卸完即补。跑同样时间，连续批运的货（token）明显更多——这就是吞吐提升。",
+  "prerequisites": [
+    "吞吐 = 有效 token / 时间。",
+    "延迟分位数衡量长尾。",
+    "压测需控制变量。"
+  ],
+  "workedExample": [
+    "QPS=32，静态 TPS≈1800，连续≈5400。",
+    "提升 3x，P99 由 4.2s 降到 1.1s。"
+  ],
+  "lineByLine": [
+    "记录总生成 token 与墙钟时间。",
+    "求有效 TPS。",
+    "对静态/连续分别测。",
+    "取比值得 speedup。"
+  ],
+  "diagram": "QPS↑: 静态 TPS  plateau@1800\n       连续 TPS  plateau@5400 (3x)"
+},
+  {
+  "id": "cb-kv-dynamic",
+  "category": "Continuous Batching",
+  "difficulty": "Hard",
+  "title": "in-flight 请求的 KV cache 动态分配",
+  "prompt": "Continuous Batching 下，运行中(in-flight)请求的 KV cache 是如何动态分配的？",
+  "quickAnswer": "关键是不再为整批预留固定长度 KV，而是按请求实际已生成的 token 数按需分配/扩展。常用分页管理（如 vLLM 的 PagedAttention）：把 KV 切成固定大小页(block)，每个请求持有一张页表动态追加页；请求完成释放其页回空闲池，新请求复用。这既避免预留浪费，也支持任意步插入。",
+  "approach": "用分页(block)显存池 + 每请求页表，按需增长、完成即回收。",
+  "explanationFocus": "是什么：KV cache 动态分配指以页/块为单位、按请求生成进度增量分配 KV 显存，并由页表映射，而非整批预分配整段。",
+  "bruteForce": "静态批为每个请求预留 max_seq_len 的 KV，哪怕只生成几个 token 也占满。",
+  "derivation": [
+    "为什么需要：若预分配最大长度，长尾会撑爆显存、压低并发；连续批要支持任意步插入就必须能\"随用随分\"。",
+    "怎么实现：维护全局 block 池；请求每生成满一个 block 的 token 就向页表追加一块；attention 按页表跨块读取历史 KV。",
+    "有什么代价：跨块访存带来间接寻址开销，需专门 kernel；页表管理增加实现复杂度与少量碎片。",
+    "怎么评测：对比显存峰值占用、可达并发数、以及因 KV 管理引入的 kernel 耗时占比。"
+  ],
+  "invariant": "已分配 KV 页总 token 容量 ≥ 所有 running 请求当前长度之和，无越界。",
+  "walkthrough": "block=16 token；请求 A 已生成 40 token → 占用 3 页(48 容量)；再生成到 50 → 追加第 4 页。完成释放 4 页回池。",
+  "edgeCases": [
+    "block 碎片：空闲页散布，需回收整理或容忍。",
+    "瞬时峰值：所有请求同时增长，block 池可能临时枯竭触发抢占。",
+    "超长请求：占多页，但只按实际占用，不浪费预留。"
+  ],
+  "code": "# Python\nclass KVPool:\n    def alloc_block(self): return self.free.pop()      # 取空闲页\n    def free_blocks(self, page_table):                 # 回收\n        for b in page_table: self.free.add(b)",
+  "codeNotes": [
+    "block 为固定 token 数的 KV 单元。",
+    "页表让逻辑连续、物理离散。"
+  ],
+  "complexity": "分配 O(1)/页；显存利用率近 100%，并发上限显著提高。",
+  "followUps": [
+    {
+      "question": "分页 KV 会不会拖慢 attention？",
+      "answer": "会引入间接寻址，但专用 kernel(PagedAttention)把随机访存批处理化，开销很小，换来高利用率是值得的。"
+    },
+    {
+      "question": "动态分配和连续 batching 什么关系？",
+      "answer": "前者是后者的显存基石：没有按需分配，就无法在任意步释放/插入请求。"
+    }
+  ],
+  "followUpAnswers": [
+    "专用 kernel 把开销压到很小。",
+    "动态分配是连续批的显存基石。"
+  ],
+  "pitfalls": [
+    "以为 KV 仍按 max_len 预留就支持连续批。",
+    "忽视跨块访存需要专门 kernel 优化。"
+  ],
+  "beginnerSummary": "静态分配像每人预租一整年车位（不管开不开）；分页分配像按小时租，车在就续费一格，开走立刻退格给别人。显存就是车位，动态分配让它几乎零浪费。",
+  "prerequisites": [
+    "KV cache 随长度线性增长。",
+    "显存总量有限。",
+    "请求长度不可预知。"
+  ],
+  "workedExample": [
+    "block=16，A 长 40 → 占 3 页。",
+    "长到 50 → 第 4 页；完成释放 4 页。"
+  ],
+  "lineByLine": [
+    "全局维护空闲 block 池。",
+    "请求生成满一块即追加页。",
+    "页表记录逻辑-物理映射。",
+    "完成把页归还空闲池。"
+  ],
+  "diagram": "请求页表: [b0,b1,b2] → 物理离散块\n完成 → 块归还 free pool"
+},
+  {
+  "id": "cb-preemption",
+  "category": "Continuous Batching",
+  "difficulty": "Hard",
+  "title": "请求优先级与抢占",
+  "prompt": "Continuous Batching 里如何处理请求优先级与抢占(preemption)？",
+  "quickAnswer": "当显存/并发到达上限且高优先级请求到来、或 KV 池枯竭时，需抢占低优先级请求：要么把它已生成的 KV 换出到 CPU(offload)待恢复，要么直接丢弃重算(swap vs recompute)。调度器按优先级与占用排序选 victim，保证重要请求低延迟，同时尽量不饿死低优先级。",
+  "approach": "定义优先级 + 准入控制，KV 不足时按策略换出/重算被抢占者。",
+  "explanationFocus": "是什么：抢占是在资源紧张时，暂停或驱逐低优先级请求以腾出 slot/KV 给更高优先级请求的机制，分为 swap-to-CPU 与 recompute 两类。",
+  "bruteForce": "无抢占：严格 FIFO，高优先级也得排队，长请求占着 KV 不走。",
+  "derivation": [
+    "为什么需要：纯 FIFO 下重要请求可能被一堆长尾拖死；且 KV 池在峰值会枯竭，必须有取舍策略而非直接拒绝。",
+    "怎么实现：给请求打优先级；准入时若资源不足，选出优先级最低且 KV 占用高的 victim；swap 将其 KV 移到 CPU 内存，recompute 则丢弃待重算。",
+    "有什么代价：swap 增加 CPU-GPU 传输与恢复延迟；recompute 浪费已算算力；都要额外状态管理。",
+    "怎么评测：看高优先级 P99 是否达标、低优先级是否被饿死、抢占带来的额外开销占比。"
+  ],
+  "invariant": "高优先级请求不应因低优先级长尾而显著劣化；被抢占者最终仍会完成。",
+  "walkthrough": "池满，新到 P0 请求；当前有 P2 长请求占 20 页 → 选它 victim，swap 到 CPU；P0 运行；P2 后续重新调回继续生成。",
+  "edgeCases": [
+    "全部同优先级：按占用/等待时间选 victim，避免饿死。",
+    "频繁抢占抖动：需退避，防止同一请求反复换入换出。",
+    "CPU 内存也满：只能 recompute 或拒绝。"
+  ],
+  "code": "# Python\ndef pick_victim(running, incoming):\n    if incoming.prio <= min(r.prio for r in running):\n        return None  # 不抢占\n    victims = [r for r in running if r.prio > incoming.prio]\n    return max(victims, key=lambda r: r.kv_used)  # 占最多 KV 的低优者",
+  "codeNotes": [
+    "victim 选\"低优先级且占 KV 多\"者。",
+    "swap 保结果, recompute 保显存。"
+  ],
+  "complexity": "抢占决策 O(并发)；代价是 swap/recompute 的额外延迟与带宽。",
+  "followUps": [
+    {
+      "question": "swap 和 recompute 怎么选？",
+      "answer": "KV 小且 CPU 带宽足选 swap；KV 大或 CPU 内存紧选 recompute，按恢复成本估算。"
+    },
+    {
+      "question": "如何避免低优先级饿死？",
+      "answer": "给等待时间加权优先级，或设老化(aging)机制，等待越久优先级越高。"
+    }
+  ],
+  "followUpAnswers": [
+    "按恢复成本在 swap/recompute 间选。",
+    "aging 机制防饿死。"
+  ],
+  "pitfalls": [
+    "抢占只考虑优先级忽略 KV 占用，换出不划算。",
+    "频繁抢占导致同一请求反复换入换出抖动。"
+  ],
+  "beginnerSummary": "急诊室：普通病患正在占床，危急病人 arriving，医生让占用多床位且病情轻的先临时挪到走廊(换出)，救完再挪回。抢占就是\"让重要的人先用资源\"，但别把同一个人反复踢来踢去。",
+  "prerequisites": [
+    "KV 池会枯竭。",
+    "请求有优先级语义。",
+    "CPU 内存可作缓冲。"
+  ],
+  "workedExample": [
+    "池满，P0 请求到达。",
+    "选占 20 页的 P2 victim，swap 到 CPU。"
+  ],
+  "lineByLine": [
+    "比较到来请求与运行中优先级。",
+    "筛选可被抢占的低优者。",
+    "按 KV 占用选 victim。",
+    "swap 或 recompute 腾出资源。"
+  ],
+  "diagram": "运行中[P0?] 池满 → 选低优高KV victim\n→ swap 到 CPU → 高优运行 → 恢复 victim"
+},
+  {
+  "id": "cb-metrics",
+  "category": "Continuous Batching",
+  "difficulty": "Easy",
+  "title": "衡量 Continuous Batching 的收益",
+  "prompt": "怎么衡量 Continuous Batching 带来的实际收益，看哪些指标？",
+  "quickAnswer": "核心看四类：(1) 吞吐——有效 token/s 与请求/s；(2) 延迟——TTFT(首 token)、TPOT(每输出 token 间隔)、端到端平均与 P99；(3) GPU 利用率与气泡率；(4) 可达并发上限与排队延迟。连续批应在相同成本下显著提高吞吐、压低尾延迟、抬升并发。",
+  "approach": "围绕吞吐、延迟、利用率、并发四个维度建指标。",
+  "explanationFocus": "是什么：衡量收益就是用一组可比指标量化\"同样硬件成本下服务能力的提升\"，重点是有效吞吐与尾延迟。",
+  "bruteForce": "只看平均延迟或只看峰值 TPS，单方面下结论。",
+  "derivation": [
+    "为什么需要：没有统一指标就无法判断调参/换实现是否真的更好，也容易用低载数据自我安慰。",
+    "怎么实现：埋点记录每请求 arrival、first_token、finish 时间，聚合出 TTFT/TPOT/端到端分位数与 TPS；同时采 GPU util。",
+    "有什么代价：埋点有轻微开销；多指标需综合权衡，不能单押一个。",
+    "怎么评测：在多个 QPS 档位测上述指标，画曲线看饱和点与拐点。"
+  ],
+  "invariant": "在饱和区，连续批的有效 TPS 与 P99 应同时优于静态批。",
+  "walkthrough": "QPS=16: TTFT 120ms, TPOT 18ms, TPS 2600, util 91%；对比静态批同点 TPS 900, util 55%。",
+  "edgeCases": [
+    "只看平均值掩盖长尾：必须看 P99/P999。",
+    "低载下指标都好，看不出差异。",
+    "吞吐高但 TTFT 爆炸：用户仍不满意。"
+  ],
+  "code": "# Python\ndef tail(latencies, p=99):\n    s = sorted(latencies)\n    return s[min(len(s)-1, int(len(s)*p/100))]  # P 分位延迟",
+  "codeNotes": [
+    "分位数比均值更能反映体验。",
+    "TTFT/TPOT 分离定位瓶颈。"
+  ],
+  "complexity": "指标采集 O(请求数)；收益需在饱和区才显著。",
+  "followUps": [
+    {
+      "question": "TTFT 和 TPOT 分别说明什么？",
+      "answer": "TTFT 反映排队与 prefill 速度（受并发影响大），TPOT 反映 decode 步延迟（受 batch 规模影响大）。"
+    },
+    {
+      "question": "为什么必须看 P99 不看均值？",
+      "answer": "均值被大量短请求拉平，少数长尾请求才是用户体验痛点，连续批的价值恰恰在压长尾。"
+    }
+  ],
+  "followUpAnswers": [
+    "TTFT 排队+prefill, TPOT decode 步。",
+    "长尾决定体验, 均值会掩盖。"
+  ],
+  "pitfalls": [
+    "用低载数据声称\"无差异\"。",
+    "只看吞吐忽略尾延迟。"
+  ],
+  "beginnerSummary": "评价一家餐厅不能只看\"平均上菜速度\"，还得看\"最慢那桌等多久\"(P99)和\"高峰期翻台率\"(吞吐)。连续批的强项就是把最慢那桌的等待压下来、翻台更快。",
+  "prerequisites": [
+    "吞吐与延迟是两大主轴。",
+    "分位数反映长尾。",
+    "GPU 利用率指示浪费。"
+  ],
+  "workedExample": [
+    "同 QPS=16 测两组。",
+    "连续批 TPS 2600/util91% vs 静态 900/55%。"
+  ],
+  "lineByLine": [
+    "记录每请求关键时间戳。",
+    "聚合 TTFT/TPOT/端到端。",
+    "算 P 分位抓长尾。",
+    "多 QPS 档位对比曲线。"
+  ],
+  "diagram": "指标: 吞吐↑ 延迟(P99)↓ 利用率↑ 并发↑"
+},
+  {
+  "id": "cb-pagedattention",
+  "category": "Continuous Batching",
+  "difficulty": "Hard",
+  "title": "与 PagedAttention 的协同",
+  "prompt": "Continuous Batching 和 PagedAttention 是什么协同关系？",
+  "quickAnswer": "二者是\"调度\"与\"显存底座\"的关系：Continuous Batching 负责在 token 步动态换入换出请求，而 PagedAttention 以分页 block 管理 KV，使 KV 能按需分配、独立释放、跨请求复用。没有 PagedAttention 这类分页显存，连续批就做不到\"任意步释放 slot 并接新请求\"，所以常配套出现（如 vLLM）。",
+  "approach": "把连续批当调度层，PagedAttention 当 KV 显存管理层，上下配合。",
+  "explanationFocus": "是什么：协同指连续 batching 的细粒度调度依赖 PagedAttention 的分页 KV 管理来实现按需分配与释放，二者共同消除气泡与预留浪费。",
+  "bruteForce": "连续批调度 + 整段预分配 KV：插入新请求时无法腾出连续大块，调度优势被显存卡死。",
+  "derivation": [
+    "为什么需要：连续批要求请求级独立生命周期，预分配整段 KV 无法在运行中释放零散空间，必然冲突。",
+    "怎么实现：PagedAttention 把 KV 切成 block，页表映射；连续批每步释放完成请求的 block、把空闲 block 给新请求，attention kernel 按页表跨块读取。",
+    "有什么代价：跨块访问需专门 kernel 与额外元数据；二者耦合使系统实现更复杂。",
+    "怎么评测：对比\"连续批+分页\"与\"连续批+预分配\"在并发上限与碎片率上的差距。"
+  ],
+  "invariant": "若无分页 KV，连续批无法真正按需释放；分页是连续批可落地的必要条件之一。",
+  "walkthrough": "连续批释放请求 A 的 3 个 block → 空闲池 +3；新请求 B 取这 3 块起步，无需连续大块，PagedAttention 按页表拼出 B 的历史 KV。",
+  "edgeCases": [
+    "block 碎片导致无连续逻辑但物理够用：分页天然解决。",
+    "page table 膨胀：超长请求页表长，需控制元数据。",
+    "共享前缀(如 system prompt)：可跨请求共享 block 进一步省显存。"
+  ],
+  "code": "# Python\ndef attach_new_request(pool, page_table, need_blocks):\n    for _ in range(need_blocks):\n        page_table.append(pool.free.pop())  # 离散取块拼逻辑序列",
+  "codeNotes": [
+    "逻辑连续靠页表, 物理离散靠 block。",
+    "两者解耦才支持任意步插入。"
+  ],
+  "complexity": "分页近乎零预留浪费；协同使并发上限与利用率同时提升。",
+  "followUps": [
+    {
+      "question": "能不能没有 PagedAttention 也做连续批？",
+      "answer": "理论上可用其他变长/分页方案，但必须能按需分配释放 KV；纯整段预分配做不到真正的逐请求释放。"
+    },
+    {
+      "question": "共享前缀怎么帮连续批？",
+      "answer": "system prompt 等公共前缀的 block 可被多请求只读共享，省显存、提并发，连续批下更明显。"
+    }
+  ],
+  "followUpAnswers": [
+    "需任意分页方案, 非必须 PagedAttention。",
+    "公共前缀 block 可共享省显存。"
+  ],
+  "pitfalls": [
+    "把 PagedAttention 当成连续批的替代品而非底座。",
+    "以为有了连续批调度就自动省显存。"
+  ],
+  "beginnerSummary": "连续批是\"调度员\"，决定谁上谁下；PagedAttention 是\"停车场管理员\"，把车位切成小块、随用随分、开走即收。没有管理员，调度员再会排也找不到零散车位给新车。",
+  "prerequisites": [
+    "连续批需逐请求释放。",
+    "KV 显存需按需管理。",
+    "分页支持离散分配。"
+  ],
+  "workedExample": [
+    "A 释放 3 block 回池。",
+    "B 离散取 3 块，页表拼出历史 KV。"
+  ],
+  "lineByLine": [
+    "连续批释放完成请求 block。",
+    "block 回空闲池。",
+    "新请求从池取离散 block。",
+    "页表把离散块映射为逻辑序列。"
+  ],
+  "diagram": "连续批(调度) ──依赖──▶ PagedAttention(分页KV)\n释放 block ⇄ 取 block 闭环"
+},
+  {
+  "id": "cb-implementation-pitfalls",
+  "category": "Continuous Batching",
+  "difficulty": "Hard",
+  "title": "实现陷阱：token 错位与 mask",
+  "prompt": "实现 Continuous Batching 时常踩哪些坑，比如 token 错位、attention mask 处理？",
+  "quickAnswer": "典型坑：(1) token 错位——不同请求在同一 batch 不同步长，拼接时 position 必须各自维护，否则把 A 的第 t 步和 B 的第 t' 步混淆；(2) attention mask——必须按每请求真实长度做因果 mask，不能套用整批统一 mask；(3) KV 页表越界；(4) 完成判定与释放时序竞态。正确做法是每请求独立 position/length 与分页 KV。",
+  "approach": "为每请求保存独立 position 与长度，按页表做变长因果注意力。",
+  "explanationFocus": "是什么：实现陷阱指在把多请求拼进同一 batch 时，因各自进度不同步而引发的位置错乱与 mask 错误，需要请求级状态隔离来规避。",
+  "bruteForce": "把多请求当等长序列统一喂入、用同一 mask，省事但必然错位。",
+  "derivation": [
+    "为什么需要：连续批中请求不在同一步，若不隔离状态，前向会把错误历史拼给某个请求，输出直接崩坏。",
+    "怎么实现：每个请求持有自己的 position 计数；attention 用变长/分页 kernel 仅对自身 KV 做因果掩码；释放时校验页表边界。",
+    "有什么代价：请求级状态管理增加代码复杂度，变长 kernel 开发门槛高。",
+    "怎么评测：构造长短混跑用例，对比输出与单请求串行结果是否一致(baseline diff)。"
+  ],
+  "invariant": "请求 r 在第 k 步的输入 position == 其已生成 token 数，且只 attend 自身前 k 个 token。",
+  "walkthrough": "batch 含 A(已 5 token)与 B(已 2 token)；A 第6步 position=5，B 第3步 position=2，绝不能都用全局步号 6 当 position。",
+  "edgeCases": [
+    "新插入请求 position 从 0 起，不能沿用 batch 步号。",
+    "变长 mask 写错导致 attend 到未来/pad。",
+    "释放与读取竞态：释放后才被某 kernel 引用。"
+  ],
+  "code": "# Python\ndef step_position(req):\n    return req.generated  # 各自已生成数, 非全局步号\n\ndef causal_mask(length):\n    return [[1 if i <= j else 0 for j in range(length)] for i in range(length)]",
+  "codeNotes": [
+    "position 用每请求自计数，非全局步。",
+    "mask 按各自长度, 非整批统一。"
+  ],
+  "complexity": "正确性优先；状态隔离带来常数级额外管理开销。",
+  "followUps": [
+    {
+      "question": "token 错位最典型后果？",
+      "answer": "输出乱码或重复，因为模型把别的请求的上下文当成了自己的历史。"
+    },
+    {
+      "question": "为什么不能统一 mask？",
+      "answer": "各请求真实长度不同，统一 mask 会把 pad 或他人 token 纳入注意力，破坏因果性与正确性。"
+    }
+  ],
+  "followUpAnswers": [
+    "错位→把他人上下文当自己历史。",
+    "统一 mask 破坏因果性。"
+  ],
+  "pitfalls": [
+    "用全局 decode 步号当 position。",
+    "复用静态批的整批 mask 逻辑。"
+  ],
+  "beginnerSummary": "把不同进度的人排进同一条流水线，却给所有人贴同一个\"第几步\"的标签，结果把甲的半成品当成乙的。正确做法是每人自己记进度条、只看自己的历史——这就是请求级 position 与 mask 隔离。",
+  "prerequisites": [
+    "position 编码依赖生成顺序。",
+    "因果 mask 屏蔽未来 token。",
+    "多请求进度不同步。"
+  ],
+  "workedExample": [
+    "A 已5 token, B 已2 token 同批。",
+    "A position=5, B position=2, 各自 mask。"
+  ],
+  "lineByLine": [
+    "每请求保存自身 generated 计数。",
+    "前向用各自 position 而非全局步。",
+    "按各自长度构造因果 mask。",
+    "释放前确认无 kernel 仍引用其 KV。"
+  ],
+  "diagram": "错误: 全局步号→A/B position 混\n正确: A.pos=5, B.pos=2 各自独立"
+},
+  {
+  "id": "cb-load-balance",
+  "category": "Continuous Batching",
+  "difficulty": "Medium",
+  "title": "请求长短不一的负载均衡",
+  "prompt": "请求长短不一时，Continuous Batching 怎么做负载均衡？",
+  "quickAnswer": "连续批通过\"完成即释放、空位即补\"天然做了时间维的负载均衡：短请求快速让出 slot 给新请求，长请求独占少量 slot 不被拖累整体。再辅以 chunked prefill、优先级与 KV 感知调度，可进一步平滑长短混合带来的波动，使 GPU 在稳态接近满载且不饿死长请求。",
+  "approach": "靠逐步换入换出做自适应均衡，必要时加 chunked prefill 削峰。",
+  "explanationFocus": "是什么：负载均衡在这里指让长短请求混合时 GPU slot 始终被高效利用、且各类请求都不被无限拖尾的调度目标。",
+  "bruteForce": "静态批把长短随机凑一组，短请求陪跑、组间负载忽高忽低。",
+  "derivation": [
+    "为什么需要：长短混合若调度不当，长请求占满 slot 阻塞短请求，或短请求洪流淹没长请求，都偏离高效公平。",
+    "怎么实现：连续批每步释放短请求腾 slot；对长 prefill 用 chunked prefill 拆小避免阻塞 decode；结合优先级/老化保证公平。",
+    "有什么代价：chunked prefill 增加 prefill 步数；公平策略需权衡吞吐与尾延迟。",
+    "怎么评测：看各长度分位的延迟是否都合理、GPU 利用率是否平稳、有无长请求饿死。"
+  ],
+  "invariant": "任意长度请求都不会因其他请求而无限延迟；slot 利用率在稳态贴近上限。",
+  "walkthrough": "长请求 L 占 1 slot 跑 1000 步，期间短请求洪流 S1..S200 各占 slot 跑 10 步即释放，GPU 始终满载且 S 系列低延迟。",
+  "edgeCases": [
+    "长请求独占导致短请求排队：需 chunked prefill + 并发 prefill。",
+    "短请求风暴：瞬时占满，长请求饥饿 → 用老化。",
+    "全部超长：退化为低并发，需提显存上限。"
+  ],
+  "code": "# Python\ndef admit(running, waiting, capacity, aging):\n    # 老化: 等待越久优先级越高\n    waiting.sort(key=lambda r: r.wait_time * aging - r.prio)\n    return fill(running, waiting, capacity)",
+  "codeNotes": [
+    "老化防长请求被短风暴饿死。",
+    "chunked prefill 削 prefill 尖峰。"
+  ],
+  "complexity": "均衡策略轻量；核心收益来自逐步换入换出本身。",
+  "followUps": [
+    {
+      "question": "chunked prefill 是什么？",
+      "answer": "把长 prompt 的 prefill 拆成多个 chunk 穿插在 decode 步中，避免一次长 prefill 阻塞整个 batch 的 decode。"
+    },
+    {
+      "question": "长请求会不会拖垮整体？",
+      "answer": "不会，它只占自己那一个 slot 持续 decode，其他 slot 仍服务短请求，整体不被单点拖死。"
+    }
+  ],
+  "followUpAnswers": [
+    "prefill 拆块穿插, 不阻塞 decode。",
+    "长请求仅占1 slot, 不拖整体。"
+  ],
+  "pitfalls": [
+    "以为长请求会\"霸占\"整批——其实只占一个 slot。",
+    "忽略短风暴导致长请求饿死。"
+  ],
+  "beginnerSummary": "长短顾客混排餐厅：大桌(长请求)慢慢吃只占一张桌，小桌(短请求)吃完立刻翻台接新客。调度员还会给等太久的大桌优先，避免它一直排不上。这样既满座又公平。",
+  "prerequisites": [
+    "长请求只占单 slot。",
+    "短请求释放快。",
+    "公平需防饿死。"
+  ],
+  "workedExample": [
+    "L 占1 slot 跑1000步。",
+    "期间 S1..S200 各跑10步即释放, GPU 满载。"
+  ],
+  "lineByLine": [
+    "长请求只占其单 slot 持续 decode。",
+    "短请求完成立即释放腾位。",
+    "新请求补入保持满载。",
+    "老化/优先级防饿死。"
+  ],
+  "diagram": "slot: [L][S1][S2][S3] → S完成 → [L][S4][S5][S6]"
+},
+  {
+  "id": "cb-vllm",
+  "category": "Continuous Batching",
+  "difficulty": "Medium",
+  "title": "vLLM 中的 Continuous Batching",
+  "prompt": "vLLM 是怎么实现 Continuous Batching 的？",
+  "quickAnswer": "vLLM 以 PagedAttention 为显存底座，在调度器(Scheduler)里按 iteration 维护 waiting/running 队列：每步把运行中已 finished 的请求回收其 KV block，再从 waiting 按空闲 block 数补入新请求，并对prefill/decode 分桶(batch 化)。核心就是\"分页 KV + 逐步换入换出\"，这也是它高吞吐的来源。",
+  "approach": "读 vLLM Scheduler：每步 reclaim finished → 按 block 余量 admit waiting。",
+  "explanationFocus": "是什么：vLLM 通过 Scheduler 在每个 decode 步动态重组 running 集合，并用 PagedAttention 管理 KV 块，落地了 Continuous Batching。",
+  "bruteForce": "早期实现用静态 batch 或简单动态批，缺乏分页 KV，并发与利用率受限。",
+  "derivation": [
+    "为什么需要：vLLM 设计目标就是高吞吐推理，必须消除气泡与 KV 预留浪费，连续批 + 分页是答案。",
+    "怎么实现：Scheduler 持 waiting/running；step() 中先回收 finished 请求的 block 到 gpu 空闲池，再按 (capacity - running) 与空闲 block 双重约束从 waiting 取新请求初始化 block 表。",
+    "有什么代价：需维护 block 表、swap 空间与抢占逻辑；kernel 需支持分页注意力。",
+    "怎么评测：vLLM 官方 benchmark 在高并发下吞吐数倍于原生 HF，验证连续批收益。"
+  ],
+  "invariant": "running 数受 token 容量与空闲 block 数共同约束，二者取最小。",
+  "walkthrough": "gpu 空闲 16 block，running 占 80/96；finished 2 请求释放 6 block → 空闲 22；从 waiting 取能放进 22 block 的请求补齐。",
+  "edgeCases": [
+    "block 不足但 token 容量有余：受 block 限制无法再扩。",
+    "抢占时 swap 到 CPU 空间。",
+    "prefill 与 decode 混合需分桶避免互拖。"
+  ],
+  "code": "# Python (vLLM 风格伪代码)\ndef schedule(self):\n    self._free_finished()            # 回收 finished 的 block\n    while self.waiting and self._has_free_block():\n        self.running.append(self.waiting.pop(0).provision())\n    return self.running",
+  "codeNotes": [
+    "_free_finished 释放 KV block 回池。",
+    "准入受 token 容量与 block 数双重限制。"
+  ],
+  "complexity": "调度 O(并发)；分页使可达并发与利用率大幅提升。",
+  "followUps": [
+    {
+      "question": "vLLM 的 running 受什么限制？",
+      "answer": "受最大 token 容量与当前空闲 KV block 数双重约束，取二者允许的最小值。"
+    },
+    {
+      "question": "vLLM 怎么处理 prefill 和 decode？",
+      "answer": "通常分桶(batch)处理，prefill 阶段和 decode 阶段分开调度，或用 chunked prefill 混合以平滑。"
+    }
+  ],
+  "followUpAnswers": [
+    "token 容量与空闲 block 取最小。",
+    "prefill/decode 分桶或 chunked。"
+  ],
+  "pitfalls": [
+    "以为 vLLM 只靠分页显存就高吞吐，忽略连续批调度。",
+    "混淆 token 容量限制与 block 限制。"
+  ],
+  "beginnerSummary": "vLLM 像一家效率极高的餐厅：每桌吃完（finished）立刻把餐具(block)收回消毒池，门口等位客按空桌+空餐具数量马上入座；餐具按需取用不浪费。这套\"收桌+补客+分页餐具\"就是它的连续批。",
+  "prerequisites": [
+    "PagedAttention 管理 KV。",
+    "Scheduler 维护 waiting/running。",
+    "block 池可回收复用。"
+  ],
+  "workedExample": [
+    "finished 2 请求释放 6 block。",
+    "空闲 22 block，从 waiting 补满。"
+  ],
+  "lineByLine": [
+    "每步回收 finished 的 KV block。",
+    "统计空闲 block 与 token 容量。",
+    "按约束从 waiting 取新请求。",
+    "初始化其 block 表加入 running。"
+  ],
+  "diagram": "Scheduler: free_finished → 空闲block↑\n→ admit waiting 按 block 余量 → running"
+},
+  {
+  "id": "cb-trt-llm",
+  "category": "Continuous Batching",
+  "difficulty": "Hard",
+  "title": "TensorRT-LLM 中的 in-flight batching",
+  "prompt": "TensorRT-LLM 里的 in-flight batching（连续批）是怎么实现的？",
+  "quickAnswer": "TensorRT-LLM 称连续批为 in-flight batching，由 scheduler 在每次迭代把新请求加入正在跑的 batch、把完成的移出，配合其 KV cache 管理器(paged/linear)与专门 fused kernel。它支持 chunked context(prefill 分块)以减小 prefill 对 decode 的阻塞，并用 pagination 做 KV 按需分配，整体思路与 vLLM 一致但深度绑定 TRT 引擎优化。",
+  "approach": "理解 TRT-LLM scheduler + paged KV + chunked context 三件套。",
+  "explanationFocus": "是什么：in-flight batching 是 TensorRT-LLM 对 Continuous Batching 的叫法，通过在迭代级动态增删 batch 成员并配分页 KV 实现高吞吐。",
+  "bruteForce": "早期 TRT 用静态/V1 batching，需等整批结束，气泡严重。",
+  "derivation": [
+    "为什么需要：TRT-LLM 追求极致 kernel 效率，但静态批浪费算力，必须把连续批融入其执行引擎。",
+    "怎么实现：scheduler 在每步生成后更新 batch（增新/删完成），KV 用 paged 或 linear 管理器按需分配；chunked context 把长 prefill 切块插在 decode 之间。",
+    "有什么代价：与 TRT 引擎强耦合，定制 kernel 多；paged 与 linear KV 模式需按场景选型。",
+    "怎么评测：用 trtllm-bench 在固定负载测吞吐/延迟，对比开启 in-flight 与否。"
+  ],
+  "invariant": "开启 in-flight 后，batch 成员每步可变，KV 按实际占用而非 max_len 预留。",
+  "walkthrough": "batch 上限 64，步 t 跑 60 含 1 长 prefill；chunked context 把该 prefill 拆 4 块，期间其余 59 个 decode 不阻塞；长请求完成即移出，新请求补入。",
+  "edgeCases": [
+    "paged vs linear KV：linear 更简单但碎片多，paged 利用率高。",
+    "chunked context 增加 prefill 步数，需权衡。",
+    "引擎 shape 约束：batch 维度动态需 TRT 支持变长。"
+  ],
+  "code": "# Python (TRT-LLM 风格伪代码)\ndef step(batch, scheduler):\n    batch.run_decode()                    # 当前成员推进一步\n    completed = [r for r in batch if r.done]\n    for r in completed: scheduler.free_kv(r)   # 释放 KV\n    for r in scheduler.poll_new():\n        if batch.has_slot(): batch.add(r)      # 即时插入",
+  "codeNotes": [
+    "in-flight = 迭代级增删 batch 成员。",
+    "chunked context 削 prefill 尖峰。"
+  ],
+  "complexity": "依赖 TRT fused kernel 效率；吞吐随有效并发与 KV 利用率提升。",
+  "followUps": [
+    {
+      "question": "in-flight batching 和 vLLM 连续批区别？",
+      "answer": "思想一致，都是迭代级动态调度+分页 KV；区别在实现栈：TRT-LLM 绑定 TensorRT 引擎与专属 kernel，vLLM 自研 PagedAttention。"
+    },
+    {
+      "question": "chunked context 有什么代价？",
+      "answer": "把一次 prefill 拆多步会略微增加 prefill 总耗时，但换来 decode 不被长 prefill 阻塞，整体更稳。"
+    }
+  ],
+  "followUpAnswers": [
+    "同思想, 异实现栈(TRT vs 自研)。",
+    "prefill 拆步略增耗时换不阻塞。"
+  ],
+  "pitfalls": [
+    "以为 in-flight 是 TRT 独有概念，其实等同连续批。",
+    "忽视 chunked context 对 prefill 耗时的影响。"
+  ],
+  "beginnerSummary": "TensorRT-LLM 的 in-flight batching 和 vLLM 的连续批是同一招的不同名字：都是每步动态上下客。区别是它坐在 TensorRT 这台\"特制赛车\"上，kernel 更快，但改装也更绑定车型。",
+  "prerequisites": [
+    "in-flight == 连续批的同义名。",
+    "需分页/按需 KV。",
+    "TRT 引擎支持动态 batch 维。"
+  ],
+  "workedExample": [
+    "batch 上限 64, 步t 跑60含1长prefill。",
+    "chunked 拆4块, 其余59 decode 不阻塞。"
+  ],
+  "lineByLine": [
+    "当前 batch 推进一步 decode。",
+    "标记完成请求。",
+    "释放其 KV 缓存。",
+    "从 scheduler 拉新请求即时插入。"
+  ],
+  "diagram": "TRT-LLM: scheduler 每步 增/删 batch 成员\n+ paged KV + chunked context"
+},
+  {
+  "id": "pa-what",
+  "category": "PagedAttention",
+  "difficulty": "Easy",
+  "title": "PagedAttention 是什么",
+  "prompt": "PagedAttention 是什么？",
+  "quickAnswer": "PagedAttention 受操作系统分页启发，把 KV Cache 切成固定大小的\"块(block)\"，用块表把逻辑位置映射到物理显存块，从而消除连续显存碎片、按需分配 KV，并支持块级共享（如前缀缓存）。它是 vLLM 高吞吐的核心。",
+  "approach": "KV 分块 + 逻辑/物理块映射表，仿 OS 虚拟内存分页。",
+  "explanationFocus": "是什么：PagedAttention 将 KV Cache 分页为定长 block，用 block table 做逻辑→物理映射，消除碎片并支持共享。",
+  "bruteForce": "传统连续分配：为每个请求预留最大上下文的连续 KV 显存，内部碎片严重。",
+  "derivation": [
+    "为什么需要：不同请求/生成长度不同，连续预分配造成大量内部碎片，显存被浪费，并发受限。",
+    "怎么实现：KV 按 block 存储，每个请求维护 block table 记录逻辑块→物理块；注意力计算时按表取物理块拼接。",
+    "有什么代价：需维护 block table 与分配器，注意力 kernel 要支持非连续分块读取；block 过小有元数据开销、过大有碎片。",
+    "怎么评测：对比连续分配，看显存利用率、可支撑最大并发与吞吐提升。"
+  ],
+  "invariant": "逻辑上请求看到连续 KV 序列，物理上由若干不连续 block 拼成，映射由 block table 决定。",
+  "walkthrough": "block=16 token：请求生成 50 token 占 4 个 block（16+16+16+2），无需预留 128；另一请求可复用剩余物理块。",
+  "edgeCases": [
+    "请求长度跨 block 边界：最后一个 block 不满，仅少量浪费。",
+    "前缀共享：多个请求共享同一物理前缀 block（引用计数）。",
+    "block size 选择：太小元数据多，太大碎片回弹。"
+  ],
+  "code": "# Python\ndef paged_attention(q, block_table, physical_kv, block_size):\n    # block_table: 逻辑块 -> 物理块索引\n    ks = [physical_kv[block_table[b]] for b in range(len(block_table))]\n    K = cat(ks)                      # 按逻辑顺序拼回\n    return softmax(q @ K.T) @ V_from(ks)",
+  "codeNotes": [
+    "注意力 kernel 内部按 block 读取物理 KV。",
+    "block table 类似 OS 页表。"
+  ],
+  "complexity": "显存利用率近 100%（仅末块少量浪费）；注意力计算量不变。",
+  "followUps": [
+    {
+      "question": "PagedAttention 和操作系统分页哪里像？",
+      "answer": "都用语义连续的\"逻辑地址\"映射到不连续的\"物理页/块\"，都靠一张表管理映射，从而消除外部碎片并支持共享页。"
+    },
+    {
+      "question": "它怎么支持前缀共享？",
+      "answer": "多个请求的逻辑块可映射到同一物理块并加引用计数，系统提示等公共前缀只存一份 KV。"
+    }
+  ],
+  "followUpAnswers": [
+    "引用计数管理共享块生命周期。",
+    "块表类比页表。"
+  ],
+  "pitfalls": [
+    "以为 PagedAttention 改变了注意力数学——它只改 KV 的内存布局。",
+    "忽视 block size 对碎片与元数据开销的权衡。"
+  ],
+  "beginnerSummary": "计算机用\"分页\"把程序的逻辑内存映射到不连续的物理内存，避免找一大块连续空间。KV Cache 也面临同样问题：给每个对话预留最长上下文的连续显存太浪费。PagedAttention 把 KV 切成固定小页，用一张\"页表\"记录哪页在哪，谁要用哪段就拼起来——桌子（显存）利用率接近满分。",
+  "prerequisites": [
+    "KV Cache 常驻显存且随长度增长。",
+    "连续预分配会留大量内部碎片。",
+    "OS 分页用页表做逻辑→物理映射。"
+  ],
+  "workedExample": [
+    "block=16：50 token 占 4 block（末块仅 2 有效），无需预留 128。",
+    "并发下空闲物理块被新请求复用，显存利用率近 100%。"
+  ],
+  "lineByLine": [
+    "KV 切成定长 block。",
+    "每请求维护 block table。",
+    "注意力按表取物理块拼回逻辑序。",
+    "释放时回收物理块供复用/共享。"
+  ],
+  "diagram": "逻辑KV: [b0 b1 b2 b3]\nblock表: b0→P5, b1→P2, b2→P9, b3→P1\n物理显存: 不连续块, 按需分配\n→ 无连续预留, 碎片极小"
+},
+  {
+  "id": "pa-why-fragment",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "为什么需要 PagedAttention（KV 显存碎片）",
+  "prompt": "为什么需要 PagedAttention，传统的 KV 显存分配有什么问题？",
+  "quickAnswer": "传统推理为每个请求一次性预留\"最大上下文长度\"的连续 KV 显存。但真实序列往往短得多，导致大量内部碎片（预留未用）；不同长度的请求交错又产生外部碎片，碎片无法被别人利用。PagedAttention 用定长块按需分配，把碎片压缩到仅末块，并让空闲块全局复用。",
+  "approach": "指出连续预分配的内部/外部碎片，引出分块按需分配。",
+  "explanationFocus": "是什么：传统 KV 分配因\"按最大长度连续预留\"产生严重碎片，PagedAttention 用分页把碎片降到最低。",
+  "bruteForce": "每请求预分配 max_seq_len 的连续 KV 张量。",
+  "derivation": [
+    "为什么需要：请求实际长度远小于预留上限，且长短不一，连续大块既浪费又难以复用。",
+    "怎么实现：把 KV 显存切成统一 block，请求用到哪就分配哪，不再预留整段。",
+    "有什么代价：需要块分配器与映射表的管理开销（换来碎片大幅降低）。",
+    "怎么评测：统计\"已分配但未使用\"的 KV 字节占比（碎片率），对比连续方案。"
+  ],
+  "invariant": "连续方案中 已分配 KV 显存 = B × max_len × 结构；分页方案中 ≈ B × 实际_len × 结构 + 末块少量浪费。",
+  "walkthrough": "max_len=2048，10 个请求平均实际长 300：连续方案分配 10×2048，利用率约 15%；分页方案约 300/block_size×block_size，利用率近 100%。",
+  "edgeCases": [
+    "极短请求：连续方案浪费最严重（预留 2048 只用 10）。",
+    "请求长度方差大：外部碎片难以拼接复用。",
+    "并发高峰：碎片累积导致提前 OOM、拒绝请求。"
+  ],
+  "code": "# Python\ndef fragment_waste(reserved_len, actual_len):\n    # 连续预分配: 每个请求预留 reserved_len 的 KV\n    return reserved_len - actual_len   # 未使用的内部碎片\n\ndef total_waste(requests, reserved_len):\n    return sum(fragment_waste(reserved_len, r) for r in requests)",
+  "codeNotes": [
+    "浪费与\"预留值 − 实际值\"成正比。",
+    "并发越高，绝对浪费越大。"
+  ],
+  "complexity": "连续方案碎片 O(B·(max_len − E[len]))；分页方案碎片 O(B·block_size)。",
+  "followUps": [
+    {
+      "question": "内部碎片和外部碎片在 KV 场景分别指什么？",
+      "answer": "内部碎片=单个请求预留的大块里没用到的部分；外部碎片=多个请求释放后留下的、因不连续而无法被新长请求利用的小空洞。"
+    },
+    {
+      "question": "为什么碎片问题在 LLM 推理里特别突出？",
+      "answer": "因为 KV 随序列线性膨胀且并发高，连续预留的浪费被 B 和 max_len 双重放大，直接决定能并发多少个请求。"
+    }
+  ],
+  "followUpAnswers": [
+    "碎片率 = 未用 KV / 已分配 KV。",
+    "并发越高碎片绝对量越大。"
+  ],
+  "pitfalls": [
+    "以为只要显存总量够就不会 OOM——碎片也能让分配失败。",
+    "低估\"预留最大长度\"在短请求下的浪费比例。"
+  ],
+  "beginnerSummary": "餐厅给每位客人按\"最大饭量\"预留一整张大桌子，可大多数人只吃一点点，空位既不能被别人坐、又占着地方——这就是内部碎片。PagedAttention 改成\"来一个人摆一套餐具\"，谁还在吃就加一套，空位立刻能给新客人，桌子利用率拉满。",
+  "prerequisites": [
+    "KV 显存随序列长度增长。",
+    "请求实际长度远小于预留上限。",
+    "连续大块难以被他人复用。"
+  ],
+  "workedExample": [
+    "max_len=2048、平均实际 300：连续方案利用率约 15%。",
+    "分页方案仅末块浪费，利用率近 100%。"
+  ],
+  "lineByLine": [
+    "连续方案按 max_len 预留。",
+    "实际只用一小段 → 内部碎片。",
+    "长短交错 → 外部碎片。",
+    "分块按需分配消除二者。"
+  ],
+  "diagram": "连续: [========预留2048========] 实际用[==300==]....浪费\n分页: [blk][blk][blk] 用多少占多少, 空闲块全局复用"
+},
+  {
+  "id": "pa-os-paging",
+  "category": "PagedAttention",
+  "difficulty": "Easy",
+  "title": "受操作系统分页管理的启发",
+  "prompt": "PagedAttention 受操作系统分页管理启发，具体类比是什么？",
+  "quickAnswer": "OS 虚拟内存把程序的连续\"虚拟地址\"映射到不连续的\"物理页\"，靠页表管理；PagedAttention 把请求连续的\"逻辑 KV 位置\"映射到不连续的\"物理 KV block\"，靠 block table 管理。两者都用定长页/块、都按需分配、都消除外部碎片、都支持页/块共享，思想完全一致。",
+  "approach": "一一对应：虚拟地址≈逻辑KV，物理页≈物理block，页表≈block table。",
+  "explanationFocus": "是什么：PagedAttention 是 OS 分页思想在 KV Cache 上的迁移——逻辑连续、物理离散、表管理、按需分配。",
+  "bruteForce": "不借鉴分页，坚持连续分配 KV。",
+  "derivation": [
+    "为什么需要：KV 碎片问题本质就是\"连续内存分配问题\"，OS 早已用分页解决。",
+    "怎么实现：照搬页表思路，引入 block table 做逻辑块→物理块映射。",
+    "有什么代价：多了映射查表开销，但换来碎片消除与共享能力。",
+    "怎么评测：验证逻辑连续语义不变、物理利用率提升。"
+  ],
+  "invariant": "请求只感知\"逻辑上连续\"的 KV；物理位置无关，由映射表唯一决定。",
+  "walkthrough": "逻辑块 0,1,2,3 → 物理块 5,2,9,1（乱序）；请求按逻辑序读取，完全无感物理乱序。",
+  "edgeCases": [
+    "缺页类比：逻辑块尚未分配物理块时按需分配。",
+    "页表类比：block table 同样可被缓存/批量查。",
+    "共享页类比：多个请求共享同一物理 block。"
+  ],
+  "code": "# Python\ndef page_table_lookup(logical_addr, page_size, page_table):\n    page = logical_addr // page_size\n    offset = logical_addr % page_size\n    phys_page = page_table[page]            # 页表/块表: 逻辑->物理\n    return phys_page * page_size + offset   # 拼出物理地址",
+  "codeNotes": [
+    "块表查表与 OS 页表查表同构。",
+    "逻辑地址对请求透明。"
+  ],
+  "complexity": "每次访问 O(1) 查表；整体不改变注意力计算复杂度。",
+  "followUps": [
+    {
+      "question": "那 KV 的\"页大小\"对应什么？",
+      "answer": "对应 block size（如 16 个 token 的 KV），是分页管理的最小分配单位，类比 OS 的 4KB 页。"
+    },
+    {
+      "question": "为什么不直接用 OS 的虚拟内存？",
+      "answer": "GPU 显存没有通用 MMU 做地址翻译，且注意力需要按块批量 gather KV，所以要在框架层自己实现这套\"软件页表+kernel\"。"
+    }
+  ],
+  "followUpAnswers": [
+    "block size 即\"页大小\"。",
+    "GPU 无 MMU，需软件实现分页。"
+  ],
+  "pitfalls": [
+    "混淆\"逻辑连续\"与\"物理连续\"——PagedAttention 只保证前者。",
+    "以为 GPU 自带分页硬件（实际是软件模拟）。"
+  ],
+  "beginnerSummary": "你写文档时，电脑让你感觉文件是从头到尾连续的一长串，其实它散落在硬盘各处，由一个\"目录\"记住每段在哪。PagedAttention 把这份目录思想用到了 KV 缓存上：模型觉得 KV 是连续的，实际散在显存各处，有一张表管着。好处一模一样——不用找大块空地，也不浪费缝隙。",
+  "prerequisites": [
+    "OS 用页表映射虚拟→物理地址。",
+    "分页消除外部碎片并支持共享。",
+    "KV 也是一段需要连续语义的内存。"
+  ],
+  "workedExample": [
+    "逻辑块 0..3 映射物理 5,2,9,1，读取时按逻辑序。",
+    "缺块时按需分配新物理块，类比缺页。"
+  ],
+  "lineByLine": [
+    "虚拟地址 ≈ 逻辑 KV 位置。",
+    "物理页 ≈ 物理 KV block。",
+    "页表 ≈ block table。",
+    "按需分配、共享块均同源。"
+  ],
+  "diagram": "OS:   进程虚拟地址 ─页表─▶ 离散物理页\nPaged: 请求逻辑KV  ─块表─▶ 离散物理block\n同构: 逻辑连续, 物理离散, 表管理"
+},
+  {
+  "id": "pa-block-alloc",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "KV block 分配与逻辑/物理块映射",
+  "prompt": "PagedAttention 中 KV block 如何分配，逻辑块如何映射到物理块？",
+  "quickAnswer": "系统维护一个全局空闲物理块池。新 token 到来时，若当前逻辑块的槽位已满，就从空闲池取一个物理块、追加到该请求的 block table（即\"逻辑块号→物理块号\"）。这样逻辑上请求看到连续的块序列，物理上块可来自池中任意位置，释放时把引用为 1 的块归还空闲池。",
+  "approach": "空闲块池 + 每请求 block table，写满再分配下一物理块。",
+  "explanationFocus": "是什么：用全局空闲块池按需分配物理 block，并以 block table 记录每个逻辑块对应的物理块号。",
+  "bruteForce": "预分配一整段连续物理块给每个请求。",
+  "derivation": [
+    "为什么需要：必须支持\"用到才分配\"才能消除预留浪费。",
+    "怎么实现：维护 free_pool；append token 时若当前块满则 pop 一块挂到 block table。",
+    "有什么代价：分配/释放/查表有少量开销，需保证并发安全。",
+    "怎么评测：看分配器在高频 append/free 下的时延与空闲池命中率。"
+  ],
+  "invariant": "len(block_table) = ceil(当前 token 数 / block_size)；物理块要么在某请求的 block table 中，要么在空闲池。",
+  "walkthrough": "block=16：写第 17 个 token 时当前块(块0)满，从池取物理块 P3 挂为逻辑块1；写第 33 个 token 再取 P7 挂为逻辑块2。",
+  "edgeCases": [
+    "空闲池耗尽：触发抢占/淘汰或拒绝新请求。",
+    "块内未满：仅末块有空槽，可继续写。",
+    "并发分配：需原子操作或锁保护空闲池。"
+  ],
+  "code": "# Python\ndef alloc_block(allocator, req, block_table):\n    phys = allocator.free_pop()          # 从空闲池取一个物理块\n    block_table.append(phys)             # 追加为下一个逻辑块\n    return block_table\n\ndef append_token(req, kv, allocator):\n    if req.block_full():\n        alloc_block(allocator, req, req.block_table)\n    req.write_current_block(kv)          # 写当前物理块的下一个槽",
+  "codeNotes": [
+    "空闲池是全局共享资源。",
+    "只有在当前块写满时才申请新块。"
+  ],
+  "complexity": "每次分配 O(1)（池 pop）；总块数 = ceil(len/block_size)。",
+  "followUps": [
+    {
+      "question": "空闲块池和 block table 谁持有物理块的所有权？",
+      "answer": "物理块要么被某请求的 block table 引用（可能多个请求共享同一块），要么在全局空闲池；引用计数为 0 时回到空闲池。"
+    },
+    {
+      "question": "为什么不在请求开始就分好所有块？",
+      "answer": "因为不知道最终长度，提前分就是回到连续预分配的浪费；按需分才能只付实际长度的钱。"
+    }
+  ],
+  "followUpAnswers": [
+    "引用计数管理块归属。",
+    "按需分配避免预留浪费。"
+  ],
+  "pitfalls": [
+    "以为逻辑块号就是物理地址——必须查表转换。",
+    "忽视空闲池并发安全。"
+  ],
+  "beginnerSummary": "图书馆有一排空书架（空闲块池）。你每写满一本笔记册（一个 block），就再去架子上取一本空册接着写，并在自己的目录（block table）上记\"第几册放在第几号书架\"。你只管册子的顺序，具体摆在哪排架子无所谓——空册子大家共用，谁用完谁还。",
+  "prerequisites": [
+    "有全局空闲物理块池。",
+    "请求长度事先未知。",
+    "需逻辑→物理的映射记录。"
+  ],
+  "workedExample": [
+    "block=16：第17 token 触发取物理块 P3 挂逻辑块1。",
+    "第33 token 再取 P7 挂逻辑块2。"
+  ],
+  "lineByLine": [
+    "维护全局空闲块池。",
+    "当前块写满才申请新块。",
+    "新块号追加到 block table。",
+    "释放时引用归零回池。"
+  ],
+  "diagram": "空闲池: [P3][P7][P9]...\n请求A block_table: [0]→P5, [1]→P3, [2]→P9\n写满块0 → pop P3 挂为块1"
+},
+  {
+  "id": "pa-block-table",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "block table 的结构与作用",
+  "prompt": "block table 的结构是什么，起什么作用？",
+  "quickAnswer": "block table 是每个请求维护的一张\"逻辑块号 → 物理块号\"数组：下标是请求视角的连续逻辑块，值是对应的物理块索引。它让注意力计算能按逻辑顺序把离散的物理 block 拼回连续 KV，同时物理块上的引用计数决定何时回收。它是 PagedAttention 连接\"逻辑连续\"与\"物理离散\"的枢纽。",
+  "approach": "每请求一张数组映射表 + 物理块上的引用计数。",
+  "explanationFocus": "是什么：block table 是每个请求的逻辑块→物理块映射数组，是逻辑/物理解耦的核心数据结构。",
+  "bruteForce": "直接用物理地址连续存储，无映射层。",
+  "derivation": [
+    "为什么需要：要同时保持\"请求看到连续 KV\"和\"物理离散存储\"两套视图。",
+    "怎么实现：请求持有 block_table[i]=物理块号；物理块结构带 ref_count。",
+    "有什么代价：每次取 KV 多一次查表；表本身占少量显存。",
+    "怎么评测：看查表开销占比与映射正确性（单测拼接结果）。"
+  ],
+  "invariant": "对任意逻辑位置 pos，物理位置 = block_table[pos//bs] * bs + pos%bs。",
+  "walkthrough": "block_table=[5,2,9]，bs=16：逻辑位置 20 在逻辑块1→物理块2，偏移 4，即物理块2的第4槽。",
+  "edgeCases": [
+    "多个请求 block table 指向同一物理块（共享/前缀）。",
+    "引用计数随 fork/释放增减。",
+    "表越界：逻辑块号 >= len(block_table) 表示尚未分配。"
+  ],
+  "code": "# Python\ndef read_kv(block_table, physical_kv, block_size, pos):\n    logical_block = pos // block_size\n    offset = pos % block_size\n    phys = block_table[logical_block]     # 逻辑块 -> 物理块\n    return physical_kv[phys][offset]      # 取该块内对应槽",
+  "codeNotes": [
+    "block table 是\"每请求\"的，不是全局的。",
+    "物理块额外存 ref_count。"
+  ],
+  "complexity": "单点读取 O(1) 查表；整段拼接 O(序列长度)。",
+  "followUps": [
+    {
+      "question": "block table 存在哪、谁来维护？",
+      "answer": "通常存在 GPU 显存（或 pinned 内存）供 kernel 读取，由 BlockSpaceManager 在 append/free/fork 时统一维护。"
+    },
+    {
+      "question": "引用计数为什么放在物理块而不是块表？",
+      "answer": "因为同一物理块可能被多个请求的 block table 引用，计数必须挂在物理块上才能正确判断\"是否还有人用\"。"
+    }
+  ],
+  "followUpAnswers": [
+    "块表随请求创建/销毁。",
+    "引用计数挂在物理块。"
+  ],
+  "pitfalls": [
+    "把 block table 当成全局表——其实每请求一张。",
+    "忘记引用计数导致共享块被提前回收。"
+  ],
+  "beginnerSummary": "block table 就像你笔记本的目录页：目录上写着\"第1章在蓝色册、第2章在绿色册、第3章在黄色册\"。册子（物理块）在书架上散着放，但目录让你按顺序翻。别人也能在同一本册子上做记号（共享），只有谁都不用了，那本册子才被收回归还。",
+  "prerequisites": [
+    "请求需要连续逻辑视图。",
+    "物理块可离散、可共享。",
+    "需记录每块被引用次数。"
+  ],
+  "workedExample": [
+    "table=[5,2,9], bs=16：逻辑位20→块1→物理块2偏移4。",
+    "两请求 table 都含物理块2 → 其 ref=2。"
+  ],
+  "lineByLine": [
+    "每请求持有一张映射数组。",
+    "下标=逻辑块号, 值=物理块号。",
+    "读取按表定位物理块与偏移。",
+    "物理块带引用计数管理生命周期。"
+  ],
+  "diagram": "请求A block_table\n  [0] -> P5\n  [1] -> P2\n  [2] -> P9\n逻辑pos20: 块1(P2) 偏移4\n物理块P2.ref = 2 (被A和B共享)"
+},
+  {
+  "id": "pa-attention-adapt",
+  "category": "PagedAttention",
+  "difficulty": "Hard",
+  "title": "注意力计算如何适配分块 KV",
+  "prompt": "注意力计算如何适配分块、非连续的 KV？",
+  "quickAnswer": "标准注意力假设 K/V 是连续张量，可直接矩阵乘。PagedAttention 的 K/V 散在多个物理 block，于是注意力 kernel 先按 block table 把各物理 block 的 K/V \"gather\"成逻辑连续序列再做点积；且可在 block 粒度上流式累加 softmax 的分母（在线归一化），避免一次性拼成大张量。核心是 kernel 内部按表寻址而非假设连续。",
+  "approach": "kernel 内按 block table gather 物理块，并在块粒度上做在线 softmax。",
+  "explanationFocus": "是什么：注意力 kernel 改为按 block table 逐块读取物理 KV（gather），以块为单位累加注意力分子与分母，从而支持非连续布局。",
+  "bruteForce": "先把所有物理块拷贝拼成一个连续大张量再做注意力——额外显存与带宽。",
+  "derivation": [
+    "为什么需要：KV 不再连续，原注意力算子无法直接索引。",
+    "怎么实现：kernel 接收 block_table 与物理块数组，循环每个逻辑块，取对应物理块 K/V 参与注意力并累积。",
+    "有什么代价：kernel 更复杂，需处理末块有效长度与跨块归一化；但省去拼接的临时显存。",
+    "怎么评测：对比\"先拼后算\"与\"分块直接算\"的数值一致性、显存与速度。"
+  ],
+  "invariant": "分块计算的结果 == 把所有物理块按逻辑序拼成连续 KV 后算出的注意力（数值等价）。",
+  "walkthrough": "逻辑块 0,1,2 对应物理 P5,P2,P9：kernel 依次取 P5 的 K/V 算注意力并累加分母，再 P2、再 P9，在线 softmax 得与连续拼接相同结果。",
+  "edgeCases": [
+    "末块有效长度 < block_size：需 mask 掉无效槽。",
+    "query 自身所在块：自注意力需正确包含。",
+    "多查询头：GQA 下每块 K/V 被多 Q 头复用。"
+  ],
+  "code": "# Python\ndef paged_attention(q, block_table, phys_kv, block_size):\n    num = 0.0; den = 0.0\n    for lb in range(len(block_table)):\n        Kb, Vb = phys_kv[block_table[lb]]          # 按表取物理块\n        s = q @ Kb.T / sqrt(d)                     # 本块注意力分数\n        m = softmax(s); num += m @ Vb; den += m.sum()\n    return num / den                               # 在线归一化",
+  "codeNotes": [
+    "关键在于\"按 block_table 索引物理块\"。",
+    "在线 softmax 避免拼成大张量。"
+  ],
+  "complexity": "计算量 O(n·d) 与传统相同；额外是 O(n/block_size) 次查表，可忽略。",
+  "followUps": [
+    {
+      "question": "为什么不直接拼成一个连续张量再算？",
+      "answer": "拼接要额外 O(n·d) 显存与一次全量拷贝带宽，且破坏了\"按需分配\"的意义；分块直接算零额外显存、带宽更省。"
+    },
+    {
+      "question": "在线 softmax 怎么保证数值正确？",
+      "answer": "用 running max 做数值稳定的在线归一化（类似 flash attention 的 incremental softmax），逐块累加分子与分母，结果与先拼后算一致。"
+    }
+  ],
+  "followUpAnswers": [
+    "gather 替代拼接省显存。",
+    "running max 保证在线 softmax 稳定。"
+  ],
+  "pitfalls": [
+    "以为分块会改变注意力数学结果——只是布局不同。",
+    "忽略末块有效长度 mask，导致读到脏数据。"
+  ],
+  "beginnerSummary": "考试时答案散落在好几页草稿纸（物理块）上，但你按题目顺序（block table）一张张翻着看，边看边在脑中汇总——最后得出的结论，和先把所有草稿抄到一页长纸上看，结果完全一样。PagedAttention 的 kernel 就是那个\"按目录翻页、边翻边汇总\"的过程，省去了抄写的麻烦。",
+  "prerequisites": [
+    "注意力=Q 与 K/V 点积后加权 V。",
+    "KV 被切成不连续物理块。",
+    "softmax 可在线增量计算。"
+  ],
+  "workedExample": [
+    "物理 P5,P2,P9 按逻辑序 gather，逐块累加 softmax。",
+    "结果与拼成连续张量一致。"
+  ],
+  "lineByLine": [
+    "kernel 接收 block_table 与物理块。",
+    "逐逻辑块按表取物理 K/V。",
+    "块内算分数并增量累加分子/分母。",
+    "在线 softmax 得最终输出。"
+  ],
+  "diagram": "q × [P5的K | P2的K | P9的K]  (按表拼, 不真拷贝)\n  └─> 逐块算分数 -> 增量softmax -> 输出\n等价: q × 连续KV"
+},
+  {
+  "id": "pa-fragment-reduction",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "显存碎片减少效果（对比连续分配）",
+  "prompt": "PagedAttention 相比传统连续分配，在显存碎片上减少多少？",
+  "quickAnswer": "连续分配为每个请求预留 max_len 的 KV，内部碎片约为 (max_len − 实际长度) 的整段浪费，且不可被他人利用；PagedAttention 只按需分配 block，内部碎片最多一个末块（浪费 < block_size），外部碎片几乎为零，空闲块全局复用。实测显存利用率从 20%~60% 提升到接近 100%（仅末块少量浪费）。",
+  "approach": "对比\"预留整段\"vs\"按需分块\"的未用字节占比。",
+  "explanationFocus": "是什么：PagedAttention 把 KV 碎片从\"整段预留浪费\"降到\"仅末块不足一个 block 的浪费\"。",
+  "bruteForce": "连续方案碎片 = B × (max_len − 实际长度) 字节。",
+  "derivation": [
+    "为什么需要：碎片直接决定能并发多少请求，是核心收益点。",
+    "怎么实现：分块按需分配，末块之外完全贴合实际长度。",
+    "有什么代价：末块仍有 < block_size 的内部碎片（ unavoidable 的小尾巴）。",
+    "怎么评测：定义 利用率 = 实际KV字节 / 已分配KV字节，对比两种方案。"
+  ],
+  "invariant": "连续方案利用率 ≈ E[实际长度]/max_len；分页方案利用率 ≈ 1 − block_size/(2·E[实际长度])。",
+  "walkthrough": "max_len=2048，实际长 300，block=16：连续利用率 300/2048≈15%；分页 300/((300+15)//16*16)=300/304≈98.7%。",
+  "edgeCases": [
+    "实际长度恰为 block_size 整数倍：碎片为 0。",
+    "超短请求：碎片上限就是 block_size−1。",
+    "请求数极多：空闲块池高效周转，外部碎片近 0。"
+  ],
+  "code": "# Python\ndef internal_frag(req_len, block_size):\n    last = req_len % block_size\n    return 0 if last == 0 else block_size - last   # 仅末块浪费\n\ndef utilization(req_len, block_size):\n    allocated = ((req_len + block_size - 1) // block_size) * block_size\n    return req_len / allocated",
+  "codeNotes": [
+    "碎片只来自末块未填满部分。",
+    "利用率随实际长度增大而趋近 1。"
+  ],
+  "complexity": "碎片 O(B·block_size)；对比连续方案 O(B·max_len)。",
+  "followUps": [
+    {
+      "question": "还有没有无法消除的碎片？",
+      "answer": "有，每个序列最后一个 block 未填满的部分（最多 block_size−1 个 token 的 KV），以及极少量元数据开销，这是分页方案的固有限度。"
+    },
+    {
+      "question": "利用率接近 100% 意味着能并发更多吗？",
+      "answer": "是的，同样显存下可容纳更多请求的 KV，直接提升最大并发与吞吐，这也是 vLLM 高吞吐的来源之一。"
+    }
+  ],
+  "followUpAnswers": [
+    "末块尾巴是唯一残余碎片。",
+    "利用率↑ ⇒ 并发↑ ⇒ 吞吐↑。"
+  ],
+  "pitfalls": [
+    "把\"接近 100%\"理解成\"绝对 100%\"——末块仍有少量浪费。",
+    "只看平均长度忽略方差对连续方案的影响。"
+  ],
+  "beginnerSummary": "连续方案像给每人发一整张大桌（按最大可能饭量），大多数人只坐一角，空位既不能坐人也不回收，桌子白白空着。分页方案只按实际人数摆椅子，最后一个人若只来半个，也只多占半把椅子的空——几乎没浪费。于是同样大的餐厅能招待更多客人。",
+  "prerequisites": [
+    "连续预留造成整段浪费。",
+    "分页只分配实际所需块。",
+    "利用率=实际/已分配。"
+  ],
+  "workedExample": [
+    "连续: 实际300/预留2048≈15%。",
+    "分页: 300/304≈98.7%。"
+  ],
+  "lineByLine": [
+    "连续方案碎片=预留−实际。",
+    "分页方案碎片≤末块。",
+    "空闲块全局复用。",
+    "利用率近 100%。"
+  ],
+  "diagram": "连续利用率 = 实际/预留 ≈ 15%\n分页利用率 = 实际/已分配块 ≈ 99%\n提升: 数倍并发空间"
+},
+  {
+  "id": "pa-continuous-batching",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "与 Continuous Batching 协同",
+  "prompt": "PagedAttention 如何与 Continuous Batching 协同工作？",
+  "quickAnswer": "Continuous Batching 在 token 粒度动态把就绪请求塞进同一个 batch，不再等整批等长。这要求各请求的 KV 长度、占用各不相同且可随时增长——传统连续分配很难高效支持。PagedAttention 的分块、非连续、按需分配 KV 恰好匹配：每个请求独立占自己的 block，新请求/新 token 即时插入，GPU 利用率大幅提升。",
+  "approach": "分块 KV 天然支持变长、动态增长，是 Continuous Batching 的底座。",
+  "explanationFocus": "是什么：PagedAttention 的变长非连续 KV 让 Continuous Batching 能在 token 级动态组批，提升 GPU 利用率。",
+  "bruteForce": "静态 batching：等整批最慢请求结束才换新请求，GPU 常空转。",
+  "derivation": [
+    "为什么需要：请求长短不一，静态组批浪费算力；需要 token 级调度。",
+    "怎么实现：调度器每步把有空闲 slot 的请求加入 batch；PagedAttention 各自分页 KV，互不干扰。",
+    "有什么代价：调度更复杂，需配合分页分配器实时 append 块。",
+    "怎么评测：对比静态/连续 batching 的 GPU 利用率、吞吐与排队延迟。"
+  ],
+  "invariant": "同一 batch 内各请求的 KV 长度可不同；每个请求按需 append 自己的 block，互不影响。",
+  "walkthrough": "batch 中 A 已生成 100 token、B 刚来 1 token：A 占 7 个 block、B 占 1 个，二者分页 KV 各管各的，一步同时算 A 的第101 token 与 B 的第2 token。",
+  "edgeCases": [
+    "某请求先结束：其 block 立即释放供他人，无需等整批。",
+    "新请求随时加入：分配自己的 block，不动他人。",
+    "长度差异极大：分页让短请求不拖累长请求的对齐浪费。"
+  ],
+  "code": "# Python\ndef continuous_batching(scheduler, waiting, running, gpu_slots):\n    while gpu_slots.free() > 0 and waiting:\n        r = waiting.pop()                 # 新请求随时加入\n        running.add(r)                    # 各自分页KV, 独立block\n    return step_all(running)              # 一步算所有就绪token",
+  "codeNotes": [
+    "token 级调度而非序列级。",
+    "分页 KV 让变长共存无对齐浪费。"
+  ],
+  "complexity": "调度 O(每步进出请求数)；算力利用更饱满，等效吞吐提升。",
+  "followUps": [
+    {
+      "question": "没有 PagedAttention 能做 Continuous Batching 吗？",
+      "answer": "能但低效：连续分配下变长请求要么对齐到最长（浪费），要么频繁重分配（开销大）；分页让变长共存几乎零额外成本，所以二者常配套出现。"
+    },
+    {
+      "question": "Continuous Batching 提升的是哪类指标？",
+      "answer": "主要提升 GPU 利用率与吞吐（tokens/s），并降低平均排队延迟，因为它消除了\"等最慢请求\"的空转。"
+    }
+  ],
+  "followUpAnswers": [
+    "分页是连续批处理的显存底座。",
+    "收益在利用率与吞吐。"
+  ],
+  "pitfalls": [
+    "以为 Continuous Batching 只靠调度、与 KV 布局无关。",
+    "混淆\"连续批处理\"与\"连续显存分配\"。"
+  ],
+  "beginnerSummary": "餐厅翻台：传统做法是整桌人吃完才换下一桌，哪怕有人早吃完了也得干等——桌子空着。Continuous Batching 像\"谁点好菜谁就上灶\"，而 PagedAttention 让每桌的餐具（KV）独立摆放、随时加减，新客人一来就有自己的位置，灶台（GPU）几乎不闲着。",
+  "prerequisites": [
+    "请求长度差异大、到达时间不一。",
+    "静态组批会空转等待。",
+    "KV 需支持变长动态增长。"
+  ],
+  "workedExample": [
+    "A 100 token、B 刚来：同 batch 各占 7/1 个 block 同算。",
+    "A 结束立即释放 block 给新请求。"
+  ],
+  "lineByLine": [
+    "调度器按需加入/移出请求。",
+    "每请求独立分页 KV。",
+    "同一步算所有就绪 token。",
+    "结束即释放 block 复用。"
+  ],
+  "diagram": "static: [A A A A | 等最慢 | 空转]\nconti.: [A101][B2][C7][新D] 同一步并行\n       各占各自block, GPU不空转"
+},
+  {
+  "id": "pa-cow-prefix",
+  "category": "PagedAttention",
+  "difficulty": "Hard",
+  "title": "copy-on-write 共享前缀（prefix sharing）",
+  "prompt": "PagedAttention 如何用 copy-on-write 实现前缀共享？",
+  "quickAnswer": "当多个序列共享同一前缀（如 system prompt、beam search 的候选、并行采样），它们的 block table 可指向同一批物理块并加引用计数，从而只存一份 KV。只有当某个序列要改写某个已被共享的块时，才真正拷贝一份出来（copy-on-write），避免影响其他共享者。这把\"相同前缀的 KV\"从 N 份压成 1 份。",
+  "approach": "共享物理块+引用计数，写时才拷贝（COW）。",
+  "explanationFocus": "是什么：多个序列的 block table 指向同一物理前缀块并计引用，改写时 copy-on-write 分裂出独立副本，实现前缀 KV 只存一份。",
+  "bruteForce": "每个序列各存一份完整 KV，公共前缀重复占用显存。",
+  "derivation": [
+    "为什么需要：beam search、并行采样、相同 system prompt 都产生大量重复前缀 KV。",
+    "怎么实现：fork 时复制 block table 并把各物理块 ref+1；写某块前若 ref>1 则拷贝新块、ref 调整。",
+    "有什么代价：需维护引用计数与 COW 拷贝逻辑；前缀必须逐块完全一致才共享。",
+    "怎么评测：看共享前缀命中率与 KV 显存节省倍数。"
+  ],
+  "invariant": "只要某物理块 ref>1，它就是只读共享；写入前必 COW，保证不串扰。",
+  "walkthrough": "beam=4 共享 512-token 前缀：4 个序列 block table 都指向同一批前缀物理块（ref=4），仅存 1 份；当某 beam 第 513 token 改写首块时才拷贝出新块。",
+  "edgeCases": [
+    "前缀逐块一致才能共享（否则从该块起分叉）。",
+    "引用归零才真正回收物理块。",
+    "自动 prefix caching 用块哈希命中共享（vLLM）。"
+  ],
+  "code": "# Python\ndef fork_sequence(parent_table, phys_blocks):\n    child = list(parent_table)\n    for b in child:\n        phys_blocks[b].ref += 1        # 共享物理块, 引用+1\n    return child\n\ndef write_on_fork(block, phys_blocks):\n    if phys_blocks[block].ref > 1:     # 被共享, 写时拷贝\n        new = copy(phys_blocks[block])\n        phys_blocks[block].ref -= 1\n        return new                    # COW: 返回独立副本\n    return phys_blocks[block]",
+  "codeNotes": [
+    "fork 只复制\"指针\"(block table)，不复制 KV。",
+    "引用计数是安全共享的关键。"
+  ],
+  "complexity": "fork O(前缀块数)；COW 仅在写冲突时发生，均摊极低成本。",
+  "followUps": [
+    {
+      "question": "和普通 Prefix Cache 有什么区别？",
+      "answer": "Prefix Cache 跨请求复用已算好的前缀 KV（省算力）；COW 更侧重序列 fork 时的内存共享与写时分裂，二者都依赖\"块级共享+引用计数\"，vLLM 把两者统一在分页 KV 上。"
+    },
+    {
+      "question": "什么场景 COW 收益最大？",
+      "answer": "beam search、并行采样、以及大量请求共享同一 system prompt 的场景——共享前缀越长、副本越多，省下的 KV 越可观。"
+    }
+  ],
+  "followUpAnswers": [
+    "beam/采样靠 COW 共享。",
+    "均靠引用计数保安全。"
+  ],
+  "pitfalls": [
+    "忘记引用计数，写共享块污染其他序列。",
+    "以为 fork 会复制全部 KV（其实只复制表）。"
+  ],
+  "beginnerSummary": "四个人合写一份报告，开头都相同。与其各抄一份开头，不如四个人共用同一份开头稿（共享块），在稿子上标\"4 人引用\"。只有当某人要修改开头时，才给他另复印一份让他改，不影响另外三人。这样既省纸（显存），又不会互相改乱。",
+  "prerequisites": [
+    "多个序列共享相同前缀。",
+    "物理块可被多表引用。",
+    "需引用计数判断共享。"
+  ],
+  "workedExample": [
+    "beam=4 共 512-token 前缀：KV 只存 1 份(ref=4)。",
+    "某 beam 改写首块时 COW 分裂出新块。"
+  ],
+  "lineByLine": [
+    "fork 复制 block table。",
+    "各物理前缀块 ref+1。",
+    "写入前若 ref>1 则 COW。",
+    "引用归零才回收。"
+  ],
+  "diagram": "seqA: [P1 P2 P3] ref各+1\nseqB: [P1 P2 P3] 共享同一批\nseqC: [P1 P2 P3]\n写P3时: COW -> 新P3' 给C, 原P3 ref-1"
+},
+  {
+  "id": "pa-block-size",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "block size（块大小）的选择权衡",
+  "prompt": "PagedAttention 的 block size 该怎么选，有什么权衡？",
+  "quickAnswer": "block size 是分页的最小分配单位（常见 16 token）。太小：内部碎片小，但 block table 更长、元数据更多、kernel 启动/寻址开销更大；太大：块数少、管理开销低，但末块内部碎片回弹、前缀共享粒度变粗。实践中 16 是经验甜点，兼顾碎片、元数据与 kernel 效率。",
+  "approach": "权衡\"碎片细度\"与\"管理/元数据开销\"，取经验值 16。",
+  "explanationFocus": "是什么：block size 决定分页粒度，需在\"碎片小\"与\"元数据/开销低\"之间权衡，常用 16 token。",
+  "bruteForce": "盲目取极大或极小 block size。",
+  "derivation": [
+    "为什么需要：block size 同时影响碎片率、表大小与 kernel 效率，必须选。",
+    "怎么实现：固定一个 token 数（如 16）作为分配与共享的粒度。",
+    "有什么代价：极端值各有问题（详见边界），需折中。",
+    "怎么评测：扫不同 block size，看显存利用率、吞吐量与管理开销的拐点。"
+  ],
+  "invariant": "平均碎片 ≈ block_size/2 个 token 的 KV；block table 长度 = ceil(len/block_size)。",
+  "walkthrough": "block=16 vs block=4：同样 100 请求平均长 300，block=4 的表长是 block=16 的 4 倍，元数据与 gather 次数更多，但末块平均浪费更小；block=64 则末块平均浪费 32 token/请求，碎片回弹。",
+  "edgeCases": [
+    "block=1：退化为逐 token 管理，开销爆炸。",
+    "block 很大：共享粒度粗，前缀命中率可能下降。",
+    "与 kernel 最优线程块大小相关，需联合调。"
+  ],
+  "code": "# Python\ndef block_overhead(block_size, seq_len):\n    n_blocks = (seq_len + block_size - 1) // block_size\n    frag = 0 if seq_len % block_size == 0 else block_size - (seq_len % block_size)\n    meta = n_blocks * PTR_BYTES        # 块表元数据随块数增长\n    return frag, meta                   # 小block: frag小meta大; 大block反之",
+  "codeNotes": [
+    "碎片与 block_size 同量级。",
+    "元数据随块数反相关于 block_size。"
+  ],
+  "complexity": "管理开销 O(块数)=O(len/block_size)；碎片 O(block_size)。",
+  "followUps": [
+    {
+      "question": "为什么不是越大越好？",
+      "answer": "越大末块浪费越多（平均多半个 block），且前缀共享只能按整块对齐，粒度粗会降低命中率；所以存在收益拐点。"
+    },
+    {
+      "question": "16 是怎么来的？",
+      "answer": "是工程经验值：在常见模型维度与 kernel 配置下，16 token 的 KV 块大小平衡了碎片、表开销与 GPU kernel 效率，vLLM 默认即如此。"
+    }
+  ],
+  "followUpAnswers": [
+    "碎片随 block 增大而回弹。",
+    "16 是经验甜点。"
+  ],
+  "pitfalls": [
+    "以为 block 越小越省——忽视元数据与 kernel 开销。",
+    "以为 block 越大越省——忽视末块碎片与共享粒度。"
+  ],
+  "beginnerSummary": "分页就像决定\"一册笔记写多少页\"。册子太薄（block 小）：几乎不浪费纸，但目录厚、翻页次数多；册子太厚（block 大）：目录薄、翻得少，可最后一册常常只写几页就剩一大半空白。折中一册写 16 页，既省纸又不多翻——这就是 block size 的甜点。",
+  "prerequisites": [
+    "碎片随 block 增大而增多。",
+    "元数据随块数增多。",
+    "kernel 寻址有固定开销。"
+  ],
+  "workedExample": [
+    "block=4：表长是 block=16 的 4 倍，开销大。",
+    "block=64：末块平均浪费约 32 token。"
+  ],
+  "lineByLine": [
+    "block 小 → 碎片小但表大。",
+    "block 大 → 表小但碎片大。",
+    "共享粒度随 block 变粗。",
+    "经验值 16 折中。"
+  ],
+  "diagram": "block=4 : frag小, 表长4x, 开销大\nblock=16: 甜点\nblock=64: frag大(平均32), 共享粗\n碎片∝block, 元数据∝1/block"
+},
+  {
+  "id": "pa-eval",
+  "category": "PagedAttention",
+  "difficulty": "Medium",
+  "title": "PagedAttention 的评测：显存利用率/吞吐提升",
+  "prompt": "如何评测 PagedAttention 的效果，看哪些指标？",
+  "quickAnswer": "核心看两类指标：(1) 显存侧——KV 显存利用率（实际/已分配）、可支撑的最大并发序列数、最大上下文；(2) 性能侧——吞吐(tokens/s)、TTFT、同显存下相比连续分配基线的吞吐提升倍数。vLLM 论文实测在真实负载下吞吐可达 HuggingFace 基线的 2~4 倍，主要得益于碎片消除与 Continuous Batching 配合。",
+  "approach": "显存利用率 + 最大并发 + 吞吐/延迟，对比连续分配基线。",
+  "explanationFocus": "是什么：评测 PagedAttention 看 KV 利用率、最大并发与吞吐提升，对比连续分配基线算倍数。",
+  "bruteForce": "只看模型精度，忽略显存与吞吐收益。",
+  "derivation": [
+    "为什么需要：要量化\"分页\"到底带来多少收益，才能决策。",
+    "怎么实现：固定模型与硬件，扫并发/长度，记录利用率与吞吐曲线。",
+    "有什么代价：需设计贴近真实长度分布的负载，否则数字失真。",
+    "怎么评测：与 HF Transformers 等连续分配实现做同条件 A/B。"
+  ],
+  "invariant": "在真实长度分布下，分页方案的 最大并发 ≈ 连续方案的 (平均预留/平均实际) 倍。",
+  "walkthrough": "同 40GB 显存、7B 模型：连续方案最长上下文受限约 60 并发；PagedAttention + 连续批处理实测约 2~4 倍吞吐，且长上下文更稳。",
+  "edgeCases": [
+    "负载长度分布偏斜：均值短则利用率收益更大。",
+    "极长单请求：分页不减其绝对 KV，只减并发间的浪费。",
+    "小 batch：分页收益相对小，主要收益在并发高时。"
+  ],
+  "code": "# Python\ndef kv_utilization(used_tokens, allocated_blocks, block_size):\n    allocated = allocated_blocks * block_size\n    return used_tokens / allocated\n\ndef speedup(paged_tput, baseline_tput):\n    return paged_tput / baseline_tput   # 目标 >= 2x",
+  "codeNotes": [
+    "利用率与吞吐要一起看。",
+    "基线必须是同硬件连续分配。"
+  ],
+  "complexity": "评测本身 O(实验次数)；结论为相对倍数，无算法复杂度。",
+  "followUps": [
+    {
+      "question": "吞吐提升主要来自分页还是连续批处理？",
+      "answer": "两者协同：分页消除了碎片让更多请求进得来，连续批处理让它们高效同跑；单独分页也提升利用率，但真正把利用率转化为吞吐要靠连续批处理。"
+    },
+    {
+      "question": "会不会有反向情况（分页更慢）？",
+      "answer": "在极低并发、极短请求时，分页的查表/管理开销可能使微基准略慢，但生产高并发下收益远大于开销。"
+    }
+  ],
+  "followUpAnswers": [
+    "利用率靠分页，吞吐靠批处理。",
+    "高并发才显收益。"
+  ],
+  "pitfalls": [
+    "只报吞吐不报利用率，掩盖收益来源。",
+    "用不真实的长度分布做评测。"
+  ],
+  "beginnerSummary": "评价一项改进要看\"省了多少地方\"和\"快了多少\"。对餐厅来说就是：同样大的店能同时招待几桌（最大并发/利用率），以及每小时翻台多少桌（吞吐）。PagedAttention 让店能多摆几桌、翻台更快——vLLM 实测大约能多接 2 到 4 倍的客人。",
+  "prerequisites": [
+    "需量化显存与吞吐收益。",
+    "要有连续分配基线对比。",
+    "负载长度分布影响数字。"
+  ],
+  "workedExample": [
+    "同 40GB：连续约 60 并发，分页+批处理 2~4x 吞吐。",
+    "利用率从 ~30% 提升到近 100%。"
+  ],
+  "lineByLine": [
+    "测 KV 利用率。",
+    "测最大可并发序列。",
+    "测吞吐与 TTFT。",
+    "对比连续分配基线算倍数。"
+  ],
+  "diagram": "指标:\n 利用率 = 实际/已分配KV  (->~100%)\n 最大并发 = f(剩余显存)\n 吞吐 = tokens/s  (分页/基线 ≈ 2~4x)\n基线: HF连续分配"
+},
+  {
+  "id": "pa-vllm-impl",
+  "category": "PagedAttention",
+  "difficulty": "Hard",
+  "title": "vLLM 中 PagedAttention 的实现细节与局限",
+  "prompt": "vLLM 中 PagedAttention 的实现细节与局限是什么？",
+  "quickAnswer": "vLLM 把 PagedAttention 拆成三层：BlockSpaceManager（分配/释放/append/fork 物理块，维护引用计数）、Scheduler（token 级连续批处理调度）、以及 GPU 上的 PagedAttention kernel（按 block table gather KV 并做在线 softmax）。局限包括：block size 需调参；仍受末块碎片与元数据开销影响；KV 绝对量仍随序列线性增长（不解决长序列本身）；小请求下查表开销相对明显；主要优化 GPU 显存，CPU/其他后端需另适配。",
+  "approach": "三层结构（管理器/调度器/kernel）+ 认知其局限边界。",
+  "explanationFocus": "是什么：vLLM 用 BlockSpaceManager + Scheduler + PagedAttention kernel 三层实现分页 KV，收益显著但有调参与固有限度。",
+  "bruteForce": "手写单次注意力，无独立管理与调度层。",
+  "derivation": [
+    "为什么需要：要把\"分页思想\"落成对开发者透明的系统，必须分层解耦。",
+    "怎么实现：管理器管块生命周期、调度器管 token 级批处理、kernel 管按表计算。",
+    "有什么代价：系统更复杂；存在前述局限（调参、末块碎片、长序列线性增长）。",
+    "怎么评测：端到端基准 + 各层开销剖析（分配时延、kernel 占比）。"
+  ],
+  "invariant": "物理块的总引用计数之和 = 已分配块数；逻辑 KV 经三层后仍数值等价于连续注意力。",
+  "walkthrough": "一次 decode：Scheduler 选出就绪 token → BlockSpaceManager 确保各序列有 block → kernel 按 block_table gather 物理 KV 算注意力；请求结束则 Manager 把 ref=1 的块回收。",
+  "edgeCases": [
+    "显存耗尽：Scheduler 触发抢占（swap/驱逐）而非简单 OOM。",
+    "block size 不当：影响利用率与 kernel 效率。",
+    "超长序列：绝对 KV 仍增长，需配合量化/驱逐。"
+  ],
+  "code": "# Python\nclass BlockSpaceManager:\n    def append_token(self, seq, kv):\n        if seq.last_block_full():\n            nb = self.free.pop()             # 按需取空闲块\n            seq.block_table.append(nb)\n        seq.write_current(kv)                # 写当前物理块下一槽\n    def free_seq(self, seq):\n        for b in seq.block_table:\n            if self.phys[b].ref == 1:\n                self.free.add(b)             # 仅引用1才回收",
+  "codeNotes": [
+    "Manager 负责块的生命周期与引用。",
+    "Scheduler 负责 token 级调度。",
+    "kernel 负责按表 gather 计算。"
+  ],
+  "complexity": "分配 O(1)；kernel 计算量同传统注意力；系统额外开销为管理/查表，生产可忽略。",
+  "followUps": [
+    {
+      "question": "vLLM 显存不够时会怎样？",
+      "answer": "Scheduler 会抢占（preempt）部分序列，把其 KV 换出到 CPU（swap）或丢弃重算，而不是整进程 OOM；这是分页管理带来的弹性。"
+    },
+    {
+      "question": "PagedAttention 能解决长上下文的 KV 爆炸吗？",
+      "answer": "不能从根上解决：它消除的是碎片与并发间的浪费，KV 绝对量仍随序列线性增长；长上下文仍需 KV 量化、驱逐或架构改进配合。"
+    }
+  ],
+  "followUpAnswers": [
+    "显存不足走抢占/swap。",
+    "长序列仍需量化+驱逐。"
+  ],
+  "pitfalls": [
+    "以为 PagedAttention 能消灭 KV 随长度的增长——它只消灭浪费。",
+    "忽视 block size 调参对整体效果的影响。"
+  ],
+  "beginnerSummary": "vLLM 把\"分页笔记法\"做成了一套餐厅管理系统：前台（Scheduler）决定谁上灶、库房管理员（BlockSpaceManager）负责发收笔记册并记谁在引用、后厨师傅（kernel）按目录翻页做菜。它让餐厅高效翻台，但册子总数仍随客人写的字数线性增加——写太长该省（量化/驱逐）还是得省，分页只是让\"空隙\"消失、不让浪费叠加。",
+  "prerequisites": [
+    "分页需要管理与调度层。",
+    "kernel 按表 gather KV。",
+    "KV 绝对量仍随序列增长。"
+  ],
+  "workedExample": [
+    "decode 一步：Scheduler 选 token → Manager 保块 → kernel 按表算。",
+    "显存不足：抢占/swap 而非 OOM。"
+  ],
+  "lineByLine": [
+    "BlockSpaceManager 管块生命周期。",
+    "Scheduler 做 token 级调度。",
+    "kernel 按 block_table gather 计算。",
+    "局限: 末块碎片、长序列仍增长、需调参。"
+  ],
+  "diagram": "请求 -> Scheduler(选token)\n       -> BlockSpaceManager(分配/释放块,ref计数)\n       -> PagedAttention kernel(按表gather, 在线softmax)\n局限: 末块碎片 | 长序列线性增长 | block需调参"
+},
+  {
+  "id": "quant-what",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "模型量化是什么",
+  "prompt": "大模型推理里的量化是什么，为什么推理要做量化？",
+  "quickAnswer": "量化把模型权重/激活从 FP16/BF16 映射到 INT8/INT4/FP8 等低精度表示，用更小存储与更快的低精度计算换得显存下降与吞吐提升。代价是引入舍入误差，设计不当会掉点，因此需校准与合适粒度。",
+  "approach": "低精度存储+计算，用缩放因子把低精度值映射回原数值范围。",
+  "explanationFocus": "是什么：量化用低比特(INT8/INT4/FP8)表示权重/激活，以精度换显存与速度。",
+  "bruteForce": "全 FP16 推理：显存与算力都紧，并发和长上下文受限。",
+  "derivation": [
+    "为什么需要：LLM 权重量大、KV 随上下文线性暴涨，FP16 显存与带宽成为瓶颈；低精度可同时降显存、提算力。",
+    "怎么实现：对权重/激活做线性缩放量化（如 INT8 对称 x_q=round(x/s)），存储低精度，计算前/中反量化或使用低位 kernel。",
+    "有什么代价：舍入误差可能掉点；需校准与特殊 kernel；outlier 难处理；并非所有层都耐量化。",
+    "怎么评测：对比量化前后显存、吞吐与下游精度（困惑度、MMLU 等），看 P99 是否劣化。"
+  ],
+  "invariant": "量化误差随比特数下降而上升；INT8≈1/2 显存，INT4≈1/4。",
+  "walkthrough": "7B 模型 FP16 权重约 14GB；量化为 INT4 约 3.5GB，显存大降、可上更大 batch。",
+  "edgeCases": [
+    "outlier 通道：全局缩放被压扁，需 per-channel/per-group 或 SmoothQuant。",
+    "敏感层（如 lm_head）：宜留高精度。",
+    "激活比权重更敏感，常需更高精度或细粒度。"
+  ],
+  "code": "# Python\ndef linear_quantize(tensor, bits=8):\n    qmin, qmax = -(2**(bits-1)), 2**(bits-1)-1\n    scale = tensor.abs().max() / qmax          # 对称缩放\n    q = (tensor / scale).round().clamp(qmin, qmax)\n    return q, scale                             # 存 q, 用前 q*scale 反量化",
+  "codeNotes": [
+    "对称量化 z=0，公式简单、硬件友好。",
+    "per-group 缩放比 per-tensor 更耐 outlier。"
+  ],
+  "complexity": "量化 O(元素)；省显存线性于精度下降；算力取决于低精度 kernel 支持。",
+  "followUps": [
+    {
+      "question": "权重量化和激活量化哪个更难？",
+      "answer": "激活含 outlier 且随输入变化，比权重更难；所以常见 W4A16（只量化权重）或需 SmoothQuant 把激活难度迁移到权重。"
+    },
+    {
+      "question": "INT4 一定掉点吗？",
+      "answer": "若用细粒度 group 缩放与校准，多数任务可接近无损；粗粒度全局缩放则易崩。"
+    }
+  ],
+  "followUpAnswers": [
+    "W4A16 是性价比常用配置。",
+    "group 缩放显著提升 INT4 质量。"
+  ],
+  "pitfalls": [
+    "以为量化一定掉点（合理粒度下常近乎无损）。",
+    "忽略 outlier 导致全局缩放崩。"
+  ],
+  "beginnerSummary": "模型参数原本用\"高清\"数字(FP16)记录，占地方又算得慢。量化好比把高清笔记改成速记缩写(INT8/INT4)，地方省一大半、翻得也快，代价是偶尔写错一两个字——只要缩写规则(缩放)设计好，大部分内容不丢。",
+  "prerequisites": [
+    "模型由大量浮点参数组成。",
+    "低精度计算有硬件加速(Tensor Core)。",
+    "量化=低精度存储+缩放反量化。"
+  ],
+  "workedExample": [
+    "7B FP16 权重约 14GB → INT4 约 3.5GB。",
+    "对称缩放: scale=max/127, 量化=round(x/scale)。"
+  ],
+  "lineByLine": [
+    "选缩放因子(对称/非对称)。",
+    "浮点乘 scale 后 round 到整数。",
+    "存整数权重/激活。",
+    "计算前乘回 scale 反量化。"
+  ],
+  "diagram": "FP16(2B) ─▶ INT8(1B) 省1/2 ─▶ INT4(0.5B) 省3/4\n代价: 舍入误差 → 需校准/细粒度缩放"
+},
+  {
+  "id": "quant-ptq-vs-qat",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "PTQ 与 QAT 的区别",
+  "prompt": "训练后量化(PTQ)和量化感知训练(QAT)有什么区别，怎么选？",
+  "quickAnswer": "PTQ 在训练完成后用一小批校准数据直接量化，零重训、成本低，是部署首选；QAT 在训练时插入伪量化节点让网络\"提前适应\"低精度，精度更好但需训练数据与算力。低比特(INT4)或敏感模型常需 QAT 兜底。",
+  "approach": "默认先 PTQ 看精度；掉点严重时再上 QAT 微调。",
+  "explanationFocus": "是什么：PTQ 是事后量化(无需训练)，QAT 是把量化误差纳入训练(需微调)的两种范式。",
+  "bruteForce": "直接把 FP16 权重截断成低精度 INT8，不校准也不训练。",
+  "derivation": [
+    "为什么需要：PTQ 想零成本落地，QAT 想在低比特下保精度，二者解决\"成本 vs 精度\"的权衡。",
+    "怎么实现：PTQ 统计校准集的 min/max 求缩放并量化；QAT 在前向插 STE 伪量化(quant-dequant)，反向仍用 FP 梯度更新权重。",
+    "有什么代价：PTQ 对极低位或 outlier 多时易掉点；QAT 需重训、数据/算力开销大、流程复杂。",
+    "怎么评测：同一测试集比较 PTQ 与 QAT 的精度差与显存/时延，权衡 ROI。"
+  ],
+  "invariant": "同样比特下 QAT 精度≥PTQ；PTQ 成本远低于 QAT。",
+  "walkthrough": "7B 模型 PTQ INT8 通常掉点<1%；压到 INT4 若 PTQ 掉 5 分，QAT 微调可拉回 3 分。",
+  "edgeCases": [
+    "校准数据分布偏离推理分布，PTQ 缩放失真。",
+    "QAT 需冻结/解冻策略，否则 STE 把权重推到饱和区。",
+    "小模型对量化更敏感，更常需 QAT。"
+  ],
+  "code": "# Python (伪量化 STE)\ndef fake_quant(x, bits=8):\n    qmin, qmax = -(2**(bits-1)), 2**(bits-1)-1\n    scale = x.abs().max() / qmax\n    x_q = (x / scale).round().clamp(qmin, qmax)   # 前向量化\n    return x_q * scale                              # 反量化; 反向 STE 直通梯度",
+  "codeNotes": [
+    "STE: 反向时把 round 的梯度当作 1(直通估计)。",
+    "QAT 最终只保留量化后的整型权重用于部署。"
+  ],
+  "complexity": "PTQ 仅前向+统计 O(校准样本·元素)；QAT 多一次训练 O(epoch·数据)。",
+  "followUps": [
+    {
+      "question": "什么时候必须上 QAT？",
+      "answer": "当 PTQ 在目标比特(如 INT4)下精度不达标，或模型很小/很敏感时；以及需要端到端联合优化缩放因子时。"
+    },
+    {
+      "question": "QAT 会不会破坏已训好的权重？",
+      "answer": "会微调权重以适应量化，通常从小学习率恢复或只动伪量化参数，权重整体变化可控。"
+    }
+  ],
+  "followUpAnswers": [
+    "PTQ 优先，QAT 兜底。",
+    "STE 是 QAT 训练稳定的关键技巧。"
+  ],
+  "pitfalls": [
+    "认为 PTQ 永远够用(低比特常不够)。",
+    "QAT 学习率过大把权重洗坏。"
+  ],
+  "beginnerSummary": "PTQ 像把写好的稿子直接缩写印刷，快但可能漏字；QAT 像边写边用缩写方式练习，最后成稿更顺、但要重写一遍。没钱没时间先 PTQ，要极致精度再 QAT。",
+  "prerequisites": [
+    "了解量化的基本缩放。",
+    "知道反向传播与梯度。",
+    "有(或没有)现成训练数据。"
+  ],
+  "workedExample": [
+    "PTQ: 取 128 条样本统计 scale 即量化完成。",
+    "QAT: 在线性层前后插 fake_quant 再训 1~3 epoch。"
+  ],
+  "lineByLine": [
+    "PTQ: 加载 FP 权重。",
+    "PTQ: 跑校准集统计范围。",
+    "PTQ: 计算 scale 并取整存储。",
+    "QAT: 插伪量化, 反向前向带 round。"
+  ],
+  "diagram": "PTQ: 训练完成 ─▶ 校准 ─▶ 量化部署 (零重训)\nQAT: 训练完成 ─▶ 插伪量化 ─▶ 微调 ─▶ 量化部署 (更高精度)"
+},
+  {
+  "id": "quant-int8-sym-asym",
+  "category": "量化推理",
+  "difficulty": "Easy",
+  "title": "INT8 对称与非对称量化",
+  "prompt": "INT8 对称量化和非对称量化公式分别是什么，怎么选？",
+  "quickAnswer": "对称量化假设分布关于 0 对称：x_q=round(x/s)，s=max(|x|)/127，零点 z=0；非对称量化 x_q=round(x/s)+z，z 把最小值平移到 0，能更好贴合 [0,255] 或 [min,max] 的非对称分布。权重多对称、激活(ReLU 后非负)常非对称。",
+  "approach": "权重用对称，激活用非对称(或统一对称+per-channel)。",
+  "explanationFocus": "是什么：对称量化零点恒为 0、公式最简；非对称量化引入零点平移以贴合偏置分布。",
+  "bruteForce": "直接 round(x*127/max) 不涉及零点，对全非负张量浪费一半码点。",
+  "derivation": [
+    "为什么需要：ReLU 后激活全非负，若强制对称会把一半 INT8 码点浪费在负半轴，非对称可省码点提精度。",
+    "怎么实现：对称 s=max|x|/127,z=0；非对称 s=(max-min)/255,z=round(-min/s)，量化=round(x/s)+z。",
+    "有什么代价：非对称多存一个零点、反量化多一步减法，硬件略复杂。",
+    "怎么评测：同张量下比较对称/非对称的相对量化误差(SNR)与下游精度。"
+  ],
+  "invariant": "INT8 共 256 个码点；非对称把码点铺满实际 [min,max]。",
+  "walkthrough": "激活范围 [0,6]，非对称 s=6/255≈0.0235,z=0,码点铺满；若对称则 [-6,6] 浪费负半轴。",
+  "edgeCases": [
+    "权重近对称但略有偏，对称足够。",
+    "激活含 0 占比高，非对称更稳。",
+    "混合: 权重对称+激活非对称是常见组合。"
+  ],
+  "code": "# Python\ndef sym_asym_quant(x, sym=True, bits=8):\n    if sym:\n        s = x.abs().max() / (2**(bits-1)-1)\n        return (x / s).round(), s, 0\n    qmax = 2**bits - 1\n    s = (x.max() - x.min()) / qmax\n    z = (-x.min() / s).round()\n    return (x / s).round() + z, s, z",
+  "codeNotes": [
+    "对称 z=0 硬件最友好。",
+    "非对称 z 用 int 存储, 反量化 x≈(x_q-z)*s。"
+  ],
+  "complexity": "O(元素) 统计 max/min；反量化每元素一次乘/加减。",
+  "followUps": [
+    {
+      "question": "为什么权重常用对称？",
+      "answer": "权重(尤其预训练)分布近似零中心且含正负，对称不浪费码点且公式简单、kernel 高效。"
+    },
+    {
+      "question": "零点 z 存成浮点还是整数？",
+      "answer": "z 通常存为整数(与量化值同类型)，反量化时再参与整数运算或转浮点，避免额外精度损失。"
+    }
+  ],
+  "followUpAnswers": [
+    "权重对称、激活非对称最常见。",
+    "z 多为整数以省存储。"
+  ],
+  "pitfalls": [
+    "对全非负激活用对称，浪费一半动态范围。",
+    "忘记零点参与反量化导致偏移。"
+  ],
+  "beginnerSummary": "INT8 像一把只有 256 格的尺。对称尺以 0 为中心(左右各 127 格)，适合正负都有的情况；非对称尺把 0 格挪到最小处，256 格全用来量\"非负\"的东西——测身高(总≥0)就用非对称更精细。",
+  "prerequisites": [
+    "INT8 有 256 个整数码点。",
+    "权重分布常含正负。",
+    "ReLU 后激活非负。"
+  ],
+  "workedExample": [
+    "对称: x∈[-1,1], s=1/127, 量化=round(127x)。",
+    "非对称: x∈[0,6], s=6/255,z=0。"
+  ],
+  "lineByLine": [
+    "求张量范围(min/max 或 |max|)。",
+    "算 scale 与零点。",
+    "浮点除 scale 后 round。",
+    "存整数, 反量化乘回 scale 减 z。"
+  ],
+  "diagram": "对称:  -127 .... 0 .... 127   (z=0)\n非对称: 0 .... 255        (z 平移, 铺满[min,max])"
+},
+  {
+  "id": "quant-int4-gptq",
+  "category": "量化推理",
+  "difficulty": "Hard",
+  "title": "INT4 与 GPTQ 原理",
+  "prompt": "GPTQ 是怎么在 INT4 下做权重量化的，核心思想是什么？",
+  "quickAnswer": "GPTQ 是逐层、逐列的二阶(海森)感知量化：每次量化一个权重列，并用近似逆海森把该行量化造成的误差补偿到同组未量化权重上(OBQ 思路)，从而在 INT4 下保持高精度。它只需一小批校准数据，无需重训。",
+  "approach": "按列顺序量化，用海森逆补偿残差到剩余列。",
+  "explanationFocus": "是什么：GPTQ 是用二阶信息做\"量化+误差补偿\"的一次性权重量化算法，主打 INT4 近无损。",
+  "bruteForce": "RTN(四舍五入)逐元素量化，INT4 下误差无补偿，易崩。",
+  "derivation": [
+    "为什么需要：INT4 只有 16 个码点，RTN 直接量化误差大、掉点严重，需要利用权重间相关性补偿。",
+    "怎么实现：对每层按列量化；量化某列后用 (H^{-1}·err) 把误差按逆海森投影到其余列权重上，迭代直至全列量化。",
+    "有什么代价：需计算/近似每层海森(用校准数据的一阶梯度外积)，计算量比 RTN 大很多，但仍是一次性离线。",
+    "怎么评测：同校准/测试集比较 GPTQ INT4 与 FP16 的困惑度差，看是否近无损。"
+  ],
+  "invariant": "补偿量正比于 err·(H^{-1}列)，使量化后输出尽量不变。",
+  "walkthrough": "65B 模型 GPTQ INT4 困惑度相比 FP16 仅升约 0.1，而 RTN INT4 可能升数点。",
+  "edgeCases": [
+    "校准数据太少，海森估计不准。",
+    "激活 outlier 仍存在，GPTQ 只管权重。",
+    "分组(group)大小影响海森块与精度。"
+  ],
+  "code": "# Python (GPTQ 核心伪代码, 单列)\ndef gptq_column(W_col, H_inv, bits=4):\n    qmin, qmax = -(2**(bits-1)), 2**(bits-1)-1\n    scale = W_col.abs().max() / qmax\n    w_q = (W_col / scale).round().clamp(qmin, qmax)\n    err = (w_q - W_col) * scale               # 本列量化误差\n    comp = H_inv @ err                         # 逆海森投影\n    return w_q, comp                           # comp 补偿到同组其余权重",
+  "codeNotes": [
+    "真实 GPTQ 按块(block)处理并用 Cholesky 分解稳定 H_inv。",
+    "补偿让剩余列\"吸收\"当前列误差, 保持层输出。"
+  ],
+  "complexity": "每层 O(d^3) 海森求逆主导(可近似/分块)，整体一次性离线。",
+  "followUps": [
+    {
+      "question": "GPTQ 和 RTN 差在哪？",
+      "answer": "RTN 只四舍五入不补偿；GPTQ 用逆海森把误差补偿到同组其他权重，因此 INT4 更稳。"
+    },
+    {
+      "question": "GPTQ 量化后还要配什么？",
+      "answer": "仍需高效 INT4 dequant/GEMM kernel(如 EXL2/marlin)才能拿到真实加速，否则只是省显存。"
+    }
+  ],
+  "followUpAnswers": [
+    "误差补偿是 GPTQ 的灵魂。",
+    "需配套低位 kernel 才有速度。"
+  ],
+  "pitfalls": [
+    "以为 GPTQ 解决了激活 outlier(它只管权重)。",
+    "校准集与推理分布差导致海森失真。"
+  ],
+  "beginnerSummary": "RTN 像给每格单独四舍五入，错就错了。GPTQ 更聪明：量化某一列时，它看整张表(二阶信息)，把这一列\"四舍五入\"产生的误差顺手抹平到旁边还没量化的列上，于是整层输出几乎不变。",
+  "prerequisites": [
+    "INT4 只有 16 个码点。",
+    "RTN 直接量化误差大。",
+    "知道海森(二阶导)反映参数敏感度。"
+  ],
+  "workedExample": [
+    "INT4 码点 [-8..7]，scale=max/7。",
+    "量化列误差 err 经 H^{-1} 补偿到其余列。"
+  ],
+  "lineByLine": [
+    "取一层权重与近似海森。",
+    "按列顺序量化。",
+    "算该列量化误差。",
+    "逆海森把误差补偿到剩余列。"
+  ],
+  "diagram": "W 列: [w1 w2 w3 ...]\n量化 w1→ 误差 err\n  └─ H^{-1}·err ─▶ 补偿 w2,w3...  (整层输出≈不变)"
+},
+  {
+  "id": "quant-int4-awq",
+  "category": "量化推理",
+  "difficulty": "Hard",
+  "title": "INT4 与 AWQ 原理",
+  "prompt": "AWQ(激活感知权重量化)的核心思想是什么，和 GPTQ 有何不同？",
+  "quickAnswer": "AWQ 观察到只有约 1% 的\"显著权重\"(对应大激活通道)对精度影响最大，因此不直接量化全部权重，而是按激活幅度给每通道乘一个缩放系数(保持显著权重相对精度更高)，再统一 INT4 量化。它不依赖权重重建误差补偿，而是从激活分布出发保护重要通道。",
+  "approach": "按激活幅度估计通道重要性，缩放后再量化。",
+  "explanationFocus": "是什么：AWQ 是基于\"激活大小反映权重重要性\"的权重量化，用通道级缩放保护重要权重，主打 INT4 高效且 kernel 友好。",
+  "bruteForce": "对所有通道统一 RTN INT4，忽略通道重要性。",
+  "derivation": [
+    "为什么需要：部分权重通道对应的大激活贡献主要输出，统一量化会无差别损伤它们。",
+    "怎么实现：用校准激活的逐通道均方(L2)作重要性 s_c；求最优缩放 α 使重要通道\"等效被少量化\"，再按 group 量化权重。",
+    "有什么代价：需校准激活统计；缩放系数带来轻微存储/计算开销，但数学可并入现有 group 量化。",
+    "怎么评测：比较 AWQ INT4 与 GPTQ 的精度/速度，AWQ 往往 kernel 更易加速。"
+  ],
+  "invariant": "重要通道(大激活)等效比特更高，整体仍 INT4 存储。",
+  "walkthrough": "7B 模型 AWQ INT4 在 MMLU 上常仅比 FP16 低 1 分内，且因结构规整比 GPTQ 更易写快 kernel。",
+  "edgeCases": [
+    "校准激活统计不稳，重要性估计偏。",
+    "group 大小需与硬件匹配。",
+    "与 SmoothQuant 思路互补而非互斥。"
+  ],
+  "code": "# Python (AWQ 通道缩放思路)\ndef awq_scale(weight, act_stats, alpha=0.5):\n    s = act_stats.pow(2).mean(0).sqrt()        # 通道激活 L2 重要性\n    s = s / s.max()\n    scale = (s.pow(alpha)).clamp(min=1e-4)      # 放大不重要? 实际保重要\n    w_scaled = weight * scale.unsqueeze(1)\n    return quantize_int4(w_scaled)              # 再统一 INT4",
+  "codeNotes": [
+    "AWQ 的 scale 可吸收进 group 量化, 不增加部署负担。",
+    "核心是\"保护\"而非\"补偿\"显著权重。"
+  ],
+  "complexity": "O(校准样本·通道) 统计 + O(元素) 量化；无需海森求逆。",
+  "followUps": [
+    {
+      "question": "AWQ 和 GPTQ 谁更快？",
+      "answer": "结构上都落 INT4，但 AWQ 的缩放可并入标准 group 量化，kernel 更简单规整，实际常更易达高吞吐。"
+    },
+    {
+      "question": "为什么用激活而非权重判断重要性？",
+      "answer": "输出≈激活·权重，通道的大激活放大了对应权重的影响，故激活幅度是更好的\"重要性\"代理。"
+    }
+  ],
+  "followUpAnswers": [
+    "AWQ 从激活侧保护重要权重。",
+    "AWQ 更易写高效 kernel。"
+  ],
+  "pitfalls": [
+    "以为 AWQ 也做权重重建补偿(它不)。",
+    "校准激活分布偏移导致重要性错配。"
+  ],
+  "beginnerSummary": "同样一份试卷，有些题(大激活对应的权重)分值高。AWQ 先看出哪几道题最值钱，给它们\"加保护\"(缩放)，再整体用 4 位速记——保证高分题少写错，比不分轻重地缩写更稳。",
+  "prerequisites": [
+    "输出由激活与权重相乘得到。",
+    "不同通道重要性不同。",
+    "INT4 group 量化基础。"
+  ],
+  "workedExample": [
+    "通道激活 L2 大 → 该通道权重受保护。",
+    "α 控制保护强度, 再统一 INT4。"
+  ],
+  "lineByLine": [
+    "统计校准激活逐通道幅度。",
+    "估计通道重要性。",
+    "求最优缩放保重要通道。",
+    "缩放后统一 INT4 量化。"
+  ],
+  "diagram": "激活大 ─▶ 权重重要 ─▶ 加缩放保护\n                       └─▶ 统一 INT4 量化"
+},
+  {
+  "id": "quant-fp8",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "FP8 量化(E4M3/E5M2)",
+  "prompt": "FP8 量化的两种格式 E4M3 和 E5M2 是什么，怎么用？",
+  "quickAnswer": "FP8 用 8 位浮点而非整数表示：E4M3(4 位指数/3 位尾数)动态范围适中、精度较好，适合权重与前向激活；E5M2(5 位指数/2 位尾数)范围更大，适合梯度/易溢出场景。FP8 天然带指数，对 outlier 比 INT8 更友好，且 Hopper/新 GPU 有原生 FP8 Tensor Core。",
+  "approach": "前向/权重用 E4M3，易溢出或大动态范围用 E5M2。",
+  "explanationFocus": "是什么：FP8 是把数值表示成 8 位浮点(符号+指数+尾数)，两种格式在\"范围\"与\"精度\"间取舍。",
+  "bruteForce": "仍用 INT8，对大动态范围/outlier 需额外缩放。",
+  "derivation": [
+    "为什么需要：INT8 均匀量化对大动态范围/outlier 不友好，FP8 用指数自动适配尺度，更省校准。",
+    "怎么实现：E4M3 可表 ~±448、最小步长 2^-9；E5M2 范围更大但精度粗；按张量选择格式并做 cast/clamp。",
+    "有什么代价：FP8 尾数少，极端精度敏感处仍会舍入；需要硬件支持才能加速，否则只是存储省。",
+    "怎么评测：对比 FP8(E4M3)与 FP16 的精度与吞吐，通常近无损且更快。"
+  ],
+  "invariant": "FP8 比特数=INT8 但表示浮点；E4M3 精度高、E5M2 范围大。",
+  "walkthrough": "H100 上 FP8 矩阵乘峰值约 FP16 的 2 倍；E4M3 用于线性层前向，掉点常<0.5。",
+  "edgeCases": [
+    "E4M3 最大 448，超范围需切 E5M2 或缩放。",
+    "累加仍用 FP32 防误差累积。",
+    "不支持硬件上 FP8 无加速。"
+  ],
+  "code": "# Python (模拟 FP8 E4M3 截断)\ndef to_e4m3(x):\n    x = x.clamp(-448, 448)                      # E4M3 最大有限值\n    return x.to(torch.float8_e4m3fn) if hasattr(torch,'float8_e4m3fn') else x.half()\n# GEMM: C = (A_fp8 @ B_fp8).float()  # 用 FP32 累加",
+  "codeNotes": [
+    "E4M3 尾数 3 位, 适合前向; E5M2 指数 5 位, 适合梯度。",
+    "累加器保持 FP32 是稳定关键。"
+  ],
+  "complexity": "O(元素) cast；加速取决于 FP8 Tensor Core 是否可用。",
+  "followUps": [
+    {
+      "question": "为什么 FP8 对 outlier 更友好？",
+      "answer": "浮点指数自动放大/缩小尺度，无需像 INT8 那样为 outlier 牺牲整体精度，校准也更简单。"
+    },
+    {
+      "question": "E4M3 和 E5M2 怎么分工？",
+      "answer": "前向权重/激活用精度更高的 E4M3；反向梯度或动态范围极大的用 E5M2 防溢出。"
+    }
+  ],
+  "followUpAnswers": [
+    "FP8 省校准、抗 outlier。",
+    "E4M3 前向、E5M2 梯度。"
+  ],
+  "pitfalls": [
+    "以为 FP8 一定比 INT8 准(尾数少仍有舍入)。",
+    "累加用低精度导致误差累积。"
+  ],
+  "beginnerSummary": "INT8 像固定刻度的尺(每格一样宽)，遇到特别大的数就得把整把尺拉长、精度变粗。FP8 像科学计数法(1.23×10³)，自动用指数调刻度，大小数都能塞进 8 位——E4M3 是\"刻度细\"版，E5M2 是\"能数到很大\"版。",
+  "prerequisites": [
+    "浮点=符号+指数+尾数。",
+    "INT8 均匀量化对 outlier 吃力。",
+    "新 GPU 有 FP8 指令。"
+  ],
+  "workedExample": [
+    "E4M3: 1 符号+4 指数+3 尾数, 范围±448。",
+    "E5M2: 1+5+2, 范围更大精度更粗。"
+  ],
+  "lineByLine": [
+    "选格式(E4M3/E5M2)。",
+    "clamp 到格式可表范围。",
+    "cast 成 FP8。",
+    "低精度乘、FP32 累加。"
+  ],
+  "diagram": "FP8(8bit): [S|Exp|Mant]\nE4M3: 1|1111|111  (精度高, 范围±448)\nE5M2: 1|11111|11  (范围大, 精度粗)"
+},
+  {
+  "id": "quant-weight-act-kv",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "权重/激活/KV 量化对比",
+  "prompt": "权重量化、激活量化、KV 量化分别量化什么，为何要分开看？",
+  "quickAnswer": "权重量化压缩静态参数(省显存、易离线)；激活量化压缩每层中间输出(需处理 outlier、常留较高精度)；KV 量化压缩注意力缓存(随序列长度线性增长、是长上下文显存主因)。三者动态特性不同，故粒度与敏感度策略不同，常见组合 W4A16(权重4位/激活16位)+KV4/8位。",
+  "approach": "权重可激进量化；激活与 KV 偏保守或细粒度。",
+  "explanationFocus": "是什么：三者分别量化\"静态参数/中间激活/注意力缓存\"，因动态性与敏感度不同而采用不同策略。",
+  "bruteForce": "只量化权重，KV 和激活全 FP16，长上下文仍爆显存。",
+  "derivation": [
+    "为什么需要：权重固定好压；激活逐样本变、含 outlier；KV 随上下文线性涨，是长文本显存杀手。",
+    "怎么实现：权重离线 PTQ(INT4/INT8)；激活用 per-token/per-group 或 SmoothQuant；KV 用 INT8/INT4 按 head/group 量化。",
+    "有什么代价：激活量化易掉点需细粒度；KV 量化在长序列才显现收益且可能影响注意力精度。",
+    "怎么评测：分别消融看显存/精度，长上下文重点看 KV 量化收益。"
+  ],
+  "invariant": "KV 显存 ∝ 序列长度；权重显存 ∝ 参数量。",
+  "walkthrough": "13B 模型 KV 在 4k→32k 上下文可从 2GB 涨到 16GB，INT8 KV 量化可减半。",
+  "edgeCases": [
+    "激活 outlier 使整 token 量化失真。",
+    "KV 量化过粗损伤长程注意力。",
+    "部分层对 KV 精度极敏感。"
+  ],
+  "code": "# Python (KV 量化示意)\ndef quantize_kv(k, bits=8):\n    # 按 head/group 量化 key/value 缓存\n    s = k.abs().amax(dim=-1, keepdim=True) / (2**(bits-1)-1)\n    k_q = (k / s).round().clamp(-(2**(bits-1)), 2**(bits-1)-1)\n    return k_q, s                                 # 注意时重算 s 反量化",
+  "codeNotes": [
+    "KV 量化常 per-head 或 per-group 保注意力质量。",
+    "W4A16 不量化激活, 故激活仍 FP16。"
+  ],
+  "complexity": "权重离线 O(参数)；激活/KV 在线 O(序列·维度)，需低开销 kernel。",
+  "followUps": [
+    {
+      "question": "为什么 KV 量化对长上下文最关键？",
+      "answer": "KV 随序列长度线性增长，长文本时它才是显存主因，量化可直接延长可服务上下文长度。"
+    },
+    {
+      "question": "W4A16 为什么不量化激活？",
+      "answer": "激活含 outlier 且逐样本变，量化易掉点；留 FP16 保精度、只压权重最划算。"
+    }
+  ],
+  "followUpAnswers": [
+    "KV 是长上下文显存主因。",
+    "W4A16 权衡精度与收益。"
+  ],
+  "pitfalls": [
+    "混为一谈用同一粒度套三者。",
+    "忽略 KV 长序列才显收益。"
+  ],
+  "beginnerSummary": "权重像书架上的固定藏书(压成小开本就省地)；激活像每次对话临时写的便签(内容多变、有重点词)；KV 像越聊越长的备忘录(聊得越久越长)。三样东西\"压缩难度\"不同，得分开处理。",
+  "prerequisites": [
+    "模型参数静态、激活逐样本变。",
+    "注意力 KV 随序列增长。",
+    "量化粒度影响精度。"
+  ],
+  "workedExample": [
+    "权重 INT4: 13B 约 6.5GB→3.25GB。",
+    "KV INT8: 32k 上下文 16GB→8GB。"
+  ],
+  "lineByLine": [
+    "权重: 离线缩放量化。",
+    "激活: 细粒度/动态处理 outlier。",
+    "KV: 按 head/group 量化缓存。",
+    "组合 W4A16+KV8 得综合收益。"
+  ],
+  "diagram": "权重(静态) ─▶ INT4 省显存\n激活(动态) ─▶ 细粒度/留16\nKV(随长度) ─▶ INT8 解长上下文"
+},
+  {
+  "id": "quant-granularity",
+  "category": "量化推理",
+  "difficulty": "Easy",
+  "title": "量化粒度 per-tensor/channel/group",
+  "prompt": "量化的粒度 per-tensor、per-channel、per-group 分别是什么？",
+  "quickAnswer": "per-tensor 整张量共用一个 scale(最简单但易被 outlier 带偏)；per-channel 每个输出通道独立 scale(权重常用，抗通道间差异)；per-group 把每通道再切成小组各自 scale(INT4 常用，兼顾精度与开销)。粒度越细越耐 outlier，但存储 scale 与 kernel 复杂度越高。",
+  "approach": "权重 INT8 用 per-channel，INT4 用 per-group。",
+  "explanationFocus": "是什么：量化粒度指\"多少个元素共享同一个缩放因子\"，从整张量到通道到小组逐级变细。",
+  "bruteForce": "整模型一个全局 scale，outlier 一出现全崩。",
+  "derivation": [
+    "为什么需要：张量内不同通道/区段动态范围差异大，单一 scale 会把小范围部分量化得极粗。",
+    "怎么实现：per-tensor 一个 s；per-channel 按输出维各一个 s；per-group 如每 128 元素一组各一个 s。",
+    "有什么代价：细粒度需为每个 scale 存元数据并查表，kernel 取 s 有开销，scale 数量随粒度指数增。",
+    "怎么评测：同比特下比较不同粒度的精度与推理时延，找性价比拐点。"
+  ],
+  "invariant": "粒度越细精度↑、scale 存储与查表开销↑。",
+  "walkthrough": "INT4 用 group=128 时 7B 困惑度明显优于 per-tensor，scale 仅增约 1% 存储。",
+  "edgeCases": [
+    "group 太小 scale 开销反噬速度。",
+    "per-channel 对激活需 per-token 配合。",
+    "硬件对 group 大小有对齐要求。"
+  ],
+  "code": "# Python\ndef quant_groups(w, bits=4, g=128):\n    out, scales = [], []\n    for i in range(0, w.numel(), g):\n        blk = w.flatten()[i:i+g]\n        s = blk.abs().max() / (2**(bits-1)-1)\n        out.append((blk / s).round().clamp(-(2**(bits-1)), 2**(bits-1)-1))\n        scales.append(s)\n    return out, scales                            # 每组独立 scale",
+  "codeNotes": [
+    "group 大小常取 64/128 以对齐硬件。",
+    "per-channel 是 g=整个通道的特例。"
+  ],
+  "complexity": "O(元素) 量化；scale 数 ∝ 元素/group，查表 O(元素)。",
+  "followUps": [
+    {
+      "question": "per-group 为什么常用于 INT4？",
+      "answer": "INT4 码点太少，整通道共享 scale 误差大，分组后局部范围小、精度显著提升，且开销可控。"
+    },
+    {
+      "question": "group 大小怎么选？",
+      "answer": "在精度与 scale 存储/查表开销间权衡，64/128 是常见甜点，需结合 kernel 对齐。"
+    }
+  ],
+  "followUpAnswers": [
+    "INT4 几乎必用 group。",
+    "group=128 常见甜点。"
+  ],
+  "pitfalls": [
+    "全用 per-tensor 导致 outlier 崩。",
+    "group 过小拖慢 kernel。"
+  ],
+  "beginnerSummary": "全班用同一把尺(per-tensor)量高矮会有人量不准；给每个小组发一把尺(per-group)就更贴合。尺越细越准，但发太多尺本身也麻烦——所以要在\"准\"和\"麻烦\"间找平衡。",
+  "prerequisites": [
+    "scale 决定量化精度。",
+    "张量内动态范围不均。",
+    "INT4 码点极少。"
+  ],
+  "workedExample": [
+    "per-tensor: 1 个 s 管整矩阵。",
+    "per-group g=128: 每 128 元素 1 个 s。"
+  ],
+  "lineByLine": [
+    "决定共享 scale 的元素范围。",
+    "在该范围求 max 得 scale。",
+    "元素除 scale 取整。",
+    "存量化值+各 scale。"
+  ],
+  "diagram": "per-tensor: [===== 1 scale =====]\nper-channel:[s][s][s]... (每通道)\nper-group:  [s][s] 每128元素"
+},
+  {
+  "id": "quant-outlier-smoothquant",
+  "category": "量化推理",
+  "difficulty": "Hard",
+  "title": "Outlier 问题与 SmoothQuant",
+  "prompt": "大模型激活里的 outlier 是什么，SmoothQuant 怎么解决？",
+  "quickAnswer": "LLM 激活存在极少数极大值的 outlier 通道，使量化 scale 被拉大、其余值被压成 0，精度崩。SmoothQuant 把激活的量化难度按通道\"平滑\"迁移到权重上：对激活除以平滑系数 s_c、对权重乘 s_c，使两者动态范围都更均衡，从而激活也能安全 INT8 量化(W8A8)。",
+  "approach": "引入通道平滑系数，平衡激活与权重的量化难度。",
+  "explanationFocus": "是什么：SmoothQuant 通过数学等价变换，把难以量化的激活 outlier 难度转移到更易量化的权重上，实现 W8A8。",
+  "bruteForce": "直接 INT8 量化激活，outlier 让绝大多数值舍入成 0。",
+  "derivation": [
+    "为什么需要：激活 outlier 通道幅度是正常值几十倍，均匀量化后正常通道信息全丢。",
+    "怎么实现：Y=X·W，引入对角 s，Y=(X·s^{-1})·(s·W)，选 s_c 使 X/s_c 与 s_c·W 范围均衡(常按通道激活/权重范围比取幂)。",
+    "有什么代价：权重被放大后可能更易溢出，需配合权重量化；s 需校准确定。",
+    "怎么评测：比较 W8A8(有/无 Smooth)精度与速度，平滑后常近 FP16 且显著更快。"
+  ],
+  "invariant": "变换前后 Y 数学等价；难度从激活移到权重。",
+  "walkthrough": "OPT-13B 直接 W8A8 掉点严重，加 SmoothQuant 后精度几乎持平 FP16、吞吐翻倍。",
+  "edgeCases": [
+    "s 选太极端把权重推到溢出。",
+    "不同层最优 s 不同需逐层校准。",
+    "与 AWQ/GPTQ 可叠加。"
+  ],
+  "code": "# Python (SmoothQuant 系数)\ndef smooth_scales(act, w, alpha=0.5):\n    # act: [tokens, ic], w: [ic, oc]\n    a = act.abs().max(0)                         # 每输入通道激活范围\n    wmax = w.abs().amax(0)                       # 每输入通道权重范围\n    s = (a.pow(alpha) / wmax.pow(1-alpha)).clamp(min=1e-4)\n    return s                                      # X/=s, W*=s 后各自量化",
+  "codeNotes": [
+    "α 调激活/权重间难度分配, 常 0.5。",
+    "变换等价, 不改变数学输出。"
+  ],
+  "complexity": "O(校准·通道) 求范围 + O(参数) 缩放；在线零额外计算。",
+  "followUps": [
+    {
+      "question": "为什么能把难度移到权重？",
+      "answer": "Y=XW 可在两侧同乘对角 s 保持等价；权重分布更平滑、更耐量化，于是整体更易压到 INT8。"
+    },
+    {
+      "question": "SmoothQuant 和 AWQ 冲突吗？",
+      "answer": "不冲突，SmoothQuant 解决激活侧、AWQ 保护权重侧，可组合用于更激进的 W4A8。"
+    }
+  ],
+  "followUpAnswers": [
+    "核心是等价变换转移难度。",
+    "可与 AWQ/GPTQ 叠加。"
+  ],
+  "pitfalls": [
+    "直接量化激活不处理 outlier。",
+    "s 过度放大权重致溢出。"
+  ],
+  "beginnerSummary": "班里有个巨高个(outlier)，老师按他身高定尺，结果其他同学全被量成\"矮子\"。SmoothQuant 把尺\"折中\"：让高个稍微蹲一点、矮个稍微垫一点(等价变换)，于是所有人用同一把尺都能量准。",
+  "prerequisites": [
+    "激活存在极端 outlier 通道。",
+    "Y=X·W 可两侧同乘对角阵。",
+    "权重比激活更耐量化。"
+  ],
+  "workedExample": [
+    "激活某通道 max=60, 正常≈2。",
+    "乘 s 后激活降到≈8, 权重相应放大。"
+  ],
+  "lineByLine": [
+    "统计激活/权重通道范围。",
+    "按 α 求平滑系数 s。",
+    "激活除 s、权重乘 s。",
+    "两侧分别 INT8 量化。"
+  ],
+  "diagram": "X(有outlier)·W  ─▶ (X/s)·(sW)\n 激活范围↓   权重范围↑  → 都可 INT8"
+},
+  {
+  "id": "quant-mixed-precision",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "混合精度量化",
+  "prompt": "混合精度量化是什么，怎么决定哪些层留高精度？",
+  "quickAnswer": "混合精度对不同层/模块用不同比特(如敏感层 FP16、其余 INT4/INT8)，在显存与精度间精细权衡。判断敏感度常用\"量化前后输差异\"或\"对下游精度边际贡献\"做搜索(如 Hessian 迹、逐层回放评估)，把预算留给最敏感的少数层。",
+  "approach": "先全量量化，再逐层回升精度看收益，保留高收益层。",
+  "explanationFocus": "是什么：混合精度按敏感度给不同层分配不同比特，敏感层留高精度、耐量化层压低位。",
+  "bruteForce": "全部 INT4，敏感层崩了再全回 INT8，浪费显存。",
+  "derivation": [
+    "为什么需要：不同层对量化误差敏感度差异大，统一低位会无谓牺牲关键层、又没省到该省的。",
+    "怎么实现：用敏感指标(逐层量化误差、Hessian 对角)排序，按显存预算从低位起逐步把最敏感层升精度。",
+    "有什么代价：需离线的逐层评估与搜索，部署时要支持多种精度 kernel/调度。",
+    "怎么评测：在固定显存预算下比较混合方案与均匀方案的精度，看拐点。"
+  ],
+  "invariant": "少数敏感层占精度损失大头，保护它们收益最大。",
+  "walkthrough": "70B 模型把约 10% 最敏感层留 INT8、其余 INT4，比全 INT4 精度升 2 分且显存仅多 5%。",
+  "edgeCases": [
+    "敏感层跨模块分布不均。",
+    "lm_head/embedding 常留高精度。",
+    "多精度调度增加 kernel 复杂度。"
+  ],
+  "code": "# Python (敏感度=量化前后输出差异)\ndef layer_sensitivity(layer, x, bits=4):\n    y_fp = layer(x)\n    y_q  = layer(quantize_weights(layer.weight, bits))(x)\n    return (y_fp - y_q).pow(2).mean().item()     # 越大越敏感→留高精度",
+  "codeNotes": [
+    "常用余弦相似度或 MSE 作敏感指标。",
+    "预算分配可用贪心/整数规划。"
+  ],
+  "complexity": "逐层评估 O(层数·样本·前向)；搜索 O(层数)。",
+  "followUps": [
+    {
+      "question": "哪些层通常要留高精度？",
+      "answer": "embedding、lm_head 及少数对输出影响大的中间层常留 FP16/INT8。"
+    },
+    {
+      "question": "怎么自动化选层？",
+      "answer": "逐层量化回放测敏感指标，按显存预算贪心地把最敏感层升精度。"
+    }
+  ],
+  "followUpAnswers": [
+    "敏感层常是 head/embed。",
+    "贪心回升精度最实用。"
+  ],
+  "pitfalls": [
+    "凭直觉选层而非数据驱动。",
+    "混合精度增加部署复杂度被低估。"
+  ],
+  "beginnerSummary": "全班合影，脸小的人(耐量化层)用缩略图就行，主角(敏感层)得给高清。混合精度就是\"谁重要谁高清\"，把钱花在刀刃上。",
+  "prerequisites": [
+    "层间量化敏感度不同。",
+    "有显存预算约束。",
+    "能逐层回放评估。"
+  ],
+  "workedExample": [
+    "全 INT4: 精度掉 4 分。",
+    "10% 层回 INT8: 只掉 1 分。"
+  ],
+  "lineByLine": [
+    "逐层量化并测输出差异。",
+    "按敏感度排序。",
+    "按预算回升最敏感层精度。",
+    "混合部署。"
+  ],
+  "diagram": "层敏感度: 高●●● 低○○○○○○\n精度:      FP16 INT4 INT4 INT4 ..."
+},
+  {
+  "id": "quant-dequant-qmm",
+  "category": "量化推理",
+  "difficulty": "Hard",
+  "title": "反量化与量化矩阵乘 QMM",
+  "prompt": "量化矩阵乘(QMM)是怎么在不反量化回 FP 的情况下算低精度乘法的？",
+  "quickAnswer": "QMM 把 A、B 量化为整数后在整数域做矩阵乘(INT8/INT4 累加用 INT32)，最后用 scale 的乘法一次还原：C≈(Q_A·Q_B)·(s_a⊗s_b)。关键点是对齐零点、用高位累加防溢出，从而既省显存又拿到 Tensor Core 的吞吐，而不必先反量化成 FP。",
+  "approach": "整数域相乘+INT32 累加，末端用 scale 还原。",
+  "explanationFocus": "是什么：QMM 是在量化(整数)域内完成矩阵乘、仅最后用缩放因子还原结果的低精度算子。",
+  "bruteForce": "先把权重反量化回 FP16 再普通 GEMM，享受不到低精度算力。",
+  "derivation": [
+    "为什么需要：反量化回 FP 既占带宽又丢算力优势，必须在整数域直接算。",
+    "怎么实现：A_q=(A/s_a), B_q=(B/s_b-z_b)；C_q=A_q·B_q 累加 INT32；C=C_q·s_a·s_b + 零点项。",
+    "有什么代价：需处理零点偏移项、scale 广播与 INT32 累加溢出；kernel 实现复杂。",
+    "怎么评测：对比 QMM 与 FP GEMM 的数值误差(相对差)与吞吐，看加速是否合理。"
+  ],
+  "invariant": "C = s_a·s_b·(A_q·B_q) + 零点修正；误差仅来自量化舍入。",
+  "walkthrough": "INT8 GEMM 在 Tensor Core 上比 FP16 快约 2×，C 用 INT32 累加后乘 scale 还原。",
+  "edgeCases": [
+    "非对称量化的零点项不可漏。",
+    "INT32 累加仍可能溢出需分块。",
+    "scale 形状需与维对齐广播。"
+  ],
+  "code": "# Python (QMM 等价)\ndef qmm(A_q, s_a, B_q, s_b, z_b=None):\n    acc = A_q.float() @ B_q.float()              # 整数(转float)累加\n    C = acc * (s_a.unsqueeze(-1) * s_b.unsqueeze(-2))\n    if z_b is not None:                           # 非对称零点修正\n        C = C + s_a.unsqueeze(-1) * (A_q.float() @ z_b.float())\n    return C",
+  "codeNotes": [
+    "真实 kernel 用 INT8 乘+INT32 累加, 不转 float。",
+    "scale 只在外面乘一次, 不在内层。"
+  ],
+  "complexity": "乘加 O(m·n·k)；整数算力远高于 FP16，末端 O(m·n) 还原。",
+  "followUps": [
+    {
+      "question": "为什么用 INT32 累加？",
+      "answer": "INT8 乘积最大约 32768² 量级，累加易溢出，用 INT32 累加保中间精度、末端再缩放。"
+    },
+    {
+      "question": "非对称量化 QMM 多什么？",
+      "answer": "多一个零点项修正(与 A_q·z_b 相关)，漏掉会让结果整体偏移。"
+    }
+  ],
+  "followUpAnswers": [
+    "INT32 累加防溢出。",
+    "零点项是常见坑。"
+  ],
+  "pitfalls": [
+    "先反量化再乘，丢掉加速。",
+    "漏算非对称零点项。"
+  ],
+  "beginnerSummary": "两个数都先改成\"整数代号+一把尺(scale)\"。乘法时直接用整数代号相乘(快)，最后只乘一次两把尺得到真实结果——不必把每个数先变回小数再算，省了一大笔\"翻译\"功夫。",
+  "prerequisites": [
+    "量化=整数×scale。",
+    "矩阵乘可分解 scale。",
+    "整数乘有硬件加速。"
+  ],
+  "workedExample": [
+    "A_q·B_q 整数乘, 累加 INT32。",
+    "C=acc·s_a·s_b 还原。"
+  ],
+  "lineByLine": [
+    "权重/激活量化成整数。",
+    "整数域矩阵乘累加。",
+    "INT32 防溢出。",
+    "末端乘 scale 还原。"
+  ],
+  "diagram": "A_q ─┐\n      ├─▶ INT积(INT32) ─▶ ×s_a×s_b ─▶ C\nB_q ─┘"
+},
+  {
+  "id": "quant-eval-accuracy",
+  "category": "量化推理",
+  "difficulty": "Easy",
+  "title": "量化精度评测",
+  "prompt": "怎么评测量化对模型精度的影响？",
+  "quickAnswer": "分两层：一是困惑度(PPL)等语言建模指标看生成质量是否退化；二是在下游任务基准(MMLU/GSM8K/翻译等)上对比量化前后准确率。还要看分布层面(逐层输出余弦相似度)与延迟/显存，避免\"平均不掉点但长尾崩\"。关注 P99 而非仅均值。",
+  "approach": "PPL + 代表性下游基准 + 逐层相似度三重验证。",
+  "explanationFocus": "是什么：量化评测用语言模型指标与下游任务精度，量化前后对比判断掉点是否在可接受范围。",
+  "bruteForce": "只看显存降了就上线，结果长尾崩。",
+  "derivation": [
+    "为什么需要：省显存/提速不能以不可接受掉点为代价，需量化度量。",
+    "怎么实现：在同数据上算 FP16 与量化模型的 PPL；跑基准套件比准确率；算逐层输出余弦相似度定位敏感层。",
+    "有什么代价：评测需算力与代表性数据；小样本可能掩盖长尾退化。",
+    "怎么评测：设掉点阈值(如 PPL 升<1%、基准降<1%)，超限则调粒度/混合精度。"
+  ],
+  "invariant": "有效量化应在阈值内近无损；超阈值说明粒度/层选择不当。",
+  "walkthrough": "7B INT4 在 WikiText PPL 从 5.6→5.8，MMLU 64.1→63.5，属可接受。",
+  "edgeCases": [
+    "某长尾任务掉点明显但均值掩盖。",
+    "校准分布≠评测分布。",
+    "生成类任务需看 human/抽样。"
+  ],
+  "code": "# Python (PPL 对比)\ndef ppl(model, data):\n    return torch.exp(sum(-logp)/N)               # 量化前后各算一次\n# 下游: acc_q vs acc_fp, 报告 Δ 与 P99 延迟",
+  "codeNotes": [
+    "PPL 对低比特敏感, 适合快速体检。",
+    "下游基准才是上线依据。"
+  ],
+  "complexity": "O(评测数据·前向)；与推理成本同量级。",
+  "followUps": [
+    {
+      "question": "PPL 和下游基准哪个更可信？",
+      "answer": "PPL 是代理指标、敏感但不充分；下游任务准确率才是决定能否上线的硬指标。"
+    },
+    {
+      "question": "为什么看 P99 不看均值？",
+      "answer": "均值可能被多数易样本拉平，少数难样本/长尾在 P99 才暴露退化。"
+    }
+  ],
+  "followUpAnswers": [
+    "下游基准是硬指标。",
+    "P99 暴露长尾退化。"
+  ],
+  "pitfalls": [
+    "只看均值忽略长尾。",
+    "用非代表性数据评测。"
+  ],
+  "beginnerSummary": "量完身(量化)得称体重(显存)也要试穿(跑任务)。不能只看\"平均合身\"，得试几件最难的衣服(P99/长尾)，确认没哪件穿不了才算合格。",
+  "prerequisites": [
+    "PPL 衡量语言模型。",
+    "下游任务有基准。",
+    "量化会引入误差。"
+  ],
+  "workedExample": [
+    "PPL FP16=5.6, INT4=5.8。",
+    "MMLU 64.1→63.5 (Δ<1%)。"
+  ],
+  "lineByLine": [
+    "同数据算 PPL。",
+    "跑下游基准比准确率。",
+    "逐层相似度定位敏感层。",
+    "据阈值决定可否上线。"
+  ],
+  "diagram": "FP16 ─┬─ PPL ─┐\nINT4 ─┴─ 基准 ─┴─▶ Δ ≤ 阈值? 上线 : 调粒度"
+},
+  {
+  "id": "quant-hardware",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "量化硬件支持",
+  "prompt": "GPU 上 INT8/FP8 的加速靠什么硬件，为什么需要专门支持？",
+  "quickAnswer": "加速来自 Tensor Core/AMX 等矩阵乘加速器对 INT8(及新卡的 FP8)的原生支持：整数 MAC 比 FP16 更省面积、更高吞吐，且带宽因低精度减半/ quarter。但前提是权重/激活确实以低精度存储与计算，并调用对应 kernel(如 CUTLASS/rocBLAS)，否则只是省显存而无加速。",
+  "approach": "确认硬件代数支持的目标精度，并选用对应 GEMM kernel。",
+  "explanationFocus": "是什么：量化加速依赖专为低精度矩阵乘设计的硬件单元(Tensor Core/AMX)，普通 CUDA core 算整数并不快。",
+  "bruteForce": "权重存 INT8 但用 FP16 kernel 反量化再算，无加速。",
+  "derivation": [
+    "为什么需要：低精度值本身不快，必须有硬件在整数/FP8 域直接乘加才能提速并省带宽。",
+    "怎么实现：Ampere+ 有 INT8 Tensor Core，Hopper 加 FP8；通过 CUTLASS/库调用 IMMA/FP8 指令。",
+    "有什么代价：旧 GPU 无支持则只能存省、算不快；需精度匹配的 kernel，混精度调度复杂。",
+    "怎么评测：在目标卡上实测 INT8/FP8 GEMM 吞吐 vs FP16，确认达成预期倍数。"
+  ],
+  "invariant": "加速=算力倍数×带宽节省，且需硬件+ kernel 双到位。",
+  "walkthrough": "A100 INT8 Tensor Core 理论峰值约 FP16 的 2×；H100 FP8 约 2× 于 FP16。",
+  "edgeCases": [
+    "老卡无 FP8，FP8 模型退化为存省。",
+    "kernel 不支持某精度组合。",
+    "小矩阵吃不满 Tensor Core。"
+  ],
+  "code": "# Python (选择 kernel 伪代码)\ndef pick_gemm(dtype):\n    if dtype == 'int8' and gpu_has('tensor_core'): return int8_tc_gemm\n    if dtype == 'fp8'  and gpu_has('fp8'):         return fp8_gemm\n    return fp16_gemm                                    # 否则退回",
+  "codeNotes": [
+    "Tensor Core 吞吐随精度翻倍(8→4→2字节)。",
+    "带宽节省与字节数成正比。"
+  ],
+  "complexity": "硬件固定峰值；实际受 kernel 占用率与形状影响。",
+  "followUps": [
+    {
+      "question": "只存 INT8 不加速可能吗？",
+      "answer": "会，若仍用 FP16 kernel 反量化计算，只省显存、算力无收益，必须走低精度 GEMM。"
+    },
+    {
+      "question": "CPU 上量化有用吗？",
+      "answer": "有，AVX-VNNI/AMX 提供 INT8 指令，CPU 推理也能显著加速。"
+    }
+  ],
+  "followUpAnswers": [
+    "加速要硬件+ kernel 双到位。",
+    "CPU 也有 INT8 指令。"
+  ],
+  "pitfalls": [
+    "以为存低精度就自动快。",
+    "在旧卡上期待 FP8 加速。"
+  ],
+  "beginnerSummary": "低精度数据像轻便行李(省带宽)，但得有对应的\"快速通道\"(Tensor Core)才能真正跑得快。若还是走普通安检(FP16 kernel)，行李轻了却没快多少。",
+  "prerequisites": [
+    "Tensor Core 做矩阵乘加速。",
+    "低精度省带宽。",
+    "需专门 kernel 调用。"
+  ],
+  "workedExample": [
+    "A100 INT8 峰值≈FP16 2×。",
+    "H100 增加 FP8 支持。"
+  ],
+  "lineByLine": [
+    "查硬件支持精度。",
+    "选匹配 GEMM kernel。",
+    "低精度域乘加。",
+    "实测吞吐确认加速。"
+  ],
+  "diagram": "数据(INT8/FP8) ─▶ Tensor Core ─▶ 高吞吐\n无支持 ─▶ FP16 kernel ─▶ 仅省显存"
+},
+  {
+  "id": "quant-speedup",
+  "category": "量化推理",
+  "difficulty": "Easy",
+  "title": "量化加速比计算",
+  "prompt": "量化带来的加速比应该怎么估算与实测？",
+  "quickAnswer": "加速比=基线时延/量化时延，理论来自算力倍数(低精度 MAC 更多)与带宽节省(字节更少)的瓶颈项取 min；实测需在目标硬件跑端到端(含 decode 与 prefill)取均值与 P99。要区分\"仅省显存\"(无算速收益)与\"真加速\"，并扣除 dequant/调度开销。",
+  "approach": "先算 Roofline 理论上下限，再端到端实测。",
+  "explanationFocus": "是什么：量化加速比是量化后相较 FP16 的时延缩减，由算力与带宽双重瓶颈决定，需实测。",
+  "bruteForce": "只看字节数减半就声称 2× 加速。",
+  "derivation": [
+    "为什么需要：宣称加速要可验证，且不同阶段(prefill 算力 bound / decode 带宽 bound)主导因素不同。",
+    "怎么实现：算力比=峰值 MAC 倍数；带宽比=字节比；加速受两者中较小者限制；端到端计时取均值/P99。",
+    "有什么代价：kernel 启动、dequant、混精度调度会侵蚀理论值。",
+    "怎么评测：固定输入/批大小，重复计时取稳定值，报告加速比与显存降幅。"
+  ],
+  "invariant": "实际加速 ≤ min(算力倍数, 带宽倍数)。",
+  "walkthrough": "INT8 理论算力 2×、带宽 2×，但 decode 受带宽限制实际约 1.6×；prefill 近 1.9×。",
+  "edgeCases": [
+    "小 batch decode 受带宽非算力。",
+    "kernel 开销侵蚀加速。",
+    "不同序列长度瓶颈切换。"
+  ],
+  "code": "# Python\ndef speedup(t_fp16, t_quant):\n    return t_fp16 / t_quant                     # 端到端实测\n# 理论: min(peak_mac_ratio, bw_ratio) 再扣 overhead",
+  "codeNotes": [
+    "prefill 算力瓶颈, decode 带宽瓶颈。",
+    "务必排除冷启动与预热。"
+  ],
+  "complexity": "计时 O(重复次数)；理论为硬件常数比。",
+  "followUps": [
+    {
+      "question": "为什么实际加速常低于理论？",
+      "answer": "dequant、kernel 启动、混精度调度与未打满的占用率都会侵蚀理论峰值。"
+    },
+    {
+      "question": "prefill 和 decode 加速一样吗？",
+      "answer": "不一样：prefill 大矩阵乘受算力瓶颈，decode 小矩阵受带宽瓶颈，二者加速比不同。"
+    }
+  ],
+  "followUpAnswers": [
+    "开销侵蚀理论值。",
+    "prefill/decode 瓶颈不同。"
+  ],
+  "pitfalls": [
+    "只按字节比宣称加速。",
+    "没排除预热/冷启动。"
+  ],
+  "beginnerSummary": "加速好比\"抄近路省时间\"：省下的时间受两条路里更慢那条限制(木桶短板)。还得扣掉\"换鞋(dequant)\"耽误的时间，才是真正快了多少。",
+  "prerequisites": [
+    "Roofline: 算力/带宽瓶颈。",
+    "INT8/FP8 字节更少。",
+    "端到端时延可测。"
+  ],
+  "workedExample": [
+    "理论 min(2×,2×)=2×。",
+    "实测 decode 1.6×。"
+  ],
+  "lineByLine": [
+    "算算力与带宽理论比。",
+    "取瓶颈较小者。",
+    "端到端计时。",
+    "扣开销得实际加速。"
+  ],
+  "diagram": "加速 ≤ min(算力倍数, 带宽倍数) − 开销"
+},
+  {
+  "id": "quant-calibration",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "量化校准流程",
+  "prompt": "PTQ 的校准(calibration)流程是什么，校准数据怎么选？",
+  "quickAnswer": "校准是用一小批(通常 128~1024 条)代表性数据前向统计各张量/通道的激活范围(min/max 或百分位)，据此确定 scale/零点。数据应覆盖真实推理分布(领域、长度、语言)，否则统计失真导致缩放错配。常见策略：minmax、熵(KL)、百分位(如 99.9%)裁剪。",
+  "approach": "取代表性样本前向收集激活统计，选裁剪策略定 scale。",
+  "explanationFocus": "是什么：校准是用少量真实数据估计量化参数(scale/零点)的过程，决定 PTQ 精度上限。",
+  "bruteForce": "用权重范围代替激活范围，或随机噪声校准。",
+  "derivation": [
+    "为什么需要：激活 scale 依赖输入分布，不校准就只能猜，极易削掉正常值。",
+    "怎么实现：加载模型→喂校准批→钩子收集每层激活→按策略(minmax/percentile/KL)算范围→生成量化参数。",
+    "有什么代价：需领域数据、需前向一遍；策略与样本量影响结果。",
+    "怎么评测：用校准后的 PTQ 跑精度评测，对比不同策略/样本量的掉点。"
+  ],
+  "invariant": "校准分布≈推理分布时，PTQ 精度最佳。",
+  "walkthrough": "用 512 条领域文本校准 7B 模型 INT8，PPL 与 FP16 差<0.3。",
+  "edgeCases": [
+    "校准用英语、推理中文→失真。",
+    "minmax 被单个 outlier 拉爆。",
+    "样本太少统计不稳。"
+  ],
+  "code": "# Python (百分位校准)\ndef calibrate(act_samples, q=99.9):\n    a = torch.cat(act_samples)\n    maxv = torch.quantile(a.abs(), q/100)        # 裁剪极端值\n    scale = maxv / (2**(8-1)-1)                  # INT8 对称\n    return scale",
+  "codeNotes": [
+    "百分位比 minmax 更抗 outlier。",
+    "KL 校准在权重量化中也常用。"
+  ],
+  "complexity": "O(校准样本·前向)=一次性；远小于训练。",
+  "followUps": [
+    {
+      "question": "校准多少条数据够？",
+      "answer": "通常 128~1024 条代表性样本即可，关键是覆盖分布而非数量极大。"
+    },
+    {
+      "question": "minmax 和百分位怎么选？",
+      "answer": "有 outlier 时优先百分位(如 99.9%)或 KL 裁剪，纯 minmax 易被极端值毁掉。"
+    }
+  ],
+  "followUpAnswers": [
+    "覆盖分布比数量重要。",
+    "百分位抗 outlier。"
+  ],
+  "pitfalls": [
+    "校准与推理分布不一致。",
+    "用 minmax 被 outlier 拉爆。"
+  ],
+  "beginnerSummary": "量体重前先称几次\"典型体型\"的人定标尺(校准)。若拿举重运动员当标准去量普通人，标尺就歪了——所以校准数据得像真实用户。",
+  "prerequisites": [
+    "激活分布依赖输入。",
+    "scale 由范围决定。",
+    "PTQ 不需训练。"
+  ],
+  "workedExample": [
+    "512 条领域样本前向。",
+    "百分位 99.9 定 scale。"
+  ],
+  "lineByLine": [
+    "收集代表性样本。",
+    "前向钩子取激活。",
+    "按策略算范围。",
+    "生成 scale/零点。"
+  ],
+  "diagram": "样本 ─▶ 前向 ─▶ 激活统计 ─▶ scale/零点 ─▶ 量化"
+},
+  {
+  "id": "quant-dynamic-vs-static",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "动态量化与静态量化",
+  "prompt": "动态量化和静态量化有什么区别，各适合什么场景？",
+  "quickAnswer": "静态量化在离线阶段(用校准数据)就固定好激活的 scale，推理时直接查表，速度快但依赖校准质量；动态量化在每次推理时现场计算激活 scale(权重仍离线量化)，免校准、对输入分布鲁棒，但每步多一次统计开销。激活波动大/难校准时常选动态，追求极致时延选静态。",
+  "approach": "权重离线量化；激活按需选择静态(快)或动态(稳)。",
+  "explanationFocus": "是什么：二者区别在激活 scale 何时确定——静态离线定、动态推理时定。",
+  "bruteForce": "激活也用固定全局 scale 且从不校准。",
+  "derivation": [
+    "为什么需要：激活随输入变，固定 scale 可能不准；动态可自适应但耗算力。",
+    "怎么实现：静态=校准得激活 scale 存下；动态=每步对当前激活求 max 现算 scale 再量化。",
+    "有什么代价：静态需好校准否则崩；动态每步统计+量化开销，时延略高。",
+    "怎么评测：同模型比较静态/动态精度与时延，按场景取舍。"
+  ],
+  "invariant": "权重通常都离线量化；差异仅在激活 scale 时机。",
+  "walkthrough": "LSTM/小模型动态量化常见且稳；LLM 大张量多用静态(W8A8)以省开销。",
+  "edgeCases": [
+    "动态对小 batch 开销占比高。",
+    "静态校准偏则整模型偏移。",
+    "混合: 权重静态+激活动态。"
+  ],
+  "code": "# Python (动态激活量化)\ndef dynamic_act_quant(x, bits=8):\n    s = x.abs().amax() / (2**(bits-1)-1)         # 本步现算\n    return (x / s).round().clamp(-(2**(bits-1)), 2**(bits-1)-1), s",
+  "codeNotes": [
+    "动态免校准, 对分布漂移鲁棒。",
+    "每步统计带来少量开销。"
+  ],
+  "complexity": "动态每步 O(元素) 统计；静态零在线统计。",
+  "followUps": [
+    {
+      "question": "为什么 LLM 多用静态？",
+      "answer": "大矩阵激活分布相对稳定且为省每步统计开销，配合校准/平滑做静态 W8A8 更划算。"
+    },
+    {
+      "question": "动态量化需要校准吗？",
+      "answer": "不需要，激活 scale 推理时现算；但权重通常仍离线静态量化。"
+    }
+  ],
+  "followUpAnswers": [
+    "动态免校准更鲁棒。",
+    "静态更快需好校准。"
+  ],
+  "pitfalls": [
+    "静态不校准直接上线。",
+    "动态开销被低估(小 batch)。"
+  ],
+  "beginnerSummary": "静态像提前印好尺子(快但万一印错就一直错)；动态像每次现量(稳但每次多花点量时间)。量体重用动态更准，流水线量产用静态更快。",
+  "prerequisites": [
+    "激活随输入变化。",
+    "scale 决定量化精度。",
+    "权重常离线量化。"
+  ],
+  "workedExample": [
+    "静态: 校准定 scale, 查表用。",
+    "动态: 每步 amax 现算 scale。"
+  ],
+  "lineByLine": [
+    "权重离线量化。",
+    "静态: 校准存激活 scale。",
+    "动态: 推理时算激活 scale。",
+    "按场景选其一。"
+  ],
+  "diagram": "静态: 校准─▶存scale─▶推理查表(快)\n动态: 推理─▶现算scale─▶量化(稳)"
+},
+  {
+  "id": "quant-w4a16-equivalence",
+  "category": "量化推理",
+  "difficulty": "Medium",
+  "title": "W4A16 的等价性",
+  "prompt": "W4A16 为什么常说\"等价\"于某种计算，权重 4 位激活 16 位意味着什么？",
+  "quickAnswer": "W4A16 指权重存为 INT4、激活保持 BF16/FP16。其\"等价性\"指：计算时权重可反量化回 16 位再与激活做普通 GEMM，数学结果等价于 FP16 权重(仅差量化舍入)；也可在整数域算后乘 scale 还原。它只压权重显存、激活不压，故最省显存且对精度最友好，是 LLM 部署性价比首选。",
+  "approach": "权重离线 INT4，激活留 16 位，按需 dequant 再乘。",
+  "explanationFocus": "是什么：W4A16 是权重 4 位、激活 16 位的混合配置，强调\"权重可等价反量化参与 FP16 计算\"。",
+  "bruteForce": "权重激活都 INT4，精度损失大。",
+  "derivation": [
+    "为什么需要：权重占显存大头且较耐量化，激活敏感；只压权重即得大部分收益且保精度。",
+    "怎么实现：权重 per-group INT4 存储；推理时 dequant 到 16 位与激活乘，或用 QMM 整数算后还原。",
+    "有什么代价：dequant 有开销；需高效 INT4 存储/反量化 kernel 才能既省显存又快。",
+    "怎么评测：对比 W4A16 与 FP16 显存与精度，看是否近无损且可服务更大模型。"
+  ],
+  "invariant": "W4A16 显存≈FP16 的 1/4(仅权重)；激活精度无损。",
+  "walkthrough": "70B FP16 需 140GB；W4A16 权重约 35GB，单卡 80GB 可装下并近无损推理。",
+  "edgeCases": [
+    "dequant 开销侵蚀速度需好 kernel。",
+    "极敏感层可在 W4A16 上再混合留高精度。",
+    "group 大小影响等价精度。"
+  ],
+  "code": "# Python (W4A16 推理)\ndef w4a16_forward(x_bf16, w_q_int4, scales):\n    w = dequant_int4(w_q_int4, scales).bfloat16()  # 权重反量化回16位\n    return x_bf16 @ w                               # 普通 BF16 GEMM",
+  "codeNotes": [
+    "W4A16 也可整数域算再乘 scale, 等价。",
+    "group 缩放保证反量化后近无损。"
+  ],
+  "complexity": "存储省 4×；计算退化为 BF16 GEMM + 反量化 O(参数)。",
+  "followUps": [
+    {
+      "question": "W4A16 和 W8A8 怎么选？",
+      "answer": "要最大省显存选 W4A16；要算力加速(整数 GEMM)选 W8A8；常先 W4A16 保精度再按需 W8A8。"
+    },
+    {
+      "question": "反量化会不会很慢？",
+      "answer": "好的 kernel 把 dequant 融合进 GEMM，开销很小；否则确实成为瓶颈。"
+    }
+  ],
+  "followUpAnswers": [
+    "W4A16 省显存首选。",
+    "dequant 需融合 kernel。"
+  ],
+  "pitfalls": [
+    "以为 W4A16 也加速计算(主要省显存)。",
+    "dequant 未融合导致慢。"
+  ],
+  "beginnerSummary": "W4A16 像把厚厚的词典(权重)缩印成小册子(INT4)省地方，用的时候摊开还原成原样(反量化)再查——内容基本不变，只是携带轻便了；而\"查询笔记\"(激活)仍用原版不缩印，保证查得准。",
+  "prerequisites": [
+    "权重占显存大头。",
+    "激活较敏感。",
+    "反量化可还原权重。"
+  ],
+  "workedExample": [
+    "70B: FP16 140GB → W4A16 35GB。",
+    "权重 INT4 + 激活 BF16。"
+  ],
+  "lineByLine": [
+    "权重 per-group INT4 存储。",
+    "推理时反量化回 16 位。",
+    "与 16 位激活做 GEMM。",
+    "或整数域算后乘 scale。"
+  ],
+  "diagram": "权重 INT4 ─▶ dequant ─┐\n激活 BF16 ───────────┴─▶ GEMM (近无损)"
+},
+  {
+  "id": "quant-deploy-pitfalls",
+  "category": "量化推理",
+  "difficulty": "Hard",
+  "title": "部署量化模型的坑",
+  "prompt": "把量化模型部署上线有哪些常见坑，怎么规避？",
+  "quickAnswer": "常见坑：①数值溢出(INT32 累加/FP8 范围没 clamp)；②dequant 开销未融合导致反而变慢；③推理框架不支持某精度组合(退化存省不加速)；④零点/scale 形状对齐错；⑤校准分布漂移使线上掉点；⑥混精度调度复杂易错。规避靠：显存/时延/精度三维实测、用成熟 kernel、校准数据贴近线上、逐步灰度。",
+  "approach": "上线前三维(显存/时延/精度)实测+灰度，逐坑 checklist。",
+  "explanationFocus": "是什么：部署量化模型的工程陷阱，集中在数值正确性、性能与框架兼容性，需实测规避。",
+  "bruteForce": "量化完直接替换上线，不测 P99 与兼容性。",
+  "derivation": [
+    "为什么需要：量化省了资源但引入新失败模式，线上出问题代价高。",
+    "怎么实现：核对 kernel 支持精度、融合 dequant、clamp 防溢出、校验 scale/零点形状、用线上分布校准、灰度对比。",
+    "有什么代价：排查需时间；部分框架对混合精度支持差需自写算子。",
+    "怎么评测：A/B 灰度比精度与时延，监控 P99 与异常输出。"
+  ],
+  "invariant": "线上分布≈校准分布且 kernel 到位时，量化才安全加速。",
+  "walkthrough": "某服务上 INT8 后 P99 涨 30%，发现 dequant 未融合；融合后反降 15%，且校准补了线上语料后精度回平。",
+  "edgeCases": [
+    "框架偷偷回退到 FP16 计算。",
+    "长尾输入触发溢出 NaN。",
+    "多卡 kernel 行为不一致。"
+  ],
+  "code": "# Python (部署前断言)\ndef sanity(quant_model, sample):\n    assert not torch.isnan(quant_model(sample)).any()   # 防溢出NaN\n    # 校验 scale/零点形状、kernel 实际精度路径",
+  "codeNotes": [
+    "务必断言无 NaN/Inf。",
+    "检查框架是否真走低精度路径。"
+  ],
+  "complexity": "排查成本 O(问题定位)；正确部署后推理同正常量化。",
+  "followUps": [
+    {
+      "question": "怎么发现框架偷偷回退 FP16？",
+      "answer": "用 profiler 看是否真调用 INT8/FP8 kernel，或对比显存/时延是否达预期，未达即可能回退。"
+    },
+    {
+      "question": "溢出通常出现在哪？",
+      "answer": "INT32 累加溢出或 FP8/E4M3 超 448 未 clamp，导致 NaN/Inf，需分块与 clamp。"
+    }
+  ],
+  "followUpAnswers": [
+    "profiler 验证真实路径。",
+    "clamp 防 FP8 溢出。"
+  ],
+  "pitfalls": [
+    "不测 P99 只信均值。",
+    "忽略框架精度回退。"
+  ],
+  "beginnerSummary": "量化上线像把大货车换成小卡车省油(省显存)，但得先确认桥(框架)限高能过、别超载(溢出)、别因改装(未融合)反而更慢。否则省了油却半路抛锚。",
+  "prerequisites": [
+    "量化引入新失败模式。",
+    "框架支持决定能否加速。",
+    "线上分布需匹配校准。"
+  ],
+  "workedExample": [
+    "dequant 未融合 → P99 涨 30%。",
+    "补线上语料校准 → 精度回平。"
+  ],
+  "lineByLine": [
+    "核对 kernel 精度支持。",
+    "融合 dequant 防变慢。",
+    "clamp 防溢出 NaN。",
+    "灰度实测三维指标。"
+  ],
+  "diagram": "量化模型 ─▶ [溢出?][回退?][变慢?] ─▶ 实测 ─▶ 灰度上线"
+},
+  {
+  "id": "perf-why-eval",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "为什么需要做 LLM 服务性能评测",
+  "prompt": "上线一个大模型服务前，为什么必须先做性能评测？",
+  "quickAnswer": "性能评测把\"模型能跑\"变成\"能稳定、便宜、按时地服务用户\"。它量化延迟、吞吐、显存与成本，帮助选型、定容量、设 SLA 并发现瓶颈，避免线上卡顿或预算失控。",
+  "approach": "用统一负载与指标，把主观\"快不快\"变成可比较的数字，驱动架构与资源决策。",
+  "explanationFocus": "是什么：LLM 服务性能评测是用可重复负载测量延迟、吞吐、显存、成本等指标，以支撑选型与容量决策的过程。",
+  "bruteForce": "直接上线靠用户体感发现问题：等事故后才排查，代价高且无法复现。",
+  "derivation": [
+    "为什么需要：大模型推理贵且慢，服务化后\"能出结果\"≠\"能服务用户\"，需要量化体验与成本。",
+    "怎么实现：固定输入/输出分布与并发，跑压测，采集 TTFT/TPOT/TPS、显存、GPU 利用率与成本。",
+    "有什么代价：要构造贴近真实的负载与数据，否则结论失真；需投入 GPU 时间与脚本开发。",
+    "怎么评测：对比不同框架/批大小/并发下的指标，结合 p50/p95/p99 与达标率做决策。"
+  ],
+  "invariant": "同一负载下，指标可复现；资源不变时吞吐上限由 decode 算力与显存决定。",
+  "walkthrough": "A100 上某模型单卡 7×24 推理，评测发现 p99 TTFT=1.2s，按 SLA 需<1s → 扩容或换框架。",
+  "edgeCases": [
+    "负载分布偏离真实流量：评测指标乐观。",
+    "仅测单请求忽略并发：掩盖排队瓶颈。",
+    "忽略成本维度：吞吐高但单价亏本。"
+  ],
+  "code": "# Python\ndef need_eval_sla(metric_p99, sla_limit):\n    return metric_p99 <= sla_limit            # 是否达标\ndef cost_per_hour(gpu_price, hours):\n    return gpu_price * hours                  # 评测期间的算力成本",
+  "codeNotes": [
+    "评测要同时看体验(延迟)与成本(单价)。",
+    "结论需可复现，固定随机种子与负载。"
+  ],
+  "complexity": "O(压测样本数) 采集与统计。",
+  "followUps": [
+    {
+      "question": "性能评测和质量评测有什么区别？",
+      "answer": "质量评测看回答对不对(准确率/胜率)，性能评测看多快多省(延迟/吞吐/成本)，两者正交、都要做。"
+    },
+    {
+      "question": "什么时候可以不做性能评测？",
+      "answer": "仅做离线 demo、无 SLA 与成本约束的内部实验可暂缓，但凡对外服务都应评测。"
+    }
+  ],
+  "followUpAnswers": [
+    "质量看\"对不对\"，性能看\"快不快/省不省\"。",
+    "对外服务前都应评测。"
+  ],
+  "pitfalls": [
+    "用不真实负载得出乐观结论。",
+    "只看均值忽略长尾 p99 与成本。"
+  ],
+  "beginnerSummary": "新店开业前要试营业：看上菜快不快、一天能接几桌、厨师工资划不划算。不试就直接开张，可能客人等太久走人，或者算账发现亏本。",
+  "prerequisites": [
+    "大模型推理分 prefill 与 decode。",
+    "服务有延迟与吞吐两个关注面。",
+    "GPU 资源有限且按卡计费。"
+  ],
+  "workedExample": [
+    "评测发现 p99 TTFT=1.2s 超过 1s SLA → 需扩容。",
+    "两框架同负载，A 吞吐高 20% 但贵 15% → 按预算取舍。"
+  ],
+  "lineByLine": [
+    "明确要测哪些指标(延迟/吞吐/显存/成本)。",
+    "构造贴近真实的输入与并发负载。",
+    "运行压测并采集逐请求数据。",
+    "统计分位数与达标率，输出决策。"
+  ],
+  "diagram": "离线模型 ──▶ 性能评测 ──▶ 选型/容量/SLA\n                │\n        延迟 吞吐 显存 成本"
+},
+  {
+  "id": "perf-ttft-tpot-tps",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "TTFT / TPOT / TPS 指标",
+  "prompt": "评测大模型服务时 TTFT、TPOT、TPS 分别指什么？",
+  "quickAnswer": "TTFT(Time To First Token)=从请求发出到首个 token 返回的延迟，反映 Prefill 速度；TPOT(Time Per Output Token)=相邻输出 token 的平均间隔，反映 Decode 速度；TPS(Tokens Per Second)=总 token/总耗时，综合吞吐。三者分别刻画首响、流畅度与吞吐。",
+  "approach": "分相位测延迟：首响看 prefill，间隔看 decode，总量看吞吐。",
+  "explanationFocus": "是什么：TTFT 首 token 延迟、TPOT 每 token 间隔、TPS 总吞吐，分别刻画 prefill/decode/整体。",
+  "bruteForce": "只看平均端到端延迟：掩盖 prefill 与 decode 的不同瓶颈。",
+  "derivation": [
+    "为什么需要：用户感知由\"等多久出第一个字\"和\"出字流不流畅\"决定，单一延迟指标无法区分。",
+    "怎么实现：在客户端记录首 token 到达时间算 TTFT；用相邻 token 时间戳均值算 TPOT；总 token 数除以总时长算 TPS。",
+    "有什么代价：流式下要埋点每个 token 时间戳；不同 batch/并发下指标会变化，需固定负载条件对比。",
+    "怎么评测：在固定并发与输入/输出长度下统计 p50/p95/p99 的 TTFT、TPOT、TPS。"
+  ],
+  "invariant": "端到端延迟 ≈ TTFT + (输出token数-1)*TPOT；TPS ≈ 输出token数/总耗时。",
+  "walkthrough": "输出 100 token，TTFT=200ms，TPOT=20ms → 端到端≈200+99*20=2180ms，TPS≈100/2.18≈46 tok/s。",
+  "edgeCases": [
+    "极短输出：TPOT 样本少，统计不稳。",
+    "流式中断/重试：时间戳需排除异常样本。",
+    "并发升高：TTFT 受排队影响而上升。"
+  ],
+  "code": "# Python\ndef tps(tokens, start, end):\n    return (tokens - 1) / (end - start)        # tok/s (不含首token等待)\ndef ttft(first_ts, req_ts):\n    return first_ts - req_ts                     # 首token延迟",
+  "codeNotes": [
+    "TPS 常用 (n-1)/duration 避免把 prefill 算进 decode。",
+    "流式埋点每个 token 时间戳。"
+  ],
+  "complexity": "O(样本数)；统计分位数即可。",
+  "followUps": [
+    {
+      "question": "TTFT 高说明什么？",
+      "answer": "通常是 Prefill 慢（输入长、batch 大、排队）或 KV/算力不足，与 decode 阶段无关。"
+    },
+    {
+      "question": "TPS 和 TPOT 什么关系？",
+      "answer": "TPS≈1/TPOT（单请求）；多并发下 TPS 指系统总产出，会高于单请求 TPOT 倒数。"
+    }
+  ],
+  "followUpAnswers": [
+    "TTFT 对应 prefill 瓶颈。",
+    "TPOT 对应 decode 瓶颈。"
+  ],
+  "pitfalls": [
+    "把 TTFT 算进 TPS 分母导致偏高。",
+    "只看均值忽略长尾 p99。"
+  ],
+  "beginnerSummary": "点外卖：TTFT 是\"下单到出餐第一口\"等多久，TPOT 是\"每口之间的间隔\"顺不顺畅，TPS 是\"单位时间内总共吃到多少口\"。三个数字合起来才说清这顿饭吃得爽不爽。",
+  "prerequisites": [
+    "推理分 Prefill 与 Decode 两阶段。",
+    "流式输出逐 token 返回。",
+    "延迟与吞吐需分场景度量。"
+  ],
+  "workedExample": [
+    "输出100 token, TTFT=200ms, TPOT=20ms → 端到端≈2.18s, TPS≈46。",
+    "高并发下 TTFT 因排队升高，但 TPS(系统)可能更高。"
+  ],
+  "lineByLine": [
+    "记录请求发出时间。",
+    "记录首 token 到达→TTFT。",
+    "记录每 token 间隔均值→TPOT。",
+    "总 token/总时长→TPS。"
+  ],
+  "diagram": "TTFT: 请求 ──▶ 首token (prefill主导)\nTPOT: token_i ─▶ token_{i+1} (decode主导)\nTPS : 总token / 总耗时 (系统吞吐)"
+},
+  {
+  "id": "perf-throughput-vs-latency",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "吞吐（throughput）与延迟（latency）的区别",
+  "prompt": "大模型服务里吞吐和延迟有什么本质区别，为何常互相矛盾？",
+  "quickAnswer": "延迟是单个请求从发起到完成的时间（体验面），吞吐是单位时间系统处理的总 token 数或请求数（效率面）。提高批大小能抬升吞吐却往往增加单请求延迟，二者呈权衡关系，需按场景取舍。",
+  "approach": "把延迟当\"单客体验\"、吞吐当\"全店效率\"，用批处理在两者之间找平衡点。",
+  "explanationFocus": "是什么：延迟=单请求完成耗时(越小越好)，吞吐=系统单位时间产出(越大越好)，二者常因批处理而此消彼长。",
+  "bruteForce": "只优化平均延迟：可能在低并发下很爽，但高并发时吞吐不够、整体崩。",
+  "derivation": [
+    "为什么需要：用户关心自己快不快(延迟)，老板关心能服务多少人(吞吐)，指标不同决策不同。",
+    "怎么实现：延迟用单请求端到端耗时；吞吐用 总输出token / 总时长 或 总请求数 / 总时长。",
+    "有什么代价：批处理提升吞吐却拉长排队与每请求耗时，需控制 batch 上限。",
+    "怎么评测：在同一负载下同时画延迟-吞吐曲线，找拐点(Sweet Spot)。"
+  ],
+  "invariant": "在固定资源下，提升吞吐通常以提高单请求延迟为代价；二者曲线在某 batch 处出现拐点。",
+  "walkthrough": "batch=1 时单请求延迟 50ms 但吞吐 20 tok/s；batch=32 时延迟 180ms 但吞吐 600 tok/s，拐点约在 batch=8。",
+  "edgeCases": [
+    "延迟用均值会掩盖排队长尾。",
+    "吞吐按 token 与按请求计数口径不同。",
+    "突发流量下吞吐未变但延迟飙升。"
+  ],
+  "code": "# Python\ndef latency(req_sent, req_done):\n    return req_done - req_sent\ndef throughput(tokens, duration):\n    return tokens / duration                # tok/s",
+  "codeNotes": [
+    "吞吐与延迟口径要一致(都按 token 或都按请求)。",
+    "看曲线拐点而非单一值。"
+  ],
+  "complexity": "O(样本数) 统计。",
+  "followUps": [
+    {
+      "question": "什么时候更看重延迟？",
+      "answer": "对话/Copilot 等交互场景，用户等不及；延迟优先于吞吐。"
+    },
+    {
+      "question": "什么时候更看重吞吐？",
+      "answer": "离线批量摘要/抽取，不急但量大，追求单位成本产出最大化。"
+    }
+  ],
+  "followUpAnswers": [
+    "交互场景优先延迟。",
+    "批量场景优先吞吐。"
+  ],
+  "pitfalls": [
+    "混淆 token 吞吐与请求吞吐。",
+    "只看延迟不顾吞吐导致扩容不足。"
+  ],
+  "beginnerSummary": "奶茶店：延迟是你从点单到拿到奶茶的时间；吞吐是一小时店里总共做多少杯。让店员一次做 10 杯(大单)能提升吞吐，但排在后面的人拿到奶茶更慢(延迟上升)。",
+  "prerequisites": [
+    "批处理(Batching)可并行计算。",
+    "GPU 擅长并行而非串行的单请求。",
+    "延迟与吞吐是两个独立关注面。"
+  ],
+  "workedExample": [
+    "batch=1: 延迟50ms, 吞吐20；batch=32: 延迟180ms, 吞吐600。",
+    "交互场景选低延迟档，批量场景选高吞吐档。"
+  ],
+  "lineByLine": [
+    "定义延迟=单请求耗时。",
+    "定义吞吐=总产出/总时长。",
+    "扫不同 batch 测两者。",
+    "画曲线找拐点取舍。"
+  ],
+  "diagram": "延迟↓       吞吐↑\n  \\      /\n   \\    /\n    \\  /  ← 拐点\n     \\/\n   大batch"
+},
+  {
+  "id": "perf-qps-concurrency",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "QPS 与并发用户数",
+  "prompt": "QPS 和并发用户数(Concurrent Users)有什么区别，怎么换算？",
+  "quickAnswer": "QPS(每秒查询数)是吞吐视角的请求速率；并发用户数是某一时刻\"在途\"未完成请求的数量。简化关系：并发 ≈ QPS × 平均响应时长。评测需同时给出二者，否则容量规划会失真。",
+  "approach": "用 Little 定律 并发≈QPS×RT 把速率与时长连起来，再据 SLA 反推能扛多少并发。",
+  "explanationFocus": "是什么：QPS 是单位时间到达/完成的请求数(速率)，并发是同时\"挂起\"的请求数(状态)，二者由平均响应时长连接。",
+  "bruteForce": "只报 QPS：不知道系统同时扛多少连接，容易把\"能处理\"误当\"能并发\"。",
+  "derivation": [
+    "为什么需要：网关按 QPS 限流，资源按并发占显存/连接，两个视角都要。",
+    "怎么实现：QPS=完成请求数/时间窗；并发=在途请求计数(或用 Little 定律估算)。",
+    "有什么代价：并发高会占更多 KV cache 与连接，可能先撞显存而非算力。",
+    "怎么评测：阶梯加压，记录各 QPS 下稳定并发与 p99 延迟是否达标。"
+  ],
+  "invariant": "并发 ≈ QPS × 平均响应时长(Little 定律)；给定 RT，QPS 与并发线性相关。",
+  "walkthrough": "RT=2s，目标 QPS=50 → 平均并发≈50×2=100 个在途请求，需预留对应 KV cache。",
+  "edgeCases": [
+    "长连接/流式让\"并发\"定义模糊。",
+    "突发尖峰使瞬时并发远超均值。",
+    "QPS 不均(二八分布)拉高尾延迟。"
+  ],
+  "code": "# Python\ndef concurrency(qps, avg_rt):\n    return qps * avg_rt                       # Little 定律近似\ndef qps(done, window):\n    return done / window                      # 窗口内请求速率",
+  "codeNotes": [
+    "并发受 KV cache 与连接数限制。",
+    "流式响应下 RT 含整个生成过程。"
+  ],
+  "complexity": "O(时间窗样本)。",
+  "followUps": [
+    {
+      "question": "并发上不去通常是哪受限？",
+      "answer": "多为 KV cache 占满显存或连接/worker 数限制，而非纯算力不足。"
+    },
+    {
+      "question": "QPS 能无限堆吗？",
+      "answer": "不能，超过容量后排队使延迟恶化、错误率上升，存在饱和点。"
+    }
+  ],
+  "followUpAnswers": [
+    "并发常受 KV cache/连接数限制。",
+    "QPS 有饱和点。"
+  ],
+  "pitfalls": [
+    "把峰值 QPS 当可持续并发。",
+    "忽略流式下 RT 很长导致并发虚高。"
+  ],
+  "beginnerSummary": "收费站：QPS 是一分钟过了多少辆车；并发是此刻收费亭前排着几辆车。车过站要 2 秒，每分钟想放 50 辆，那平均就约有 100 辆在排队等待——这就是并发。",
+  "prerequisites": [
+    "吞吐与延迟概念。",
+    "流式请求会长时间占用连接。",
+    "KV cache 占用与并发正相关。"
+  ],
+  "workedExample": [
+    "RT=2s, QPS=50 → 并发≈100。",
+    "KV cache 只够 80 并发 → 需降 QPS 或加显存。"
+  ],
+  "lineByLine": [
+    "统计窗口内完成请求得 QPS。",
+    "统计在途请求得住并发。",
+    "用并发≈QPS×RT 互验。",
+    "按 SLA 设并发上限。"
+  ],
+  "diagram": "QPS ──×── RT ──▶ 并发\n 速率      时长     在途数\n(车/分)   (秒/车)  (排队车)"
+},
+  {
+  "id": "perf-vram",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "显存占用评测",
+  "prompt": "如何评测大模型推理服务的显存占用，主要被什么吃掉？",
+  "quickAnswer": "显存主要由模型权重、KV Cache、激活与临时缓冲占用。评测需分别测算：权重≈参数量×精度字节；KV Cache≈2×层数×batch×seq×hidden×dtype；并在不同 batch/seq 下实测峰值，作为容量上限依据。",
+  "approach": "分项估算 + 实测峰值：用 torch 的 reserved/allocated 配合压测观察上限，定位是权重还是 KV 先撞墙。",
+  "explanationFocus": "是什么：显存占用评测是量化权重、KV Cache、激活等各部分显存并测峰值，判断能开多大 batch/上下文。",
+  "bruteForce": "只报模型权重大小：忽略 KV Cache 随 batch/seq 线性膨胀，实际能扛的并发远小于预期。",
+  "derivation": [
+    "为什么需要：显存是首要硬约束，决定了最大并发与上下文长度，直接关系成本。",
+    "怎么实现：权重=参数量×字节；KV=2×n_layers×batch×seq_len×hidden×dtype_bytes；用 nvidia-smi/CUDA malloc 测峰值。",
+    "有什么代价：长上下文与高并发让 KV 主导显存，估算需覆盖最大配置。",
+    "怎么评测：在 max batch 与 max seq 下压测，记录分配峰值与安全余量。"
+  ],
+  "invariant": "总显存 ≈ 权重 + KV_Cache(batch,seq) + 激活；KV 随 batch×seq 线性增长，是可变主项。",
+  "walkthrough": "7B fp16 权重≈14GB；batch=16,seq=4k,32层,hidden=4096 → KV≈2×32×16×4096×4096×2B≈64GB，远超权重，需分页注意力。",
+  "edgeCases": [
+    "碎片导致分配失败但总量够。",
+    "fp16 与量化(int8/int4)权重差数倍。",
+    "激活随 micro-batch 波动。"
+  ],
+  "code": "# Python\ndef kv_bytes(n_layers, batch, seq, hidden, dtype_b=2):\n    return 2 * n_layers * batch * seq * hidden * dtype_b   # KV 总字节\ndef weight_bytes(params, dtype_b=2):\n    return params * dtype_b                                # 权重字节",
+  "codeNotes": [
+    "KV 的 2 来自 K 与 V 两套缓存。",
+    "量化能大幅降权重显存。"
+  ],
+  "complexity": "O(1) 估算；实测 O(压测时长)。",
+  "followUps": [
+    {
+      "question": "PagedAttention 解决什么？",
+      "answer": "把 KV 按块分页管理，消除碎片、按需分配，显著提升有效 batch 容量。"
+    },
+    {
+      "question": "为什么长上下文更怕显存？",
+      "answer": "KV 随 seq 线性增长，长上下文下 KV 主导显存，权重反而次要。"
+    }
+  ],
+  "followUpAnswers": [
+    "PagedAttention 消除 KV 碎片。",
+    "长上下文 KV 主导显存。"
+  ],
+  "pitfalls": [
+    "只算权重忽略 KV。",
+    "用理论值不留安全余量。"
+  ],
+  "beginnerSummary": "冰箱：模型权重像一台固定大小的冰箱本体，KV Cache 像里面越放越满的食材——来的人(batch)越多、点的菜(seq)越长，食材就越占地方。算容量得把\"本体的体积\"和\"会膨胀的存货\"都算上。",
+  "prerequisites": [
+    "KV Cache 概念。",
+    "fp16/int8/int4 精度字节数。",
+    "batch 与 seq 影响显存。"
+  ],
+  "workedExample": [
+    "7B fp16 权重14GB；KV 在长上下文下达 64GB。",
+    "量化到 int4 权重降到 3.5GB。"
+  ],
+  "lineByLine": [
+    "算权重显存。",
+    "算 KV 随 batch×seq 的显存。",
+    "加激活与余量。",
+    "实测峰值校验。"
+  ],
+  "diagram": "显存 = 权重(固定)\n        + KV Cache(batch×seq, 膨胀)\n        + 激活(波动)\n        ───────────▶ 峰值"
+},
+  {
+  "id": "perf-e2e-decomp",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "端到端延迟分解（prefill / decode）",
+  "prompt": "如何把大模型服务的端到端延迟拆成 prefill 与 decode 两部分来定位瓶颈？",
+  "quickAnswer": "端到端延迟=排队+Prefill(处理全部输入)+Decode(逐 token 生成)。Prefill 是一次性矩阵乘，随输入长度增长；Decode 是自回归逐步生成，随输出长度增长。分别埋点两段耗时即可定位是\"输入长\"还是\"输出慢\"拖慢整体。",
+  "approach": "在调度层对每段打点：请求入队→prefill 完成→逐 token→结束，比较各段占比。",
+  "explanationFocus": "是什么：把端到端延迟拆为排队、Prefill(输入阶段)、Decode(输出阶段)三段，分别定量以定位瓶颈归属。",
+  "bruteForce": "只报总延迟：不知道是输入长还是输出慢，优化方向完全错。",
+  "derivation": [
+    "为什么需要：Prefill 受输入长度与算力限制，Decode 受内存带宽限制，优化手段完全不同。",
+    "怎么实现：记录 prefill 起止与首 token、decode 起止与末 token，分别计时。",
+    "有什么代价：需框架支持阶段埋点；continuous batching 下各请求阶段交错，需按请求聚合。",
+    "怎么评测：在固定输入/输出长度下统计两段 p50/p95，看占比。"
+  ],
+  "invariant": "端到端 ≈ 排队 + Prefill + (输出token数)×TPOT；Prefill∝输入长度，Decode∝输出长度。",
+  "walkthrough": "输入2k token、输出500 token：prefill=0.8s，decode=500×4ms=2s，端到端≈2.8s，瓶颈在 decode。",
+  "edgeCases": [
+    "continuous batching 使阶段重叠难拆分。",
+    "排队时间在高峰期占大头。",
+    "prefix cache 命中省掉部分 prefill。"
+  ],
+  "code": "# Python\ndef e2e(queue, prefill, decode_t, n_out, tpot):\n    return queue + prefill + decode_t + n_out * tpot\ndef prefill_cost(in_len, flops_per_tok):\n    return in_len * flops_per_tok            # 与输入长度成正比",
+  "codeNotes": [
+    "decode 段受带宽限制而非算力。",
+    "prefix cache 命中可减去重复 prefill。"
+  ],
+  "complexity": "O(请求数) 分段统计。",
+  "followUps": [
+    {
+      "question": "prefill 慢怎么优化？",
+      "answer": "用更优 attention 实现、增大 prefill batch、或 prefix cache 复用相同前缀。"
+    },
+    {
+      "question": "decode 慢怎么优化？",
+      "answer": "提升内存带宽利用率、量化、投机解码(speculative decoding)或减少输出长度。"
+    }
+  ],
+  "followUpAnswers": [
+    "prefill 慢→算力/attention 优化。",
+    "decode 慢→带宽/量化/投机解码。"
+  ],
+  "pitfalls": [
+    "把排队时间与计算时间混为一谈。",
+    "忽略 continuous batching 造成的重叠。"
+  ],
+  "beginnerSummary": "做饭：prefill 像\"备菜切所有食材\"，一次用力但跟食材总量(输入)成正比；decode 像\"一道道炒出来\"，炒几道(输出)就花几倍时间。要提速得先知道是备菜慢还是炒菜慢。",
+  "prerequisites": [
+    "prefill 与 decode 两阶段。",
+    "自回归逐 token 生成。",
+    "continuous batching 概念。"
+  ],
+  "workedExample": [
+    "prefill=0.8s, decode=2s → 瓶颈在 decode。",
+    "prefix cache 命中省 0.5s prefill。"
+  ],
+  "lineByLine": [
+    "记录入队到 prefill 开始(排队)。",
+    "记录 prefill 起止(输入处理)。",
+    "记录首 token 到末 token(decode)。",
+    "按段聚合看占比定位瓶颈。"
+  ],
+  "diagram": "请求 →[排队]→[Prefill 输入]→[Decode tok1..tokN]→结束\n           输入长↑           输出长↑"
+},
+  {
+  "id": "perf-load-tools",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "常用负载测试工具（locust / 自写 benchmark）",
+  "prompt": "做 LLM 服务压测时，locust 这类通用工具和自写 benchmark 脚本各有什么取舍？",
+  "quickAnswer": "通用工具(locust/k6/wrk)易上手、可分布式、带Web报告，但难精确控制流式逐 token 计时；自写 benchmark(基于 async httpx/gRPC)能精确埋点 TTFT/TPOT、构造真实对话分布。实践常以自写脚本为主、locust 做分布式流量。",
+  "approach": "按需求选：要快速分布式加压用 locust；要精确 token 级指标与真实分布用自写 async 脚本。",
+  "explanationFocus": "是什么：负载测试工具分通用压测框架(易扩展但粗粒度)与自写脚本(精确但需维护)，用于向服务施加可控负载并采集指标。",
+  "bruteForce": "用 curl 手点：无法控制并发与统计，不可复现也不可扩展。",
+  "derivation": [
+    "为什么需要：人工或单请求无法模拟并发与长时运行，需要可重复、可量化的加压手段。",
+    "怎么实现：locust 用 Python 写 user 行为分布式发压；自写脚本用 asyncio+httpx 流式读取 SSE 逐 token 计时。",
+    "有什么代价：locust 默认按请求粒度，需自定义才能测流式 token 间隔；自写脚本要自己处理错误/重试/统计。",
+    "怎么评测：用同一脚本固定 seed 与并发，多次运行取稳定分位数。"
+  ],
+  "invariant": "加压结果可复现：相同配置(并发/输入/输出/seed)多次跑指标应一致。",
+  "walkthrough": "locust 起 200 并发 user 循环发问；自写脚本统计 1 万次请求 TTFT p95=350ms、TPS=120。",
+  "edgeCases": [
+    "流式 SSE 在 locust 中需解析 event。",
+    "客户端机器自身成瓶颈，误判服务端。",
+    "重试风暴放大真实负载。"
+  ],
+  "code": "# Python (async 自写草图)\nasync def one_req(client, prompt):\n    t0 = time.time(); first = None; n = 0\n    async for chunk in client.stream(prompt):\n        if first is None: first = time.time() - t0\n        n += 1\n    return first, n, time.time() - t0",
+  "codeNotes": [
+    "客户端机器要够强，避免自己成瓶颈。",
+    "流式需解析 SSE/分块逐 token。"
+  ],
+  "complexity": "O(并发×请求数) 客户端并发。",
+  "followUps": [
+    {
+      "question": "为什么不直接用 ab/wrk？",
+      "answer": "它们面向短 HTTP 请求，难表达流式逐 token 与多轮对话状态，token 级指标测不了。"
+    },
+    {
+      "question": "分布式压测要注意什么？",
+      "answer": "统一时钟/打点、聚合多 worker 结果、确保总加压量等于目标而非每 worker 量。"
+    }
+  ],
+  "followUpAnswers": [
+    "ab/wrk 测不了流式 token 级指标。",
+    "分布式需聚合与防重复计数。"
+  ],
+  "pitfalls": [
+    "客户端成瓶颈导致数据失真。",
+    "locust 默认粒度粗，漏测 TTFT。"
+  ],
+  "beginnerSummary": "测水管：通用工具像一群人同时开水龙头看总流量(locust)，方便但只看总量；自写脚本像在每个水龙头装水表，能精确看到\"第一滴水多久来、之后每滴间隔\"。两者配合最好。",
+  "prerequisites": [
+    "并发与异步 IO。",
+    "流式 SSE 响应格式。",
+    "统计分位数。"
+  ],
+  "workedExample": [
+    "locust 200 并发发问做分布式流量。",
+    "自写 async 脚本逐 token 测 TTFT/TPOT。"
+  ],
+  "lineByLine": [
+    "选工具(通用 or 自写)。",
+    "定义 user 行为与负载分布。",
+    "发压并流式埋点。",
+    "聚合分位数输出报告。"
+  ],
+  "diagram": "locust(分布式流量)\n    │\n    ├──▶ 服务端\n    │\n自写脚本(精确 token 埋点)"
+},
+  {
+  "id": "perf-percentiles",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "p50 / p95 / p99 分位数的意义",
+  "prompt": "为什么评测延迟要看 p50/p95/p99 而不是只看平均值？",
+  "quickAnswer": "平均延迟会掩盖少数极慢请求，而用户体验由最差的那些决定。p50 是中位数(典型体验)，p95/p99 是长尾(最差 5%/1% 用户的体验)。SLA 通常按 p95/p99 设定，评测必须报告分位数而非均值。",
+  "approach": "对延迟样本排序取分位点，重点盯 p95/p99 长尾，因为它决定 SLA 达标率。",
+  "explanationFocus": "是什么：pXX 表示 X% 的请求延迟低于该值；p50 典型、p95/p99 长尾，分位数比均值更能反映真实体验与 SLA。",
+  "bruteForce": "只报平均延迟：一个快九个慢被平均成\"还行\"，长尾用户实际崩溃。",
+  "derivation": [
+    "为什么需要：延迟分布高度右偏，均值对离群不敏感，而 SLA 与口碑由最差体验决定。",
+    "怎么实现：把所有样本排序，p99 取第 99% 位置的值(或最近秩法)。",
+    "有什么代价：需要足够样本量(成千上万)才能让 p99 稳定；小样本波动大。",
+    "怎么评测：固定负载跑大量请求，报告 p50/p90/p95/p99 与最大值。"
+  ],
+  "invariant": "p50 ≤ p95 ≤ p99 ≤ max；样本量越大长尾估计越稳。",
+  "walkthrough": "10000 请求，均值 120ms，但 p99=800ms——均值\"良好\"却仍有 1% 用户等 0.8s，SLA 不达标。",
+  "edgeCases": [
+    "样本太少 p99 抖动大。",
+    "混合请求类型使分位数失真。",
+    "GC/调度抖动制造偶发长尾。"
+  ],
+  "code": "# Python\ndef percentile(vals, p):\n    s = sorted(vals)\n    k = max(0, min(len(s) - 1, int(round(p / 100 * len(s)) - 1)))\n    return s[k]                                # 最近秩法",
+  "codeNotes": [
+    "样本量建议 ≥ 数千。",
+    "不同分位算法(线性/最近秩)略差，需统一。"
+  ],
+  "complexity": "O(n log n) 排序。",
+  "followUps": [
+    {
+      "question": "p99 和最大值哪个更该关注？",
+      "answer": "p99 反映稳定长尾、可行动；最大值可能是偶发异常，单看易被误导，应同时报但决策看 p99。"
+    },
+    {
+      "question": "样本不足怎么办？",
+      "answer": "延长压测时间或提高并发累积样本，或用 t-digest 等近似分位算法降低内存并稳定估计。"
+    }
+  ],
+  "followUpAnswers": [
+    "决策看 p99，最大值仅供参考。",
+    "样本不足就多跑累积。"
+  ],
+  "pitfalls": [
+    "用均值掩盖长尾。",
+    "小样本下 p99 不可信。"
+  ],
+  "beginnerSummary": "网约车：平均等待 5 分钟听起来不错，但 p99 是\"最慢那 1% 的人等了 40 分钟\"——正是这批人会投诉。看平均分看不出问题，要看\"最倒霉那批人\"等了多久。",
+  "prerequisites": [
+    "延迟分布通常右偏。",
+    "SLA 常按分位定义。",
+    "统计采样基本概念。"
+  ],
+  "workedExample": [
+    "均值120ms 但 p99=800ms → SLA 不达标。",
+    "1万样本才让 p99 稳定。"
+  ],
+  "lineByLine": [
+    "采集所有延迟样本。",
+    "排序。",
+    "按百分比取分位点。",
+    "报告 p50/p95/p99 与达标率。"
+  ],
+  "diagram": "延迟分布(右偏):\n |▇▇▇▇▇▇▇▇▇\n |        ▇\n |         ▇  ← p99/max 长尾\n p50   p95  p99"
+},
+  {
+  "id": "perf-saturation-capacity",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "饱和度与容量规划",
+  "prompt": "什么是系统饱和度，如何用它做 LLM 服务的容量规划？",
+  "quickAnswer": "饱和度=资源实际使用量/可用上限(如 GPU 算力、显存、KV cache)。当延迟随负载近乎线性恶化、错误率上升时即达饱和点。容量规划就是在目标 QPS 与 SLA 下，由饱和点反推所需副本数并留余量(如 70% 水位)。",
+  "approach": "阶梯加压找饱和拐点，按目标负载×安全系数反算副本数，设弹性扩缩容。",
+  "explanationFocus": "是什么：饱和度衡量资源被占用的程度；容量规划依据饱和点与目标负载，确定需要多少实例并留出安全水位。",
+  "bruteForce": "按峰值 QPS 直接堆机器：要么浪费要么在尖峰饱和，无数据支撑。",
+  "derivation": [
+    "为什么需要：资源有限，需知道一副本能扛多少、何时该扩容，避免过载与浪费。",
+    "怎么实现：加压记录 QPS-延迟-错误率曲线，定位延迟陡升/错误出现的点即饱和点。",
+    "有什么代价：要找到稳定饱和点需长时间压测；真实流量有突发，要留 buffer。",
+    "怎么评测：在多副本下验证线性扩展比(near-linear scaling)，确认扩容有效。"
+  ],
+  "invariant": "在饱和点前延迟近似平稳；超过后延迟与错误率陡升；副本数 ≈ ceil(目标QPS / 单副本安全QPS)。",
+  "walkthrough": "单副本安全 QPS=40(p99<1s)，目标 200 QPS → 需 5 副本，留 20% buffer 取 6 副本。",
+  "edgeCases": [
+    "突发尖峰瞬时超饱和。",
+    "多副本负载不均。",
+    "扩容后 KV/显存成新瓶颈而非算力。"
+  ],
+  "code": "# Python\ndef replicas(target_qps, safe_qps, buffer=0.2):\n    return math.ceil(target_qps / (safe_qps * (1 - buffer)))\ndef saturation(used, total):\n    return used / total                        # 0..1",
+  "codeNotes": [
+    "安全水位常取 60~70%。",
+    "验证扩缩容线性度。"
+  ],
+  "complexity": "O(压测点) 拟合拐点。",
+  "followUps": [
+    {
+      "question": "饱和点和拐点一样吗？",
+      "answer": "常近似同义：拐点即延迟/错误开始陡升处，即资源饱和、边际收益骤降的点。"
+    },
+    {
+      "question": "为什么不能 100% 利用？",
+      "answer": "要吸收突发、给 GC/调度留余量，且非线性的尾部延迟在高位爆炸式增长。"
+    }
+  ],
+  "followUpAnswers": [
+    "饱和点≈延迟拐点。",
+    "留余量吸收突发与尾延迟。"
+  ],
+  "pitfalls": [
+    "把瞬时峰值当可持续容量。",
+    "忽略多副本负载不均。"
+  ],
+  "beginnerSummary": "电梯：一部电梯满载(饱和)后，再挤人门就关不上、大家更慢。容量规划就是算\"高峰期要几部电梯\"，并永远多留一部应对突然涌入的人，别把每部都塞到满。",
+  "prerequisites": [
+    "吞吐-延迟权衡。",
+    "QPS 与并发概念。",
+    "弹性扩缩容。"
+  ],
+  "workedExample": [
+    "单副本安全QPS=40 → 200 QPS 需 6 副本(含buffer)。",
+    "扩到 4 副本验证近线性。"
+  ],
+  "lineByLine": [
+    "阶梯加压测饱和点。",
+    "记录延迟/错误率拐点。",
+    "按目标负载反算副本。",
+    "留 buffer 并验证扩展比。"
+  ],
+  "diagram": "延迟\n  │        ╱← 饱和拐点\n  │      ╱\n  │    ╱\n  └──────── 负载(QPS)"
+},
+  {
+  "id": "perf-batch-size",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "批大小对延迟与吞吐的影响曲线",
+  "prompt": "增大推理 batch size 会怎样影响延迟和吞吐，曲线长什么样？",
+  "quickAnswer": "小 batch 时增大 batch 能摊薄固定开销、吞吐近似线性上升而单请求延迟略升；到某点后算力/KV 饱和，吞吐持平甚至下降、延迟陡增。最优 batch 在\"吞吐接近平台且延迟仍可接受\"的拐点附近。",
+  "approach": "扫描 batch 取值，画延迟-吞吐双轴曲线，选拐点附近作为 serving 配置。",
+  "explanationFocus": "是什么：batch size 曲线描述增大批处理时吞吐先升后平、延迟先缓后陡的关系，用于选最优服务配置。",
+  "bruteForce": "固定 batch=1 上线：吞吐极低、GPU 利用率低，成本不划算。",
+  "derivation": [
+    "为什么需要：batch 是连接延迟与吞吐的核心旋钮，选错既慢又贵。",
+    "怎么实现：在固定输入/输出长度下，依次测 batch=1,2,4,8,... 的 p50 延迟与 TPS。",
+    "有什么代价：大 batch 占更多 KV cache 与显存，受显存先于算力限制。",
+    "怎么评测：绘制双轴曲线，结合 SLA 延迟上限选最大可行 batch。"
+  ],
+  "invariant": "吞吐随 batch 先∝上升后饱和；延迟随 batch 单调上升；拐点在显存/算力饱和处。",
+  "walkthrough": "batch1→TPS20/延迟40ms；batch16→TPS300/延迟160ms；batch32→TPS310/延迟300ms，拐点在 16。",
+  "edgeCases": [
+    "continuous batching 让有效 batch 动态变化。",
+    "不同 seq 长度下最优 batch 不同。",
+    "显存先满限制最大 batch。"
+  ],
+  "code": "# Python\ndef sweep_batch(sizes, run):\n    return {b: run(b) for b in sizes}          # {batch: (tps, p50_latency)}\ndef pick_knee(curve, lat_limit):\n    return max(b for b,(t,l) in curve.items() if l <= lat_limit)",
+  "codeNotes": [
+    "continuous batching 改写静态 batch 含义。",
+    "拐点是延迟仍达标的最大吞吐点。"
+  ],
+  "complexity": "O(批取值数×压测) 扫描。",
+  "followUps": [
+    {
+      "question": "continuous batching 下还谈静态 batch 吗？",
+      "answer": "更多是设 max_batch / max_num_seqs 上限，系统动态凑批，曲线变为\"最大并发\"而非固定 batch。"
+    },
+    {
+      "question": "为什么大 batch 吞吐会下降？",
+      "answer": "KV/激活显存压力与调度开销上升，或超出高效 tensor core 形状，边际收益转负。"
+    }
+  ],
+  "followUpAnswers": [
+    "动态凑批，看 max 并发。",
+    "大 batch 受显存/形状限制收益转负。"
+  ],
+  "pitfalls": [
+    "只看吞吐忽略延迟上限。",
+    "忽略显存对最大 batch 的限制。"
+  ],
+  "beginnerSummary": "拼车：一辆车上 1 人很空(慢且浪费)，坐 4 人摊薄油费(吞吐高、每人稍慢)，塞到 8 人后车跑不动反而更慢(延迟陡增)。最佳是\"坐满但不超载\"的拐点。",
+  "prerequisites": [
+    "批处理并行。",
+    "吞吐-延迟权衡。",
+    "显存约束。"
+  ],
+  "workedExample": [
+    "batch16 拐点：TPS300/延迟160ms。",
+    "continuous batching 下看 max 并发。"
+  ],
+  "lineByLine": [
+    "选 batch 候选值。",
+    "逐值测 TPS 与延迟。",
+    "画双轴曲线。",
+    "按 SLA 选拐点 batch。"
+  ],
+  "diagram": "TPS ↑_______ (平台)\n        ╱\n延迟 ────────╲___ (陡升)\n        batch 拐点"
+},
+  {
+  "id": "perf-long-context",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "长上下文对评测的影响",
+  "prompt": "输入/输出变长会如何改变 LLM 服务的性能评测结论？",
+  "quickAnswer": "长输入主要拉长 Prefill(∝输入长度)并膨胀 KV Cache 显存，限制可并发数；长输出拉长 Decode 总时长与尾延迟。评测必须覆盖短/中/长多档上下文，否则在真实长文场景会严重失真甚至 OOM。",
+  "approach": "构造不同输入/输出长度的负载档位，分别测 TTFT、TPS、显存与最大并发。",
+  "explanationFocus": "是什么：长上下文指长输入与长输出，分别拖累 prefill 与 decode，并放大显存占用，使评测结论强烈依赖长度分布。",
+  "bruteForce": "只用 512 token 短样本评测：上线长文档问答即 OOM 或延迟爆炸，结论完全失效。",
+  "derivation": [
+    "为什么需要：真实流量常含长文档/RAG 上下文，短样本评测乐观得危险。",
+    "怎么实现：设输入长度档(1k/8k/32k)与输出档，逐档测指标与峰值显存。",
+    "有什么代价：长上下文显存与耗时都大，评测成本高；需支持相应 rope/窗口配置。",
+    "怎么评测：报告各档 TTFT/TPOT/最大并发，画随长度变化曲线。"
+  ],
+  "invariant": "Prefill∝输入长度；KV 显存∝batch×seq；端到端∝输入+输出长度。长上下文主要压显存与 prefill。",
+  "walkthrough": "输入从 2k→32k，TTFT 由 0.3s 升到 4.5s，最大并发由 64 降到 8(显存限制)。",
+  "edgeCases": [
+    "超过训练上下文需外推/截断。",
+    "稀疏注意力下长输入未必线性变慢。",
+    "长输出使单请求占连接极久。"
+  ],
+  "code": "# Python\ndef prefill_growth(in_len, base=0.00015):\n    return in_len * base                      # TTFT 近似随输入线性\ndef max_concurrent(vram, kv_per_seq):\n    return int(vram / kv_per_seq)             # 显存决定并发",
+  "codeNotes": [
+    "长输入先撞 KV 显存而非算力。",
+    "长输出拉长 decode 总时长。"
+  ],
+  "complexity": "O(长度档数×压测)。",
+  "followUps": [
+    {
+      "question": "长输入和长输出哪个更伤吞吐？",
+      "answer": "长输入伤 prefill 与显存(限并发)，长输出伤 decode 总时长；综合看长输入更易触发容量瓶颈。"
+    },
+    {
+      "question": "如何缓解长上下文成本？",
+      "answer": "prefix cache 复用、KV 量化、稀疏/滑动窗口注意力、或截断+RAG 控长。"
+    }
+  ],
+  "followUpAnswers": [
+    "长输入更易撞显存限并发。",
+    "prefix cache/KV量化/稀疏注意力缓解。"
+  ],
+  "pitfalls": [
+    "用短样本评测乐观失真。",
+    "忽略 KV 显存随长度膨胀。"
+  ],
+  "beginnerSummary": "读书：短文章一眨眼读完(prefill 快)、写两句话就完(decode 短)；长篇小说读得久(prefill 慢)且书占桌面(显存)，同时写长篇耗时长(decode 久)。只测\"读短信\"就以为很快，读到长篇小说就傻眼。",
+  "prerequisites": [
+    "prefill/decode 分解。",
+    "KV cache 显存。",
+    "prefix cache 概念。"
+  ],
+  "workedExample": [
+    "32k 输入 TTFT=4.5s，并发降到 8。",
+    "prefix cache 复用省 prefill。"
+  ],
+  "lineByLine": [
+    "设长度档位。",
+    "逐档测 TTFT/TPS/显存。",
+    "记录最大并发。",
+    "画随长度变化曲线。"
+  ],
+  "diagram": "长度↑ → 输入长: prefill↑, KV↑(限并发)\n           → 输出长: decode 总时长↑"
+},
+  {
+  "id": "perf-streaming",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "流式输出（streaming）如何评测",
+  "prompt": "大模型流式(SSE/逐 token)输出时，应该如何评测其性能？",
+  "quickAnswer": "流式评测要在客户端解析每个 chunk 的时间戳，分别计算 TTFT(首 chunk)、TPOT(相邻 chunk 间隔)、完整端到端时长与总 token 数。关键是按 token 而非请求粒度计时，并区分网络抖动与生成间隔。",
+  "approach": "客户端对 SSE 流逐事件打点，统计首包、间隔分布与完成时间，剔除网络重传干扰。",
+  "explanationFocus": "是什么：流式评测是对逐 token 返回的流在客户端逐 chunk 打点，测 TTFT/TPOT/总时长，而不是只看请求完成时间。",
+  "bruteForce": "只记请求起止时间：把网络传输与逐 token 生成混在一起，看不出首响与流畅度。",
+  "derivation": [
+    "为什么需要：流式体验由\"多久出第一个字\"和\"出字顺不顺\"决定，需 token 级指标。",
+    "怎么实现：用支持 stream 的客户端(async httpx)读 SSE，每收到 data 事件记时。",
+    "有什么代价：需处理 SSE 解析、心跳/重传、客户端时钟；token 与字符粒度要统一。",
+    "怎么评测：在固定输出长度下统计 TTFT p95 与 TPOT p95，并校验最终完整性。"
+  ],
+  "invariant": "端到端 ≈ TTFT + Σ(间隔)；流式总 token 应与非流式一致，仅时间分布不同。",
+  "walkthrough": "流式输出 200 token，TTFT=180ms，TPOT=18ms，端到端≈3.78s，与非流式 token 数一致。",
+  "edgeCases": [
+    "SSE 心跳包干扰首包判定。",
+    "客户端缓冲批量 flush 使间隔失真。",
+    "中途断流需重连重计。"
+  ],
+  "code": "# Python\ndef stream_metrics(chunks):                  # chunks: [(t, tok)]\n    ttft = chunks[0][0] - chunks[0][1] and chunks[0][0]\n    gaps = [chunks[i][0]-chunks[i-1][0] for i in range(1,len(chunks))]\n    return chunks[0][0], sum(gaps)/len(gaps), chunks[-1][0]",
+  "codeNotes": [
+    "要正确解析 SSE data 事件。",
+    "统一 token 与字符粒度。"
+  ],
+  "complexity": "O(token 数) 逐事件。",
+  "followUps": [
+    {
+      "question": "流式会拖慢总吞吐吗？",
+      "answer": "通常不会，生成本身不变；但逐 chunk 网络开销与客户端处理略增，影响可忽略。"
+    },
+    {
+      "question": "如何区分网络抖动和生成慢？",
+      "answer": "对比服务端生成间隔日志与客户端接收间隔，差值即网络/缓冲抖动。"
+    }
+  ],
+  "followUpAnswers": [
+    "流式基本不降吞吐。",
+    "对比服务端日志区分抖动。"
+  ],
+  "pitfalls": [
+    "把网络抖动算进 TPOT。",
+    "用请求级计时漏掉首响指标。"
+  ],
+  "beginnerSummary": "听歌：流式像在线听歌，你要测\"多久出第一个音符\"(TTFT)和\"每个音符间隔稳不稳\"(TPOT)，而不是等整首歌下完再算总时间。逐拍打点才听得出生不生动。",
+  "prerequisites": [
+    "SSE/分块传输。",
+    "TTFT/TPOT 概念。",
+    "异步客户端。"
+  ],
+  "workedExample": [
+    "流式 TTFT=180ms, TPOT=18ms, 200 token。",
+    "对比服务端日志剔除网络抖动。"
+  ],
+  "lineByLine": [
+    "建立流式连接。",
+    "每收到 chunk 记时间戳。",
+    "算 TTFT 与间隔分布。",
+    "校验最终完整性。"
+  ],
+  "diagram": "请求 → SSE流: [t0 c1][t1 c2]...[tn cN]\n          TTFT=t0   TPOT=ti-t{i-1}"
+},
+  {
+  "id": "perf-sla",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "SLA 定义与达标率",
+  "prompt": "什么是 LLM 服务的 SLA，怎么计算达标率(success/meet rate)？",
+  "quickAnswer": "SLA 是对用户的量化承诺，如\"p95 TTFT<800ms 且可用性 99.9%\"。达标率=满足所有约束的请求数/总请求数。评测要同时统计延迟达标率与错误率，二者都达标才算 SLA 通过。",
+  "approach": "把 SLA 拆成可测阈值(延迟分位、错误率、吞吐)，压测/监控中统计每项的达标比例。",
+  "explanationFocus": "是什么：SLA 是用分位延迟、错误率、可用性等阈值表达的承诺；达标率=达标的请求占比，衡量承诺被履行的程度。",
+  "bruteForce": "只保证\"平均达标\"：均值过关但长尾超时被大量用户感知为不可用。",
+  "derivation": [
+    "为什么需要：SLA 是商务与稳定性契约，需可度量、可追责。",
+    "怎么实现：定义阈值(如 p99<1s, 错误率<0.1%)，逐请求判定是否达标再求比例。",
+    "有什么代价：阈值设太严成本飙升，太松无意义，需结合用户容忍度。",
+    "怎么评测：在目标负载下跑，报告各指标达标率与综合达标率。"
+  ],
+  "invariant": "综合达标率 = 各约束均达标请求数 / 总请求数；任一项违约即该请求不达标。",
+  "walkthrough": "压测 10 万请求，p99 TTFT=0.9s(达标)，错误率0.05%(达标) → 综合达标率 99.2%。",
+  "edgeCases": [
+    "超时算错误还是仅延迟违约。",
+    "部分完成(截断)是否达标。",
+    "不同接口 SLA 不同需分别统计。"
+  ],
+  "code": "# Python\ndef meet_rate(reqs, pred):\n    return sum(1 for r in reqs if pred(r)) / len(reqs)\ndef sla_ok(r, ttft_lim, err_lim):\n    return r.ttft <= ttft_lim and r.err <= err_lim",
+  "codeNotes": [
+    "延迟与错误需分别且同时达标。",
+    "阈值需结合业务容忍度设定。"
+  ],
+  "complexity": "O(请求数) 判定。",
+  "followUps": [
+    {
+      "question": "SLA 和 SLO 区别？",
+      "answer": "SLO 是内部目标(如 p99<900ms)，SLA 是对外的带赔偿承诺，通常 SLA 阈值比 SLO 宽松。"
+    },
+    {
+      "question": "达标率 99% 够吗？",
+      "answer": "看基数：10 万请求中 1% 违约即 1000 次失败，对用户量大的服务仍显著，需结合绝对量。"
+    }
+  ],
+  "followUpAnswers": [
+    "SLO 内部目标，SLA 对外承诺。",
+    "看绝对失败量而非仅比例。"
+  ],
+  "pitfalls": [
+    "只看均值忽略违约长尾。",
+    "混淆延迟违约与错误。"
+  ],
+  "beginnerSummary": "快递承诺：SLA 像\"99% 的包裹 24 小时内送达\"。达标率就是真有百分之几准时了。平均 20 小时送达听起来好，但若有 5% 拖了一周，那些倒霉用户照样投诉——所以看\"违约比例\"而非平均。",
+  "prerequisites": [
+    "分位数概念。",
+    "错误率与可用性。",
+    "阈值判定。"
+  ],
+  "workedExample": [
+    "10万请求 p99=0.9s, 错误0.05% → 达标率99.2%。",
+    "SLA 阈值比内部 SLO 宽松。"
+  ],
+  "lineByLine": [
+    "定义 SLA 阈值。",
+    "逐请求判定达标。",
+    "求达标比例。",
+    "综合多约束给出总达标率。"
+  ],
+  "diagram": "SLA: p99<800ms & 错误<0.1%\n  └─▶ 达标率 = 合规请求 / 总请求"
+},
+  {
+  "id": "perf-cold-start",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "压测中的冷启动 / 预热问题",
+  "prompt": "压测 LLM 服务时，冷启动和预热会对指标造成什么干扰，怎么处理？",
+  "quickAnswer": "冷启动指进程/模型刚加载时 CUDA 上下文、kernel 编译、显存分配、JIT/图捕获未就绪，首批请求异常慢。预热(warmup)是先跑一批丢弃请求让系统进入稳态，再正式采集，避免把冷启动延迟算进评测结果。",
+  "approach": "正式压测前先 warmup 数十到数百请求，待指标平稳后再计时，并剔除前若干样本。",
+  "explanationFocus": "是什么：冷启动是服务刚起时未就绪导致的首批慢；预热是正式测量前先跑废请求使系统稳态，二者处理不好会让评测严重偏高。",
+  "bruteForce": "一启动就压：首批几百请求全是冷启动慢值，拉高均值与 p99，结论失真。",
+  "derivation": [
+    "为什么需要：CUDA 初始化、kernel 编译、KV 分配、图捕获在首请求时发生，不代表稳态性能。",
+    "怎么实现：加载后发 N 个 warmup 请求丢弃，再开始正式压测与计时。",
+    "有什么代价：warmup 要覆盖真实 batch 形状，否则仍可能在正式阶段触发首次编译。",
+    "怎么评测：对比 warmup 前后 p50，确认稳态后再采数。"
+  ],
+  "invariant": "稳态指标应显著低于冷启动首批；warmup 后连续样本方差应平稳。",
+  "walkthrough": "冷启动首批 TTFT=3s，warmup 50 请求后稳定到 0.2s，正式评测 p99=0.35s。",
+  "edgeCases": [
+    "自动扩缩容产生新实例冷启动。",
+    "特定输入形状首次触发 kernel 编译。",
+    "CUDA graph 捕获在首 batch 发生。"
+  ],
+  "code": "# Python\ndef trim_cold(samples, warmup=50):\n    return samples[warmup:]                    # 丢弃冷启动样本\ndef is_warm(prev, cur, tol=0.1):\n    return abs(cur - prev) / prev < tol        # 是否已稳态",
+  "codeNotes": [
+    "warmup 要覆盖真实 batch/形状。",
+    "弹性扩容会引入新冷启动。"
+  ],
+  "complexity": "O(warmup+采样) 丢弃前段。",
+  "followUps": [
+    {
+      "question": "如何避免线上冷启动？",
+      "answer": "常驻预热、滚动更新保留热实例、或就绪探针在真正接流前先 warmup。"
+    },
+    {
+      "question": "CUDA graph 为何要预热？",
+      "answer": "图捕获在首 batch 进行且绑定形状，未捕获时走慢路径，需先以目标形状捕获。"
+    }
+  ],
+  "followUpAnswers": [
+    "常驻预热/滚动更新避冷启。",
+    "CUDA graph 首 batch 捕获慢。"
+  ],
+  "pitfalls": [
+    "把冷启动值计入评测。",
+    "warmup 形状与正式不一致。"
+  ],
+  "beginnerSummary": "汽车：冬天刚发动时引擎冷、转速不稳(冷启动慢)，开出去溜几圈热车后(预热)才进入正常状态。评测不能把\"刚发动那几脚\"算进百公里油耗，得热完车再测。",
+  "prerequisites": [
+    "CUDA 初始化与 kernel 编译。",
+    "CUDA graph / JIT。",
+    "稳态 vs 瞬态。"
+  ],
+  "workedExample": [
+    "冷启动首批 TTFT=3s，warmup 后 0.2s。",
+    "弹性扩容新实例需重新预热。"
+  ],
+  "lineByLine": [
+    "服务加载完成。",
+    "发 warmup 请求丢弃。",
+    "确认指标平稳。",
+    "正式计时采集。"
+  ],
+  "diagram": "时间→  [冷启动慢][warmup][稳态平稳]\n                 丢弃      采集"
+},
+  {
+  "id": "perf-gpu-util",
+  "category": "服务性能评测",
+  "difficulty": "Hard",
+  "title": "GPU 利用率评测（MFU / SM 占用）",
+  "prompt": "如何评测 LLM 推理的 GPU 利用率，MFU 是什么？",
+  "quickAnswer": "表层看 nvidia-smi 的 GPU-Util(时间片忙闲)，但更关键的是 MFU(Model FLOPs Utilization)=实际可达 FLOPs/峰值 FLOPs，衡量算力被模型有效利用的程度。decode 受内存带宽限制 MFU 常很低，prefill 才接近高 MFU；评测应区分阶段并看 MFU 而非仅看 Util。",
+  "approach": "用理论 FLOPs(基于参数量与 token 数)除以实测耗时得实际 TFLOPs，再除峰值得 MFU；同时看 SM 占用与显存带宽。",
+  "explanationFocus": "是什么：GPU 利用率评测从表面 GPU-Util 深入到 MFU(模型算力利用率)，揭示推理是否真把算力用满，decode 阶段常受带宽限制而 MFU 低。",
+  "bruteForce": "只看 nvidia-smi 100%：误以为满载高效，其实可能在等显存带宽，MFU 仅个位数。",
+  "derivation": [
+    "为什么需要：Util 高不代表高效，decode 频繁访存使 SM 空转，需 MFU 看真实算力利用。",
+    "怎么实现：MFU = (2×参数量×token数) / (峰值TFLOPs×时长)；用 nsight/nvml 取 SM 与带宽。",
+    "有什么代价：精确 FLOPs 计数需知算子实现；decode 因 batch 小 MFU 天然低，属正常。",
+    "怎么评测：分 prefill/decode 报告 MFU，结合显存带宽利用率定位瓶颈是算力还是带宽。"
+  ],
+  "invariant": "MFU = 实际FLOPs / (峰值FLOPs×时间)；decode MFU 低且带宽利用率高→带宽瓶颈，prefill MFU 高→算力瓶颈。",
+  "walkthrough": "7B 模型输出 1k token，峰值 312 TFLOPs(fp16)，耗时 4s → 实际=2×7e9×1e3/4e12≈3.5 TFLOPs，MFU≈1.1%，典型 decode 带宽受限。",
+  "edgeCases": [
+    "Util 高但 MFU 低的带宽瓶颈。",
+    "小 batch decode 张量未铺满。",
+    "kernel 启动开销拉低大 batch 效率。"
+  ],
+  "code": "# Python\ndef mfu(params, tokens, peak_tflops, seconds):\n    actual = 2 * params * tokens / (seconds * 1e12)   # TFLOPs\n    return actual / peak_tflops                        # 0..1\ndef gpu_util_busy(samples):\n    return sum(samples) / len(samples)",
+  "codeNotes": [
+    "decode 低 MFU 多因带宽非算力。",
+    "区分 prefill/decode 阶段评测。"
+  ],
+  "complexity": "O(时长) 采样 + 计数。",
+  "followUps": [
+    {
+      "question": "MFU 低一定不好吗？",
+      "answer": "decode 阶段天然低 MFU(带宽受限)，正常；但 prefill 低 MFU 说明批太小或 kernel 差，可优化。"
+    },
+    {
+      "question": "怎么提升 MFU？",
+      "answer": "增大有效 batch、用更优融合 kernel、张量并行摊薄、或投机解码提升每步有效计算。"
+    }
+  ],
+  "followUpAnswers": [
+    "decode 低 MFU 正常(带宽限)。",
+    "提 MFU:大batch/融合kernel/并行。"
+  ],
+  "pitfalls": [
+    "把 GPU-Util 当效率。",
+    "不区分 prefill/decode 阶段。"
+  ],
+  "beginnerSummary": "工厂：Util 像\"机器灯亮着没闲着\"，MFU 像\"工人真在使劲干还是站着等物料\"。灯亮(Util高)但工人老等零件(带宽瓶颈)，实际产出(MFU)很低——光看灯亮会误以为高效。",
+  "prerequisites": [
+    "FLOPs 与峰值算力。",
+    "内存带宽瓶颈。",
+    "prefill/decode 差异。"
+  ],
+  "workedExample": [
+    "decode MFU≈1.1% 典型带宽受限。",
+    "prefill MFU 高才是算力利用好。"
+  ],
+  "lineByLine": [
+    "算理论 FLOPs。",
+    "测实际耗时。",
+    "求实际 TFLOPs 与 MFU。",
+    "结合带宽定位瓶颈。"
+  ],
+  "diagram": "GPU-Util(灯亮) ─┐\n                  ├─ 高Util低MFU → 带宽瓶颈\nMFU(真出力)  ─┘   高MFU        → 算力用满"
+},
+  {
+  "id": "perf-cost",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "成本评测（每千 token 成本）",
+  "prompt": "如何评测算大模型服务的成本，常用哪些单位？",
+  "quickAnswer": "成本评测把 GPU 小时价摊到产出上，常用\"每千输入/输出 token 成本\"或\"每百万 token 成本\"。计算=GPU单价×占用卡时 / 产出 token 数，再结合命中缓存、量化、批处理优化来降本。关键要区分输入与输出 token 单价(输出通常更贵)。",
+  "approach": "以单卡小时成本除以该卡在单位时间产出的 token 数，得单位 token 成本；比较不同配置下的 cost/token。",
+  "explanationFocus": "是什么：成本评测将算力支出折算为每千/百万 token 的价格，区分输入与输出单价，用于横向比价与优化。",
+  "bruteForce": "只看吞吐不看单价：吞吐高但用了更贵的大卡，单位成本反而更高。",
+  "derivation": [
+    "为什么需要：成本决定商业模式，需把性能折算成\"花多少钱产一个 token\"。",
+    "怎么实现：cost_per_1k = GPU每小时价×卡数×时长 / (产出token/1000)；分别计输入/输出。",
+    "有什么代价：需准确归因显存占用时长与共享资源；缓存命中使输入token近乎免费。",
+    "怎么评测：在固定负载下比较各框架/量化/批配置的单位成本。"
+  ],
+  "invariant": "单位成本 ∝ GPU单价×卡时 / 产出token；吞吐越高或卡越便宜，单位成本越低。",
+  "walkthrough": "A100 $2/h，单卡 1 小时产出 300 万 token → 成本≈$2/3000千=$0.00067/千token。",
+  "edgeCases": [
+    "输入缓存命中使输入近乎零成本。",
+    "空闲副本仍计费拉高成本。",
+    "输出比输入贵数倍需分项。"
+  ],
+  "code": "# Python\ndef cost_per_1k(gpu_price_h, cards, hours, tokens):\n    return gpu_price_h * cards * hours / (tokens / 1000)\ndef cost_split(in_tok, out_tok, p_in, p_out):\n    return in_tok/1000*p_in + out_tok/1000*p_out",
+  "codeNotes": [
+    "输入/输出通常不同单价。",
+    "缓存命中降低输入成本。"
+  ],
+  "complexity": "O(1) 折算。",
+  "followUps": [
+    {
+      "question": "为什么输出 token 更贵？",
+      "answer": "每输出 token 都要一次完整前向(访存密集)，且需逐字生成无法并行，单位算力成本高。"
+    },
+    {
+      "question": "如何用成本反选配置？",
+      "answer": "在 SLA 内选单位 token 成本最低的组合(量化+大batch+缓存+合适卡型)。"
+    }
+  ],
+  "followUpAnswers": [
+    "输出每token需完整前向且串行。",
+    "SLA 内选最低单位成本配置。"
+  ],
+  "pitfalls": [
+    "忽略输入/输出不同单价。",
+    "不计空闲副本成本。"
+  ],
+  "beginnerSummary": "打车：成本评测像算\"每公里多少钱\"。但上车起步(输入)和每多开一公里(输出)单价不同，且车空着等客也算钱(空闲副本)。要选最划算的组合，不能只看\"跑得快\"。",
+  "prerequisites": [
+    "吞吐与 GPU 计费。",
+    "输入/输出 token 区别。",
+    "prefix cache 概念。"
+  ],
+  "workedExample": [
+    "A100 $2/h 产出300万token → $0.00067/千。",
+    "输入缓存命中降输入成本。"
+  ],
+  "lineByLine": [
+    "取 GPU 小时单价。",
+    "算卡时总成本。",
+    "除以总产出 token。",
+    "分项输入/输出单价。"
+  ],
+  "diagram": "成本 = GPU单价 × 卡时\n          ────────────────\n             产出 token 数\n  (输入/输出分项计价)"
+},
+  {
+  "id": "perf-framework-bench",
+  "category": "服务性能评测",
+  "difficulty": "Hard",
+  "title": "不同推理框架基准对比（vLLM / TRT-LLM / SGLang）",
+  "prompt": "如何在 vLLM、TRT-LLM、SGLang 之间做公平的推理性能基准对比？",
+  "quickAnswer": "公平对比需固定同一模型/精度/硬件/负载(输入输出长度、并发、batch上限)，在各自默认优化配置下测 TTFT/TPS/显存/单位成本，并开启连续批处理与相应注意力后端。结论随负载形态(长短、是否复用前缀)变化，没有绝对赢家，要贴合自身流量选。",
+  "approach": "统一硬件与负载，分框架跑相同 benchmark，控制变量只留框架差异，报告多维指标与成本。",
+  "explanationFocus": "是什么：框架基准对比是在严格控制变量下，对 vLLM/TRT-LLM/SGLang 等测延迟、吞吐、显存与成本，给出适合自身流量的选型建议。",
+  "bruteForce": "只比官方宣传数字：不同配置与负载下不可比，易误选。",
+  "derivation": [
+    "为什么需要：各框架优化点不同(分页注意力/编译/前缀复用)，需针对自身负载实测。",
+    "怎么实现：同模型同卡，固定并发与长度分布，依次部署三框架跑统一脚本采集指标。",
+    "有什么代价：每框架调优成本高；TRT-LLM 需编译耗时，SGLang 在前缀复用场景占优。",
+    "怎么评测：报告 p99 TTFT、TPS、最大并发、单位成本，并标注负载特征。"
+  ],
+  "invariant": "控制变量下指标差异来自框架实现；同一框架在不同负载下排名可能变化。",
+  "walkthrough": "同 7B fp16 A100，短请求高并发：vLLM TPS=520，SGLang=560，TRT-LLM=600；带大量前缀复用时 SGLang 领先。",
+  "edgeCases": [
+    "TRT-LLM 编译时间长影响迭代。",
+    "前缀复用场景 SGLang 占优。",
+    "量化支持度各框架不同。"
+  ],
+  "code": "# Python\ndef bench_matrix(frameworks, load, run):\n    return {f: run(f, load) for f in frameworks}   # {框架: 指标}\ndef rank_by(metric_dict, key):\n    return sorted(metric_dict, key=lambda f: -metric_dict[f][key])",
+  "codeNotes": [
+    "务必固定硬件/模型/负载。",
+    "结论依赖负载特征。"
+  ],
+  "complexity": "O(框架数×压测) 重复跑。",
+  "followUps": [
+    {
+      "question": "SGLang 为什么有时更快？",
+      "answer": "其 RadixAttention 高效复用对话前缀 KV，多轮/共享前缀场景显著降 prefill 与显存。"
+    },
+    {
+      "question": "TRT-LLM 适合什么场景？",
+      "answer": "固定模型、追求极致延迟/吞吐且能接受编译成本的生产环境，尤其大 batch 稳定负载。"
+    }
+  ],
+  "followUpAnswers": [
+    "SGLang 前缀复用占优。",
+    "TRT-LLM 适合稳态极致优化。"
+  ],
+  "pitfalls": [
+    "变量未控制导致不可比。",
+    "脱离自身负载下结论。"
+  ],
+  "beginnerSummary": "租车对比：vLLM/SGLang/TRT-LLM 像三款车，公平比法是同一条路(同负载)、同一位司机(同硬件)、同样载重(同模型)，再比油耗与速度。某车在山路快不代表平原快——得看你常跑哪条路。",
+  "prerequisites": [
+    "连续批处理。",
+    "分页/前缀注意力。",
+    "控制变量实验法。"
+  ],
+  "workedExample": [
+    "三框架同负载：TPS 520/560/600。",
+    "前缀复用场景 SGLang 领先。"
+  ],
+  "lineByLine": [
+    "固定模型/硬件/负载。",
+    "逐框架部署优化配置。",
+    "跑统一脚本采集。",
+    "多维对比给选型。"
+  ],
+  "diagram": "同负载 ──▶ [vLLM][TRT-LLM][SGLang]\n               延迟 吞吐 显存 成本\n               └─▶ 按自身流量选型"
+},
+  {
+  "id": "perf-traps",
+  "category": "服务性能评测",
+  "difficulty": "Medium",
+  "title": "评测中的陷阱（缓存干扰 / 数据污染）",
+  "prompt": "LLM 服务性能评测中有哪些常见陷阱会导致结论失真？",
+  "quickAnswer": "常见陷阱：①Prefix/KV 缓存命中让重复前缀请求异常快，未清缓存会高估性能；②数据污染/固定样本导致过拟合式乐观；③客户端成瓶颈、时钟不同步、warmup 不足、只看均值忽略 p99。严谨评测要清缓存、随机化负载、控变量、报分位。",
+  "approach": "系统性排查：清缓存、随机化并去重样本、客户端与时钟校准、warmup、全分位报告。",
+  "explanationFocus": "是什么：评测陷阱指会让指标虚假变好或变坏的因素，如缓存命中干扰、样本污染、客户端瓶颈与统计盲区，需主动排除。",
+  "bruteForce": "跑一遍就信：缓存与样本巧合让数字好看，上线即翻车。",
+  "derivation": [
+    "为什么需要：未识别的陷阱会使评测结论与真实不符，误导选型与容量。",
+    "怎么实现：每次评测重启或清 KV 缓存；用独立随机输入；校准时钟；warmup；报告 p99。",
+    "有什么代价：清缓存与随机化增加成本；要设计对照实验区分变量。",
+    "怎么评测：做\"清缓存 vs 命中缓存\"对照，确认差异来源后再下结论。"
+  ],
+  "invariant": "清缓存后指标应一致且更保守；随机样本下结果可复现且不依赖特定前缀。",
+  "walkthrough": "不清缓存跑同前缀 1000 次 TTFT=20ms；清缓存后=220ms，差距 10 倍，原结论虚高。",
+  "edgeCases": [
+    "多轮对话天然命中前缀缓存。",
+    "benchmark 样本被模型训练见过。",
+    "多 worker 时钟漂移使间隔失真。"
+  ],
+  "code": "# Python\ndef cache_effect(hit_ttft, miss_ttft):\n    return miss_ttft / hit_ttft                # 缓存加速比\ndef dedupe(samples):\n    return list(dict.fromkeys(samples))         # 去重防污染",
+  "codeNotes": [
+    "做命中/未命中对照。",
+    "样本去重并随机化。"
+  ],
+  "complexity": "O(样本) 去重与对照。",
+  "followUps": [
+    {
+      "question": "缓存命中算不算作弊？",
+      "answer": "不算，但评测要区分\"冷前缀\"与\"热前缀\"两档，分别报告并标注，否则误导。"
+    },
+    {
+      "question": "数据污染如何发现？",
+      "answer": "用未见过的随机/私有样本，或多 seed 复跑看稳定性，异常一致的好结果要警惕。"
+    }
+  ],
+  "followUpAnswers": [
+    "缓存要分冷热两档报告。",
+    "用私有随机样本防污染。"
+  ],
+  "pitfalls": [
+    "不清缓存高估性能。",
+    "只看均值忽略 p99 与客户端瓶颈。"
+  ],
+  "beginnerSummary": "考试：缓存干扰像\"考题正好背过\"考分虚高；数据污染像\"练习册和考试卷一样\"；只看平均分像\"班级平均 90 但有人交白卷\"。严谨评测就是换套没见过的卷子、清掉小抄、看最差那几个分。",
+  "prerequisites": [
+    "prefix/KV 缓存。",
+    "统计分位与复现。",
+    "对照实验。"
+  ],
+  "workedExample": [
+    "清缓存 TTFT 由20ms→220ms，差10倍。",
+    "随机样本复跑验证稳定。"
+  ],
+  "lineByLine": [
+    "清/隔离缓存。",
+    "随机化去重样本。",
+    "校准客户端与时钟。",
+    "warmup 并全分位报告。"
+  ],
+  "diagram": "陷阱: 缓存命中✓ 样本污染✓ 客户端瓶颈✓ 只看均值✓\n  └─▶ 对照+随机+分位 排除"
+},
+  {
+  "id": "perf-script-design",
+  "category": "服务性能评测",
+  "difficulty": "Hard",
+  "title": "如何设计一份评测脚本",
+  "prompt": "设计一份严谨的 LLM 服务性能评测脚本，应该包含哪些模块？",
+  "quickAnswer": "一份严谨脚本应包含：①可配置负载(模型/并发/输入输出长度分布/时长)②带 warmup 的阶段控制③流式客户端逐 token 埋点(TTFT/TPOT)④错误与超时处理⑤分位统计与达标率⑥清缓存对照与随机样本⑦结构化报告(JSON/CSV)。核心是可控、可复现、可对照。",
+  "approach": "按\"配置→warmup→加压采集→统计→对照→报告\"流水线组织，所有参数外置、结果可重跑。",
+  "explanationFocus": "是什么：评测脚本设计是把负载生成、埋点采集、统计与报告组织成可复现流水线的工程方法，确保结论可信。",
+  "bruteForce": "临时拼脚本跑一次：参数写死、不可复现、无对照，结论无法复用。",
+  "derivation": [
+    "为什么需要：手工跑不可控且易踩陷阱，脚本化才能标准化、可对比、可回归。",
+    "怎么实现：用配置驱动并发与长度分布；async 客户端流式计时；集中收集样本后算分位与达标率。",
+    "有什么代价：要处理异常/超时/重试与资源清理；多框架/多配置组合使脚本复杂。",
+    "怎么评测：用同一脚本对不同目标跑出可比报告，支持 CI 回归。"
+  ],
+  "invariant": "相同配置(模型/负载/seed)多次运行应得一致指标；对照实验只差一个变量。",
+  "walkthrough": "脚本读 config.yaml：并发[1,16,64]×输出[256,1024]，warmup=50，跑后输出 perfl报告含 p99 TTFT 与 TPS。",
+  "edgeCases": [
+    "异常请求需计入错误率不崩。",
+    "配置项缺失要有默认与校验。",
+    "多轮对话上下文需维持。"
+  ],
+  "code": "# Python\ndef run_eval(config):\n    warmup(config); samples = []\n    for _ in range(config.rounds):\n        r = async_press(config)                 # 并发加压+流式埋点\n        samples += r\n    return report(samples, config.sla)          # 分位+达标率",
+  "codeNotes": [
+    "参数全部外置可复现。",
+    "异常不中断整体统计。"
+  ],
+  "complexity": "O(并发×轮次×token) 主循环。",
+  "followUps": [
+    {
+      "question": "为什么要结构化报告？",
+      "answer": "JSON/CSV 便于聚合、跨配置对比与 CI 回归，避免人读日志出错。"
+    },
+    {
+      "question": "如何保证可复现？",
+      "answer": "固定随机种子、固定负载分布、固定硬件与模型版本，并记录环境元数据。"
+    }
+  ],
+  "followUpAnswers": [
+    "结构化便于对比与回归。",
+    "固定seed/负载/版本保复现。"
+  ],
+  "pitfalls": [
+    "参数写死不可复现。",
+    "异常未处理导致统计崩。"
+  ],
+  "beginnerSummary": "体检表：评测脚本像一套标准体检流程——先填基本信息(配置)，热身( warmup)，逐项检查并打点(埋点)，最后出结构化报告。流程固定了，不同人、不同时间去测才有可比性。",
+  "prerequisites": [
+    "异步压测客户端。",
+    "分位统计。",
+    "配置驱动思想。"
+  ],
+  "workedExample": [
+    "config 驱动并发×长度扫描。",
+    "输出 JSON 报告含 p99 与达标率。"
+  ],
+  "lineByLine": [
+    "读取配置(负载/SLA)。",
+    "warmup 后正式加压。",
+    "流式埋点收集样本。",
+    "统计分位并出报告。"
+  ],
+  "diagram": "配置→warmup→加压采集→统计→对照→报告\n   (可控)(稳态)(埋点)(分位)(清缓存)(JSON)"
+},
+  {
+  "id": "perf-monitor-vs-offline",
+  "category": "服务性能评测",
+  "difficulty": "Easy",
+  "title": "线上监控 vs 离线评测",
+  "prompt": "线上性能监控和离线压测评测有什么区别，各自解决什么问题？",
+  "quickAnswer": "离线评测在受控环境用固定负载测上限与容量，回答\"能扛多少\"；线上监控在生产采集真实流量指标(p99 延迟、错误率、GPU 利用、达标率)，回答\"现在好不好\"。二者互补：离线定容量，线上保健康，且线上发现的长尾要回离线复现。",
+  "approach": "离线做容量与选型基线，线上做持续健康与 SLA 看护，发现异常回流离线复现优化。",
+  "explanationFocus": "是什么：离线评测是受控负载下测性能上限，线上监控是生产真实流量下持续观测，前者定容量后者保健康，互为补充。",
+  "bruteForce": "只做离线或只做线上：离线不知真实分布，线上不知容量上限，都片面。",
+  "derivation": [
+    "为什么需要：离线可控但脱离真实；线上真实但难控变量，需两套视角。",
+    "怎么实现：离线用脚本压测出曲线；线上用埋点+Prometheus/Grafana 采集分位与资源。",
+    "有什么代价：线上监控需侵入埋点与可观测体系；离线需贴近真实负载否则失真。",
+    "怎么评测：定期离线回归 + 实时线上看板，异常联动。"
+  ],
+  "invariant": "离线给出容量上限(能力)，线上给出当前达标(状态)；线上 p99 应在离线预测区间内。",
+  "walkthrough": "离线测得安全 QPS=40/副本；线上监控显示当前 25 QPS、p99=0.6s 达标，留 37% 余量。",
+  "edgeCases": [
+    "线上流量分布漂移使离线失效。",
+    "监控采样率不足漏掉长尾。",
+    "离线未覆盖新功能路径。"
+  ],
+  "code": "# Python\ndef headroom(online_qps, safe_qps):\n    return (safe_qps - online_qps) / safe_qps    # 剩余容量比例\ndef live_ok(p99, limit):\n    return p99 <= limit                          # 线上是否达标",
+  "codeNotes": [
+    "线上要留余量应对漂移。",
+    "异常回流离线复现。"
+  ],
+  "complexity": "O(请求流) 实时聚合。",
+  "followUps": [
+    {
+      "question": "离线结论能直接用于线上吗？",
+      "answer": "只能作容量基线，真实分布与突发需线上校正，二者结合才可靠。"
+    },
+    {
+      "question": "线上监控关键看哪些？",
+      "answer": "TTFT/TPOT 分位、错误率、GPU 利用、队列长度与达标率，配告警阈值。"
+    }
+  ],
+  "followUpAnswers": [
+    "离线作基线，线上校正。",
+    "看分位/错误率/利用率/达标率。"
+  ],
+  "pitfalls": [
+    "离线脱离真实分布。",
+    "线上无容量对照盲目扩。"
+  ],
+  "beginnerSummary": "体检 vs 日常：离线评测像年度体检(受控、测极限能力)，线上监控像每天量体温(真实、看当前状态)。只体检不知道平时状态，只量体温不知道自己极限——两个都要。",
+  "prerequisites": [
+    "离线压测方法。",
+    "可观测性与埋点。",
+    "SLA 与告警。"
+  ],
+  "workedExample": [
+    "离线安全QPS=40，线上25 留余量。",
+    "线上长尾回流离线复现。"
+  ],
+  "lineByLine": [
+    "离线测容量上限。",
+    "线上采真实指标。",
+    "比对预测区间。",
+    "异常回流复现优化。"
+  ],
+  "diagram": "离线(受控) ──容量上限──┐\n                              ├─ 互补\n线上(真实) ──当前健康──┘"
+},
+  {
+  "id": "mgpu-why-multi",
+  "category": "多GPU并行",
+  "difficulty": "Easy",
+  "title": "为什么需要多 GPU 并行",
+  "prompt": "大模型的训练与推理为什么必须使用多 GPU 并行？",
+  "quickAnswer": "现代大模型参数量(数十亿到万亿)与激活显存远超单卡容量，且训练/推理算力需求巨大，单卡既放不下也无法在可接受时间内完成。多 GPU 并行把参数、激活与计算拆到多卡，突破显存墙与算力墙，是训练 LLM 的必要前提。",
+  "approach": "从显存与算力两个瓶颈出发，用并行把模型/数据分布到多卡协同完成。",
+  "explanationFocus": "是什么：多 GPU 并行是把一个模型或一个 batch 的计算与显存占用拆分到多张显卡上协同完成，以突破单卡显存与算力上限。",
+  "bruteForce": "单卡塞下整个模型——参数+优化器状态+激活直接 OOM，训不动也推不动。",
+  "derivation": [
+    "为什么需要：单卡 HBM 通常 40–80GB，而 175B 模型仅 fp16 参数就约 350GB，加上优化器状态与激活远超限；算力上单卡 FLOPS 也不足以在合理时间完成预训练。",
+    "怎么实现：按不同维度切分——数据维(DP)、层/张量维(TP/PP)、专家维(EP)、优化器状态(ZeRO)，把显存与计算分摊到 N 张卡。",
+    "有什么代价：切分带来卡间通信、同步等待与实现复杂度；通信可能成为新瓶颈，需要高带宽互联。",
+    "怎么评测：能否放下模型(显存峰值)、端到端吞吐(tokens/s)、MFU、加速比与线性度。"
+  ],
+  "invariant": "无论怎么切，最终数学结果应与单卡(或理论)等价，只是资源占用被分摊。",
+  "walkthrough": "175B 模型 fp16 参数约 350GB，单卡 80GB 装不下；用 8 卡 TP/PP 把每卡显存降到约 44GB 量级即可放下。",
+  "edgeCases": [
+    "单卡能放下小模型时，并行反而有通信开销、可能变慢。",
+    "显存峰值常出现在长序列激活而非仅参数。",
+    "混合精度下 Adam 的 m/v 优化器状态占用常被低估。"
+  ],
+  "code": "# Python (概念)\ndef fit_on_multi(model, data, world):\n    shards = shard_model(model, world)     # 把参数/层切到各卡\n    for batch in data:\n        loss = forward_backward(shards, batch)\n        sync_grads(world)                  # 跨卡同步\n    return loss",
+  "codeNotes": [
+    "shard_model 决定按 TP/PP/DP 哪种维度切。",
+    "sync_grads 是并行的核心通信点。"
+  ],
+  "complexity": "显存与算力理论上随卡数近线性下降/提升，受通信与并行效率(如 bubble)限制。",
+  "followUps": [
+    {
+      "question": "并行能无限加速吗？",
+      "answer": "不能；受阿姆达尔定律与通信开销限制，并行度越高通信/同步占比越大，加速比趋于饱和甚至下降。"
+    },
+    {
+      "question": "显存墙和算力墙哪个更先到？",
+      "answer": "训练时通常显存墙先到(参数+优化器+激活)，推理时若 batch 小则显存先到、大 batch 时算力先到。"
+    }
+  ],
+  "followUpAnswers": [
+    "受阿姆达尔定律与通信限制，不能无限加速。",
+    "训练通常显存墙先到。"
+  ],
+  "pitfalls": [
+    "以为加卡就线性变快——通信与同步会吃掉收益。",
+    "只算参数显存，忘了优化器状态与激活。"
+  ],
+  "beginnerSummary": "一个人记不下、算不动一个超大的账本，就叫几个朋友一起：每人只记几页、算几笔，最后把结果对一下。多 GPU 并行就是这个道理——一张显卡装不下、算不完大模型，就把活分给多张卡一起干。",
+  "prerequisites": [
+    "大模型参数与激活显存巨大、单卡装不下。",
+    "训练既要存参数也要存优化器状态与梯度。",
+    "多卡之间可以互相通信。"
+  ],
+  "workedExample": [
+    "175B 模型 fp16 参数约 350GB，超过单卡 80GB。",
+    "用 8 卡切分，每卡约承担 44GB 量级显存。"
+  ],
+  "lineByLine": [
+    "确定瓶颈是显存还是算力。",
+    "选一个切分维度(数据/张量/流水线/专家)。",
+    "把参数或数据分摊到各卡。",
+    "在切分边界做通信与同步。"
+  ],
+  "diagram": "单卡: [模型 350GB] ✗ OOM\n多卡: [卡0 ~44G][卡1 ~44G]...[卡7 ~44G] ✓"
+},
+  {
+  "id": "mgpu-dp",
+  "category": "多GPU并行",
+  "difficulty": "Easy",
+  "title": "数据并行 DP 及其局限",
+  "prompt": "数据并行（Data Parallelism）是怎么工作的，它有哪些局限？",
+  "quickAnswer": "DP 在每张卡上复制完整模型，各自吃不同的数据分片，前向反向后通过 all-reduce 把梯度求平均再同步参数。它实现简单、通信只在梯度层，但每张卡都要存完整模型与优化器状态，显存无法扩展，且梯度 all-reduce 在卡多时会成为瓶颈。",
+  "approach": "每张卡持有完整模型副本，按数据分片并行，梯度 all-reduce 后更新。",
+  "explanationFocus": "是什么：DP 是把同一份模型复制到 N 张卡，每卡处理不同 batch 分片，反向后汇总梯度求平均，使各卡参数保持一致。",
+  "bruteForce": "只在单卡训练——batch 受限、显存受限，大模型直接 OOM 且慢。",
+  "derivation": [
+    "为什么需要：单卡 batch 太小训练不稳、显存不足，但很多场景模型能单卡放下，只需扩大样本并行。",
+    "怎么实现：各卡前向得 loss、反向得梯度；用 all-reduce(SUM)/N 得到平均梯度；各卡用同一平均梯度更新，保持参数一致(或零冗余 ZeRO 变体)。",
+    "有什么代价：每张卡都存完整参数+梯度+优化器状态，显存不随卡数减少；梯度同步通信量正比于参数量。",
+    "怎么评测：吞吐随卡数扩展效率(linear scaling)、梯度同步耗时占比、最终精度是否与单卡一致。"
+  ],
+  "invariant": "所有卡参数始终一致；平均梯度等价于把全部样本拼成一个大 batch 求梯度的期望。",
+  "walkthrough": "8 卡各吃 1/8 数据，反向得到 8 份梯度，all-reduce 求和除以 8 得平均梯度，各卡相同更新。",
+  "edgeCases": [
+    "参数量大时每卡优化器状态冗余，显存仍爆。",
+    "卡数很多时 all-reduce 通信成为瓶颈。",
+    "梯度异步(ASP)可能伤收敛，需调 lr。"
+  ],
+  "code": "# Python (概念)\ndef data_parallel_step(model, batch_shard, rank, world):\n    loss = model.forward_backward(batch_shard)   # 各卡独立算梯度\n    grad = all_reduce_avg(model.grads(), world)   # 梯度求平均\n    model.apply_grad(grad)                        # 各卡同步更新\n    return loss",
+  "codeNotes": [
+    "all_reduce_avg = all_reduce(SUM) / world。",
+    "每卡必须保留完整模型副本。"
+  ],
+  "complexity": "显存每卡 = 完整模型；通信量 = 参数量×2(前向不传、仅梯度)。",
+  "followUps": [
+    {
+      "question": "DP 和 ZeRO 什么关系？",
+      "answer": "ZeRO 是 DP 的显存优化变体，把优化器状态/梯度/参数分片到各卡，消除冗余，从而扩展可训练模型规模，同时仍按数据并行逻辑更新。"
+    },
+    {
+      "question": "DP 为什么显存不随卡数降？",
+      "answer": "因为每卡都保留完整参数、梯度和优化器状态副本，复制 N 份，显存占用与单卡几乎相同，只靠增大 batch 提吞吐。"
+    }
+  ],
+  "followUpAnswers": [
+    "ZeRO 是 DP 的显存分片优化。",
+    "DP 每卡存完整副本，显存不降。"
+  ],
+  "pitfalls": [
+    "以为加卡能放下更大模型——DP 显存不扩展。",
+    "忽视梯度 all-reduce 通信在大规模下的瓶颈。"
+  ],
+  "beginnerSummary": "老师给每个同学发一模一样的练习册(模型副本)，大家各自做不同的题目(数据分片)，做完后对一对答案、算出大家的平均解法(梯度平均)，再一起改正。这就是数据并行——人人都有完整册子，只是做的题不同。",
+  "prerequisites": [
+    "模型能放进单卡显存。",
+    "梯度可在多卡间求平均。",
+    "需要更大 batch 或更快吞吐。"
+  ],
+  "workedExample": [
+    "8 卡各吃不同数据分片。",
+    "梯度 all-reduce 平均后各卡同步更新。"
+  ],
+  "lineByLine": [
+    "每卡复制完整模型。",
+    "各卡处理不同数据分片。",
+    "反向得到本地梯度。",
+    "all-reduce 求平均并同步更新。"
+  ],
+  "diagram": "卡0:[模型副本]+数据0 ─┐\n卡1:[模型副本]+数据1 ─┼─ all-reduce(梯度) ─→ 同步参数\n...\n卡N:[模型副本]+数据N ─┘"
+},
+  {
+  "id": "mgpu-tp",
+  "category": "多GPU并行",
+  "difficulty": "Hard",
+  "title": "张量并行 TP 切分原理",
+  "prompt": "张量并行（Tensor Parallelism）是怎么切分大模型的？",
+  "quickAnswer": "张量并行把单层的大矩阵乘法沿行或列切到多张卡上：列切(把权重 W 按列拆成多份，各卡算一部分再拼接)用于 FFN 的升维；行切(各卡持有完整输入、部分权重，结果 all-reduce 求和)用于降维。每层需要一次 all-reduce 通信用来汇总，适合单机多卡高带宽(NVLink)场景。",
+  "approach": "单层矩阵按行/列切多卡，层内 all-reduce 汇总。",
+  "explanationFocus": "是什么：TP 把单层权重矩阵切分到多卡，列切算部分再拼接、行切算部分再 all-reduce 求和。",
+  "bruteForce": "单卡放不下大模型 → 直接 OOM，无法推理/训练。",
+  "derivation": [
+    "为什么需要：单卡显存/算力不足以容纳大模型，需把计算和参数拆到多卡。",
+    "怎么实现：对 Y=X·W，列切 W=[W1|W2]，各卡算 X·Wi 再拼接；行切时各卡持 Wi 与完整 X，输出 all-reduce 求和；Megatron 用此法切 Transformer 各层。",
+    "有什么代价：每层都有一次 all-reduce 通信，通信量与隐藏维成正比；卡间带宽不足会成为瓶颈，故适合 NVLink 等高带宽互联。",
+    "怎么评测：看切分后单卡显存是否装下、端到端吞吐与单卡基线的加速比、通信占比。"
+  ],
+  "invariant": "TP 下各卡持有完整输入 X，仅在层输出处 all-reduce；数学结果等价于单卡。",
+  "walkthrough": "隐藏维 4096 切 2 卡：每卡持 2048 维权重，前向各算一半再 all-reduce，结果同单卡 4096。",
+  "edgeCases": [
+    "LayerNorm/激活需先同步输入或放在切分边界。",
+    "通信与计算可重叠(计算同时发下一层通信)降开销。",
+    "切分数需整除隐藏维。"
+  ],
+  "code": "# Python (概念)\ndef tp_matmul(x, W_shard, rank, world):\n    y_local = x @ W_shard            # 各卡算部分\n    y = all_reduce_sum(y_local)      # 跨卡求和\n    return y",
+  "codeNotes": [
+    "列切: Y=[XW1, XW2] 直接拼。",
+    "行切: 输出需 all-reduce 求和。"
+  ],
+  "complexity": "单卡显存降为 1/tp；每层一次 all-reduce，通信 O(hidden)。",
+  "followUps": [
+    {
+      "question": "TP 和 DP 区别？",
+      "answer": "DP 是数据维度复制多份模型各吃不同 batch，梯度需同步；TP 是把单层矩阵拆开，单样本的计算也跨卡，通信在层内。"
+    },
+    {
+      "question": "为什么 TP 依赖高带宽？",
+      "answer": "每层都 all-reduce，通信频繁且量不小；低带宽互联(如跨机以太网)会让通信盖过计算收益，故 TP 多用于单机 NVLink。"
+    }
+  ],
+  "followUpAnswers": [
+    "TP 适合单机高带宽。",
+    "DP 适合跨机扩样本并行。"
+  ],
+  "pitfalls": [
+    "以为切分后结果不同——TP 数学等价于单卡。",
+    "忽视每层 all-reduce 的通信成本。"
+  ],
+  "beginnerSummary": "一个人算大乘法太慢也记不下，就把算式拆给几个人：每人只算其中几列，最后把大家的半成品加起来。TP 就是这样把一层神经网络的大矩阵拆到多张显卡，每卡只扛一部分，算完再汇总的。",
+  "prerequisites": [
+    "大模型单层矩阵巨大、单卡装不下。",
+    "矩阵乘法可沿行/列拆分。",
+    "卡间可通信(all-reduce)。"
+  ],
+  "workedExample": [
+    "隐藏维 4096 切 2 卡，每卡持 2048 维权重。",
+    "各卡算一半再 all-reduce，结果 = 单卡。"
+  ],
+  "lineByLine": [
+    "按列或行切分权重。",
+    "各卡持部分权重与(或)部分输入。",
+    "本卡算局部结果。",
+    "all-reduce 汇总成完整输出。"
+  ],
+  "diagram": "Y = X·W, W=[W1|W2]\n卡0: X·W1 ─┐\n卡1: X·W2 ─┴─concat → Y   (列切)\n或: 行切各算→ all-reduce 求和"
+},
+  {
+  "id": "mgpu-pp",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "流水线并行 PP 原理",
+  "prompt": "流水线并行（Pipeline Parallelism）是如何把模型放到多张卡的？",
+  "quickAnswer": "PP 按层把模型切成若干阶段(stage)，每张卡持连续几层，微批次(micro-batch)像流水线一样依次流过各 stage，前向向下传激活、反向向上传梯度。它显存按层分摊、通信只传激活/梯度(量小)，但会带来空闲气泡(bubble)，需用 micro-batch 调度缓解。",
+  "approach": "模型按层切段，各卡持一段，micro-batch 流水穿过各 stage。",
+  "explanationFocus": "是什么：PP 是把神经网络按层切成多个连续阶段，每张卡负责其中一段，数据以 micro-batch 为单位在阶段间像工厂流水线一样流动。",
+  "bruteForce": "单卡放不下整模型 → OOM；或纯 DP 显存不扩展。",
+  "derivation": [
+    "为什么需要：DP 不省显存、TP 受限于单机带宽；当模型层数/参数极多时，按层切段能让每卡只存一部分层，显存线性下降。",
+    "怎么实现：把 L 层均分到 P 个 stage；micro-batch 依次进入 stage0→stage1→…；前向传激活、反向传梯度；典型调度有 GPipe(填满再回流)与 1F1B。",
+    "有什么代价：阶段间存在等待，形成 bubble 空转；切分不均衡或 micro-batch 少时气泡大、设备利用率低。",
+    "怎么评测：bubble 占比、设备利用率、端到端吞吐、是否与单卡数值一致。"
+  ],
+  "invariant": "各 stage 参数不冗余，整体等价于单卡串行执行，仅执行顺序被流水化。",
+  "walkthrough": "24 层切 4 卡，每卡 6 层；1 个样本拆成 4 个 micro-batch 流水，吞吐高于朴素串行。",
+  "edgeCases": [
+    "层不均匀会导致最慢 stage 成为瓶颈。",
+    "跨机 PP 通信走激活，量比梯度小但仍受带宽影响。",
+    "stage 数过多气泡占比上升。"
+  ],
+  "code": "# Python (概念)\ndef pipeline_step(stages, micro_batches, rank):\n    for mb in micro_batches:\n        act = send_recv_forward(stages[rank], mb)   # 向下传激活\n        grad = send_recv_backward(stages[rank], act)\n    return grad",
+  "codeNotes": [
+    "stages[rank] 是本卡持有的连续若干层。",
+    "send/recv 只在相邻 stage 间发生。"
+  ],
+  "complexity": "显存每卡 ~ 1/P 模型；通信仅相邻 stage 的激活/梯度。",
+  "followUps": [
+    {
+      "question": "PP 和 TP 怎么配合？",
+      "answer": "常组合使用：先对每层做 TP(单机内高带宽)，再跨机做 PP(层间低带宽)，形成 3D 并行(TP×PP×DP)。"
+    },
+    {
+      "question": "为什么 PP 通信量比 DP 小？",
+      "answer": "PP 只在相邻 stage 传激活/梯度(尺寸≈单层输出)，而 DP 要对全模型参数做梯度 all-reduce，量级小很多。"
+    }
+  ],
+  "followUpAnswers": [
+    "TP 层内 + PP 层间，组合成 3D 并行。",
+    "PP 只传激活，量远小于全参梯度。"
+  ],
+  "pitfalls": [
+    "忽略 bubble 导致设备利用率低。",
+    "以为 PP 通信免费——相邻 stage 仍有激活传输。"
+  ],
+  "beginnerSummary": "工厂装配线：把模型当成一道很长的工序，第一台机器装前几步、第二台接手下一步……零件(micro-batch)依次流过每台机器。每台机器只负责一段，不用来回搬整个大件，但中间会有短暂等待空档。",
+  "prerequisites": [
+    "模型层数多、可按层切分。",
+    "相邻层之间只需传激活。",
+    "希望显存随卡数下降。"
+  ],
+  "workedExample": [
+    "24 层模型切 4 卡，每卡 6 层。",
+    "micro-batch 流水穿过 4 个 stage。"
+  ],
+  "lineByLine": [
+    "把模型按层切成 P 个 stage。",
+    "每卡持有连续若干层。",
+    "micro-batch 前向逐级传激活。",
+    "反向逐级传梯度并各自更新。"
+  ],
+  "diagram": "样本→[卡0:层1-6]→[卡1:层7-12]→[卡2:层13-18]→[卡3:层19-24]→输出\n            (micro-batch 流水，存在气泡)"
+},
+  {
+  "id": "mgpu-sp",
+  "category": "多GPU并行",
+  "difficulty": "Hard",
+  "title": "序列并行 SP 原理",
+  "prompt": "序列并行（Sequence Parallelism）解决了张量并行的哪个短板？",
+  "quickAnswer": "TP 沿隐藏维切时，LayerNorm 和 Dropout 这类操作仍需完整输入、会在每张卡复制一份激活，显存随序列长度线性膨胀。序列并行把输入序列也沿长度维切到各卡，让这些\"不能切\"的层在序列维并行，配合 TP 的 all-gather/reduce-scatter 只在边界通信，从而把激活显存从 O(seq×hidden) 降到 O(seq/tp×hidden)。",
+  "approach": "在 TP 基础上，把序列维也切分，使 LayerNorm/Dropout 沿序列并行。",
+  "explanationFocus": "是什么：SP 是把输入序列长度维切到多卡，专门处理 TP 中无法沿隐藏维切的操作(如 LayerNorm、Dropout)，让激活显存随序列长度也得到分摊。",
+  "bruteForce": "长序列下即使 TP，LayerNorm 仍复制完整激活 → 显存爆。",
+  "derivation": [
+    "为什么需要：TP 按隐藏维切后，LayerNorm/Softmax/Dropout 需要完整隐藏向量，被迫在每卡保留完整激活副本，长序列时显存爆炸。",
+    "怎么实现：把序列维 s 切到 tp 卡；在这些层前用 all-gather 拼回完整序列、算完用 reduce-scatter 再切回，使每层输入/输出都沿序列分片。",
+    "有什么代价：相对纯 TP 多了 all-gather/reduce-scatter 通信，但换来了激活显存的显著下降，长序列场景净收益大。",
+    "怎么评测：固定序列长下峰值显存、可支持的最大序列长度、吞吐变化。"
+  ],
+  "invariant": "SP 与 TP 组合后，单卡激活显存 ≈ O(s/tp × h)，数学结果不变。",
+  "walkthrough": "序列长 8192、tp=8：每层激活从 8192×h 降到 1024×h，显存省约 8 倍。",
+  "edgeCases": [
+    "注意力计算本身仍需序列维交互，SP 主要靠切分前后处理层获益。",
+    "通信与 TP 的 all-reduce 叠加，需仔细排布。",
+    "只在序列很长时收益明显。"
+  ],
+  "code": "# Python (概念)\ndef sp_layernorm(x_shard, tp_group):\n    x_full = all_gather(x_shard, tp_group)   # 拼回完整序列\n    y = layernorm(x_full)\n    return reduce_scatter(y, tp_group)        # 再按序列切回",
+  "codeNotes": [
+    "all_gather 在层前、reduce_scatter 在层后。",
+    "SP 通常套在 TP 之外形成 TP+SP。"
+  ],
+  "complexity": "激活显存 O(s/tp·h)；新增 all-gather+reduce-scatter 各一次。",
+  "followUps": [
+    {
+      "question": "SP 和 TP 必须一起用吗？",
+      "answer": "实践中 SP 是 TP 的互补扩展：TP 切隐藏维，SP 切序列维，二者共用通信组，单独 SP 没有意义。"
+    },
+    {
+      "question": "SP 主要省哪部分显存？",
+      "answer": "省 LayerNorm/激活/Dropout 等无法被 TP 切分的层的激活显存，随序列长度线性下降。"
+    }
+  ],
+  "followUpAnswers": [
+    "SP 是 TP 的序列维补充，常一起用。",
+    "SP 主要省长序列激活显存。"
+  ],
+  "pitfalls": [
+    "以为 TP 已解决所有显存问题——忽略了 LayerNorm 副本。",
+    "以为 SP 零通信——其实多了 gather/scatter。"
+  ],
+  "beginnerSummary": "TP 把\"宽度\"切开分摊了，但有些步骤(像量身高前要先看全队)还得看完整的一排人。序列并行就是把这\"一排人\"也按人头分给几张卡，谁看哪几号，需要完整信息时大家先凑一下、算完再分回去，从而少存很多重复名单。",
+  "prerequisites": [
+    "已理解 TP 沿隐藏维切分。",
+    "LayerNorm/Softmax 需完整向量。",
+    "长序列使激活显存成为瓶颈。"
+  ],
+  "workedExample": [
+    "序列长 8192、tp=8。",
+    "每层激活从 8192×h 降到 1024×h。"
+  ],
+  "lineByLine": [
+    "把序列长度维切到各卡。",
+    "需完整信息时 all-gather。",
+    "在本地算 LayerNorm 等层。",
+    "算完 reduce-scatter 再切回序列分片。"
+  ],
+  "diagram": "TP 切隐藏维 h → 仍有完整序列 s 副本\nSP 再切序列维 s/tp → 激活 O(s/tp·h)\n边界: all-gather ↔ reduce-scatter"
+},
+  {
+  "id": "mgpu-tp-matmul",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "TP 如何切分矩阵乘法",
+  "prompt": "张量并行中矩阵乘法是怎么按行切和列切的？",
+  "quickAnswer": "对 Y = X·W：列切把 W 按列拆成 [W1|W2]，各卡用完整 X 算 X·Wi 再直接拼接成 Y(无通信)；行切把 W 按行拆、各卡持 Wi 与完整 X，输出需 all-reduce 求和。Megatron 把两者组合——列切层后接行切层，让中间结果恰好是各卡局部值、只需一次 all-reduce，最大化计算/通信重叠。",
+  "approach": "列切免通信(拼接)，行切需 all-reduce(求和)；组合使用。",
+  "explanationFocus": "是什么：TP 把大矩阵乘按列切(各卡算列块后拼接)或按行切(各卡算行块后 all-reduce 求和)分配到多卡，以分摊权重与显存。",
+  "bruteForce": "单卡做完整 X·W → 显存/算力不足。",
+  "derivation": [
+    "为什么需要：单层权重矩阵巨大，单卡存不下也乘不动，需要把它拆开。",
+    "怎么实现：列切 W=[W1 W2]，Y=[XW1 XW2] 各自独立可拼接；行切令 W=[W1;W2]，Y=XW1+XW2 需 all-reduce 求和；Megatron 让一个 GEMM 的列切输出正好喂给下一个 GEMM 的行切，中间只一次 all-reduce。",
+    "有什么代价：行切引入 all-reduce 通信；列切虽免通信但需保证后续能衔接以减少通信次数。",
+    "怎么评测：切分后单卡 GEMM 规模、通信次数与量、数值等价性。"
+  ],
+  "invariant": "无论行列切，聚合后的 Y 与单卡 X·W 完全相等。",
+  "walkthrough": "W 为 h×h、tp=2：列切后每卡算 h×h/2 的 GEMM；行切后两卡结果 all-reduce 求和得完整 Y。",
+  "edgeCases": [
+    "列切适合升维(输出可拼)，行切适合降维(输出可加)。",
+    "两 GEMM 串联时精心设计可省一次通信。",
+    "切分维需整除。"
+  ],
+  "code": "# Python (概念)\ndef tp_gemm_col(x, W_col_shard):        # 列切: 免通信\n    return x @ W_col_shard              # 各卡结果直接 concat\ndef tp_gemm_row(x, W_row_shard, world): # 行切: 需 all-reduce\n    return all_reduce_sum(x @ W_row_shard, world)",
+  "codeNotes": [
+    "列切输出沿特征维拼接。",
+    "行切输出沿 batch 维求和。"
+  ],
+  "complexity": "单卡 GEMM 规模 1/tp；行切额外一次 all-reduce。",
+  "followUps": [
+    {
+      "question": "为什么 Megatron 要列切接行切？",
+      "answer": "因为列切层输出是各卡独立块，正好可作为行切层的输入分片，两个 GEMM 之间只需一次 all-reduce 就能衔接，把通信次数压到每层一次。"
+    },
+    {
+      "question": "行切和列切谁要通信？",
+      "answer": "列切各卡结果直接拼接、不需通信；行切各卡结果需 all-reduce 求和，必须通信。"
+    }
+  ],
+  "followUpAnswers": [
+    "列切→行切只需一次 all-reduce 衔接。",
+    "行切需通信，列切不需。"
+  ],
+  "pitfalls": [
+    "混淆列切(拼)与行切(加)的合并方式。",
+    "串联 GEMM 时多算一次不必要的 all-reduce。"
+  ],
+  "beginnerSummary": "把一张大乘法表横着撕成几列，每人算自己那几列再把纸条拼起来(列切，不用对答案)；或者竖着撕成几行，每人算几行最后把结果加起来(行切，需要对答案 all-reduce)。聪明做法是让上一刀竖撕的半成品正好接下一刀横撕，省一次对答案。",
+  "prerequisites": [
+    "矩阵乘法可沿行/列拆分。",
+    "concat 与 sum 的合并语义。",
+    "已了解 TP 整体动机。"
+  ],
+  "workedExample": [
+    "W 为 h×h、tp=2，列切每卡算 h×h/2。",
+    "行切两卡结果 all-reduce 得完整 Y。"
+  ],
+  "lineByLine": [
+    "决定按列还是按行切权重。",
+    "列切: 各卡独立算并拼接。",
+    "行切: 各卡算并 all-reduce 求和。",
+    "串联时让列切输出喂行切输入省通信。"
+  ],
+  "diagram": "列切: Y=[X·W1 | X·W2]  (拼, 无通信)\n行切: Y = (X·W1)+(X·W2) (all-reduce 求和)\nMegatron: 列切GEMM →(局部)→ 行切GEMM (+1 all-reduce)"
+},
+  {
+  "id": "mgpu-tp-comm",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "TP 的通信开销 all-reduce",
+  "prompt": "张量并行的通信开销主要来自哪里，怎么估算？",
+  "quickAnswer": "TP 每层前向/反向各需一次 all-reduce，通信量约等于该层输出激活大小(对隐藏维 h、序列 s、tp=t，约 2·s·h/t 每方向)。瓶颈在卡间带宽：NVLink 几百 GB/s 可隐藏，跨机以太网则难以承受。优化靠计算/通信重叠、通信算子融合与尽量把 TP 放在单机内。",
+  "approach": "量化每层 all-reduce 量，用计算掩盖通信、提升带宽利用率。",
+  "explanationFocus": "是什么：TP 的通信开销主要来自每层一次 all-reduce(汇总局部结果)，其通信量正比于层输出张量大小，受卡间互联带宽决定。",
+  "bruteForce": "忽视通信，跨机跑 TP → 通信盖过计算，反而更慢。",
+  "derivation": [
+    "为什么需要：行切 GEMM 的结果必须跨卡求和，这是 TP 不可避免的同步点。",
+    "怎么实现：每层 all-reduce 用 ring/tree 算法，传输量约 2·(数据量)·(t-1)/t；用非阻塞通信在计算 GEMM 时同时发，重叠掩盖。",
+    "有什么代价：通信量与 s·h 成正比、随 tp 略降；t 越大通信占比越高；跨节点带宽低时成为主导。",
+    "怎么评测：通信时间/计算时间比、MFU、不同 tp 度的扩展效率。"
+  ],
+  "invariant": "all-reduce 后各卡得到完全相同的聚合值，与单卡一致。",
+  "walkthrough": "h=4096,s=2048,tp=8：每层激活约 4096×2048×2B≈16MB，all-reduce 双向约 32MB；NVLink 600GB/s 下 <0.1ms。",
+  "edgeCases": [
+    "tp 越大单卡通信占比越高。",
+    "跨机以太网跑 TP 通信灾难。",
+    "通信/计算重叠可显著降低有效开销。"
+  ],
+  "code": "# Python (概念)\ndef tp_layer_with_overlap(x, W_shard, world):\n    y = x @ W_shard\n    req = all_reduce_start(y, world)     # 非阻塞启动\n    z = compute_next(x)                  # 同时算下一块\n    return all_reduce_wait(req)",
+  "codeNotes": [
+    "all_reduce_start/wait 实现重叠。",
+    "通信量 ≈ 2·s·h·bytes。"
+  ],
+  "complexity": "每层 all-reduce 量 ≈ 2·s·h/t×bytes；受带宽 B: 时间 ≈ 量/B。",
+  "followUps": [
+    {
+      "question": "为什么 TP 不适合跨机？",
+      "answer": "跨机带宽(几十 GB/s)远低于 NVLink(几百 GB/s)，而 TP 每层都 all-reduce、通信频繁，低带宽会让通信时间超过计算节省，净收益为负。"
+    },
+    {
+      "question": "怎么降低 TP 通信影响？",
+      "answer": "把 TP 限制在单机 NVLink 域内、用非阻塞通信与计算重叠、融合多个小 all-reduce、并适当减小 tp 度。"
+    }
+  ],
+  "followUpAnswers": [
+    "跨机低带宽使 TP 通信不划算。",
+    "重叠计算/通信 + 限单机 NVLink。"
+  ],
+  "pitfalls": [
+    "以为 TP 度越大越好——通信占比上升。",
+    "把 TP 跨机部署导致更慢。"
+  ],
+  "beginnerSummary": "几个人分算一道大题，每算完一步就得把各自的小结果凑一起加总(对答案)。这\"对答案\"的次数很多、每次都要传不少数字。如果大家坐一桌(NVLink)传得飞快还好；要是隔着电话(跨机网络)慢慢念，反而不如一个人算。",
+  "prerequisites": [
+    "了解 all-reduce 汇总语义。",
+    "知道带宽决定通信耗时。",
+    "已理解 TP 行切需要求和。"
+  ],
+  "workedExample": [
+    "h=4096,s=2048,tp=8，每层激活约 16MB。",
+    "NVLink 600GB/s 下 all-reduce <0.1ms。"
+  ],
+  "lineByLine": [
+    "每层行切产生局部结果。",
+    "触发 all-reduce 跨卡求和。",
+    "计算同时发通信以重叠。",
+    "等待聚合结果继续前向。"
+  ],
+  "diagram": "卡0 ─┐\n卡1 ─┼─ all-reduce (量≈2·s·h/t) ─→ 各卡同值\n...\n卡t ─┘   带宽↑ 开销↓ (NVLink >> 以太网)"
+},
+  {
+  "id": "mgpu-pp-bubble",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "PP 的气泡 bubble 问题",
+  "prompt": "流水线并行中的 bubble（气泡）是什么，怎么产生的？",
+  "quickAnswer": "bubble 是流水线中某些 stage 因等待前驱前向结果或后继反向信号而空转的时间。朴素 GPipe 先填后排会留出大量空档；气泡占比约为 (P-1)/(m+P-1)(m 为 micro-batch 数、P 为 stage 数)，m 越小、P 越大气泡越严重，直接拉低设备利用率与扩展效率。",
+  "approach": "用更多 micro-batch 和 1F1B 调度填充空闲，降低气泡占比。",
+  "explanationFocus": "是什么：bubble 是流水线并行里设备因等待数据/梯度而在一段时间内无事可做的空转，源于前向必须先流完才能开始反向。",
+  "bruteForce": "stage 少、micro-batch 少 → 大量气泡，设备空转。",
+  "derivation": [
+    "为什么需要：PP 把模型切段后，第一个 stage 算完才能传给下一个，反向也要从末段往回传，导致两端 stage 在流水未填满时空等。",
+    "怎么实现：GPipe 先让所有 micro-batch 走完前向再统一反向，留下三角形空闲；1F1B 让反向尽早插入，压缩气泡。",
+    "有什么代价：气泡时间不产出有效计算，设备利用率 = 1 - (P-1)/(m+P-1)，浪费算力与电费。",
+    "怎么评测：气泡占比、设备利用率、随 P 的扩展效率衰减。"
+  ],
+  "invariant": "无论调度如何，总计算量不变；bubble 只影响时间重叠，不影响数值结果。",
+  "walkthrough": "P=4、m=4：气泡占比 ≈ (4-1)/(4+4-1)=3/7≈43%，近半数时间空转。",
+  "edgeCases": [
+    "micro-batch 数 m 必须 ≥ P 才能较好填充。",
+    "各 stage 计算量不均会放大有效气泡。",
+    "反向通信也会与计算争带宽。"
+  ],
+  "code": "# Python (概念)\ndef bubble_ratio(P, m):\n    return (P - 1) / (m + P - 1)   # GPipe 朴素气泡占比",
+  "codeNotes": [
+    "m 越大气泡占比越小。",
+    "1F1B 可进一步压低该比值。"
+  ],
+  "complexity": "气泡占比 ≈ (P-1)/(m+P-1)；利用率 = 1 - 该值。",
+  "followUps": [
+    {
+      "question": "怎么减小 bubble？",
+      "answer": "增加 micro-batch 数 m、采用 1F1B 让反向尽早启动、均衡各 stage 计算量，以及减少 stage 数 P。"
+    },
+    {
+      "question": "bubble 和实际加速比关系？",
+      "answer": "加速比 ≈ P × 设备利用率 = P×(1 - bubble)，气泡越大实际并行收益越偏离线性 P 倍。"
+    }
+  ],
+  "followUpAnswers": [
+    "增 m、用 1F1B、均衡 stage。",
+    "加速比≈P×(1-bubble)。"
+  ],
+  "pitfalls": [
+    "只看 stage 数忽略 micro-batch 对气泡的影响。",
+    "以为 PP 能线性加速——气泡吃掉收益。"
+  ],
+  "beginnerSummary": "装配线上如果上游零件还没送到，下游工人就只能干等着搓手(bubble)。要是只给流水线很少的零件(micro-batch 少)、又分了很多工序(stage 多)，大部分人时间都在等，白白闲置。",
+  "prerequisites": [
+    "理解 PP 按层切段。",
+    "知道前向必须先于反向。",
+    "micro-batch 概念。"
+  ],
+  "workedExample": [
+    "P=4 个 stage、m=4 个 micro-batch。",
+    "气泡占比 ≈ 3/7 ≈ 43%。"
+  ],
+  "lineByLine": [
+    "模型切成 P 个 stage。",
+    "前向需逐级传递激活。",
+    "反向需逐级回传梯度。",
+    "两端等待形成空转气泡。"
+  ],
+  "diagram": "时间→\n卡0: ████░░░░░░   (先忙后等)\n卡1:  ████░░░░░░\n卡2:   ████░░░░░\n卡3:    ████░░░░  ← 三角空白=bubble"
+},
+  {
+  "id": "mgpu-pp-1f1b",
+  "category": "多GPU并行",
+  "difficulty": "Hard",
+  "title": "PP 的 micro-batch 调度 1F1B",
+  "prompt": "1F1B 调度是如何缓解流水线气泡的？",
+  "quickAnswer": "1F1B(一次前向一次反向)在流水填满后，每完成一个 micro-batch 的前向就立刻安排它的反向，使反向尽早回灌流水线，把 GPipe 的大块气泡拆成细碎小块，显著降低空闲。它需维护固定数量的\"在飞\"micro-batch 以限制显存，并配合梯度累加，是 Megatron/DeepSpeed 的默认 PP 调度。",
+  "approach": "填满阶段后交替执行 1F1B，尽早启动反向压缩气泡。",
+  "explanationFocus": "是什么：1F1B 是流水线并行的一种调度，流水稳定后每做一次前向就紧接着做一次反向，让反向尽早进入流水线，从而把连续大气泡切成分散小气泡。",
+  "bruteForce": "GPipe 先全前向再全反向 → 大三角气泡，利用率低。",
+  "derivation": [
+    "为什么需要：GPipe 等全部前向完再反向，首段在后期长时间空闲；需要让反向尽早开始以填充空闲。",
+    "怎么实现：先 warmup 做若干纯前向填满管道，之后对每个已完成前向的 micro-batch 立即做其反向(1F1B)，最后 cooldown 收尾反向；在飞数固定以控显存。",
+    "有什么代价：实现更复杂(需调度状态机)、需梯度累加与显存上限管理；但气泡远低于 GPipe。",
+    "怎么评测：气泡占比下降、设备利用率提升、显存峰值是否可控。"
+  ],
+  "invariant": "总的前向/反向次数与 GPipe 相同，数值等价，只是执行顺序交错。",
+  "walkthrough": "P=4、在飞=4：warmup 4 个前向后进入 1F1B，反向紧随前向，气泡从 43% 降到约 14%。",
+  "edgeCases": [
+    "在飞 micro-batch 数须 ≥ P 才能持续流水。",
+    "梯度需按 micro-batch 累加后再更新。",
+    "异常/中断时状态恢复更复杂。"
+  ],
+  "code": "# Python (概念)\ndef schedule_1f1b(stages, micro_batches, P):\n    inflight = []\n    for mb in micro_batches:                 # warmup + steady\n        fwd = forward(stages, mb); inflight.append(fwd)\n        if len(inflight) >= P:\n            bwd = backward(inflight.pop(0))  # 尽早反向\n    while inflight: backward(inflight.pop(0))",
+  "codeNotes": [
+    "稳态保持 P 个在飞 micro-batch。",
+    "warmup 填满后转 1F1B。"
+  ],
+  "complexity": "气泡 ≈ (P-1)/(m) 量级(小于 GPipe)；显存受在飞数限制。",
+  "followUps": [
+    {
+      "question": "1F1B 和 GPipe 气泡差多少？",
+      "answer": "GPipe 气泡 (P-1)/(m+P-1)，1F1B 约为 (P-1)/m，当 m≫P 时明显更小，设备利用率更高。"
+    },
+    {
+      "question": "为什么 1F1B 要限制\"在飞\"数？",
+      "answer": "因为在飞 micro-batch 会同时占用各 stage 激活显存，不限数会 OOM，固定窗口可在气泡与显存间取平衡。"
+    }
+  ],
+  "followUpAnswers": [
+    "1F1B 气泡约 (P-1)/m，更小。",
+    "限制在飞数防止激活 OOM。"
+  ],
+  "pitfalls": [
+    "以为 1F1B 改变计算量——只改顺序。",
+    "忘记梯度累加导致更新错误。"
+  ],
+  "beginnerSummary": "原本等所有零件都走到末尾才统一返工(GPipe)，前面的人闲很久。1F1B 改成：只要手头一个零件走完一步，立刻让它回头返工一步，这样返工的人早早进场，大家几乎一直在忙，空等少多了——只是得记住同时摊着的零件别太多以免桌子放不下。",
+  "prerequisites": [
+    "理解 bubble 成因。",
+    "知道梯度累加。",
+    "了解 micro-batch 概念。"
+  ],
+  "workedExample": [
+    "P=4、在飞=4，warmup 后转 1F1B。",
+    "气泡从 ~43% 降到 ~14%。"
+  ],
+  "lineByLine": [
+    "warmup 阶段做若干纯前向。",
+    "管道填满后进入稳态。",
+    "每完成一个前向立即做其反向。",
+    "cooldown 收尾剩余反向。"
+  ],
+  "diagram": "GPipe:  FFFF|BBBB  (大块气泡)\n1F1B:  FFFB FBFB FBFB B  (气泡切碎)\n       ↑ warmup   ↑ steady 1F1B"
+},
+  {
+  "id": "mgpu-ep",
+  "category": "多GPU并行",
+  "difficulty": "Hard",
+  "title": "专家并行 EP（MoE）",
+  "prompt": "专家并行（Expert Parallelism）在 MoE 模型里是怎么做的？",
+  "quickAnswer": "MoE 每层有多个前馈专家，每个 token 只经 top-k 个专家。专家并行把不同专家放到不同卡上，token 经路由后通过 all-to-all 把该送的专家输入发到对应卡、算完再 all-to-all 收回。它让专家参数跨卡扩展(显存降)，但 all-to-all 通信量大且对负载不均敏感，是 MoE 训练/推理的核心并行维度。",
+  "approach": "专家分卡 + 路由 all-to-all 分发/收集 token。",
+  "explanationFocus": "是什么：EP 是把 MoE 中多个专家网络分布到不同 GPU，token 经门控路由后通过 all-to-all 通信被送到对应专家计算，再收回结果。",
+  "bruteForce": "所有专家放单卡 → 专家参数撑爆显存，且多数专家闲置。",
+  "derivation": [
+    "为什么需要：MoE 专家参数量巨大但每 token 只激活少数，单卡放不下全部专家，需要把专家分散到多卡。",
+    "怎么实现：门控 g 选出 top-k 专家；用 all-to-all 把每个 token 的隐藏向量发到目标专家所在卡；各卡算本地专家；再 all-to-all 把结果发回原卡拼接。",
+    "有什么代价：all-to-all 通信量随专家数/ token 数增长，且 token 分布不均会导致部分卡过载(掉队)；需辅助负载均衡损失。",
+    "怎么评测：专家利用率、各卡计算均衡度、all-to-all 耗时占比、端到端吞吐。"
+  ],
+  "invariant": "每个 token 仍只被其选中的 top-k 专家处理，聚合结果与单卡 MoE 一致。",
+  "walkthrough": "8 专家 4 卡，每卡 2 专家；1024 token 经路由，all-to-all 后每卡约处理 512 token 的专家计算。",
+  "edgeCases": [
+    "token 路由不均使部分卡过载。",
+    "all-to-all 对网络拓扑极敏感。",
+    "top-k 与专家数需匹配容量。"
+  ],
+  "code": "# Python (概念)\ndef expert_parallel(x, gates, experts, world):\n    dispatch = all_to_all(x, gates, world)   # 按路由发到专家卡\n    out = experts.local_forward(dispatch)\n    return all_to_all_back(out, world)        # 结果发回原卡",
+  "codeNotes": [
+    "all_to_all 是 EP 的核心通信。",
+    "gates 决定 token→专家映射。"
+  ],
+  "complexity": "专家显存 1/E；通信两次 all-to-all，量 ∝ tokens×hidden。",
+  "followUps": [
+    {
+      "question": "EP 和 TP 在 MoE 里怎么配合？",
+      "answer": "常叠加：先跨卡做 EP 分专家，再对单个专家内部做 TP 切其权重，形成 EP×TP×DP 的组合，兼顾专家规模与单专家算力。"
+    },
+    {
+      "question": "EP 最大痛点？",
+      "answer": "all-to-all 通信量大且 token 分布不均导致负载倾斜，掉队卡拖慢整体，需要负载均衡与容量因子缓解。"
+    }
+  ],
+  "followUpAnswers": [
+    "EP 分专家 + TP 切专家内权重。",
+    "痛点是 all-to-all 与负载不均。"
+  ],
+  "pitfalls": [
+    "忽略 token 不均造成的掉队。",
+    "以为 EP 只省显存——通信开销很大。"
+  ],
+  "beginnerSummary": "公司有 8 位专家分坐不同办公室(卡)，每个客户(token)只挑其中 2 位咨询。前台(路由)把客户资料通过内部快递(all-to-all)送到对应专家桌上，专家写完意见再快递回原处拼起来。好处是专家团队可以很大，坏处是快递往来很频繁、还怕某位专家被分配太多客户。",
+  "prerequisites": [
+    "了解 MoE 与 top-k 路由。",
+    "知道 all-to-all 通信语义。",
+    "专家参数远大于激活。"
+  ],
+  "workedExample": [
+    "8 专家 4 卡，每卡 2 专家。",
+    "1024 token 经 all-to-all 分发计算。"
+  ],
+  "lineByLine": [
+    "门控选出每个 token 的 top-k 专家。",
+    "all-to-all 把 token 发到专家卡。",
+    "各卡算本地专家前向。",
+    "all-to-all 把结果发回原卡拼接。"
+  ],
+  "diagram": "token ──门控──┐\n            all-to-all ↓\n卡0:[专家0,1] 卡1:[专家2,3] ...\n结果 all-to-all 回原卡 → 拼接"
+},
+  {
+  "id": "mgpu-zero",
+  "category": "多GPU并行",
+  "difficulty": "Hard",
+  "title": "ZeRO 优化器并行",
+  "prompt": "ZeRO 是怎么在仍按数据并行逻辑下大幅降低显存的？",
+  "quickAnswer": "ZeRO(Zero Redundancy Optimizer)在 DP 基础上把原本每卡都冗余保存的 optimizer 状态(分片 ZeRO-1)、梯度(ZeRO-2)、乃至参数(ZeRO-3)沿数据并行维度分片到各卡，前向/反向时按需 all-gather、更新后丢弃，使显存从 O(完整模型) 降到约 1/N。它保持 DP 的通信模式(仍 all-reduce 梯度)，却把可训模型规模提升近 N 倍。",
+  "approach": "分片优化器状态/梯度/参数，按需 all-gather，消除 DP 冗余。",
+  "explanationFocus": "是什么：ZeRO 是数据并行的显存优化技术，把优化器状态、梯度和参数分片到各卡，打破 DP 每卡存完整副本的冗余，从而用相近通信换来近 N 倍显存节省。",
+  "bruteForce": "纯 DP 每卡存完整参数+梯度+优化器 → 大模型 OOM。",
+  "derivation": [
+    "为什么需要：Adam 下优化器状态(fp32 参数+m/v)常占显存大头，DP 每卡都复制一份，限制可训规模。",
+    "怎么实现：ZeRO-1 只分片优化器状态；ZeRO-2 再分片梯度；ZeRO-3 进一步分片参数，前向/反向时 all-gather 所需参数、算完释放；各卡只更新自己那份分片。",
+    "有什么代价：引入参数的 all-gather/reduce-scatter 通信，ZeRO-3 通信量比纯 DP 略增，但换得显存近线性下降。",
+    "怎么评测：峰值显存、可训最大模型、相比 DP 的吞吐/扩展效率。"
+  ],
+  "invariant": "每步更新等价于全量优化器在单卡上更新；分片只在存储与通信上拆分。",
+  "walkthrough": "ZeRO-3、N=8：每卡仅持 1/8 参数分片，前向 all-gather 临时拼回，峰值显存 ≈ 单卡的 1/8(加临时 gather 缓冲)。",
+  "edgeCases": [
+    "ZeRO-3 参数 all-gather 增加通信。",
+    "offload(ZeRO-Offload)可把状态卸到 CPU 换算力。",
+    "分片粒度影响通信效率。"
+  ],
+  "code": "# Python (概念)\ndef zero3_step(param_shard, grad_shard, opt_shard, world):\n    param = all_gather(param_shard, world)   # 临时拼回\n    grad = reduce_scatter(grad_shard, world) # 梯度分片\n    opt_shard.update(param_shard, grad)      # 只更新本分片\n    return param",
+  "codeNotes": [
+    "ZeRO-3 参数按需 gather、算完释放。",
+    "梯度用 reduce-scatter 而非全 all-reduce。"
+  ],
+  "complexity": "显存 ≈ 1/N 完整模型(加临时缓冲)；通信略多于 DP。",
+  "followUps": [
+    {
+      "question": "ZeRO-1/2/3 区别？",
+      "answer": "依次分片优化器状态、再加梯度、再加参数；级别越高显存越省，但参数 all-gather 通信越多，ZeRO-3 最省显存。"
+    },
+    {
+      "question": "ZeRO 还是 DP 吗？",
+      "answer": "是；它保持数据并行逻辑(各卡吃不同数据、参数最终一致)，只是把冗余状态分片，通信仍围绕梯度/参数分片进行。"
+    }
+  ],
+  "followUpAnswers": [
+    "逐级分片 优化器→梯度→参数。",
+    "ZeRO 仍是 DP，仅分片冗余状态。"
+  ],
+  "pitfalls": [
+    "以为 ZeRO 完全不通信——仍有 gather/scatter。",
+    "混淆 ZeRO 与 TP/PP 的切分维度。"
+  ],
+  "beginnerSummary": "原本每人手里都有一整套相同的笔记(参数+优化器)，很占地方。ZeRO 说：别都存全本，大家分着存——你存第 1 章、我存第 2 章，要用时临时互相借看(all-gather)，改完只改自己那章。这样每人书包轻了近 N 倍，还能管更大的书。",
+  "prerequisites": [
+    "理解 DP 的冗余存储。",
+    "知道 Adam 优化器状态占比大。",
+    "会 all-gather/reduce-scatter。"
+  ],
+  "workedExample": [
+    "ZeRO-3、N=8，每卡持 1/8 参数。",
+    "前向 all-gather 临时拼回后释放。"
+  ],
+  "lineByLine": [
+    "把优化器/梯度/参数分片。",
+    "前向按需 all-gather 参数。",
+    "反向 reduce-scatter 梯度。",
+    "各卡只更新自己分片。"
+  ],
+  "diagram": "DP: 每卡 [参数+梯度+优化器] (冗余)\nZeRO-3: 卡0[1/8] 卡1[1/8] ... 卡7[1/8]  (按需 gather)"
+},
+  {
+  "id": "mgpu-comm-compare",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "各种并行的通信量对比",
+  "prompt": "DP、TP、PP、EP、ZeRO 的通信模式和通信量各有什么特点？",
+  "quickAnswer": "DP/ZeRO 通信在梯度(全参 all-reduce/reduce-scatter)、量正比参数量；TP 每层 all-reduce 量正比激活(s·h)、频率高但每次小、需高带宽；PP 仅相邻 stage 传激活/梯度、量最小但引入 bubble；EP 是 all-to-all、量正比 token×hidden、对拓扑最敏感；ZeRO-3 额外参数 all-gather。选并行就是在这几种通信形状与硬件带宽间权衡。",
+  "approach": "按通信原语(reduce/all-reduce/all-to-all/point-to-point)与通信量归类对比。",
+  "explanationFocus": "是什么：不同并行维度的通信本质不同——DP 是梯度 all-reduce、TP 是层内 all-reduce、PP 是相邻 stage 点对点、EP 是 all-to-all、ZeRO 加参数 gather，通信量与频率决定它们适合的硬件拓扑。",
+  "bruteForce": "不分清通信模式就乱组合 → 某维通信在低速链路爆掉。",
+  "derivation": [
+    "为什么需要：并行策略必须匹配硬件(单机 NVLink vs 跨机 IB/以太网)，否则通信成瓶颈，需先量化各模式。",
+    "怎么实现：DP/ZeRO 用 ring all-reduce(量≈2·P·(t-1)/t)；TP 每层 all-reduce(量≈2·s·h)；PP 点对点(量≈单层激活)；EP all-to-all(量≈tokens·h)；按拓扑把高带宽需求(TP/EP)放单机、低带宽(PP/DP)放跨机。",
+    "有什么代价：TP/EP 频率高依赖带宽，PP 用 bubble 换低通信，没有免费方案。",
+    "怎么评测：用通讯量公式估算各模式耗时，结合实测 MFU/扩展效率。"
+  ],
+  "invariant": "通信总量与模型规模、并行度相关，但正确实现下数值不变。",
+  "walkthrough": "175B、tp=8 单机 NVLink、pp=4 跨机 IB、dp=64：TP 高频小通信走 NVLink，PP 低频激活走 IB，整体平衡。",
+  "edgeCases": [
+    "TP 跨机时 all-reduce 量虽小但频率高，仍易堵。",
+    "EP all-to-all 在跨机几乎不可用。",
+    "ZeRO-3 gather 与 TP 通信叠加需调度。"
+  ],
+  "code": "# Python (概念)\ndef comm_volume(mode, P, s, h, t):\n    if mode == 'dp':   return 2 * P * (t - 1) / t      # 梯度 all-reduce\n    if mode == 'tp':   return 2 * s * h / t             # 每层 all-reduce\n    if mode == 'pp':   return s * h                     # 相邻 stage 激活\n    if mode == 'ep':   return s * h                     # all-to-all\n    return 0",
+  "codeNotes": [
+    "DP 量 ∝ 参数量 P；TP 量 ∝ 激活 s·h。",
+    "PP 最低但换 bubble；EP 对拓扑最敏感。"
+  ],
+  "complexity": "DP/ZeRO: O(P); TP: O(s·h)/层; PP: O(单层激活); EP: O(s·h) all-to-all。",
+  "followUps": [
+    {
+      "question": "为什么 TP 必须配 NVLink？",
+      "answer": "TP 每层都 all-reduce、通信频率极高，只有 NVLink 几百 GB/s 才能隐藏；跨机带宽低会让每层通信累积成瓶颈。"
+    },
+    {
+      "question": "哪种并行通信量最小？",
+      "answer": "PP 仅相邻 stage 传激活/梯度，通信量最小，代价是 bubble；EP 的 all-to-all 通常最吃网络。"
+    }
+  ],
+  "followUpAnswers": [
+    "TP 高频 all-reduce 需 NVLink 带宽。",
+    "PP 通信量最小(代价 bubble)。"
+  ],
+  "pitfalls": [
+    "只看单次量忽略通信频率。",
+    "把 TP/EP 放到跨机低速链路。"
+  ],
+  "beginnerSummary": "几种分工方式\"对答案\"的方式不同：数据并行是大家各自算完把全部答案汇总(all-reduce)；张量并行是每层都要对一次小答案；流水线并行只在相邻工位传半成品(量最小但有空等)；专家并行是所有人互相寄快递(all-to-all，最费网络)。选哪种要看你们办公室内部传话快不快。",
+  "prerequisites": [
+    "了解各并行基本通信原语。",
+    "知道带宽决定通信可行性。",
+    "理解 bubble 与通信的权衡。"
+  ],
+  "workedExample": [
+    "TP 每层 all-reduce 量 ∝ s·h、频率高。",
+    "PP 仅相邻 stage 传激活，量最小。"
+  ],
+  "lineByLine": [
+    "DP/ZeRO: 梯度 all-reduce。",
+    "TP: 层内 all-reduce。",
+    "PP: 相邻 stage 点对点。",
+    "EP: all-to-all，最吃网络。"
+  ],
+  "diagram": "通信原语:\nDP/ZeRO ─ all-reduce (量∝参数量)\nTP      ─ all-reduce/层 (量∝激活, 高频)\nPP      ─ p2p 激活 (量最小, 有 bubble)\nEP      ─ all-to-all (最吃网络)"
+},
+  {
+  "id": "mgpu-tp-infer",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "多卡推理中的张量并行",
+  "prompt": "推理阶段使用张量并行和训练有何不同，要注意什么？",
+  "quickAnswer": "推理用 TP 与训练同构(列切+行切、层内 all-reduce)，但推理无反向、不需存优化器与梯度，显存主要用于权重与 KV-cache；瓶颈常在 KV-cache 与访存带宽而非算力。推理常把 TP 与批次/流水结合，并尽量把 TP 限制在单机 NVLink，同时用 KV-cache 分片(SP/上下文并行)解决长序列显存。",
+  "approach": "复用 TP 切权重，重点管理 KV-cache 显存与访存带宽。",
+  "explanationFocus": "是什么：推理中的 TP 同样把每层权重行/列切到多卡并 all-reduce 汇总，但场景只前向、无梯度/优化器，显存与瓶颈转移到权重加 KV-cache 的访存上。",
+  "bruteForce": "单卡推理大模型 → 权重+KV-cache 撑爆显存或吞吐过低。",
+  "derivation": [
+    "为什么需要：大模型推理单卡放不下权重+KV-cache，或吞吐达不到 SLA，需要多卡分摊权重并提升并发。",
+    "怎么实现：权重沿用训练 TP 切分；prefill 阶段可做上下文并行切序列；decode 阶段每步都要 all-reduce 隐藏态；KV-cache 按层或序列分片到各卡。",
+    "有什么代价：decode 每 token 都触发一次 all-reduce，通信延迟敏感；TP 度过大时通信占比上升、收益递减。",
+    "怎么评测：首 token 延迟、吞吐(tokens/s)、KV-cache 显存上限、不同 tp 度的延迟-吞吐曲线。"
+  ],
+  "invariant": "推理输出分布与单卡一致；TP 仅改变计算分布。",
+  "walkthrough": "70B 模型 tp=4 推理：每卡权重 1/4，prefill 切序列降 KV-cache，decode 每步 all-reduce 一次。",
+  "edgeCases": [
+    "decode 阶段每步 all-reduce，延迟敏感。",
+    "KV-cache 随序列/并发线性增长。",
+    "小 batch 时访存带宽常是瓶颈而非算力。"
+  ],
+  "code": "# Python (概念)\ndef infer_tp(x, W_shard, kv_shard, world):\n    h = x @ W_shard\n    h = all_reduce_sum(h, world)        # decode 每步汇总\n    return attention(h, kv_shard)",
+  "codeNotes": [
+    "推理无反向，省梯度/优化器显存。",
+    "KV-cache 需另行分片管理。"
+  ],
+  "complexity": "权重显存 1/tp；decode 每步一次 all-reduce，延迟 ∝ 通信。",
+  "followUps": [
+    {
+      "question": "推理 TP 为什么比训练更怕通信延迟？",
+      "answer": "decode 是自回归逐 token 生成，每步都要一次 all-reduce 才能出下一个 token，通信延迟直接累加进延迟；训练可靠大 batch 摊薄通信。"
+    },
+    {
+      "question": "推理 KV-cache 怎么并行？",
+      "answer": "可用上下文并行/序列并行把 KV-cache 沿序列维切到多卡，或用 PP 让不同层在不同卡，缓解单卡 KV-cache 显存压力。"
+    }
+  ],
+  "followUpAnswers": [
+    "decode 逐 token，通信延迟累加。",
+    "KV-cache 沿序列/层分片。"
+  ],
+  "pitfalls": [
+    "把训练 TP 配置直接套推理忽略延迟。",
+    "低估 KV-cache 显存增长。"
+  ],
+  "beginnerSummary": "多人合算一道只往前推的题(推理不用回头改)：权重撕开分给大家，每算一步都得对一次答案才能写下一笔。麻烦在于答题是一步一步来的，每步对答案的等待都会拖慢出结果；另外大家还得存\"前面说过的话\"(KV-cache)，这话越长越占地方。",
+  "prerequisites": [
+    "了解 TP 训练切分。",
+    "知道推理无反向、无优化器。",
+    "了解 KV-cache 概念。"
+  ],
+  "workedExample": [
+    "70B 模型 tp=4，每卡权重 1/4。",
+    "decode 每步 all-reduce 一次。"
+  ],
+  "lineByLine": [
+    "权重按 TP 切到各卡。",
+    "prefill 切序列降 KV-cache。",
+    "decode 每步 all-reduce 隐藏态。",
+    "KV-cache 按层/序列分片。"
+  ],
+  "diagram": "推理(仅前向):\n权重 1/tp 各卡 ── 每步 all-reduce ──→ 下一 token\nKV-cache 沿序列/层分片防 OOM"
+},
+  {
+  "id": "mgpu-nccl",
+  "category": "多GPU并行",
+  "difficulty": "Medium",
+  "title": "通信后端 NCCL 与拓扑 NVLink/IB",
+  "prompt": "NCCL 是什么，NVLink 和 InfiniBand 在并行中分别扮演什么角色？",
+  "quickAnswer": "NCCL(NVIDIA Collective Communications Library)是 GPU 间集合通信(all-reduce/all-gather/all-to-all)的高性能后端，自动选最优算法并感知拓扑。NVLink 是单机卡间的高速互连(几百 GB/s)，适合 TP/EP 这种高频通信；InfiniBand(IB)是跨节点网络(几十 GB/s)，适合 PP/DP 这种低频大块通信。拓扑决定了哪些并行维度该放单机、哪些可跨机。",
+  "approach": "用 NCCL 做集合通信，按带宽把高通信维(TP/EP)放 NVLink、低通信维(PP/DP)放 IB。",
+  "explanationFocus": "是什么：NCCL 是 GPU 集合通信库，NVLink 是单机内卡间高速总线，IB 是跨机高速网络；三者共同决定多卡并行的通信性能与策略布局。",
+  "bruteForce": "把 TP 跨机跑在以太网 → 通信灾难，比单卡还慢。",
+  "derivation": [
+    "为什么需要：多卡通信性能天差地别，必须用语义统一且拓扑感知的库(NCCL)并据此布局并行。",
+    "怎么实现：NCCL 在 NVLink 上用 tree/ring、跨节点经 GPUDirect RDMA 走 IB；通信组(ncclComm)按拓扑建环，TP/EP 限制在 NVLink 域，PP/DP 跨 IB。",
+    "有什么代价：跨节点需 IB 网卡与 RDMA 支持，配置复杂；拓扑不友好时算法降级、带宽骤降。",
+    "怎么评测：实测 busbw(通信带宽)、不同消息大小的延迟、拓扑感知是否正确。"
+  ],
+  "invariant": "无论走 NVLink 还是 IB，集合通信语义(all-reduce 等)结果一致。",
+  "walkthrough": "8 卡单机 NVLink 600GB/s 跑 TP；4 机各 8 卡经 IB 200Gb/s 跑 PP/DP，训练 175B。",
+  "edgeCases": [
+    "NVLink 域限制单机卡数(如 8)。",
+    "IB 需 GPUDirect RDMA 才高效。",
+    "异构拓扑下 NCCL 算法选择影响很大。"
+  ],
+  "code": "# Python (概念, PyTorch)\ndef build_groups(local_ranks, cross_nodes):\n    tp_group = nccl.new_group(local_ranks)        # NVLink 域内\n    pp_group = nccl.new_group(cross_nodes)        # 跨节点 IB\n    return tp_group, pp_group",
+  "codeNotes": [
+    "NCCL 自动感知 NVLink/IB 拓扑。",
+    "通信组决定哪维走哪条链路。"
+  ],
+  "complexity": "带宽: NVLink 数百 GB/s > IB 数十 GB/s > 以太网；决定并行布局。",
+  "followUps": [
+    {
+      "question": "为什么 TP 要限制在 NVLink 域？",
+      "answer": "TP 每层 all-reduce 频率高、对带宽极敏感，只有 NVLink 域内几百 GB/s 能隐藏；跨 IB 带宽低会累积成瓶颈。"
+    },
+    {
+      "question": "NCCL 和 MPI 通信区别？",
+      "answer": "NCCL 专为 GPU 显存间通信优化、感知 NVLink/IB 与 GPUDirect，比通用 MPI 在 GPU 集合通信上快得多。"
+    }
+  ],
+  "followUpAnswers": [
+    "TP 高频通信需 NVLink 带宽。",
+    "NCCL 专优化 GPU 集合通信。"
+  ],
+  "pitfalls": [
+    "TP/EP 跨机部署忽视带宽落差。",
+    "以为通信库无关紧要——NCCL 拓扑感知关键。"
+  ],
+  "beginnerSummary": "NCCL 是专门帮显卡之间传话的\"快递公司\"，它知道哪条路最快。NVLink 是同一台机器里显卡之间的\"内部高速通道\"(传得飞快)，InfiniBand 是连接不同机器之间的\"城际高速路\"(也快但比内部通道慢)。所以传话勤快的活(TP)放内部通道，偶尔传大件的活(PP)才走城际路。",
+  "prerequisites": [
+    "了解集合通信语义。",
+    "知道带宽对并行的影响。",
+    "理解 TP/PP 通信频率差异。"
+  ],
+  "workedExample": [
+    "单机 8 卡 NVLink 600GB/s 跑 TP。",
+    "跨 4 机 IB 跑 PP/DP。"
+  ],
+  "lineByLine": [
+    "NCCL 提供 GPU 集合通信。",
+    "NVLink 承载单机高频通信。",
+    "IB 承载跨机大块通信。",
+    "按带宽布局并行维度。"
+  ],
+  "diagram": "单机内: GPU0═NVLink═GPU1═... (数百 GB/s)\n跨机:  节点A ──IB/RDMA── 节点B (数十 GB/s)\nNCCL 自动选路"
+},
+  {
+  "id": "mgpu-strategy",
+  "category": "多GPU并行",
+  "difficulty": "Hard",
+  "title": "并行策略选择",
+  "prompt": "给定模型规模和硬件拓扑，应该怎么选择并行策略组合？",
+  "quickAnswer": "先按可训/可推显存确定是否需要切模型(TP/PP/ZeRO)，再按拓扑布局：TP/EP 必须限制在单机 NVLink 域(高频通信)，PP 用于跨机扩层(低通信、有 bubble)，DP/ZeRO 跨机扩样本。典型 3D 并行 = TP(单机)×PP(跨机)×DP(数据)，MoE 再加 EP。目标是让通信密集维走高带宽、用 micro-batch 与重叠掩盖剩余通信。",
+  "approach": "显存定切分→拓扑定布局→组合成 3D/4D 并行，平衡通信与 bubble。",
+  "explanationFocus": "是什么：并行策略选择是按模型规模与硬件拓扑，把 TP/PP/DP/EP/ZeRO 组合成最优布局，使通信密集的维度走高带宽链路、用流水线/重叠掩盖空闲。",
+  "bruteForce": "拍脑袋单一 DP → 大模型 OOM 或跨机 TP 通信爆炸。",
+  "derivation": [
+    "为什么需要：单一并行维度无法同时满足显存、算力与通信约束，必须组合且匹配拓扑。",
+    "怎么实现：算显存缺口定 tp/pp/zero 度；单机内尽量用满 NVLink 做 TP×EP；跨机用 PP 切层、DP/ZeRO 扩样本；用 1F1B 与计算通信重叠压气泡。",
+    "有什么代价：组合越多调参越难，通信组与调度复杂；需在 MFU、显存、延迟间折中。",
+    "怎么评测：在目标硬件上扫并行度组合，选 MFU 最高且显存安全的方案。"
+  ],
+  "invariant": "正确组合下数值等价于单卡，只是资源分布与执行顺序不同。",
+  "walkthrough": "175B、32 机×8 卡：tp=8(NVLink 域)、pp=4(跨机)、dp=8 → 32×8=256 卡，3D 并行训练。",
+  "edgeCases": [
+    "tp 度受隐藏维整除与 NVLink 域卡数限制。",
+    "pp 过大气泡上升，需更多 micro-batch。",
+    "MoE 需额外 EP 维与负载均衡。"
+  ],
+  "code": "# Python (概念)\ndef choose_parallel(model_gb, gpus, nvlink_domain):\n    tp = min(nvlink_domain, divisible(model.hidden, ...))  # 单机高带宽\n    pp = max(1, gpus // nvlink_domain)                     # 跨机切层\n    dp = gpus // (tp * pp)                                 # 剩余扩样本\n    return tp, pp, dp",
+  "codeNotes": [
+    "TP 限单机 NVLink 域。",
+    "PP 跨机、DP 扩样本，凑成 3D。"
+  ],
+  "complexity": "并行度乘积 = 总卡数；MFU 取决于通信/ bubble 平衡。",
+  "followUps": [
+    {
+      "question": "3D 并行指哪三维？",
+      "answer": "通常指 TP(层内切权重)×PP(层间切段)×DP(数据复制)，MoE 场景再加 EP，构成 4D 并行。"
+    },
+    {
+      "question": "小模型需要这么复杂吗？",
+      "answer": "不需要；小模型单卡或纯 DP/ZeRO 即可，只有当显存或算力不够且跨多机时才上 TP/PP 组合。"
+    }
+  ],
+  "followUpAnswers": [
+    "TP×PP×DP 三维，MoE 加 EP。",
+    "小模型纯 DP/ZeRO 即可。"
+  ],
+  "pitfalls": [
+    "把 TP 跨机导致通信爆炸。",
+    "忽视拓扑直接套经验并行度。"
+  ],
+  "beginnerSummary": "要把一个大工程分给一个办公室加几个分公司的团队：办公室内部传话快，就让需要频繁对答案的活(TP)在内部做；分公司之间传话慢，就安排只偶尔交半成品的活(PP)；再让各团队各做一批不同客户(DP)提总量。关键是根据\"谁离谁近、传话多快\"来排活。",
+  "prerequisites": [
+    "理解各并行维度特性。",
+    "了解 NVLink/IB 带宽差异。",
+    "掌握显存预算估算。"
+  ],
+  "workedExample": [
+    "175B、256 卡：tp=8, pp=4, dp=8。",
+    "TP 限单机、PP 跨机、DP 扩样本。"
+  ],
+  "lineByLine": [
+    "按显存缺口定是否切模型。",
+    "TP/EP 限单机 NVLink 域。",
+    "PP 跨机切层、DP 扩样本。",
+    "用 1F1B/重叠压气泡与通信。"
+  ],
+  "diagram": "总卡数 = TP × PP × DP (MoE:+EP)\n布局: [TP×EP 在 NVLink 单机] × [PP 跨机] × [DP 跨机]"
+},
+  {
+  "id": "onnx-what",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "ONNX 是什么",
+  "prompt": "ONNX 是什么，为什么推理部署要用它？",
+  "quickAnswer": "ONNX(Open Neural Network Exchange)是一种开放的神经网络中间表示：把各框架(PyTorch/TF)训练好的模型导出成统一的计算图格式，从而与训练框架解耦，方便后续用 TensorRT 等高性能推理引擎加速，也便于跨平台/跨硬件部署。",
+  "approach": "训练框架 → 导出 ONNX 图 → 推理引擎优化执行。",
+  "explanationFocus": "是什么：ONNX 是开放的统一模型中间表示，解耦训练框架与推理引擎。",
+  "bruteForce": "直接用 PyTorch eager 推理：无图优化、速度慢、依赖 Python 运行时。",
+  "derivation": [
+    "为什么需要：不同训练框架/部署硬件各搞一套，模型难移植；需要中立中间格式。",
+    "怎么实现：框架提供导出器把计算图+权重写成 ONNX proto；推理端用 parser 读图并交给优化器/引擎。",
+    "有什么代价：导出可能不支持动态控制流或自定义算子，需改写或写自定义 op；版本兼容性要小心。",
+    "怎么评测：对比导出前后数值一致性（余弦相似度/最大误差），确保图等价。"
+  ],
+  "invariant": "ONNX 图在等价转换下数值结果应与原模型一致（误差在容忍内）。",
+  "walkthrough": "PyTorch resnet 导出 onnx：torch.onnx.export(model, dummy, 'm.onnx')；用 onnxruntime 跑同输入对比原模型输出差 <1e-4。",
+  "edgeCases": [
+    "含 if/loop 动态控制流：需 scripting 或 opset 支持。",
+    "自定义算子：导出为自定义 node，推理端需注册实现。",
+    "opset 版本差异：老引擎不支持新 op。"
+  ],
+  "code": "# Python (概念)\ndef export_onnx(model, dummy_input, path):\n    import torch\n    torch.onnx.export(model, dummy_input, path,\n                      input_names=['x'], output_names=['y'],\n                      opset_version=17)",
+  "codeNotes": [
+    "opset 决定可用算子集合。",
+    "动态维度用 dynamic_axes 指定。"
+  ],
+  "complexity": "导出 O(图规模)；推理加速另算。",
+  "followUps": [
+    {
+      "question": "ONNX 和直接部署 PyTorch 比好在哪？",
+      "answer": "解耦框架、可用 ONNX Runtime/TensorRT 做图优化与低精度加速，且不依赖 Python 运行时，延迟更低。"
+    },
+    {
+      "question": "导出失败常见原因？",
+      "answer": "动态控制流、未注册自定义算子、opset 不匹配、张量形状在导出期未知。"
+    }
+  ],
+  "followUpAnswers": [
+    "同输入对比数值一致性。",
+    "opset 与自定义 op 是坑点。"
+  ],
+  "pitfalls": [
+    "以为导出即优化——ONNX 只是中间表示，优化在后端引擎。",
+    "忽略 opset/版本的兼容。"
+  ],
+  "beginnerSummary": "不同厂家的文档格式不互通，ONNX 像一种\"通用文档格式(PDF)\"，把 PyTorch 写的模型转成谁都能读的标准图，之后用专门的\"高速阅读器\"(TensorRT)打开就能跑得飞快，还不挑设备。",
+  "prerequisites": [
+    "模型本质是计算图+权重。",
+    "训练框架与部署引擎常不同。",
+    "需要中立中间表示做桥接。"
+  ],
+  "workedExample": [
+    "PyTorch resnet → torch.onnx.export → m.onnx。",
+    "onnxruntime 同输入对比误差 <1e-4。"
+  ],
+  "lineByLine": [
+    "准备 dummy 输入定形状。",
+    "调用导出器写出计算图。",
+    "指定 input/output 名与 opset。",
+    "用推理引擎加载验证一致性。"
+  ],
+  "diagram": "PyTorch/TF ─▶ ONNX(中间图) ─▶ ONNX Runtime / TensorRT\n            (解耦训练与部署)"
+},
+  {
+  "id": "onnx-opset-fusion",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "ONNX 算子集与算子融合",
+  "prompt": "ONNX 的算子集(opset)是什么，算子融合为什么能加速推理？",
+  "quickAnswer": "ONNX 算子集(opset)定义了图中可用算子及其语义版本；算子融合(fusion)把多个细粒度算子(如 Conv+BN+ReLU)合并成一个大算子，减少 kernel 启动次数与中间张量读写，是推理图优化的核心手段。",
+  "approach": "解析 ONNX 图 → 模式匹配可融合子图 → 替换为融合算子 → 交由引擎执行。",
+  "explanationFocus": "是什么：opset 是 ONNX 算子的版本化集合；算子融合是把相邻算子合并以减少开销的图优化。",
+  "bruteForce": "逐算子调用各自 kernel：每个算子都读写显存、调度一次，开销大。",
+  "derivation": [
+    "为什么需要：框架导出图常是细粒度算子堆叠，逐算子执行有大量内存往返与启动开销。",
+    "怎么实现：图优化器按预定义 pattern(如 Conv-BN-ReLU)识别子图，重写为单一融合节点。",
+    "有什么代价：融合规则需随算子语义维护；某些结构(带残差分支)无法简单融合。",
+    "怎么评测：同输入对比融合前后数值一致，并测端到端延迟/吞吐提升。"
+  ],
+  "invariant": "融合后算子输出与逐算子执行在数学上等价（浮点误差内）。",
+  "walkthrough": "ResNet 中 Conv+BN+ReLU 三算子融合后，原 3 次显存读写降为 1 次；实测同 batch 延迟下降约 30%。",
+  "edgeCases": [
+    "BN 在推理期参数为常量，可折叠进 Conv 权重。",
+    "带 add 残差的结构需特定融合规则。",
+    "动态 shape 下融合算子仍需支持变长。"
+  ],
+  "code": "# Python (概念)：示意融合模式识别\ndef fuse_conv_bn_relu(graph):\n    for node in graph.nodes:\n        if is_pattern(node, ['Conv','BatchNorm','Relu']):\n            fused = graph.make_fused('ConvBnRelu', node.inputs)\n            graph.replace(node, fused)\n    return graph",
+  "codeNotes": [
+    "融合发生在图优化阶段，不改权重语义。",
+    "TensorRT 内置大量融合规则。"
+  ],
+  "complexity": "模式匹配 O(节点数)；融合后执行更快。",
+  "followUps": [
+    {
+      "question": "融合会损失精度吗？",
+      "answer": "正常不会，融合只是计算重排；但若结合低精度(INT8)才引入量化误差。"
+    },
+    {
+      "question": "哪些算子最常融合？",
+      "answer": "Conv+BN+激活、MatMul+Add+Bias、Transpose+MatMul 等相邻逐元素/线性算子。"
+    }
+  ],
+  "followUpAnswers": [
+    "融合不改变数值，仅重排计算。",
+    "Conv/MatMul 类线性算子最易融合。"
+  ],
+  "pitfalls": [
+    "认为融合一定加快——极端小算子融合可能因复用数据量变化反而不利。",
+    "忽略 opset 版本差异导致融合规则不命中。"
+  ],
+  "beginnerSummary": "模型像一串小工序，每道工序都要把半成品搬来搬去很费时；算子融合就像把相邻几道工序合并成一道大工序，少搬几次东西，整体就快了。opset 则像\"工序目录\"，规定能用哪些标准工序。",
+  "prerequisites": [
+    "模型是算子组成的计算图。",
+    "每次 kernel 执行都有显存读写与调度开销。",
+    "ONNX 用 opset 管理算子版本。"
+  ],
+  "workedExample": [
+    "Conv+BN+ReLU → 融合为 ConvBnRelu 单节点。",
+    "融合后显存往返 3 次变 1 次，延迟降约 30%。"
+  ],
+  "lineByLine": [
+    "遍历图中节点序列。",
+    "用模式匹配找 Conv-BN-ReLU 相邻结构。",
+    "生成融合大算子并接上原输入。",
+    "替换原三个节点并验证数值一致。"
+  ],
+  "diagram": "Conv ─ BN ─ Relu   ==>   [ConvBnRelu]   (融合: 少 2 次显存往返)"
+},
+  {
+  "id": "onnx-export-issues",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "ONNX 导出常见问题",
+  "prompt": "ONNX 导出时常见的坑（动态控制流/自定义层）有哪些，怎么解决？",
+  "quickAnswer": "常见坑包括：动态控制流(if/loop)无法直接 trace、自定义层无对应 ONNX op、导出期形状未知、opset 不匹配。解法分别是用 TorchScript/tracing 配合控制流导出、为自定义层写自定义 op 或在导出前改写为标准算子、用 dynamic_axes 声明动态维、对齐目标引擎支持的 opset。",
+  "approach": "先静态化模型 → 用 trace/script 导出 → 检查不支持算子 → 改写或注册自定义 op → 验证一致性。",
+  "explanationFocus": "是什么：ONNX 导出是把框架图翻译成标准图的过程，易在动态结构与自定义层处失败。",
+  "bruteForce": "直接 torch.onnx.export 不带任何处理：遇到动态分支直接报错。",
+  "derivation": [
+    "为什么需要：训练图常含数据相关的控制流与私有算子，标准 ONNX 不认识。",
+    "怎么实现：用 tracing 记录实际路径，或用 scripting 保留控制流；自定义层导出为自定义 node 并后端注册。",
+    "有什么代价：scripting 要求代码可静态分析；自定义 op 需两端实现且难维护。",
+    "怎么评测：用代表性输入跑导出图，对比原模型输出最大误差 <阈值。"
+  ],
+  "invariant": "导出图对任意合法输入的输出应与原模型一致。",
+  "walkthrough": "含 for 循环模型：用 torch.jit.script 再 export；对比 10 组输入输出误差均 <1e-5。",
+  "edgeCases": [
+    "数据相关的 if：tracing 只记录一条分支，需 scripting。",
+    "自定义 Attention 层：导出为 CustomOp，TRT 端写 plugin。",
+    "导出期张量形状为 None：需给定 dummy 或 dynamic_axes。"
+  ],
+  "code": "# Python：用 scripting 处理动态控制流\ndef export_with_script(model, path):\n    import torch\n    scripted = torch.jit.script(model)   # 保留控制流\n    dummy = model.example_input()\n    torch.onnx.export(scripted, dummy, path, opset_version=17)",
+  "codeNotes": [
+    "tracing 只看一次执行路径，会丢分支。",
+    "scripting 要求无 Python 仅数据相关逻辑。"
+  ],
+  "complexity": "导出 O(图规模)；调试自定义 op 成本较高。",
+  "followUps": [
+    {
+      "question": "tracing 和 scripting 选哪个？",
+      "answer": "无动态控制流用 tracing 简单；有 if/loop 用 scripting 才能保留结构。"
+    },
+    {
+      "question": "自定义层导出后推理端怎么办？",
+      "answer": "在 ONNX 中为自定义 node，并在 TensorRT 侧实现对应 plugin 注册。"
+    }
+  ],
+  "followUpAnswers": [
+    "动态控制流优先 scripting。",
+    "自定义层靠 plugin 兜底。"
+  ],
+  "pitfalls": [
+    "以为 tracing 能自动捕获所有分支——它只记录实际跑的那条。",
+    "导出成功就以为等价——必须用多组输入验证。"
+  ],
+  "beginnerSummary": "导出模型像把菜谱翻译成通用语言：有些\"看火候再决定\"的步骤(动态控制流)机器翻译不了一开始会翻错；有些独家秘方(自定义层)通用词典里没有，得自己补一张对照表(自定义 op)。",
+  "prerequisites": [
+    "导出是把框架图转标准图。",
+    "控制流分数据相关与静态。",
+    "ONNX 算子集合有限。"
+  ],
+  "workedExample": [
+    "for 循环模型改用 torch.jit.script 再导出。",
+    "10 组输入对比误差 <1e-5 才算通过。"
+  ],
+  "lineByLine": [
+    "先用 scripting 固化控制流。",
+    "准备示例输入定形状。",
+    "调用 onnx.export 写出。",
+    "多组输入验证数值一致。"
+  ],
+  "diagram": "PyTorch 模型 ─(script/trace)─▶ ONNX\n   动态分支 ─▶ scripting    自定义层 ─▶ CustomOp+plugin"
+},
+  {
+  "id": "onnx-trt-what",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "TensorRT 是什么",
+  "prompt": "TensorRT 是什么，为什么 NVIDIA GPU 推理要用它？",
+  "quickAnswer": "TensorRT 是 NVIDIA 的高性能推理优化 SDK/运行时：它把训练好的网络(如 ONNX)解析成图，做层融合、精度校准(FP16/INT8)、内核自动调优与显存优化，生成高度优化的推理引擎(engine)，从而在 NVIDIA GPU 上显著降低延迟、提升吞吐。",
+  "approach": "ONNX → TensorRT 解析 → 图优化+量化 → build engine → 运行时执行。",
+  "explanationFocus": "是什么：TensorRT 是面向 NVIDIA GPU 的推理优化引擎与运行时，把通用图编译成 GPU 高效的执行计划。",
+  "bruteForce": "在 GPU 上逐算子调原生 kernel：无融合、全 FP32、未选最优 kernel。",
+  "derivation": [
+    "为什么需要：训练框架推理路径重、难榨干 GPU 算力，且 FP32 显存/带宽浪费。",
+    "怎么实现：读入网络定义，做图优化、精度转换、kernel 调优，再序列化 engine。",
+    "有什么代价：build 耗时、绑定特定 GPU 架构、INT8 需校准集。",
+    "怎么评测：同输入对比精度，测端到端延迟与吞吐相对原框架提升。"
+  ],
+  "invariant": "优化后(同精度)输出应与原模型在误差容忍内一致。",
+  "walkthrough": "resnet50 ONNX 经 TRT FP16 build：延迟从 eager 的 12ms 降到 3ms，吞吐约 4 倍。",
+  "edgeCases": [
+    "engine 与 GPU 架构(sm 版本)绑定，换卡需重建。",
+    "不支持的算子需 plugin。",
+    "动态 shape 需设优化剖面(profile)。"
+  ],
+  "code": "# Python (概念)：构建 TRT engine\ndef build_engine(onnx_path, engine_path, fp16=True):\n    import tensorrt as trt\n    logger = trt.Logger(trt.Logger.WARNING)\n    builder = trt.Builder(logger)\n    net = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))\n    parser = trt.OnnxParser(net, logger)\n    parser.parse_from_file(onnx_path)\n    config = builder.create_builder_config()\n    if fp16: config.set_flag(trt.BuilderFlag.FP16)\n    engine = builder.build_serialized_network(net, config)\n    open(engine_path, 'wb').write(engine)",
+  "codeNotes": [
+    "build 是离线一次性的重操作。",
+    "engine 序列化后按卡架构加载。"
+  ],
+  "complexity": "build O(图规模×调优)；推理 O(原图)。",
+  "followUps": [
+    {
+      "question": "TRT 比 ONNX Runtime 快在哪？",
+      "answer": "TRT 做更深入的层融合、GPU 专属 kernel 调优与低精度量化，而 ORT 更通用跨平台。"
+    },
+    {
+      "question": "engine 能跨 GPU 用吗？",
+      "answer": "不能，engine 针对特定 compute capability 构建，换架构需重新 build。"
+    }
+  ],
+  "followUpAnswers": [
+    "TRT 深入 GPU 专属优化。",
+    "engine 绑定 sm 版本。"
+  ],
+  "pitfalls": [
+    "以为 engine 可跨显卡通用——它绑定 GPU 架构。",
+    "把 build 放线上——应在离线/构建期完成。"
+  ],
+  "beginnerSummary": "TensorRT 像一个\"GPU 专用编译器\"：你把通用菜谱(ONNX)交给它，它把几道工序并成一道、换用更小巧的计量单位(低精度)、挑出最快的火候方案，最后给你一份专门在这台灶台上最快的执行计划(engine)。",
+  "prerequisites": [
+    "推理追求低延迟高吞吐。",
+    "GPU kernel 有不同实现可选。",
+    "精度可降低以换速度。"
+  ],
+  "workedExample": [
+    "resnet50 onnx → TRT FP16 build。",
+    "延迟 12ms→3ms，吞吐约 4 倍。"
+  ],
+  "lineByLine": [
+    "创建 builder 与网络定义。",
+    "用 OnnxParser 读入图。",
+    "开 FP16 flag 并 build 序列化。",
+    "写入 engine 文件供运行时加载。"
+  ],
+  "diagram": "ONNX ─▶ Parser ─▶ Optimizer(融合/量化) ─▶ Engine ─▶ GPU 执行"
+},
+  {
+  "id": "onnx-trt-optimizations",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "TensorRT 的主要优化",
+  "prompt": "TensorRT 主要做了哪些优化（层融合/内核自动调优/显存优化）？",
+  "quickAnswer": "TensorRT 核心优化有四类：层融合(把相邻算子合并减少 kernel 数与显存往返)、精度优化(FP16/INT8 量化)、内核自动调优(为每层选 GPU 上最快的 kernel 实现)、显存优化(复用/规划 tensor 生命周期降低占用与带宽)。",
+  "approach": "解析图 → 应用 fusion 规则 → 选择精度 → 对每层调优 kernel → 规划显存 → 生成 engine。",
+  "explanationFocus": "是什么：TRT 优化是把通用网络编译为 GPU 高效执行计划的一组图级与 kernel 级手段。",
+  "bruteForce": "每层独立 kernel、全 FP32、各自分配显存：带宽与启动开销大。",
+  "derivation": [
+    "为什么需要：通用执行未利用 GPU 特性，存在大量冗余访存与未选优 kernel。",
+    "怎么实现：融合规则改写图；精度转换改数据类型；调优在 build 期枚举 kernel 选最优；显存规划做 tensor 复用。",
+    "有什么代价：调优耗时、精度下降需校准、融合规则维护成本。",
+    "怎么评测：对比优化前后延迟/吞吐/显存与精度。"
+  ],
+  "invariant": "同精度优化后输出应在误差容忍内一致。",
+  "walkthrough": "resnet 经融合后 kernel 数由 ~60 降到 ~20；FP16 使带宽减半；自动调优再省 15% 延迟。",
+  "edgeCases": [
+    "INT8 需校准集否则精度崩。",
+    "动态 shape 下 kernel 选择更复杂。",
+    "某些 op 无法融合需保持原样。"
+  ],
+  "code": "# Python (概念)：开启主要优化 flag\ndef configure_optimizations(builder):\n    config = builder.create_builder_config()\n    config.set_flag(trt.BuilderFlag.FP16)      # 精度优化\n    config.set_flag(trt.BuilderFlag.INT8)      # 需配合校准\n    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, 1 << 30)  # 调优空间\n    return config",
+  "codeNotes": [
+    "workspace 越大可调优空间越多。",
+    "INT8 必须提供校准器。"
+  ],
+  "complexity": "调优 O(build 期枚举)；推理显著变快。",
+  "followUps": [
+    {
+      "question": "内核自动调优是什么？",
+      "answer": "TRT 在 build 期为每个层枚举多种 kernel 实现并实测，选延迟最低的那个固化进 engine。"
+    },
+    {
+      "question": "显存优化怎么做到？",
+      "answer": "通过分析 tensor 生命周期做内存复用与统一规划，减少分配次数与峰值占用。"
+    }
+  ],
+  "followUpAnswers": [
+    "build 期实测选最快 kernel。",
+    "tensor 生命周期复用降占用。"
+  ],
+  "pitfalls": [
+    "以为开 FP16 一定更快——小模型可能被 launch 开销主导。",
+    "忽略 workspace 限制导致调优不充分。"
+  ],
+  "beginnerSummary": "TRT 优化就像把零散工序合并、改用更小单位计量、为每个动作挑最快手法、并合理安排台面空间：合工序省搬运(融合)、小单位省材料(低精度)、挑手法提速(调优)、理台面省地方(显存)。",
+  "prerequisites": [
+    "GPU kernel 有多样实现。",
+    "访存是推理瓶颈之一。",
+    "精度可适度降低。"
+  ],
+  "workedExample": [
+    "融合使 kernel 数 60→20。",
+    "FP16 带宽减半；调优再省 15% 延迟。"
+  ],
+  "lineByLine": [
+    "解析并匹配融合规则。",
+    "按配置做精度转换。",
+    "枚举 kernel 实测选最优。",
+    "规划显存并序列化 engine。"
+  ],
+  "diagram": "通用图 ─▶[融合][量化][调优][显存规划]─▶ 高效 engine"
+},
+  {
+  "id": "onnx-trt-fp16-int8",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "FP16 / INT8 支持",
+  "prompt": "TensorRT 中 FP16 和 INT8 分别怎么支持，区别是什么？",
+  "quickAnswer": "FP16 是半精度，几乎无损且只需开 BuilderFlag.FP16 即可自动转换，提速省显存；INT8 是 8 位定点，需做校准(calibration)确定每层缩放因子，精度可能下降但延迟/带宽收益更大，需用校准集估计激活分布。",
+  "approach": "FP16：开 flag 直接降精度；INT8：提供校准器估计激活范围 → 计算 scale → 量化执行。",
+  "explanationFocus": "是什么：FP16/INT8 是 TRT 支持的低精度推理模式，用更少比特表示张量以换速度。",
+  "bruteForce": "全程 FP32：精度高但慢、显存与带宽吃紧。",
+  "derivation": [
+    "为什么需要：FP32 在带宽/算力上浪费，GPU 有更强 FP16/INT8 吞吐。",
+    "怎么实现：FP16 直接类型转换；INT8 需校准得到激活 min/max→scale→量化/反量化。",
+    "有什么代价：INT8 引入量化误差，需校准集与敏感性分析。",
+    "怎么评测：用验证集测精度(如 top-1)与延迟/吞吐。"
+  ],
+  "invariant": "低精度输出相对 FP32 应落在任务可接受误差内。",
+  "walkthrough": "resnet50：FP16 精度几乎不变、延迟降约 2×；INT8 精度掉 <0.5% 但延迟再降约 1.8×。",
+  "edgeCases": [
+    "对量化敏感的层(如 detection 的 bbox 头)可保持 FP16。",
+    "无校准集时 INT8 不可用。",
+    "某些算子不支持 INT8 需回退。"
+  ],
+  "code": "# Python (概念)：INT8 校准器骨架\ndef make_int8_calibrator(data_loader):\n    import tensorrt as trt\n    class Calib(trt.IInt8MinMaxCalibrator):\n        def __init__(self): self.b = 0\n        def get_batch(self, names):\n            try:\n                return [next(data_loader).numpy()]\n            except StopIteration:\n                return None\n        def get_algorithm(self): return trt.CalibrationAlgoType.ENTROPY_CALIBRATION_2\n    return Calib()",
+  "codeNotes": [
+    "校准只需少量代表样本。",
+    "ENTROPY_CALIBRATION_2 较常用。"
+  ],
+  "complexity": "校准 O(样本数×图规模)；推理收益显著。",
+  "followUps": [
+    {
+      "question": "INT8 为什么需要校准？",
+      "answer": "要确定每层激活的量化范围(scale/zero-point)，否则截断误差大、精度崩。"
+    },
+    {
+      "question": "FP16 要校准吗？",
+      "answer": "不需要，FP16 是确定性的窄浮点，开 flag 即可，误差极小。"
+    }
+  ],
+  "followUpAnswers": [
+    "INT8 靠校准定 scale。",
+    "FP16 免校准直接开。"
+  ],
+  "pitfalls": [
+    "以为 INT8 免调参——校准集不具代表性会精度崩。",
+    "对所有层无差别 INT8——敏感层应回退 FP16。"
+  ],
+  "beginnerSummary": "FP16 像把厘米刻度换成半厘米，读数略粗但几乎不影响判断；INT8 像只记\"大/中/小\"三档，省很多空间但得先拿一批样品摸清每档对应多大(校准)，否则会记错。",
+  "prerequisites": [
+    "精度与速度可权衡。",
+    "GPU 有低精度高吞吐单元。",
+    "量化需知道数值范围。"
+  ],
+  "workedExample": [
+    "FP16 开 flag，精度几乎不变，延迟降 2×。",
+    "INT8 校准后精度掉 <0.5%，延迟再降 1.8×。"
+  ],
+  "lineByLine": [
+    "FP16 直接开 BuilderFlag。",
+    "INT8 需构造校准器。",
+    "校准器喂代表样本估范围。",
+    "生成 scale 并量化执行。"
+  ],
+  "diagram": "FP32 ─▶ FP16(直接)   FP32 ─▶[校准估范围]─▶ INT8(需 scale)"
+},
+  {
+  "id": "onnx-trt-build-engine",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "TensorRT 构建引擎流程",
+  "prompt": "TensorRT 构建 engine 的完整流程是什么？",
+  "quickAnswer": "流程为：创建 Logger/Builder → 建 NetworkDefinition(通常 EXPLICIT_BATCH) → 用 Parser(如 OnnxParser)解析模型 → 配 BuilderConfig(精度 flag、workspace、profile、INT8 校准器) → builder.build_serialized_network 生成 engine → 序列化保存；运行时反序列化建 ExecutionContext 执行。",
+  "approach": "Builder+Network+Parser 构建图 → Config 设优化 → build → serialize → 运行时 deserialize+context 推理。",
+  "explanationFocus": "是什么：build engine 是把网络定义编译成可执行、GPU 专属优化计划(engine)的离线过程。",
+  "bruteForce": "每次推理都重新解析与优化：不可接受的重。",
+  "derivation": [
+    "为什么需要：优化一次固化，避免运行时重复付出编译成本。",
+    "怎么实现：builder 读网络与 config，做融合/调优/量化后产出序列化 blob。",
+    "有什么代价：build 耗时长、绑定 GPU 架构、配置项多易错。",
+    "怎么评测：build 成功且 engine 推理结果正确、性能达标。"
+  ],
+  "invariant": "同配置 build 出的 engine 推理结果应一致。",
+  "walkthrough": "resnet50 onnx build(FP16)：build 约 20s，产出 50MB engine，加载后单次推理 3ms。",
+  "edgeCases": [
+    "EXPLICIT_BATCH 才能支持多数 ONNX 模型。",
+    "workspace 太小调优不充分。",
+    "engine 必须在同架构 GPU 加载。"
+  ],
+  "code": "# Python：标准 build 流程\ndef build_and_save(onnx_path, engine_path):\n    import tensorrt as trt\n    logger = trt.Logger()\n    builder = trt.Builder(logger)\n    flag = 1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)\n    net = builder.create_network(flag)\n    parser = trt.OnnxParser(net, logger)\n    parser.parse_from_file(onnx_path)\n    config = builder.create_builder_config()\n    config.set_flag(trt.BuilderFlag.FP16)\n    engine = builder.build_serialized_network(net, config)\n    open(engine_path, 'wb').write(engine)",
+  "codeNotes": [
+    "EXPLICIT_BATCH 是关键标志。",
+    "engine 是二进制，跨架构无效。"
+  ],
+  "complexity": "build 离线 O(图规模×调优)；一次付出。",
+  "followUps": [
+    {
+      "question": "为什么 engine 要序列化保存？",
+      "answer": "build 慢，序列化后部署时 deserialize 即可，避免线上重复编译。"
+    },
+    {
+      "question": "EXPLICIT_BATCH 是什么？",
+      "answer": "显式批次维度模式，支持动态 shape 与更完整 ONNX 语义，是推荐默认。"
+    }
+  ],
+  "followUpAnswers": [
+    "序列化避免线上重编译。",
+    "EXPLICIT_BATCH 支持动态与完整语义。"
+  ],
+  "pitfalls": [
+    "忘记 EXPLICIT_BATCH 导致 ONNX 解析失败。",
+    "在请求路径里 build engine。"
+  ],
+  "beginnerSummary": "构建 engine 像按菜谱(ONNX)在自家灶台上预先排练并写下一页\"最快执行清单\"(engine)：事先花点时间练熟，之后每次照单做就行，不用边做边想。",
+  "prerequisites": [
+    "模型已导出为 ONNX。",
+    "优化可离线一次性完成。",
+    "engine 与 GPU 架构绑定。"
+  ],
+  "workedExample": [
+    "ONNX → Parser 解析进 Network。",
+    "Config 开 FP16 → build → 存 engine。"
+  ],
+  "lineByLine": [
+    "建 Builder 与 Network(EXPLICIT_BATCH)。",
+    "OnnxParser 解析模型入图。",
+    "配 Config(精度/workspace)。",
+    "build_serialized_network 并写文件。"
+  ],
+  "diagram": "Builder ─ Network ─ Parser(ONNX) ─▶ Config ─▶ build ─▶ engine(blob)"
+},
+  {
+  "id": "onnx-trt-dynamic-shape",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "动态 shape 支持",
+  "prompt": "TensorRT 的动态 shape（dynamic shape）怎么支持，为什么重要？",
+  "quickAnswer": "动态 shape 允许输入维度(如 batch、分辨率)在运行时变化；做法是在 BuilderConfig 中用 OptimizationProfile 声明各动态维的最小/最优/最大范围，TRT 为此范围生成可应对的 engine；推理时用 set_input_shape 指定实际形状。它重要是因为真实服务常面对变长输入(变 batch、变分辨率)。",
+  "approach": "Config 加 profile(min/opt/max) → build → context.set_input_shape 设实际形状 → 执行。",
+  "explanationFocus": "是什么：动态 shape 让 TRT engine 在声明范围内接受变长输入，而非固定形状。",
+  "bruteForce": "为每种形状各建一个 engine：冗余且内存爆炸。",
+  "derivation": [
+    "为什么需要：线上输入尺寸/批量不固定，固定 shape 不灵活。",
+    "怎么实现：profile 描述动态维范围，TRT 在该范围做 kernels 调优与显存规划。",
+    "有什么代价：opt 形状选错会拖累性能；范围过大增加 build 与显存。",
+    "怎么评测：在 min/opt/max 及中间形状上验证精度与延迟。"
+  ],
+  "invariant": "范围内任意合法形状输出应与原模型一致。",
+  "walkthrough": "batch 范围 [1,8,32]：opt=8 调优；实际 batch=5 时 set_input_shape([5,3,224,224]) 正常推理。",
+  "edgeCases": [
+    "opt 形状应贴近典型负载以免性能差。",
+    "超出 max 的输入会被拒绝。",
+    "多动态维需分别设 profile。"
+  ],
+  "code": "# Python：配置动态 shape profile\ndef add_dynamic_profile(config, input_name):\n    profile = config.add_optimization_profile()\n    profile.set_shape(input_name,\n                      min=(1,3,224,224),\n                      opt=(8,3,224,224),\n                      max=(32,3,224,224))\n    return profile",
+  "codeNotes": [
+    "opt 是调优基准形状。",
+    "min/opt/max 必须都能放下。"
+  ],
+  "complexity": "build 随范围增大而变慢；推理灵活。",
+  "followUps": [
+    {
+      "question": "opt 形状选错了会怎样？",
+      "answer": "TRT 围绕 opt 调优，实际形状偏离 opt 远时 kernel 非最优，性能下降。"
+    },
+    {
+      "question": "能同时多个 profile 吗？",
+      "answer": "可以，add_optimization_profile 可加多个，运行时按需要选。"
+    }
+  ],
+  "followUpAnswers": [
+    "opt 决定调优基准。",
+    "多 profile 可并存。"
+  ],
+  "pitfalls": [
+    "把 max 设得过大——build 慢且显存浪费。",
+    "运行时形状超出 max 却未校验。"
+  ],
+  "beginnerSummary": "动态 shape 像一张\"可调大小的模具\"：你先告诉工厂最小、最舒服、最大三种尺寸(范围)，工厂据此做一副能伸缩的模具；用的时候按实际大小调一下就行，不用为每种尺寸另开一副。",
+  "prerequisites": [
+    "线上输入形状常变化。",
+    "固定 shape 缺乏灵活性。",
+    "TRT 需范围做调优。"
+  ],
+  "workedExample": [
+    "profile 设 batch min1/opt8/max32。",
+    "实际 batch=5 用 set_input_shape 推理。"
+  ],
+  "lineByLine": [
+    "创建 optimization profile。",
+    "设动态维 min/opt/max。",
+    "build 时纳入该 profile。",
+    "推理时 set_input_shape 设实际值。"
+  ],
+  "diagram": "输入维: min ── opt(调优) ── max   ==> 可伸缩 engine"
+},
+  {
+  "id": "onnx-trt-plugin",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "plugin 自定义算子",
+  "prompt": "TensorRT 的 plugin（自定义算子）是什么，什么时候需要它？",
+  "quickAnswer": "plugin 是用户为 TRT 不支持或需特优化的算子提供的自定义实现(C++/CUDA kernel + 注册)，让它能融入 engine 一起优化；当模型含 ONNX 无对应 op、或标准实现太慢(如特殊注意力)时就需要写 plugin，并在 ONNX 端以自定义 node 对应。",
+  "approach": "定义 plugin(含 enqueue/kernel) → 注册到 PluginRegistry → ONNX 自定义 node 映射 → build engine。",
+  "explanationFocus": "是什么：plugin 是扩展 TRT 算子能力的自定义算子机制，用 CUDA 实现并注册进引擎。",
+  "bruteForce": "把不支持的算子拆成多个标准算子：慢且可能改数值。",
+  "derivation": [
+    "为什么需要：TRT 内置 op 有限，新算子在 ONNX 解析后无实现会 build 失败。",
+    "怎么实现：实现 IPluginV2 接口(含输出形状推断、enqueue 调 CUDA kernel)、注册名、写 ONNX 解析映射。",
+    "有什么代价：C++/CUDA 开发门槛高、需随 TRT 版本维护、难调试。",
+    "怎么评测：plugin 输出与参考实现(如 PyTorch)逐元素误差 < 阈值。"
+  ],
+  "invariant": "plugin 输出应与参考实现在误差容忍内一致。",
+  "walkthrough": "自定义 Swish：写 CUDA kernel + IPluginV2，解析 ONNX CustomOp 映射，build 后输出误差 <1e-5。",
+  "edgeCases": [
+    "plugin 需声明支持的数据类型与 workspace。",
+    "版本 API(IPluginV2DynamicExt)差异。",
+    "多输入/动态形状 plugin 形状推断要正确。"
+  ],
+  "code": "# Python：在 ONNX 侧标记自定义 node（示意）\ndef mark_custom_op(onnx_graph, node_name):\n    # 实际 plugin 的 CUDA/C++ 在 C++ 端注册\n    # ONNX 中对应一个 domain 为自定义、op_type=CustomOp 的 node\n    return f\"CustomOp:{node_name} (registered in TRT PluginRegistry)\"",
+  "codeNotes": [
+    "plugin 主体在 C++/CUDA 实现。",
+    "ONNX 端只是标记自定义 node。"
+  ],
+  "complexity": "开发高；运行期与普通 op 一起优化。",
+  "followUps": [
+    {
+      "question": "plugin 和直接拆算子比？",
+      "answer": "plugin 可融合进 engine 并用 CUDA 高度优化，拆标准算子往往更慢且破坏融合。"
+    },
+    {
+      "question": "plugin 要维护哪些接口？",
+      "answer": "输出形状推断、enqueue(执行)、序列化/反序列化、配置与清理，随 TRT 版本 API 变化。"
+    }
+  ],
+  "followUpAnswers": [
+    "plugin 可融合且可 CUDA 优化。",
+    "需实现形状/执行/序列化接口。"
+  ],
+  "pitfalls": [
+    "低估 plugin 维护成本——TRT 大版本常改 API。",
+    "plugin 内形状推断错误导致 build/运行崩溃。"
+  ],
+  "beginnerSummary": "plugin 像给工厂(TRT)加装一台\"非标定制机器\"：标准机器(内置算子)做不了的活，你自己造一台并登记在册，工厂就能把它编进流水线一起提速。",
+  "prerequisites": [
+    "TRT 内置 op 有限。",
+    "新算子需 CUDA 实现。",
+    "ONNX 自定义 node 需映射。"
+  ],
+  "workedExample": [
+    "自定义 Swish 写 CUDA kernel + IPluginV2。",
+    "ONNX CustomOp 映射后 build，误差 <1e-5。"
+  ],
+  "lineByLine": [
+    "实现 plugin 的接口与 CUDA kernel。",
+    "注册到 PluginRegistry。",
+    "ONNX 导出为自定义 node。",
+    "parser 映射到 plugin 并 build。"
+  ],
+  "diagram": "ONNX CustomOp ─▶ PluginRegistry ─▶ CUDA kernel ─▶ engine"
+},
+  {
+  "id": "onnx-to-trt",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "ONNX → TensorRT 转换链路",
+  "prompt": "从 ONNX 转换到 TensorRT 的完整链路是什么，各环节做什么？",
+  "quickAnswer": "链路为：ONNX 模型 → ONNX Parser 解析为 TRT NetworkDefinition(图与权重) → 图优化(融合/常量折叠) → 精度配置(FP16/INT8+校准) → Builder 在该网络与配置上 build 出 engine → 序列化；每一环都可能因不支持 op/形状问题失败，需逐一排查。",
+  "approach": "导出合规 ONNX → Parser 读图 → 优化+量化 → build engine → 部署。",
+  "explanationFocus": "是什么：ONNX→TRT 是把开放中间图编译进 NVIDIA 专属优化引擎的端到端链路。",
+  "bruteForce": "跳过 ONNX 直接用框架推理：无 TRT 优化。",
+  "derivation": [
+    "为什么需要：统一用 ONNX 做桥梁，避免每个框架写专门导入器。",
+    "怎么实现：OnnxParser 调 ONNX 库解析 proto 填充 NetworkDefinition；其后走标准 TRT 优化。",
+    "有什么代价：解析失败常因 op 不支持/版本错；需 plugin 或改图兜底。",
+    "怎么评测：对比 TRT 与 ONNX Runtime 同输入输出误差与延迟。"
+  ],
+  "invariant": "链路末端 engine 输出应与原 ONNX 在误差内一致。",
+  "walkthrough": "yolov8 onnx → OnnxParser → FP16 build → 与 ORT 输出 IoU>0.999，延迟降 3×。",
+  "edgeCases": [
+    "解析报 Unsupported operator：需 plugin 或简化图。",
+    "opset 过高 TRT 不支持：降级导出。",
+    "权重常量未嵌入：确保 export 包含权重。"
+  ],
+  "code": "# Python：ONNX → TRT 解析骨架\ndef onnx_to_trt(onnx_path):\n    import tensorrt as trt\n    logger = trt.Logger()\n    builder = trt.Builder(logger)\n    net = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))\n    parser = trt.OnnxParser(net, logger)\n    with open(onnx_path, 'rb') as f:\n        parser.parse(f.read())          # 填充 NetworkDefinition\n    for i in range(parser.num_errors):\n        print(parser.get_error(i))\n    return builder, net",
+  "codeNotes": [
+    "parse 后务必检查 num_errors。",
+    "权重随 proto 一起读入。"
+  ],
+  "complexity": "解析 O(图规模)；优化另计。",
+  "followUps": [
+    {
+      "question": "解析报错 Unsupported operator 怎么办？",
+      "answer": "要么把该算子改写为标准 op 组合，要么为它写 TRT plugin 注册。"
+    },
+    {
+      "question": "能直接从 PyTorch 到 TRT 吗？",
+      "answer": "通常经 ONNX 中转最稳；也有 torch2trt 类直接路径但覆盖有限。"
+    }
+  ],
+  "followUpAnswers": [
+    "不支持 op 靠改写或 plugin。",
+    "ONNX 中转最通用。"
+  ],
+  "pitfalls": [
+    "解析后不看 errors 直接 build——掩盖了失败。",
+    "ONNX opset 与 TRT 支持不匹配。"
+  ],
+  "beginnerSummary": "ONNX→TRT 像把\"通用图纸(ONNX)\"交给专厂(TRT)：专厂读图、重排工序、挑最快手法做出专属流水线(engine)。中间若发现图纸上有专厂不认识的零件，就得要么改图纸要么另做配件。",
+  "prerequisites": [
+    "ONNX 是中间桥梁。",
+    "TRT 用 NetworkDefinition 表示图。",
+    "解析可能因 op 失败。"
+  ],
+  "workedExample": [
+    "yolov8 onnx 经 OnnxParser 解析。",
+    "FP16 build 后 IoU>0.999，延迟降 3×。"
+  ],
+  "lineByLine": [
+    "读 ONNX 文件字节流。",
+    "OnnxParser 填充 NetworkDefinition。",
+    "检查并打印解析错误。",
+    "交 Builder 优化生成 engine。"
+  ],
+  "diagram": "ONNX ─▶ OnnxParser ─▶ NetworkDef ─▶ Optimizer ─▶ Engine"
+},
+  {
+  "id": "onnx-trt-int8-calibration",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "INT8 校准流程",
+  "prompt": "TensorRT 的 INT8 校准（calibration）流程是什么，为什么需要它？",
+  "quickAnswer": "INT8 校准是估计每层激活张量分布以确定量化 scale/zero-point 的过程：提供一个有代表性的校准数据集，TRT 在 build 期跑前向收集每层激活的 min/max(或用熵/百分位算法)，据此生成量化参数，使 FP32→INT8 的截断误差最小；无校准则无法安全量化。",
+  "approach": "准备代表性校准集 → 实现 IInt8Calibrator(喂样本) → 选算法(ENTROPY/LEGACY) → build 时收集分布 → 生成 INT8 engine。",
+  "explanationFocus": "是什么：INT8 校准是用少量代表样本统计激活分布、为每层确定量化参数的离线过程。",
+  "bruteForce": "直接按固定范围[-1,1]量化：截断严重、精度崩。",
+  "derivation": [
+    "为什么需要：INT8 只有 256 个值，必须知道真实数值范围才能少丢信息。",
+    "怎么实现：校准器逐 batch 喂数据，TRT 记录每层激活直方图，用熵/百分位选最优截断点→scale。",
+    "有什么代价：校准集需具代表性；算法选择影响精度。",
+    "怎么评测：用验证集测 INT8 相对 FP32 的精度掉点是否在可接受范围。"
+  ],
+  "invariant": "校准后 INT8 输出精度掉点应在任务容忍内。",
+  "walkthrough": "用 500 张代表图校准 resnet50 INT8：top-1 掉 0.3%，延迟较 FP16 再降 1.8×。",
+  "edgeCases": [
+    "校准集分布偏离线上数据→精度崩。",
+    "某些层对量化极敏感需回退 FP16。",
+    "校准缓存可保存复用避免重跑。"
+  ],
+  "code": "# Python：熵校准器实现骨架\ndef int8_calibrator(loader):\n    import tensorrt as trt\n    class Ent(trt.IInt8EntropyCalibrator2):\n        def __init__(self): self.it = iter(loader)\n        def get_batch(self, names):\n            try: return [next(self.it).numpy()]\n            except StopIteration: return None\n        def read_calibration_cache(self): return None\n        def write_calibration_cache(self, c): open('cal.bin','wb').write(c)\n    return Ent()",
+  "codeNotes": [
+    "缓存校准结果可加速重 build。",
+    "校准样本数不必多但要代表。"
+  ],
+  "complexity": "校准 O(样本×图规模)；一次离线。",
+  "followUps": [
+    {
+      "question": "校准集要多少样本？",
+      "answer": "通常几百到一千张具代表性样本即可，关键是覆盖输入分布而非数量极大。"
+    },
+    {
+      "question": "校准缓存有什么用？",
+      "answer": "把量化参数存盘，之后 build 直接读缓存，省去重跑前向收集分布。"
+    }
+  ],
+  "followUpAnswers": [
+    "几百张代表样本足够。",
+    "缓存避免重跑校准。"
+  ],
+  "pitfalls": [
+    "用训练集随机小批当校准集却分布偏移。",
+    "对所有层强制 INT8 不顾敏感性。"
+  ],
+  "beginnerSummary": "INT8 校准像先拿一批\"典型样品\"量一量每件工具的常用大小区间，据此标好刻度(scale)；以后只按这个刻度记\"大中小\"，既省空间又不至于记错。样品不典型，刻度就歪了。",
+  "prerequisites": [
+    "INT8 只有 256 个离散值。",
+    "需知激活真实范围。",
+    "量化引入截断误差。"
+  ],
+  "workedExample": [
+    "500 张代表图喂校准器。",
+    "resnet INT8 top-1 掉 0.3%，延迟再降 1.8×。"
+  ],
+  "lineByLine": [
+    "准备代表性校准数据。",
+    "实现 calibrator 喂样本。",
+    "build 期收集激活分布。",
+    "用熵算法定 scale 并量化。"
+  ],
+  "diagram": "校准样本 ─▶ 前向收集分布 ─▶ 熵选截断点 ─▶ scale ─▶ INT8 engine"
+},
+  {
+  "id": "onnx-trt-latency-compare",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Easy",
+  "title": "推理延迟对比",
+  "prompt": "PyTorch eager 推理和 TensorRT 推理在延迟上通常差多少，为什么？",
+  "quickAnswer": "TensorRT 通常比 PyTorch eager 快数倍：eager 逐算子 Python 调度+无融合+FP32，而 TRT 做层融合、FP16/INT8 与 GPU kernel 调优，并去掉 Python 开销；典型 CNN 可达 3–10×，具体取决于模型与硬件。",
+  "approach": "同一输入分别用 eager 与 TRT engine 计时(预热后取中位数) → 对比延迟与吞吐。",
+  "explanationFocus": "是什么：推理延迟对比是衡量 TRT 相对原生框架加速收益的基本手段。",
+  "bruteForce": "只看单次随意计时：受预热/噪声影响不可靠。",
+  "derivation": [
+    "为什么需要：部署要量化加速收益与是否值得引入 TRT。",
+    "怎么实现：固定输入、预热若干次、取稳定后多次耗时中位数与 p99。",
+    "有什么代价：需同硬件、同 batch、同精度才有可比性。",
+    "怎么评测：报告平均/p99 延迟与吞吐(QPS)，并确认精度一致。"
+  ],
+  "invariant": "对比须在同一输入分布与精度语义下才公平。",
+  "walkthrough": "resnet50 batch=8：eager 18ms vs TRT FP16 3ms ≈ 6×；吞吐 55→330 img/s。",
+  "edgeCases": [
+    "小 batch 时 Python 开销占比高，TRT 收益更明显。",
+    "CPU 绑定算子会拖慢整体。",
+    "未预热导致首帧异常慢。"
+  ],
+  "code": "# Python：等价的延迟基准测试\ndef bench(fn, inp, warmup=10, iters=100):\n    import time\n    for _ in range(warmup): fn(inp)\n    t0 = time.perf_counter()\n    for _ in range(iters): fn(inp)\n    return (time.perf_counter() - t0) / iters * 1000  # ms",
+  "codeNotes": [
+    "必须预热消除首帧开销。",
+    "取中位数比均值更稳。"
+  ],
+  "complexity": "基准 O(iters×单次)；一次性。",
+  "followUps": [
+    {
+      "question": "为什么小 batch 加速比更大？",
+      "answer": "小 batch 时固定 Python/调度开销占比高，TRT 消除这些开销收益更显著。"
+    },
+    {
+      "question": "吞吐和延迟哪个更该看？",
+      "answer": "在线服务看延迟(p99)，离线批处理看吞吐(QPS)，两者都报更稳。"
+    }
+  ],
+  "followUpAnswers": [
+    "小 batch 固定开销占比高。",
+    "在线看延迟、离线看吞吐。"
+  ],
+  "pitfalls": [
+    "不预热直接计时——首帧误导。",
+    "不同精度/bench 下直接比——不公平。"
+  ],
+  "beginnerSummary": "eager 像手工一步步做还边做边翻说明书(Python 调度)，TRT 像把流程排练成流水线一气呵成；同样的菜，后者快好几倍。但要比就得同条件比，不能一个用大火一个用小火。",
+  "prerequisites": [
+    "延迟受调度与融合影响。",
+    "低精度可提速。",
+    "计时需排除噪声。"
+  ],
+  "workedExample": [
+    "resnet50 batch8：eager 18ms vs TRT 3ms。",
+    "吞吐 55→330 img/s，约 6×。"
+  ],
+  "lineByLine": [
+    "固定输入与硬件。",
+    "预热若干次。",
+    "多次计时取中位数/p99。",
+    "同精度下对比 eager 与 TRT。"
+  ],
+  "diagram": "eager: 逐算子+Python  ─▶ 慢\nTRT:   融合+低精度+调优 ─▶ 快 (3~10x)"
+},
+  {
+  "id": "onnx-graph-optimization",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "图优化与常量折叠",
+  "prompt": "推理部署中的图优化（如 constant folding）是什么，有什么用？",
+  "quickAnswer": "图优化在编译期对计算图做等价变换以提升效率；常量折叠(constant folding)把仅依赖常量输入的计算(如 BN 的 running stats、固定 affine)在离线阶段算好并替换为常量/直接并入权重，从而减少运行时计算与节点数，是融合的前置步骤。",
+  "approach": "遍历图 → 识别常量子图 → 离线求值替换为常量 → 再做融合等优化 → 交给引擎。",
+  "explanationFocus": "是什么：图优化是对计算图做等价化简的编译期变换，常量折叠把常量计算提前算掉。",
+  "bruteForce": "运行时每个节点都算一遍：含大量可预计算的冗余。",
+  "derivation": [
+    "为什么需要：导出图保留了许多静态可确定结果的计算，运行时算纯属浪费。",
+    "怎么实现：符号执行识别输入全为常量的节点，离线求值并把结果固化为常量节点。",
+    "有什么代价：需保证常量传播不改变数值语义；动态形状下部分无法折叠。",
+    "怎么评测：折叠前后同输入输出一致，节点数下降、延迟降低。"
+  ],
+  "invariant": "图优化(含折叠)后输出应与原图一致。",
+  "walkthrough": "折叠 BN 的 mean/var 常量：Conv 权重 pre-compute 后节点数 -2，推理该段延迟降约 20%。",
+  "edgeCases": [
+    "含数据依赖的输入不能折叠。",
+    "动态 shape 子图折叠受限。",
+    "大常量张量折叠会增加存储。"
+  ],
+  "code": "# Python (概念)：常量折叠示意\ndef constant_fold(graph):\n    changed = True\n    while changed:\n        changed = False\n        for node in graph.nodes:\n            if all(is_constant(i) for i in node.inputs):\n                val = eval_node(node)          # 离线求值\n                graph.replace(node, const(val))  # 替换为常量\n                changed = True\n    return graph",
+  "codeNotes": [
+    "折叠是融合的前置。",
+    "只折全常量输入的节点。"
+  ],
+  "complexity": "O(迭代×节点)；一次离线。",
+  "followUps": [
+    {
+      "question": "常量折叠和算子融合区别？",
+      "answer": "折叠是消掉可预计算节点，融合是把多个运行时节点合并；两者常先后发生。"
+    },
+    {
+      "question": "什么情况下折叠会变大存储？",
+      "answer": "被折叠出的常量张量较大时会占用更多序列化空间，需权衡。"
+    }
+  ],
+  "followUpAnswers": [
+    "折叠消节点、融合并节点。",
+    "大常量会增加存储。"
+  ],
+  "pitfalls": [
+    "误以为折叠改变数值——它只是提前算。",
+    "动态输入被错误当常量折叠。"
+  ],
+  "beginnerSummary": "常量折叠像做菜前先把\"固定配比的调料包\"按配方混好贴上标签(常量)，用时直接拿，不用每次现称；图优化则是把菜谱里能提前定好的步骤都先办妥，正式做时更顺。",
+  "prerequisites": [
+    "图含可静态确定的计算。",
+    "离线计算不占运行时。",
+    "等价变换不改变结果。"
+  ],
+  "workedExample": [
+    "BN 的 mean/var 常量被折叠进 Conv 权重。",
+    "节点 -2，该段延迟降约 20%。"
+  ],
+  "lineByLine": [
+    "遍历图中每个节点。",
+    "判断输入是否全为常量。",
+    "离线求值并替换为常量节点。",
+    "迭代至无可折叠并验证一致。"
+  ],
+  "diagram": "Conv ─[BN权重(常量)]─▶ 折叠为 ─▶ Conv'(权重已含BN) "
+},
+  {
+  "id": "onnx-qat-to-trt-int8",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "量化感知部署",
+  "prompt": "量化感知训练（QAT）后再部署到 TensorRT INT8 的流程是什么？",
+  "quickAnswer": "QAT 在训练时模拟量化误差让网络适应低精度；流程为：用伪量化(fake quant)节点训练 → 导出含 Q/DQ(Quantize/Dequantize)节点的 ONNX → TRT 识别 Q/DQ 直接采用训练得到的 scale 做 INT8，免去 PTQ 校准、精度更稳，尤其适合敏感模型。",
+  "approach": "QAT 训练(插 fake quant) → 导出带 Q/DQ 的 ONNX → TRT 解析并走 INT8 路径(用已有 scale) → build engine。",
+  "explanationFocus": "是什么：QAT→TRT INT8 是用训练期确定的量化参数部署 INT8，避免 PTQ 校准误差。",
+  "bruteForce": "PTQ 直接校准：对量化敏感模型精度掉点多。",
+  "derivation": [
+    "为什么需要：部分模型 PTQ 掉点严重，QAT 通过训练补偿。",
+    "怎么实现：训练插伪量化节点学 scale；导出 ONNX 表现为 Q/DQ 对；TRT 据 Q/DQ 决定量化点。",
+    "有什么代价：需重训/微调、流程更长；Q/DQ 放置影响结果。",
+    "怎么评测：对比 QAT-INT8 与 FP32 精度，应明显优于 PTQ-INT8。"
+  ],
+  "invariant": "QAT-INT8 精度应接近 FP32 且优于 PTQ-INT8。",
+  "walkthrough": "检测模型 QAT 后导出 Q/DQ ONNX：TRT INT8 mAP 较 PTQ 高 1.2%，几乎无损 FP32。",
+  "edgeCases": [
+    "Q/DQ 节点放置位置决定量化粒度。",
+    "导出需保留 Q/DQ 不被优化掉。",
+    "训练与部署的量化公式须一致。"
+  ],
+  "code": "# Python (概念)：QAT 导出后 TRT 识别 Q/DQ\ndef build_qat_int8(onnx_path):\n    import tensorrt as trt\n    builder = trt.Builder(trt.Logger())\n    net = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))\n    parser = trt.OnnxParser(net, trt.Logger())\n    parser.parse_from_file(onnx_path)   # 含 Q/DQ 节点\n    cfg = builder.create_builder_config()\n    cfg.set_flag(trt.BuilderFlag.INT8)  # 直接用 Q/DQ 中的 scale\n    return builder.build_serialized_network(net, cfg)",
+  "codeNotes": [
+    "Q/DQ 自带 scale，无需校准器。",
+    "导出别让框架把 Q/DQ 折叠掉。"
+  ],
+  "complexity": "训练成本最高；部署与 PTQ 类似。",
+  "followUps": [
+    {
+      "question": "QAT 和 PTQ 怎么选？",
+      "answer": "对量化敏感或精度要求高的模型用 QAT；否则 PTQ 更快更省事。"
+    },
+    {
+      "question": "为什么 Q/DQ 节点重要？",
+      "answer": "它显式标出量化/反量化点及 scale，TRT 据此精确安排 INT8 计算而不必猜测范围。"
+    }
+  ],
+  "followUpAnswers": [
+    "敏感模型选 QAT。",
+    "Q/DQ 提供现成 scale。"
+  ],
+  "pitfalls": [
+    "导出时 Q/DQ 被优化器误删——scale 丢失。",
+    "训练与部署量化公式不一致导致误差。"
+  ],
+  "beginnerSummary": "PTQ 是事后拿样品估刻度，QAT 是做菜时 preted 戴上\"粗刻度眼镜\"练习，让菜本身适应粗刻度；端上桌(部署)时直接按那副眼镜的刻度做，味道比事后估的更准。",
+  "prerequisites": [
+    "量化会引入误差。",
+    "QAT 用伪量化模拟。",
+    "ONNX 用 Q/DQ 表达量化。"
+  ],
+  "workedExample": [
+    "检测模型 QAT 训练插 fake quant。",
+    "导出 Q/DQ ONNX → TRT INT8，mAP 比 PTQ 高 1.2%。"
+  ],
+  "lineByLine": [
+    "训练中插入伪量化节点。",
+    "导出含 Q/DQ 的 ONNX。",
+    "TRT 解析并用其中 scale。",
+    "build INT8 engine 部署。"
+  ],
+  "diagram": "QAT训练(伪量化) ─▶ Q/DQ ONNX ─▶ TRT INT8(用训练scale)"
+},
+  {
+  "id": "onnx-multi-framework",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Easy",
+  "title": "多框架统一到 ONNX",
+  "prompt": "为什么要把 TensorFlow / PyTorch 等模型统一导出到 ONNX 再部署？",
+  "quickAnswer": "统一到 ONNX 可让下游部署链路(解析、优化、引擎)只写一套：训练侧无论 PyTorch/TF/JAX，只要能导出 ONNX，就能走同一条 ONNX→TensorRT/ORT 的部署流水线，降低维护成本、避免为每个框架单独适配推理后端。",
+  "approach": "各框架导出 ONNX → 统一校验与优化 → 共享推理后端部署。",
+  "explanationFocus": "是什么：多框架统一指把不同训练框架的模型都转成 ONNX，以复用同一套部署工具链。",
+  "bruteForce": "为每个框架各写一套推理适配：重复劳动、易不一致。",
+  "derivation": [
+    "为什么需要：团队/历史模型可能跨框架，后端适配成本高。",
+    "怎么实现：PyTorch 用 torch.onnx.export，TF 用 tf2onnx，均产出 ONNX。",
+    "有什么代价：各导出器对算子/版本支持不同，可能有坑需对齐。",
+    "怎么评测：各框架导出的 ONNX 与各自原模型精度对齐，且能顺利进 TRT。"
+  ],
+  "invariant": "任一框架导出的 ONNX 都应与原模型数值等价。",
+  "walkthrough": "同一 resnet：PyTorch 与 TF 各导出 ONNX，二者输出余弦相似度 >0.9999，共用同一 TRT engine 流程。",
+  "edgeCases": [
+    "TF 的 NHWC 与 ONNX 的 NCHW 需转置处理。",
+    "tf2onnx 对 control flow 支持有限。",
+    "不同 opset 默认行为差异。"
+  ],
+  "code": "# Python：两个框架都导出 ONNX\ndef export_both(pt_model, tf_model, dummy):\n    import torch, tf2onnx, tensorflow as tf\n    torch.onnx.export(pt_model, dummy, 'm_pt.onnx', opset_version=17)\n    model_proto, _ = tf2onnx.convert.from_keras(tf_model, output_path='m_tf.onnx')\n    return 'm_pt.onnx', 'm_tf.onnx'",
+  "codeNotes": [
+    "TF 常用 tf2onnx 转换。",
+    "注意通道格式差异。"
+  ],
+  "complexity": "导出各自 O(图规模)；下游统一。",
+  "followUps": [
+    {
+      "question": "TF 转 ONNX 常用什么工具？",
+      "answer": "tf2onnx(支持 Keras/GraphDef)或官方 onnx 导出器，注意 NHWC↔NCHW。"
+    },
+    {
+      "question": "统一后还有什么不一致？",
+      "answer": "opset、动态轴定义、自定义层仍可能各框架不同，需逐个对齐。"
+    }
+  ],
+  "followUpAnswers": [
+    "tf2onnx 是常用转换。",
+    "opset/自定义层仍需对齐。"
+  ],
+  "pitfalls": [
+    "以为导出 ONNX 就完全一致——通道/算子语义仍可能差。",
+    "忽略两框架数值微小差异累积。"
+  ],
+  "beginnerSummary": "不同训练框架像不同牌子的文档软件，统一导出成 ONNX 这种\"通用格式\"后，下游只需准备一台通用阅读器(推理引擎)，不用为每种软件各配一台，省事又不容易出错。",
+  "prerequisites": [
+    "训练框架可能多个。",
+    "推理后端最好统一。",
+    "ONNX 是中立桥梁。"
+  ],
+  "workedExample": [
+    "PyTorch 与 TF 各自导出 ONNX。",
+    "两者输出相似度 >0.9999，共用 TRT 流程。"
+  ],
+  "lineByLine": [
+    "PyTorch 用 torch.onnx.export。",
+    "TF 用 tf2onnx 转换。",
+    "统一校验数值一致性。",
+    "进同一条 TRT 部署链路。"
+  ],
+  "diagram": "PyTorch ─┐\nTF ───────▶ ONNX ─▶ 统一 TRT/ORT 部署\nJAX ──────┘"
+},
+  {
+  "id": "onnx-deployment-pitfalls",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "部署痛点",
+  "prompt": "ONNX/TensorRT 部署常见痛点（op 不支持/版本兼容/精度对齐）有哪些，怎么应对？",
+  "quickAnswer": "三大痛点：①算子不支持(TRT 无对应 op)→改写图或写 plugin；②版本兼容(opset 与 TRT 版本错配、engine 绑架构)→对齐导出与运行时版本、按卡 rebuild；③精度对齐(低精度掉点)→用校准/QAT、敏感层回退、逐层比对定位。系统性做法是建自动化导出+校验流水线。",
+  "approach": "导出合规 ONNX → 解析查不支持 op → 对齐版本 → 量化策略选择 → 端到端精度与延迟校验。",
+  "explanationFocus": "是什么：部署痛点指在 ONNX/TRT 链路中导致 build 失败或精度/性能不达预期的常见障碍。",
+  "bruteForce": "遇到报错再临时改：不可重复、易遗漏。",
+  "derivation": [
+    "为什么需要：真实模型常踩这些坑，需系统化规避。",
+    "怎么实现：建立导出规范(opset 固定)、不支持 op 清单与 plugin 库、版本矩阵、精度回归测试。",
+    "有什么代价：前期建设成本，但长期降低故障率。",
+    "怎么评测：用回归集验证各模型精度/延迟达标且可重复 build。"
+  ],
+  "invariant": "成熟链路下，同输入同配置结果应可复现且精度达标。",
+  "walkthrough": "建流水线后：op 不支持自动路由 plugin；版本矩阵覆盖 TRT 8.x/9.x；精度回归门禁拦住掉点 >0.5% 的变更。",
+  "edgeCases": [
+    "同模型不同 TRT 版行为微差。",
+    "A100 与 T4 engine 不互通。",
+    "某层 INT8 掉点需单独回退。"
+  ],
+  "code": "# Python (概念)：部署前自动检查清单\ndef pre_deploy_check(onnx_path, trt_version):\n    checks = []\n    checks.append(check_supported_ops(onnx_path))      # 不支持 op?\n    checks.append(check_opset_compat(trt_version))     # 版本兼容?\n    checks.append(verify_numeric(onnx_path))           # 精度对齐?\n    return all(checks)",
+  "codeNotes": [
+    "清单化可自动化。",
+    "精度门禁防回归。"
+  ],
+  "complexity": "流水线一次性建设；每次部署低成本。",
+  "followUps": [
+    {
+      "question": "engine 换显卡怎么办？",
+      "answer": "按目标 GPU 架构重新 build engine，不能跨 compute capability 复用。"
+    },
+    {
+      "question": "精度掉点怎么定位？",
+      "answer": "逐层比对 ORT 与 TRT 输出，定位首个误差放大层，针对性回退精度或改实现。"
+    }
+  ],
+  "followUpAnswers": [
+    "按架构 rebuild engine。",
+    "逐层比对定位掉点层。"
+  ],
+  "pitfalls": [
+    "把 engine 当可移植文件跨卡用。",
+    "只测整体精度不查逐层，难定位。"
+  ],
+  "beginnerSummary": "部署像把菜谱交给新厨房：有时缺某种厨具(op不支持)、有时说明书版本对不上(版本兼容)、有时火候变了味道偏(精度对齐)。与其每次手忙脚乱，不如先列张检查表统一把关。",
+  "prerequisites": [
+    "链路长易出多点故障。",
+    "版本与硬件强相关。",
+    "精度需可回归验证。"
+  ],
+  "workedExample": [
+    "建 op 不支持清单与 plugin 库。",
+    "版本矩阵+精度门禁拦掉点变更。"
+  ],
+  "lineByLine": [
+    "规范导出 opset。",
+    "查不支持 op 并路由 plugin。",
+    "对齐 TRT 版本与架构。",
+    "精度/延迟回归校验。"
+  ],
+  "diagram": "痛点: op不支持 / 版本错 / 精度偏\n应对: plugin库 / 版本矩阵 / 精度回归"
+},
+  {
+  "id": "onnx-trt-llm-intro",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "TRT-LLM 简介",
+  "prompt": "TRT-LLM 是什么，为什么大模型部署要用它而不是直接用 TensorRT？",
+  "quickAnswer": "TRT-LLM 是 NVIDIA 面向大语言模型(LLM)的高性能推理库，基于 TensorRT 构建并针对 Transformer 做了专门优化：如高效的 KV-Cache 管理、连续批处理(continuous batching)、融合的 attention 内核、量化(FP8/INT4/AWQ)等；直接用通用 TRT 难高效表达自回归生成与动态 KV-Cache，故用专门库。",
+  "approach": "模型(如 LLaMA)经 TRT-LLM 构建 → 优化 attention/KV-Cache/批处理 → 用其 runtime 做生成式推理。",
+  "explanationFocus": "是什么：TRT-LLM 是建立在 TensorRT 之上、专为 LLM 自回归生成优化的推理库。",
+  "bruteForce": "用通用 TRT 逐 token 跑 attention：KV-Cache 与批处理低效。",
+  "derivation": [
+    "为什么需要：LLM 有长序列、KV-Cache、变长生成，通用 TRT 不原生优化这些。",
+    "怎么实现：TRT-LLM 提供 LLM 友好的 API 与融合算子，底层仍编译为 TRT engine。",
+    "有什么代价：模型支持列表有限、构建复杂、显存占用大需分片。",
+    "怎么评测：测吞吐(token/s)、首 token 延迟(TTFT)、多请求并发与精度(困惑度)。"
+  ],
+  "invariant": "TRT-LLM 输出分布应与参考实现(如 HF)在采样前 logits 一致。",
+  "walkthrough": "LLaMA-7B 经 TRT-LLM FP16：单卡吞吐较 HF 原生约 3×，continuous batching 下并发提升明显。",
+  "edgeCases": [
+    "超长上下文需分页 KV-Cache(paged attention)。",
+    "多卡需 tensor/pipeline 并行。",
+    "量化(INT4/AWQ)需对应权重预处理。"
+  ],
+  "code": "# Python (概念)：TRT-LLM 构建示意\ndef build_llm_engine(model_dir):\n    from tensorrt_llm import Builder\n    builder = Builder()\n    # 定义 LLM 网络(FP16/量化)、KV-Cache 与并行策略\n    engine = builder.build(model_dir, precision='fp16',\n                           kv_cache='paged', mapping={'tp': 1})\n    return engine",
+  "codeNotes": [
+    "底层仍是 TRT engine。",
+    "KV-Cache 管理是核心。"
+  ],
+  "complexity": "构建复杂 O(模型规模)；推理针对生成优化。",
+  "followUps": [
+    {
+      "question": "TRT-LLM 和通用 TensorRT 关系？",
+      "answer": "TRT-LLM 在通用 TRT 之上加了 LLM 专属优化与运行时，最终仍产出 TRT engine。"
+    },
+    {
+      "question": "continuous batching 是什么？",
+      "answer": "把不同请求在不同解码步动态拼批，提升 GPU 利用率，是 LLM 高吞吐关键。"
+    }
+  ],
+  "followUpAnswers": [
+    "TRT-LLM 基于 TRT 之上。",
+    "连续批处理提升利用率。"
+  ],
+  "pitfalls": [
+    "把 TRT-LLM 当通用 CV 推理库——它专注 LLM。",
+    "忽略 KV-Cache 显存导致 OOM。"
+  ],
+  "beginnerSummary": "TRT-LLM 像在通用工厂(TRT)里专门给\"写长文章\"装的流水线：它懂得边写边记住前面写过的段落(KV-Cache)、把多人的稿子穿插着一起排(连续批处理)，而通用工厂原本不擅长这种边写边改的活。",
+  "prerequisites": [
+    "LLM 是自回归生成。",
+    "KV-Cache 是性能关键。",
+    "通用 TRT 不善表达生成。"
+  ],
+  "workedExample": [
+    "LLaMA-7B 用 TRT-LLM FP16 构建。",
+    "吞吐较 HF 约 3×，并发显著提升。"
+  ],
+  "lineByLine": [
+    "用 TRT-LLM 定义 LLM 网络。",
+    "配置 KV-Cache 与并行策略。",
+    "build 出底层 TRT engine。",
+    "用其 runtime 做生成推理。"
+  ],
+  "diagram": "LLM ─▶ TRT-LLM(融合Attn/KV-Cache/批处理) ─▶ TRT engine"
+},
+  {
+  "id": "onnx-dynamic-batch-shape",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Hard",
+  "title": "动态 batch 与动态 shape 实战",
+  "prompt": "动态 batch / 动态 shape 在实战中要注意哪些要点？",
+  "quickAnswer": "实战要点：①用 OptimizationProfile 设 batch 与分辨率的 min/opt/max；②opt 取典型负载形状以拿到最佳 kernel；③运行时必须 set_input_shape 且与分配 buffer 大小匹配；④超出 max 的请求要拒绝或回退；⑤若多档负载差异大，可建多个 profile 或分桶(bucketing)以平衡性能。",
+  "approach": "定负载分布 → 设 profile(min/opt/max) → build → 运行时按请求形状 set_input_shape → 校验边界。",
+  "explanationFocus": "是什么：动态 batch/shape 实战指在生产中安全使用可变输入维度并维持性能的落地要点。",
+  "bruteForce": "为每档 batch 各建 engine：内存与维护爆炸。",
+  "derivation": [
+    "为什么需要：线上请求 batch 与尺寸随机，固定 shape 浪费或受限。",
+    "怎么实现：profile 覆盖常用范围；分桶对离散档各自优化；运行时动态设形状。",
+    "有什么代价：范围/opt 选错性能劣化；分桶增加 build 数。",
+    "怎么评测：在典型与边界形状上测延迟/p99，验证不超 max。"
+  ],
+  "invariant": "任意在范围内请求输出应正确且延迟可接受。",
+  "walkthrough": "服务 batch 1–16、分辨率 224/384：设两档 profile，opt 取 batch8/384，p99 延迟稳定且不超过 SLA。",
+  "edgeCases": [
+    "opt 偏离真实分布→长尾慢。",
+    "请求超 max 需快速拒绝。",
+    "buffer 大小须按 max 预分配。"
+  ],
+  "code": "# Python：运行时按请求设动态形状\ndef infer(context, engine, x, stream):\n    import numpy as np\n    shape = (x.shape[0], 3, x.shape[2], x.shape[3])\n    context.set_input_shape('input', shape)          # 实际 batch/尺寸\n    buf = np.empty(engine.get_binding_shape(0) if False else shape, dtype=np.float32)\n    # 实际按 max 预分配并拷贝 x\n    context.execute_async_v3(stream_handle=stream)",
+  "codeNotes": [
+    "shape 必须≤profile max。",
+    "buffer 建议按 max 预分配。"
+  ],
+  "complexity": "build 随 profile 数增加；推理灵活。",
+  "followUps": [
+    {
+      "question": "分桶(bucketing)是什么？",
+      "answer": "对离散的几档形状各设 profile/build，运行时按最近档路由，兼顾灵活与性能。"
+    },
+    {
+      "question": "opt 怎么选最稳？",
+      "answer": "取线上真实流量中最常见的形状作为 opt，使多数请求命中最优 kernel。"
+    }
+  ],
+  "followUpAnswers": [
+    "分桶按离散档各自优化。",
+    "opt 取典型流量形状。"
+  ],
+  "pitfalls": [
+    "opt 拍脑袋设错导致整体偏慢。",
+    "运行时形状超 max 未校验直接崩。"
+  ],
+  "beginnerSummary": "动态 batch 像电梯：你先告诉厂家最常见的载客量(opt)和最多能载多少(max)；用的时候按实际人数调度。要是常载的人和\"最舒服人数\"差太多，电梯跑得就没那么顺；人超了上限就得拦下。",
+  "prerequisites": [
+    "线上输入维度多变。",
+    "profile 决定调优基准。",
+    "buffer 需匹配形状。"
+  ],
+  "workedExample": [
+    "batch 1–16、分辨率两档设 profile。",
+    "opt=batch8，p99 稳定不超 SLA。"
+  ],
+  "lineByLine": [
+    "分析负载分布定范围。",
+    "设 min/opt/max profile。",
+    "运行时 set_input_shape。",
+    "校验不超 max 并预分配 buffer。"
+  ],
+  "diagram": "负载分布 ─▶ profile(min/opt/max) ─▶ 运行时 set_input_shape"
+},
+  {
+  "id": "onnx-evaluate-trt-speedup",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "评测 TRT 加速收益",
+  "prompt": "如何科学地评测 TensorRT 的加速收益，避免被假象误导？",
+  "quickAnswer": "科学评测须控制变量：同硬件、同输入分布、同精度语义；报告预热后平均与 p99 延迟、吞吐(QPS)、以及精度指标(与原模型对齐)；并区分\"能跑\"与\"生产可用\"(稳定性、显存、长尾)。常见误导是未预热、混精度、单次计时或只测小 batch。",
+  "approach": "固定环境 → 预热 → 多轮计时取 p50/p99 与吞吐 → 精度回归 → 与 baseline 同条件对比。",
+  "explanationFocus": "是什么：评测 TRT 加速收益是用可控基准量化延迟/吞吐提升并确认精度不退化。",
+  "bruteForce": "跑一次看时间差：受噪声与精度混淆误导。",
+  "derivation": [
+    "为什么需要：加速数字若不严谨会被夸大或误判，影响上线决策。",
+    "怎么实现：用统一 bench 脚本，固定 batch/数据/精度，记录分布与显存。",
+    "有什么代价：需多轮与多形状，耗时但必要。",
+    "怎么评测：给出加速比、p99、吞吐与精度掉点，并说明测试条件。"
+  ],
+  "invariant": "在相同条件下，TRT 相对 baseline 的加速应可复现。",
+  "walkthrough": "resnet50 batch8 T4：eager 18ms vs TRT FP16 3.1ms(p99)，吞吐 6×，top-1 误差 <0.1%。",
+  "edgeCases": [
+    "GPU 功耗/频率波动影响计时。",
+    "只测 p50 忽略长尾 p99。",
+    "精度对齐要用验证集而非单样本。"
+  ],
+  "code": "# Python：严谨基准(含 p99)\ndef benchmark(fn, inp, warmup=20, iters=200):\n    import time, numpy as np\n    for _ in range(warmup): fn(inp)\n    ts = []\n    for _ in range(iters):\n        t0 = time.perf_counter(); fn(inp); ts.append(time.perf_counter()-t0)\n    a = np.array(ts)*1000\n    return a.mean(), np.percentile(a, 99)",
+  "codeNotes": [
+    "报告 p99 比均值更贴近 SLA。",
+    "warmup 消除首帧偏差。"
+  ],
+  "complexity": "基准 O(iters×单次)；一次性。",
+  "followUps": [
+    {
+      "question": "为什么只看平均延迟不够？",
+      "answer": "平均掩盖长尾，线上 SLA 常看 p99，偶发慢帧更影响体验。"
+    },
+    {
+      "question": "加速比怎么算才公平？",
+      "answer": "同硬件同精度同输入分布下，baseline 与 TRT 各取稳定 p50/p99 比对，并附精度对齐。"
+    }
+  ],
+  "followUpAnswers": [
+    "p99 关乎 SLA 长尾。",
+    "同条件比对才算公平。"
+  ],
+  "pitfalls": [
+    "未预热/单次计时得出夸张加速。",
+    "混用精度(如 FP32 vs INT8)比延迟。"
+  ],
+  "beginnerSummary": "评测加速像比赛跑步：得在同一条跑道(硬件)、同样的负重(精度)、多跑几趟取稳定成绩，还得看最慢那趟(p99)而不是只取平均；否则容易把\"顺风那一趟\"当成真实水平。",
+  "prerequisites": [
+    "加速需可复现。",
+    "变量须受控。",
+    "精度不可牺牲。"
+  ],
+  "workedExample": [
+    "resnet50 batch8 T4 严谨基准。",
+    "TRT FP16 p99 3.1ms，吞吐 6×，精度掉 <0.1%。"
+  ],
+  "lineByLine": [
+    "固定硬件与精度。",
+    "充分预热。",
+    "多轮计时取 p50/p99 与吞吐。",
+    "验证集确认精度对齐。"
+  ],
+  "diagram": "baseline ─▶ 同条件 bench ─▶ TRT\n报告: p50/p99 / 吞吐 / 精度"
+},
+  {
+  "id": "onnx-trt-deploy-best-practice",
+  "category": "ONNX/TensorRT",
+  "difficulty": "Medium",
+  "title": "TRT 部署最佳实践流程",
+  "prompt": "生产环境部署 TensorRT 的最佳实践流程是什么？",
+  "quickAnswer": "最佳实践：①固定训练框架导出合规 ONNX(opset 固定、动态轴声明)；②解析查不支持 op 并补齐 plugin；③选精度策略(FP16 起，敏感模型 INT8 校准或 QAT)；④设动态 profile 与 workspace；⑤离线 build 并序列化 engine(按目标 GPU 架构)；⑥建精度/延迟回归门禁；⑦运行时 deserialize+context 推理、预热与监控。",
+  "approach": "导出标准化 → 解析/插件 → 精度策略 → build(离线) → 回归校验 → 运行时部署与监控。",
+  "explanationFocus": "是什么：TRT 部署最佳实践是一套从导出到上线、可重复且可控质量的标准流程。",
+  "bruteForce": "手工临时导出+build+上线：不可重复、易出事故。",
+  "derivation": [
+    "为什么需要：生产要求可复现、可回滚、质量可控。",
+    "怎么实现：把各步脚本化/流水线化，加 op 清单、版本矩阵、精度门禁。",
+    "有什么代价：前期工程化投入，但显著降低线上风险。",
+    "怎么评测：每个模型走同一流程，门禁拦住精度/性能不合格产物。"
+  ],
+  "invariant": "走标准流程的产物在各环境结果一致且达标。",
+  "walkthrough": "CI 中：导出 onnx→解析检查→FP16 build→精度门禁(top-1 掉<0.5%)→产物入库；上线 deserialize 即跑，p99 稳定。",
+  "edgeCases": [
+    "引擎需按生产 GPU 架构 rebuild。",
+    "精度门禁阈值需按模型定。",
+    "回滚需保留旧 engine 版本。"
+  ],
+  "code": "# Python (概念)：标准部署流水线入口\ndef deploy_pipeline(onnx_path, gpu_arch, precision='fp16'):\n    engine = build_engine(onnx_path, precision)        # 离线\n    assert verify_accuracy(engine), '精度门禁未过'\n    tag = f\"{gpu_arch}-{precision}\"\n    publish(engine, tag)                               # 入库\n    return tag",
+  "codeNotes": [
+    "build 离线、产物按架构标记。",
+    "门禁拦掉点变更。"
+  ],
+  "complexity": "工程化一次性；每次部署低成本。",
+  "followUps": [
+    {
+      "question": "为什么 engine 要按架构标记入库？",
+      "answer": "engine 绑 compute capability，混用会加载失败，按架构存不同产物便于回滚与分发。"
+    },
+    {
+      "question": "精度门禁设多少合理？",
+      "answer": "按任务容忍度，如分类 top-1 掉<0.5%、检测 mAP 掉<1%，并以回归集自动判。"
+    }
+  ],
+  "followUpAnswers": [
+    "engine 绑架构需分存。",
+    "门禁阈值按任务定。"
+  ],
+  "pitfalls": [
+    "把 build 放线上请求路径。",
+    "不留旧 engine 版本导致无法回滚。"
+  ],
+  "beginnerSummary": "最佳实践像开餐厅的标准 SOP：从统一备料(导出)、查漏补缺(插件)、定火候(精度)、提前练熟(离线 build)、质量抽检(门禁)到正式出餐并监控，每一步都写进流程，保证无论谁来做都稳定好吃、出问题能回退。",
+  "prerequisites": [
+    "生产要可复现可控。",
+    "engine 绑定硬件架构。",
+    "质量需自动校验。"
+  ],
+  "workedExample": [
+    "CI：导出→解析→FP16 build→精度门禁→入库。",
+    "上线 deserialize 即跑，p99 稳定可回滚。"
+  ],
+  "lineByLine": [
+    "标准化导出合规 ONNX。",
+    "解析补齐 plugin 与精度策略。",
+    "离线 build 并按架构存 engine。",
+    "门禁校验后上线并监控。"
+  ],
+  "diagram": "导出→解析→精度→build(离线)→门禁→上线+监控"
+},
+  {
+  "id": "mm-architecture",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "多模态大模型主流架构",
+  "prompt": "多模态大模型的主流架构有哪几类，各自怎么组织视觉与语言？",
+  "quickAnswer": "主流分两类：(1) 编码器+连接器+LLM 解码器（外接式，如 BLIP-2/LLaVA），视觉编码器出 token 经连接器对齐后拼入 LLM；(2) 统一自回归式（如 Flamingo/Emu/GPT-4V 类），把多模态都转成 token 由单一 Transformer 自回归生成。前者工程简单、训练便宜，后者更统一、跨模态推理更强但成本高。",
+  "approach": "视觉编码器提取特征 → 连接器对齐 → 拼入 LLM 词序列 → 自回归生成。",
+  "explanationFocus": "是什么：多模态大模型主流架构指如何把图像/视频/音频等非文本模态统一进语言模型的\"读法\"，分\"外接连接器\"与\"统一自回归\"两类。",
+  "bruteForce": "为每个模态单独训一个专家模型再后融合：割裂且难端到端优化。",
+  "derivation": [
+    "为什么需要：单模态 LLM 只处理文本，要让它\"看懂\"图/视频/音频，必须定义这些模态如何进入同一生成框架。",
+    "怎么实现：A) 冻结/微调的 LLM 解码器 + 视觉编码器 + 连接器；B) 统一 tokenizer，把多模态都变成 token 由单一模型自回归生成。",
+    "有什么代价：外接式对齐弱、跨模态推理受限；统一式需海量多模态数据与算力，离散化还可能丢信息。",
+    "怎么评测：对比 MMBench/MME 得分、跨模态推理任务表现，以及训练/推理成本与可扩展性。"
+  ],
+  "invariant": "无论架构如何，最终都收敛为\"多模态信号 → 统一表示 → 自回归/生成\"。",
+  "walkthrough": "LLaVA: ViT-L/14 输出 576 个视觉 token，经 MLP 投影到 LLM 的 4096 维后拼到文本 token 前，整体自回归。",
+  "edgeCases": [
+    "高分辨率/视频导致视觉 token 爆量，需切图或压缩。",
+    "音频需额外编码器与对齐，不能被视觉流水线直接复用。",
+    "统一式需处理模态缺失、乱序与不定长输入。"
+  ],
+  "code": "def build_multimodal_input(text_tokens, visual_tokens, connector):\n    vis = connector(visual_tokens)               # 对齐到 LLM 词空间\n    return concat([vis, text_tokens], dim=1)     # 拼成统一序列",
+  "codeNotes": [
+    "连接器常用 MLP 或 Q-Former。",
+    "拼接顺序会影响注意力对跨模态信息的利用。"
+  ],
+  "complexity": "序列长度 = 文本 token + 视觉 token；注意力复杂度 O((T+V)^2)。",
+  "followUps": [
+    {
+      "question": "外接式与统一式怎么选？",
+      "answer": "预算有限、快速落地选外接式(LLaVA)；追求强跨模态推理与统一能力且资源充足选统一自回归式。"
+    },
+    {
+      "question": "冻结 LLM 还是微调？",
+      "answer": "先冻结 LLM 只训连接器做对齐(省钱)，再用指令数据微调 LLM 提升多模态指令遵循。"
+    }
+  ],
+  "followUpAnswers": [
+    "看预算与追求目标。",
+    "先冻结对齐再微调 LLM。"
+  ],
+  "pitfalls": [
+    "以为统一式一定更强而忽视训练与推理成本。",
+    "忽视连接器对齐质量决定多模态上限。"
+  ],
+  "beginnerSummary": "让 AI 既会读字又会看图主要有两种办法：一种是\"请个翻译把图翻成文字再交给它读\"(外接式)，另一种是\"把图、字、声音全变成同一种密码，让一个大脑统一处理\"(统一式)。前者省钱好做，后者更聪明但烧钱。",
+  "prerequisites": [
+    "LLM 是自回归生成文本。",
+    "图像需先编码成 token。",
+    "不同模态要进同一表示空间。"
+  ],
+  "workedExample": [
+    "LLaVA: ViT 出 576 个视觉 token。",
+    "经 MLP 投影拼到文本 token 前一起进 LLM。"
+  ],
+  "lineByLine": [
+    "视觉编码器提取图像特征。",
+    "连接器把视觉特征对齐到文本空间。",
+    "视觉 token 与文本 token 拼成统一序列。",
+    "LLM 自回归生成回答。"
+  ],
+  "diagram": "图像 ─▶ 视觉编码器 ─▶ 连接器 ─┐\n文本 ──────────────────────────┼─▶ 拼接 ─▶ LLM 自回归\n                                  (外接式)\n图像/文本/音频 ─▶ 统一 tokenizer ─▶ 单一 Transformer ─▶ 生成\n                                  (统一式)"
+},
+  {
+  "id": "mm-vit",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "视觉编码器 ViT",
+  "prompt": "多模态模型里的视觉编码器（如 ViT）起什么作用？",
+  "quickAnswer": "视觉编码器(如 ViT)把输入图像切成若干 patch、线性投影成视觉 token 序列，经 Transformer 编码出富含语义的视觉特征。它相当于\"把图片翻译成 LLM 能读的一串 token\"，是图像/视频接入语言模型的前置模块，其输出经连接器对齐到文本空间后喂给 LLM。",
+  "approach": "图像 → patch → token → Transformer 编码 → 视觉特征 → 连接器 → LLM。",
+  "explanationFocus": "是什么：视觉编码器(ViT)把图像切成 patch 编码成视觉 token 序列，作为 LLM 可消费的\"图片语言\"。",
+  "bruteForce": "直接把整张原始像素塞给 LLM：维度爆炸且语义缺失。",
+  "derivation": [
+    "为什么需要：LLM 只懂 token 序列，图像是二维像素，必须先转成同构的 token 表示。",
+    "怎么实现：图像分 patch(如16x16)，各 patch 投影为向量并加位置嵌入，经多层 Transformer 得到视觉 token；再用 Q-Former/MLP 等连接器把维度对齐到 LLM 词嵌入空间。",
+    "有什么代价：高分辨率图像 patch 数多，视觉 token 长，占 KV 与算力；编码器本身也有推理开销。",
+    "怎么评测：看多模态基准(MMBench/MME)表现、视觉 token 质量、端到端延迟与图像编码开销占比。"
+  ],
+  "invariant": "同一图像经固定编码器得到确定视觉 token；连接器保证视觉/文本嵌入在同一空间可比。",
+  "walkthrough": "224x224 图, patch=16 → 14x14=196 个视觉 token，每个经 ViT 编码为 1024 维向量，再投影到 LLM 的 4096 维。",
+  "edgeCases": [
+    "高分辨率：patch 数激增，需切图/动态分辨率控制长度。",
+    "视频：多帧 → 多组视觉 token，需时序处理。",
+    "细粒度 OCR：需更高分辨率或切图。"
+  ],
+  "code": "def image_to_tokens(img, patch=16, proj=None):\n    patches = img.unfold(2, patch, patch).unfold(3, patch, patch)\n    tokens = proj(patches.flatten(2).transpose(1, 2))   # (196, d_model)\n    return tokens",
+  "codeNotes": [
+    "patch 投影常用 Conv / Linear。",
+    "位置嵌入保持空间结构。"
+  ],
+  "complexity": "视觉 token 数 = (H/p)·(W/p)；编码 O(token^2) 于 encoder。",
+  "followUps": [
+    {
+      "question": "视觉 token 太长怎么办？",
+      "answer": "用更大 patch、切图后只取关键区、或 tokenizer/池化压缩视觉 token 数，平衡信息量与 KV 成本。"
+    },
+    {
+      "question": "连接器(Q-Former)做什么？",
+      "answer": "把可变长的视觉 token 压缩/对齐到固定数、与文本对齐的查询 token，让 LLM 更容易消费。"
+    }
+  ],
+  "followUpAnswers": [
+    "增大 patch 或减少 token 数。",
+    "Q-Former 做跨模态对齐与压缩。"
+  ],
+  "pitfalls": [
+    "以为 LLM 能直接吃像素。",
+    "忽视高分辨率带来的视觉 token 爆炸。"
+  ],
+  "beginnerSummary": "LLM 像只会读文字的人，看不懂图片。ViT 相当于把一张图切成许多小方块，每块写成一句\"视觉描述\"(token)，再经翻译器对齐到文字的词意空间，这样 LLM 就能\"读图\"了。图越清晰，方块越多、描述越长。",
+  "prerequisites": [
+    "LLM 输入是 token 序列。",
+    "图像需转为同构 token。",
+    "需把视觉特征对齐到文本空间。"
+  ],
+  "workedExample": [
+    "224x224, patch16 → 196 个视觉 token。",
+    "ViT 编码 1024 维 → 投影到 LLM 4096 维。"
+  ],
+  "lineByLine": [
+    "图像切成不重叠 patch。",
+    "每个 patch 投影成向量。",
+    "加位置嵌入保留空间。",
+    "Transformer 编码成视觉 token。"
+  ],
+  "diagram": "图像 ─▶ 切patch(16x16) ─▶ 投影 ─▶ ViT编码 ─▶ 视觉token\n        └─ 连接器对齐到 LLM 词空间 ─▶ LLM"
+},
+  {
+  "id": "mm-clip",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "图文对比学习 CLIP",
+  "prompt": "CLIP 这种图文对比学习是怎么把图像和文本拉到同一个空间的？",
+  "quickAnswer": "CLIP 用两个编码器(图像 Encoder + 文本 Encoder)分别把图片和句子编码成向量，在批量内做对比损失(InfoNCE)：让「匹配的图文对」相似度最大、「不匹配对」最小。训练后图像与文本嵌入落在同一空间，可直接做零样本分类与跨模态检索，也是多模态模型对齐的基石。",
+  "approach": "图文对 → 双编码器 → 归一化向量 → 批内对比损失 → 共享嵌入空间。",
+  "explanationFocus": "是什么：CLIP 是一种图文对比学习方法，用双塔编码器 + InfoNCE 把图像和文本映射到可互相比对的同一向量空间。",
+  "bruteForce": "给每张图人工打标再分类：标注贵、泛化差、无法零样本。",
+  "derivation": [
+    "为什么需要：图像与文本天然异构，需要可计算的\"语义相近\"度量，且希望无需逐类标注就能泛化。",
+    "怎么实现：图像塔与文本塔各输出 L2 归一化向量，构造相似度矩阵，对批内 N 个正对做交叉熵(行/列各一次)，优化 InfoNCE。",
+    "有什么代价：依赖海量(数亿)图文对与大 batch，训练贵；分布外、细粒度、抽象概念易翻车。",
+    "怎么评测：零样本分类准确率、跨模态检索 Recall@K、下游对齐质量(probe)。"
+  ],
+  "invariant": "匹配图文对的余弦相似度应显著高于随机对；嵌入空间对两类模态一致。",
+  "walkthrough": "batch=32768，得到 32768x32768 相似度矩阵，对角线为正对，其余为负，两侧交叉熵各算一次。",
+  "edgeCases": [
+    "一张图配多句描述：需做配对采样或加权。",
+    "分布外/抽象概念：零样本易错。",
+    "细粒度区分(同物不同款)：对比信号太粗。"
+  ],
+  "code": "def clip_loss(img_emb, txt_emb, temp):\n    img_emb = normalize(img_emb); txt_emb = normalize(txt_emb)\n    logits = matmul(img_emb, txt_emb.T) * exp(temp)   # (N,N)\n    labels = arange(N)                                # 对角线为正对\n    return (ce(logits, labels) + ce(logits.T, labels)) / 2",
+  "codeNotes": [
+    "两塔对称，损失取图像→文本与文本→图像两侧平均。",
+    "温度 temp 是可学习标量，控制分布锐度。"
+  ],
+  "complexity": "相似度矩阵 O(N^2)，N 为 batch 大小；双塔各 O(序列)。",
+  "followUps": [
+    {
+      "question": "CLIP 能直接做零样本分类吗？",
+      "answer": "能：把类别名写成 prompt 编码成文本向量，与图像向量算相似度取最高，即零样本分类。"
+    },
+    {
+      "question": "为什么要用大 batch？",
+      "answer": "对比学习靠大量负样本撑起难负例，batch 越大负对越多、表征越好，故常配分布式大 batch。"
+    }
+  ],
+  "followUpAnswers": [
+    "用 prompt 编码类别名比对图像向量。",
+    "大 batch 提供更多负样本。"
+  ],
+  "pitfalls": [
+    "以为 CLIP 空间语义完美，忽略分布外失效。",
+    "仅看零样本均值，忽视细粒度/长尾翻车。"
+  ],
+  "beginnerSummary": "CLIP 像同时请了一位\"看图老师\"和\"读句老师\"，把图和句子都翻译成同一套\"意义坐标\"。训练时让它知道哪句描述配哪张图(正对)，不配的(负对)就推远。练成后，随便给张新图，它就能在没见过类别的情况下，靠\"哪句描述坐标离得近\"来认图。",
+  "prerequisites": [
+    "图像/文本各自可编码成向量。",
+    "余弦相似度能量化语义接近度。",
+    "对比学习靠正负对拉开距离。"
+  ],
+  "workedExample": [
+    "图文对 4 亿张预训练。",
+    "零样本把 \"a photo of a cat\" 与猫图相似度判最高。"
+  ],
+  "lineByLine": [
+    "图像塔与文本塔分别编码。",
+    "向量归一化到单位球面。",
+    "算批内相似度矩阵。",
+    "对角线为正对，对比损失拉近距离、推远负对。"
+  ],
+  "diagram": "图像 ─▶ 图像塔 ─┐\n                  ├─▶ 相似度矩阵 ─▶ InfoNCE(正对近/负对远)\n文本 ─▶ 文本塔 ─┘"
+},
+  {
+  "id": "mm-alignment",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "跨模态对齐 alignment",
+  "prompt": "多模态模型里说的\"跨模态对齐\"具体指什么，有哪些做法？",
+  "quickAnswer": "跨模态对齐指让不同模态的表示在语义上可互相比对/互换，常见三类：(1) 表示对齐——把视觉特征投影到文本嵌入空间(MLP/Q-Former)；(2) 对比对齐——CLIP 式 InfoNCE；(3) 指令对齐——用多模态指令数据微调让模型按指令跨模态推理。对齐质量直接决定模型能否\"看懂\"并正确使用图像信息。",
+  "approach": "选投影/对比/指令三种手段之一或组合，把视觉流拉到文本流同一空间并行为一致。",
+  "explanationFocus": "是什么：跨模态对齐是让图像、文本等模态的表示在语义与行为上保持一致，使模型能把\"看到的\"和\"说出的\"对应起来。",
+  "bruteForce": "两模态各训各的、最后拼结果：语义漂移、无法联合推理。",
+  "derivation": [
+    "为什么需要：模态异构且各自分布不同，不对齐则 LLM 读不懂视觉 token，也答非所问。",
+    "怎么实现：表示对齐(线性/MLP 投影、Q-Former 压缩查询)；对比对齐(图文 InfoNCE)；指令对齐(多模态 SFT 让输出服从指令)。",
+    "有什么代价：对齐不足则幻觉多；过度对齐可能抹平模态特有信息；指令对齐需高质量标注。",
+    "怎么评测：跨模态检索、 grounding、幻觉率、MMBench 对齐相关子项。"
+  ],
+  "invariant": "对齐后，同一语义的视觉 token 与文本 token 在空间中相邻且可互相替代参与推理。",
+  "walkthrough": "LLaVA-1.5 用两层 MLP 把 ViT 的 1024 维视觉 token 投影到 LLM 4096 维，再经指令微调完成对齐。",
+  "edgeCases": [
+    "细粒度对齐(物体局部)比全局更难。",
+    "多物体/复杂场景对齐易混淆。",
+    "新模态(音频)需重新设计对齐器。"
+  ],
+  "code": "def align_modalities(visual_feat, text_feat, projector):\n    v_aligned = projector(visual_feat)        # 视觉 → 文本空间\n    sim = cos_sim(v_aligned, text_feat)       # 对齐质量可测\n    return v_aligned, sim",
+  "codeNotes": [
+    "投影器参数少时只做线性对齐，多时学非线性映射。",
+    "对齐后可接对比损失监督质量。"
+  ],
+  "complexity": "投影 O(d_in·d_out)；对比对齐 O(N^2)。",
+  "followUps": [
+    {
+      "question": "表示对齐和对比对齐区别？",
+      "answer": "表示对齐是直接把特征映射到同空间(无显式负对)，对比对齐用正负对拉距离，常互补使用。"
+    },
+    {
+      "question": "对齐不够会有什么现象？",
+      "answer": "典型是视觉幻觉：模型无视图像内容、凭语言先验编造答案。"
+    }
+  ],
+  "followUpAnswers": [
+    "前者直接映射，后者用正负对。",
+    "表现为视觉幻觉。"
+  ],
+  "pitfalls": [
+    "把对齐等同于\"能拼接\"，忽视语义一致性。",
+    "对齐过度反而丢失模态特有细节。"
+  ],
+  "beginnerSummary": "对齐就像把中文和英文都翻成同一种\"世界语\"，让说不同语言的人能互相理解。多模态里就是让\"图的意思\"和\"词的意思\"落在同一套坐标上，这样模型既能看图也能用词去指图里的东西。",
+  "prerequisites": [
+    "不同模态表示空间不同。",
+    "需可计算的语义相似度。",
+    "对齐影响下游推理正确性。"
+  ],
+  "workedExample": [
+    "MLP 把视觉 1024 维投影到文本 4096 维。",
+    "指令微调让模型按图回答而非瞎编。"
+  ],
+  "lineByLine": [
+    "选对齐方式(投影/对比/指令)。",
+    "把视觉特征映射到文本空间。",
+    "用对比或指令信号监督对齐。",
+    "验证视觉与文本 token 可互换参与推理。"
+  ],
+  "diagram": "视觉特征 ─▶ 投影器/对比/指令 ─▶ 文本空间(同坐标)\n                                  ↓\n                           LLM 联合推理"
+},
+  {
+  "id": "mm-fusion",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "多模态融合方式",
+  "prompt": "多模态融合里的 early fusion 和 late fusion 有什么区别，各自适合什么？",
+  "quickAnswer": "Early fusion 在特征层就把多模态拼到一起联合编码(如把视觉 token 与文本 token 一起进 Transformer)，交互早、语义融合深但需对齐且算力高；Late fusion 各模态独立编码、最后再融合决策(拼接/加权/投票)，工程解耦、鲁棒但跨模态交互浅。多模态 LLM 多用 early fusion(统一 token 序列)。",
+  "approach": "early=特征级联合编码；late=决策级后融合。",
+  "explanationFocus": "是什么：多模态融合指把多个模态的信息合并成统一表征或决策，分\"早期特征融合(early)\"与\"晚期决策融合(late)\"。",
+  "bruteForce": "只取最强单模态硬决策：丢互补信息。",
+  "derivation": [
+    "为什么需要：单模态信息不全，融合可互补(图给外观、文给语义)，提升鲁棒与精度。",
+    "怎么实现：early 在嵌入层 concat/attention 联合；late 各塔出表征或 logits 后加权/注意力/投票融合。",
+    "有什么代价：early 需模态对齐且序列变长、算力高；late 交互浅、错过细粒度跨模态推理。",
+    "怎么评测：对比融合后在多模态任务上的精度、鲁棒性与延迟。"
+  ],
+  "invariant": "无论早/晚融合，最终决策应同时用到各模态有效信号。",
+  "walkthrough": "LLaVA 把 576 视觉 token 与文本 token 一起进 7B Transformer(early)；传统 VQA 可各编码后接分类头(late)。",
+  "edgeCases": [
+    "模态缺失：late 可降级，early 需 mask。",
+    "模态冲突：需加权或注意力裁决。",
+    "长序列 early fusion 算力爆炸。"
+  ],
+  "code": "def early_fusion(v_tokens, t_tokens, model):\n    return model(concat([v_tokens, t_tokens], dim=1))   # 联合编码\n\ndef late_fusion(logits_v, logits_t, w):\n    return w * logits_v + (1 - w) * logits_t             # 决策级加权",
+  "codeNotes": [
+    "early 融合交互深但贵。",
+    "late 融合解耦、易扩展新模态。"
+  ],
+  "complexity": "early O((V+T)^2)；late 各 O(V^2)+O(T^2) 再加轻量融合。",
+  "followUps": [
+    {
+      "question": "多模态 LLM 为什么多用语义 early fusion？",
+      "answer": "因为统一 token 序列让 Transformer 注意力天然做细粒度跨模态交互，比 late 融合更会推理。"
+    },
+    {
+      "question": "模态缺失时怎么处理？",
+      "answer": "late 融合可直接去掉该路；early 融合需对缺失模态做 mask/零向量并保持位置一致。"
+    }
+  ],
+  "followUpAnswers": [
+    "注意力天然跨模态交互。",
+    "late 直接去路，early 需 mask。"
+  ],
+  "pitfalls": [
+    "认为 late 融合永远省算力而忽略交互损失。",
+    "early 融合未对齐就拼接导致噪声。"
+  ],
+  "beginnerSummary": "融合就像小组合作写报告。early fusion 是大家一开始就坐一起边聊边写(交流深但占会议室)；late fusion 是各自写好再拼(省事、某人缺席也不崩，但容易各说各话)。大模型常用\"坐一起写\"的方式。",
+  "prerequisites": [
+    "多模态信息可互补。",
+    "融合可在特征或决策层做。",
+    "需权衡交互深度与算力。"
+  ],
+  "workedExample": [
+    "early: 视觉+文本 token 同进 Transformer。",
+    "late: 两塔出 logits 后加权。"
+  ],
+  "lineByLine": [
+    "确定融合层级(特征/决策)。",
+    "early 在嵌入层拼接联合编码。",
+    "late 各编码后加权/投票。",
+    "评估融合后任务表现与开销。"
+  ],
+  "diagram": "early: 视觉─┐\n             ├─▶ 联合 Transformer ─▶ 输出\n       文本─┘\nlate:  视觉─▶塔─┐\n                ├─▶ 加权/投票 ─▶ 决策\n       文本─▶塔─┘"
+},
+  {
+  "id": "mm-vistoken",
+  "category": "多模态模型",
+  "difficulty": "Easy",
+  "title": "视觉 token 化 patch→token",
+  "prompt": "把图像变成\"视觉 token\"这一步具体是怎么做的？",
+  "quickAnswer": "标准做法(沿 ViT)是把图像切成不重叠的 p×p patch，每个 patch 展平后经线性层投影成向量并加上位置嵌入，得到一串视觉 token。token 数 = (H/p)×(W/p)。这是把二维像素转成一维序列、使其能被 Transformer/LLM 消费的关键一步。",
+  "approach": "resize → 切 patch → 展平 → 线性投影 + 位置嵌入 → token 序列。",
+  "explanationFocus": "是什么：视觉 token 化是把一张图像切成若干小方块、每块编码成一个向量\"词\"，从而把图片变成 LLM 能读的一串 token。",
+  "bruteForce": "整图展平成一长向量：维度过高、丢失局部结构。",
+  "derivation": [
+    "为什么需要：Transformer/LLM 吃序列，图像是二维网格，必须先离散成定长 token。",
+    "怎么实现：图像除以 patch 尺寸得到网格，每格展平投影为 d 维向量，叠加可学习或二维位置嵌入。",
+    "有什么代价：patch 越小 token 越多、算力 O(token^2) 涨；patch 越大丢细节。",
+    "怎么评测：下游任务精度随 token 数/token 质量的曲线、定位能力(grounding)。"
+  ],
+  "invariant": "相同图像与切分参数得到相同数量与内容的视觉 token。",
+  "walkthrough": "336x336 图, patch=14 → 24x24 = 576 个视觉 token，每 token 投影到 1024 维。",
+  "edgeCases": [
+    "图像尺寸非 patch 整数倍：需 resize 或 pad。",
+    "高分辨率：token 数激增需切图。",
+    "非方形 patch：位置嵌入需相应调整。"
+  ],
+  "code": "def patchify(img, p=14):\n    b, c, h, w = img.shape\n    assert h % p == 0 and w % p == 0\n    tokens = img.reshape(b, c, h//p, p, w//p, p)\n    tokens = tokens.permute(0, 2, 4, 1, 3, 5).flatten(3)   # (B, H/p, W/p, c*p*p)\n    return tokens.reshape(b, -1, c*p*p)                    # (B, N, patch_dim)",
+  "codeNotes": [
+    "reshape+permute 实现不重叠切分。",
+    "之后接 Linear 投影到 d 维并加位置嵌入。"
+  ],
+  "complexity": "token 数 N = (H/p)·(W/p)；投影 O(N·patch_dim·d)。",
+  "followUps": [
+    {
+      "question": "patch 大小怎么选？",
+      "answer": "小 patch 保细节但 token 多、慢；大 patch 快但粗。常按分辨率与任务在 14~32 间权衡。"
+    },
+    {
+      "question": "位置嵌入为什么不能少？",
+      "answer": "去掉后模型不知道哪块在图上哪个位置，空间信息丢失、定位能力下降。"
+    }
+  ],
+  "followUpAnswers": [
+    "按分辨率与细节需求权衡。",
+    "保持空间位置信息。"
+  ],
+  "pitfalls": [
+    "忽略尺寸非整数倍导致的对齐错误。",
+    "盲目减小 patch 引发 token 爆炸。"
+  ],
+  "beginnerSummary": "把图变成 token 就像把一张大拼图拆成许多等大的小方块，每块编个号写成一句描述。方块越小(描述越细)图越清楚但句子越长；方块越大越省事但看不清细节。编号(位置)很重要，否则模型不知道哪块在哪儿。",
+  "prerequisites": [
+    "图像是二维像素网格。",
+    "Transformer 吃一维序列。",
+    "位置信息需显式编码。"
+  ],
+  "workedExample": [
+    "336x336, patch14 → 576 token。",
+    "每 token 投影到 1024 维向量。"
+  ],
+  "lineByLine": [
+    "图像按 patch 尺寸切分。",
+    "每块展平成一维向量。",
+    "线性投影到模型维度。",
+    "加位置嵌入保留空间。"
+  ],
+  "diagram": "图像(336x336) ─▶ 切14x14块 ─▶ 576块\n   每块展平 ─▶ 投影 ─▶ 视觉token(1024维)"
+},
+  {
+  "id": "mm-qformer",
+  "category": "多模态模型",
+  "difficulty": "Hard",
+  "title": "Q-Former 跨模态连接器",
+  "prompt": "Q-Former 这类跨模态连接器在多模态模型里解决什么问题？",
+  "quickAnswer": "Q-Former(BLIP-2)用一组可学习的查询 token 通过交叉注意力从视觉编码器输出中\"提炼\"出固定数、与文本对齐的视觉表示，把冗长且不对齐的视觉 token 压缩成少量高质量 token 再喂 LLM。它解决了视觉 token 过长、与文本空间不对齐两大痛点，是经典的连接器设计。",
+  "approach": "固定查询 token → 交叉注意力读视觉特征 → 自注意力+文本交互 → 压缩对齐的视觉 token → LLM。",
+  "explanationFocus": "是什么：Q-Former 是一种跨模态连接器，用可学习的查询向量从图像特征中\"提问式\"抽取少量、与文本对齐的视觉 token，桥接视觉编码器与 LLM。",
+  "bruteForce": "把全部 ViT token 直接塞 LLM：太长且未对齐、浪费 KV。",
+  "derivation": [
+    "为什么需要：ViT 输出 token 多且与 LLM 词空间不同构，直接拼接既贵又难训。",
+    "怎么实现：N 个 learnable query 经多层，每层对视觉特征做交叉注意力、对彼此做自注意力，并可接文本做对比/生成预训练；输出 N 个对齐 token。",
+    "有什么代价：查询数 N 固定，过小丢信息、过大失压缩意义；多阶段预训练工程复杂。",
+    "怎么评测：下游 VQA/图文生成、视觉 token 数 vs 效果的权衡、LLM 微调难度。"
+  ],
+  "invariant": "无论原图视觉 token 多少，Q-Former 输出固定 N 个与文本对齐的查询 token。",
+  "walkthrough": "ViT 出 257 token → Q-Former 用 32 个 query 交叉注意力压缩为 32 个对齐 token → 投影进 7B LLM。",
+  "edgeCases": [
+    "查询数过少丢细粒度信息。",
+    "高分辨率原图信息密度高，需更多 query。",
+    "纯视觉预训练与后续 LLM 对齐需两段训练。"
+  ],
+  "code": "def qformer(queries, visual_feat, text_feat=None):\n    x = queries\n    for layer in q_layers:\n        x = self_attn(x)                          # 查询间交互\n        x = cross_attn(x, visual_feat)            # 从视觉提炼\n        if text_feat is not None:\n            x = cross_attn(x, text_feat)          # 与文本对齐\n    return x                                      # (B, N_query, d)",
+  "codeNotes": [
+    "query 数 N 是核心超参。",
+    "交叉注意力是\"提炼\"关键。"
+  ],
+  "complexity": "O(N·V) 每层的跨注意力；N 远小于 V 故大幅压缩。",
+  "followUps": [
+    {
+      "question": "Q-Former 和简单 MLP 连接器差在哪？",
+      "answer": "MLP 只做维度投影不压缩 token 数；Q-Former 用注意力把可变长视觉特征压成固定少量对齐 token。"
+    },
+    {
+      "question": "查询 token 数怎么定？",
+      "answer": "在效果与长度间权衡，常 32~64；细粒度/高分辨率任务可加大。"
+    }
+  ],
+  "followUpAnswers": [
+    "Q-Former 会压缩 token 数。",
+    "按效果与长度权衡，常 32~64。"
+  ],
+  "pitfalls": [
+    "把连接器当成纯投影，忽视其压缩作用。",
+    "查询过少导致细粒度信息丢失。"
+  ],
+  "beginnerSummary": "Q-Former 像让几个\"记者\"(查询 token)去采访一大堆\"现场照片\"(视觉 token)，每人只问出最关键的一句总结，最后把这几句精炼报道交给写稿的 LLM。这样既简短又和文字口径一致，省时又清楚。",
+  "prerequisites": [
+    "视觉 token 长且与文本不同空间。",
+    "注意力可跨模态提取信息。",
+    "需固定长度以稳定喂 LLM。"
+  ],
+  "workedExample": [
+    "ViT 出 257 token。",
+    "32 个 query 压成 32 个对齐 token。"
+  ],
+  "lineByLine": [
+    "初始化可学习查询 token。",
+    "查询间自注意力交互。",
+    "对视觉特征做交叉注意力提炼。",
+    "可选与文本交叉对齐，输出压缩 token。"
+  ],
+  "diagram": "ViT tokens(多) ─▶ 交叉注意力 ← 查询(少,N)\n                        │\n                    自注意力(查询间)\n                        │\n                   N 个对齐 token ─▶ LLM"
+},
+  {
+  "id": "mm-mrope",
+  "category": "多模态模型",
+  "difficulty": "Hard",
+  "title": "多模态位置编码 M-RoPE",
+  "prompt": "像 M-RoPE 这样的多模态位置编码是怎么同时编码文本、图像和视频位置的？",
+  "quickAnswer": "M-RoPE(多模态 RoPE)把位置拆成多个分量(如时间/高度/宽度或文本序号)，对不同模态用不同分量组合：文本只用一维序号，图像用(高度,宽度)二维、时间维为常，视频再加时间维。这样同一套旋转位置编码能统一表达三种模态的空间/时序位置，让注意力正确感知\"在哪、在何时\"。",
+  "approach": "位置向量分维 → 文本用 (t,0,0) / 图用 (t,h,w) / 视频时间变化 → 各分量分别算 RoPE。",
+  "explanationFocus": "是什么：M-RoPE 是一种多模态旋转位置编码，把位置拆成时间/高度/宽度等分量，按模态组合，使文本、图像、视频共享一套可感知时空的位置表示。",
+  "bruteForce": "所有模态共用一维文本位置：图像/视频空间信息错乱。",
+  "derivation": [
+    "为什么需要：文本是顺序的、图像是二维的、视频还带时间维，单一位置编码无法同时表达，会导致跨模态注意力位置感知错误。",
+    "怎么实现：把位置索引拆成多维，文本仅第一维递增；图像令时间维恒定、用 h/w 两维；视频时间维随帧递增，h/w 描述空间。各维分别作用于 RoPE 的不同子空间。",
+    "有什么代价：需小心分量到隐藏维的映射与边界；多模态拼接时位置需连续/对齐以免注意力混淆。",
+    "怎么评测：消融对比一维 RoPE，看空间/时序推理、视频顺序理解是否提升。"
+  ],
+  "invariant": "相同模态相同坐标得到相同位置编码；不同模态靠分量差异区分时空。",
+  "walkthrough": "文本 token 位置 (i,0,0)；图像第 r 行 c 列位置 (0,r,c)；视频第 f 帧位置 (f,r,c)。",
+  "edgeCases": [
+    "图文交错时位置需不冲突地排布。",
+    "高分辨率切图后需重算 h/w 偏移。",
+    "视频帧间时间步长需一致。"
+  ],
+  "code": "def mrope_pos(modality, i, h=0, w=0):\n    if modality == 'text':\n        return (i, 0, 0)\n    if modality == 'image':\n        return (0, h, w)            # 时间维恒定\n    if modality == 'video':\n        return (i, h, w)            # 时间随帧 i 递增\n    raise ValueError('unknown modality')",
+  "codeNotes": [
+    "三分量分别进入 RoPE 不同子空间。",
+    "拼接多模态时需统一编排索引。"
+  ],
+  "complexity": "与 RoPE 同量级 O(d)；额外只是位置分量构造。",
+  "followUps": [
+    {
+      "question": "M-RoPE 和一维 RoPE 最大区别？",
+      "answer": "一维 RoPE 只给顺序，M-RoPE 用多维分别编码时空，使图像/视频的位置关系被正确建模。"
+    },
+    {
+      "question": "视频为什么需要时间维？",
+      "answer": "否则模型分不清前后帧顺序，动作/时序推理会错乱。"
+    }
+  ],
+  "followUpAnswers": [
+    "多维编码时空 vs 仅顺序。",
+    "区分前后帧顺序。"
+  ],
+  "pitfalls": [
+    "多模态拼接时位置索引冲突。",
+    "把图像也当一维序列丢失空间。"
+  ],
+  "beginnerSummary": "普通位置编码只记\"第几个字\"，但图片要记\"第几行第几列\"、视频还要记\"第几秒\"。M-RoPE 就像给每个内容贴带三个坐标的标签(时间,高度,宽度)，文字只填时间、图片填行列、视频再让时间走动，这样模型永远知道东西在\"哪、何时\"。",
+  "prerequisites": [
+    "RoPE 用旋转编码位置。",
+    "图像/视频有二维/时间结构。",
+    "注意力依赖正确位置感知。"
+  ],
+  "workedExample": [
+    "文本位置 (i,0,0)。",
+    "图像位置 (0,行,列)，视频 (帧,行,列)。"
+  ],
+  "lineByLine": [
+    "把位置拆成时间/高度/宽度分量。",
+    "文本只用时间(序号)维。",
+    "图像用高/宽两维、时间恒定。",
+    "视频让时间维随帧递增。"
+  ],
+  "diagram": "文本: (t,0,0)\n图像: (0,h,w)\n视频: (t,h,w)  ← t 随帧增加"
+},
+  {
+  "id": "mm-video-temporal",
+  "category": "多模态模型",
+  "difficulty": "Hard",
+  "title": "视频理解处理时序",
+  "prompt": "多模态模型处理视频时，怎么把\"时间\"这一维有效地建模进去？",
+  "quickAnswer": "视频 = 多帧图像 + 时间。常见做法：对每帧独立提视觉 token(M-RoPE 时间维区分帧)，再(1) 直接拼接所有帧 token 让注意力学时序；(2) 时空 patch(把时间当第三维切 token)；(3) 先每帧编码再接时序模块(如时序注意力/池化)。关键是控制帧数与每帧 token 数以免序列爆炸，并用时间位置编码保留顺序。",
+  "approach": "采样帧 → 逐帧提 token(带时间位置) → 拼接/时空切分 → 时序注意力或池化 → LLM。",
+  "explanationFocus": "是什么：视频理解的时序建模是把\"多帧画面+先后顺序\"变成模型可消费的结构，常用逐帧 token 拼接加时间位置编码，或时空联合切分。",
+  "bruteForce": "把整段视频每帧全提 token 全拼：序列极长、算不起。",
+  "derivation": [
+    "为什么需要：视频除空间内容外还有动作/顺序，忽略时间会丢失核心语义。",
+    "怎么实现：均匀/关键帧采样；逐帧 ViT 提 token 并打时间位置(M-RoPE)；帧间用注意力或轻量时序模块交互；必要时对帧 token 池化压缩。",
+    "有什么代价：帧数×每帧 token 乘法式增长，KV 与算力压力巨大；采样过少丢动作。",
+    "怎么评测：视频 QA、动作识别、时序排序准确率与端到端延迟。"
+  ],
+  "invariant": "相同帧序列经固定时间编码得到确定且有序的表示。",
+  "walkthrough": "16 帧 × 每帧 256 token = 4096 视觉 token；M-RoPE 时间维 0..15 区分帧序。",
+  "edgeCases": [
+    "长视频：需分段或仅关键帧。",
+    "高帧率动作：采样过疏漏动作。",
+    "静态镜头：冗余帧可去重压缩。"
+  ],
+  "code": "def video_to_tokens(frames, encoder, sampler, temporal_pos):\n    picked = sampler(frames)                       # 采关键帧\n    toks = [encoder(f) for f in picked]            # 逐帧提 token\n    for t, tk in enumerate(toks):\n        tk = add_temporal_pos(tk, temporal_pos(t)) # 打时间位置\n    return concat(toks, dim=1)                     # 拼成时序序列",
+  "codeNotes": [
+    "帧采样是第一道降本手段。",
+    "时间位置保证顺序不被注意力打乱。"
+  ],
+  "complexity": "O(帧数 × 每帧 token 数)^2 注意力；可经池化降到 O(T·V')。",
+  "followUps": [
+    {
+      "question": "帧太多 token 爆炸怎么办？",
+      "answer": "减少帧数/降每帧分辨率、对帧 token 池化压缩、或用分段+摘要策略。"
+    },
+    {
+      "question": "为什么不能只看单帧？",
+      "answer": "许多语义(动作、因果、顺序)只在帧间变化中体现，单帧丢失时序信息。"
+    }
+  ],
+  "followUpAnswers": [
+    "减帧/池化/分段。",
+    "动作与顺序只在帧间体现。"
+  ],
+  "pitfalls": [
+    "忽视时间位置导致帧序错乱。",
+    "无脑堆帧造成算力爆炸。"
+  ],
+  "beginnerSummary": "视频就是一连串照片加\"先后顺序\"。模型先挑几张关键照片(帧采样)，每张翻译成 token 并贴上时戳(时间位置)，再把所有带时戳的 token 排好队交给大脑，这样它既能看画面也能懂\"先发生后发生\"。照片太多就挑重点、能压缩就压缩，否则大脑算不过来。",
+  "prerequisites": [
+    "视频是多帧有序图像。",
+    "逐帧可复用图像编码器。",
+    "时间顺序需显式编码。"
+  ],
+  "workedExample": [
+    "16 帧 × 256 token = 4096 视觉 token。",
+    "M-RoPE 时间维 0..15 标帧序。"
+  ],
+  "lineByLine": [
+    "采样关键帧降本。",
+    "逐帧提视觉 token。",
+    "加时间位置编码。",
+    "拼接后注意力/池化建模时序。"
+  ],
+  "diagram": "视频 ─▶ 采样帧 ─▶ 逐帧编码 ─(时戳)─▶ 拼接 ─▶ 时序注意力 ─▶ LLM"
+},
+  {
+  "id": "mm-pretrain",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "多模态预训练目标",
+  "prompt": "多模态大模型在预训练阶段都会用哪些训练目标？",
+  "quickAnswer": "常见多模态预训练目标有：(1) 图文对比(ITM/InfoNCE)拉对齐；(2) 图文匹配(ITM 二分类)判是否配对；(3) 图像条件文本生成(以图生文，自回归/MLM)；(4) 视觉问答/指令式生成。BLIP-2 等用\"对比+生成\"联合，LLaVA 类则在对齐后用指令数据做生成式微调，目标是让模型\"看图能说、能答、能对\"。",
+  "approach": "对齐(对比) + 匹配(判别) + 生成(以图生文/答) 多目标联合或分阶段。",
+  "explanationFocus": "是什么：多模态预训练目标指训练时用来逼模型学会跨模态理解的\"考题\"，主要是对比对齐、配对判别和以图生文的生成三类。",
+  "bruteForce": "只用分类头做单任务：泛化差、不会开放生成。",
+  "derivation": [
+    "为什么需要：要让模型既对齐语义又会生成，单一目标不够，需多目标覆盖\"对齐/判别/生成\"。",
+    "怎么实现：对比损失(图文相似)、ITM(是否配对)、LM 损失(给定图生成描述或答案)；可加权联合或分阶段(先对齐后生成)。",
+    "有什么代价：多目标权重难调；生成目标需高质量图文/QA 语料；对齐与生成可能互相拉扯。",
+    "怎么评测：各目标验证损失、下游零样本/微调表现。"
+  ],
+  "invariant": "无论目标组合，最终表征应同时支撑对齐与生成。",
+  "walkthrough": "BLIP-2 三目标：对比(图-文) + 图文匹配 + 以图生文，统一在 Q-Former 上训练。",
+  "edgeCases": [
+    "噪声图文对损害对比目标。",
+    "生成目标需去重防记忆。",
+    "多目标权重敏感。"
+  ],
+  "code": "def multimodal_loss(img, txt, model, w=(1.0, 0.5, 1.0)):\n    lc = contrastive(img, txt)        # 对齐\n    lm = itm(img, txt)                # 配对判别\n    lg = lm_loss(img, txt, model)     # 以图生文\n    return w[0]*lc + w[1]*lm + w[2]*lg",
+  "codeNotes": [
+    "权重 w 需实验调。",
+    "生成目标常用因果 LM 损失。"
+  ],
+  "complexity": "各目标与其对应前向一致；联合为加权和。",
+  "followUps": [
+    {
+      "question": "对比和生成目标不冲突吗？",
+      "answer": "会互相拉扯，故常分阶段：先对比/ITM 对齐，再冻结部分做生成微调，或小心加权。"
+    },
+    {
+      "question": "LLaVA 用什么预训练目标？",
+      "answer": "主要在视觉-语言对齐后用指令/对话数据做自回归生成(下一 token 预测)。"
+    }
+  ],
+  "followUpAnswers": [
+    "常分阶段或加权缓解。",
+    "自回归生成(下一 token)。"
+  ],
+  "pitfalls": [
+    "以为一个目标足够覆盖理解与生成。",
+    "忽视噪声对对比目标的破坏。"
+  ],
+  "beginnerSummary": "预训练就像给学生出三种题：配对题(这句描述配不配这张图)、找相近题(哪句和哪图意思近)、作文题(看着图写一段话)。三种题一起练，学生既懂图意又能开口描述、回答问题。",
+  "prerequisites": [
+    "模型需同时会对齐与生成。",
+    "对比/判别/生成是不同能力。",
+    "需多模态语料支撑。"
+  ],
+  "workedExample": [
+    "对比: 图文相似度最大化。",
+    "生成: 给定图自回归写描述。"
+  ],
+  "lineByLine": [
+    "设计对比目标拉对齐。",
+    "加 ITM 判别配对。",
+    "加生成目标练以图生文。",
+    "加权联合或分阶段训练。"
+  ],
+  "diagram": "语料 ─▶ [对比 + 匹配 + 生成] 多目标 ─▶ 多模态表征"
+},
+  {
+  "id": "mm-preprocess",
+  "category": "多模态模型",
+  "difficulty": "Easy",
+  "title": "推理时图像预处理流水线",
+  "prompt": "多模态模型在推理时，一张图进模型前要经过怎样的预处理流水线？",
+  "quickAnswer": "推理流水线通常是：解码图像 → resize/pad 到模型输入尺寸 → 归一化(均值方差) → 转 tensor → 切 patch → 视觉编码器 → 连接器对齐 → 拼入 LLM 提示。高分辨率还需切图/动态分辨率。任何一步不一致(如训练/推理归一化不同)都会掉点，因此预处理必须与训练严格对齐。",
+  "approach": "解码 → resize/pad → 归一化 → tensor → patch → 编码 → 对齐 → 入 LLM。",
+  "explanationFocus": "是什么：推理时图像预处理流水线是图像从原始文件变成模型可消费视觉 token 的一系列固定步骤，必须与训练时一致。",
+  "bruteForce": "直接把任意尺寸原图喂编码器：尺寸不匹配、分布漂移。",
+  "derivation": [
+    "为什么需要：模型只在固定尺寸/分布上训过，原始图尺寸、值域不一，必须先标准化。",
+    "怎么实现：统一解码、按策略 resize/pad、用训练同款均值方差归一化、转 CHW tensor、再走 patch+编码器+连接器。",
+    "有什么代价：resize 丢细节；pad 引入无效 token；高分辨率切图增加序列与延迟。",
+    "怎么评测：对齐性测试(同图同输出)、端到端精度与预处理耗时占比。"
+  ],
+  "invariant": "同一图像在相同配置下得到确定且可复现的预处理结果。",
+  "walkthrough": "原图 1000x800 → resize 最短边 336 → pad 到 336x336 → 归一化 → patch14 → 576 token。",
+  "edgeCases": [
+    "非 RGB(含 alpha)：需转 RGB。",
+    "极端长宽比：pad 浪费 token。",
+    "训练/推理归一化不一致：严重掉点。"
+  ],
+  "code": "def preprocess(img, size=336, mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)):\n    img = decode_rgb(img)\n    img = resize_shortest(img, size)\n    img = pad_to_square(img, size)\n    t = to_tensor(img).normalize(mean, std)     # 与训练一致\n    return t",
+  "codeNotes": [
+    "均值方差必须和训练一致。",
+    "pad 会增加无效视觉 token。"
+  ],
+  "complexity": "预处理 O(像素)；主导成本是编码器而非预处理本身。",
+  "followUps": [
+    {
+      "question": "为什么训练推理归一化必须一致？",
+      "answer": "否则输入分布偏移，编码器表征整体偏移，下游精度明显下滑。"
+    },
+    {
+      "question": "高分辨率怎么处理？",
+      "answer": "切图(把大图分成若干子图各编码)或动态分辨率，再合并视觉 token。"
+    }
+  ],
+  "followUpAnswers": [
+    "避免输入分布偏移掉点。",
+    "切图或动态分辨率。"
+  ],
+  "pitfalls": [
+    "忽视训练/推理预处理差异。",
+    "pad 引入大量无效 token 拖慢。"
+  ],
+  "beginnerSummary": "预处理就像照相亲前的统一化妆标准： everyone 先调成同样的尺寸、同样的亮度色调，再进场。如果训练和考试时的\"化妆标准\"不一样，模型就会认不出人。高个子(高分辨率)还得裁成几张标准照分别处理。",
+  "prerequisites": [
+    "模型只在固定尺寸/分布训练。",
+    "归一化影响表征分布。",
+    "训练推理须一致。"
+  ],
+  "workedExample": [
+    "1000x800 → 最短边 336 → pad 正方形。",
+    "归一化后切 14 patch → 576 token。"
+  ],
+  "lineByLine": [
+    "解码为 RGB。",
+    "resize 最短边并 pad 方形。",
+    "按训练均值方差归一化。",
+    "转 tensor 后切 patch 编码。"
+  ],
+  "diagram": "文件 ─▶ 解码RGB ─▶ resize/pad ─▶ 归一化 ─▶ tensor ─▶ patch ─▶ 编码"
+},
+  {
+  "id": "mm-sft",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "多模态指令微调",
+  "prompt": "多模态大模型的指令微调(多模态 SFT)和普通文本 SFT 有什么不同？",
+  "quickAnswer": "多模态 SFT 在文本指令数据基础上混入\"图文/视频-指令-回答\"三元组，让模型学会按指令使用视觉信息(描述、计数、定位、推理)。训练时通常冻结视觉编码器、只训连接器与 LLM(或全参)，损失仍是自回归 next-token；关键是数据要覆盖多样指令与难例，否则易过拟合语言先验、产生幻觉。",
+  "approach": "构造多模态对话数据 → 冻结视觉塔、训连接器+LLM → 自回归损失 → 对齐指令遵循。",
+  "explanationFocus": "是什么：多模态指令微调是用\"图像+指令+回答\"数据微调模型，让它学会听从指令去正确利用视觉内容，而不仅是会说话。",
+  "bruteForce": "只用纯文本指令微调：模型忽略图像、凭语言先验作答。",
+  "derivation": [
+    "为什么需要：预训练只给\"看图说话\"能力，不一定服从具体指令(如\"数图里有几个\")，需指令数据教它按令行事。",
+    "怎么实现：把图像 token 拼入对话模板，构造多轮图文对话；优化因果 LM 损失；常冻结 ViT、训投影+LLM，或 LoRA/全参。",
+    "有什么代价：高质量多模态指令数据贵；分布偏斜会让模型仍偏语言先验；多任务需平衡权重。",
+    "怎么评测：指令遵循准确率、幻觉率、MMBench 各能力维度。"
+  ],
+  "invariant": "给定相同图文指令，微调后模型输出稳定且服从指令利用图像。",
+  "walkthrough": "LLaVA-1.5 用 ~1.2M 混合指令数据，冻结 ViT、训 MLP+LLM 一轮，显著提升指令遵循。",
+  "edgeCases": [
+    "指令要求定位但数据缺 grounding。",
+    "负样本/拒答数据不足致乱答。",
+    "多轮中图像上下文引用易丢。"
+  ],
+  "code": "def sft_step(batch, model, opt):\n    logits = model(batch['tokens'])            # 含视觉 token 的对话\n    loss = causal_lm_loss(logits, batch['labels'])\n    loss.backward(); opt.step()                # 冻结 ViT, 训其余",
+  "codeNotes": [
+    "常冻结视觉编码器防遗忘。",
+    "损失仍是下一 token 预测。"
+  ],
+  "complexity": "与文本 SFT 同量级，额外是视觉 token 的前向/反向。",
+  "followUps": [
+    {
+      "question": "为什么要冻结视觉编码器？",
+      "answer": "避免用少量 SFT 数据破坏已学好的视觉表征，也省显存；只调连接与语言部分。"
+    },
+    {
+      "question": "数据质量比数量重要吗？",
+      "answer": "非常关键：少量高质量多样指令远胜大量同质数据，能显著降低幻觉。"
+    }
+  ],
+  "followUpAnswers": [
+    "防破坏视觉表征、省显存。",
+    "质量远胜数量。"
+  ],
+  "pitfalls": [
+    "只用文本指令数据导致不看图。",
+    "忽视难例/拒答数据致幻觉。"
+  ],
+  "beginnerSummary": "普通 SFT 是让模型学会\"听人话\"；多模态 SFT 是额外教它\"边看图片边听人话\"。比如教它\"数图里有几个苹果\"而不是凭印象乱说。训练时通常保留它已学会的看图能力(冻结眼睛)，只训练它如何按指令组织回答。",
+  "prerequisites": [
+    "模型已具基础看图能力。",
+    "SFT 用自回归损失。",
+    "需图文指令数据。"
+  ],
+  "workedExample": [
+    "冻结 ViT，训 MLP+LLM。",
+    "1.2M 混合指令提升遵循。"
+  ],
+  "lineByLine": [
+    "构造图文指令对话。",
+    "图像 token 拼入模板。",
+    "冻结视觉塔、训其余。",
+    "因果 LM 损失微调。"
+  ],
+  "diagram": "图文指令 ─▶ 模板拼接(含视觉token) ─▶ 模型 ─▶ 自回归损失 ─▶ 微调"
+},
+  {
+  "id": "mm-hallucination",
+  "category": "多模态模型",
+  "difficulty": "Hard",
+  "title": "视觉幻觉 hallucination",
+  "prompt": "多模态模型为什么会\"幻觉\"(瞎编图上没有的东西)，怎么缓解？",
+  "quickAnswer": "幻觉指模型输出与图像事实不符(凭空物体/错误属性)。根因：语言先验过强、视觉-语言对齐不足、训练数据噪声、视觉 token 信息被压缩丢失。缓解：增强对齐与 grounding 数据、对比/判别辅助目标、视觉 token 保真(降压缩)、RLHF/DPO 对齐人类偏好、推理时让模型先描述再答(或反问)。需靠评测(幻觉基准)量化。",
+  "approach": "提对齐质量 + 加 grounding/负例数据 + 保真视觉 token + 偏好对齐 + 评测闭环。",
+  "explanationFocus": "是什么：视觉幻觉是多模态模型生成了图像中并不存在或错误的内容，源于语言先验压过弱视觉信号。",
+  "bruteForce": "只靠更多文本指令数据：语言先验更强、幻觉更甚。",
+  "derivation": [
+    "为什么需要：幻觉直接破坏可信度，是落地最大障碍，必须可诊断可缓解。",
+    "怎么实现：用含负例/拒答与细粒度 grounding 的数据微调；加对比与判别目标强化对齐；减少视觉 token 压缩；用 DPO/RLHF 抑制编造；推理时先感知后作答。",
+    "有什么代价：grounding 数据贵；过度抑制可能变保守漏答；偏好训练需标注。",
+    "怎么评测：POPE/AMBER 等幻觉基准、人工核对属性准确率。"
+  ],
+  "invariant": "对于任意图像，模型输出中的实体/属性应能从图中证实。",
+  "walkthrough": "POPE 用\"图中有无某物体\"的二选一评测，随机/流行/对抗负采样衡量幻觉率。",
+  "edgeCases": [
+    "小物体/稀少类更易被 hallucinate。",
+    "计数与属性(颜色/材质)易错。",
+    "对抗负例(常见但图中无)最难。"
+  ],
+  "code": "def detect_hallucination(output, grounded_objects):\n    claimed = extract_entities(output)\n    return [e for e in claimed if e not in grounded_objects]   # 图中无法证实的实体",
+  "codeNotes": [
+    "先用 grounding 拿到图上真实体。",
+    "对比生成实体与真实体找幻觉。"
+  ],
+  "complexity": "评测 O(输出实体数)；缓解成本在数据与训练侧。",
+  "followUps": [
+    {
+      "question": "为什么语言先验会导致幻觉？",
+      "answer": "LLM 部分强于视觉，统计上更\"常见\"的描述会被优先生成，盖过弱视觉信号。"
+    },
+    {
+      "question": "DPO 怎么帮到幻觉？",
+      "answer": "用\"忠实描述\"为正、\"编造\"为负做偏好对齐，直接压低编造概率。"
+    }
+  ],
+  "followUpAnswers": [
+    "常见描述压过弱视觉信号。",
+    "用忠实/编造做偏好对齐。"
+  ],
+  "pitfalls": [
+    "把幻觉当小错忽视其系统性。",
+    "只加文本数据反而加重先验。"
+  ],
+  "beginnerSummary": "幻觉就像一个人看书时凭\"常识\"补脑子没看清的细节，结果编出图里没有的东西。原因多是它太相信自己的语言经验、又没看清图(视觉信号被压得太狠)。治法是逼它先\"指认\"图里真有啥、再说话，并对瞎编的回答扣分。",
+  "prerequisites": [
+    "LLM 有强语言先验。",
+    "视觉对齐可能不足。",
+    "需可量化评测幻觉。"
+  ],
+  "workedExample": [
+    "POPE 二选一评幻觉率。",
+    "加 grounding 数据降编造。"
+  ],
+  "lineByLine": [
+    "定位幻觉根因(先验/对齐/压缩)。",
+    "加 grounding 与负例数据。",
+    "保真视觉 token、加辅助目标。",
+    "偏好对齐 + 评测闭环。"
+  ],
+  "diagram": "图像 ─▶ 弱视觉信号 ─┐\n                      ├─▶ 被语言先验覆盖 ─▶ 幻觉\nLLM先验 ─────────────┘\n缓解: 对齐↑ + grounding数据 + 偏好对齐"
+},
+  {
+  "id": "mm-hires",
+  "category": "多模态模型",
+  "difficulty": "Hard",
+  "title": "高分辨率图像处理",
+  "prompt": "多模态模型怎么在不让视觉 token 爆炸的前提下看清高分辨率图像？",
+  "quickAnswer": "核心是\"动态分辨率/切图\"：把大图切成若干子图(每块按模型尺寸编码)得到局部 token，再配一张下采样的全局图保留整体，最后合并所有视觉 token 喂 LLM。这样既保留细节又不让单图 token 线性爆炸。代表如 LLaVA-NeXT/InternVL 的动态切片。代价是序列更长、需位置编排。",
+  "approach": "全局下采样 + 局部切图编码 → 合并 token(带位置) → LLM。",
+  "explanationFocus": "是什么：高分辨率处理是用\"全局缩略+局部切片\"的方式在可控 token 数下保留图像细节，避免直接整体编码导致 token 爆炸。",
+  "bruteForce": "把整张高分辨率图直接切小 patch：token 数随像素平方暴涨。",
+  "derivation": [
+    "为什么需要：OCR/细粒度任务需看清细节，但整体高分辨率让 token 数 (H/p)(W/p) 爆增、算力 O(N^2) 失控。",
+    "怎么实现：生成一张低分辨率全局图 + 把原图按网格切成 K 块各编码，给每块打空间位置，合并全部 token；动态按原图比例决定切片数。",
+    "有什么代价：切片多 → token 仍涨、注意力贵；切片边界信息割裂需位置补偿；预处理更复杂。",
+    "怎么评测：OCR/文档/细粒度基准 vs token 数与延迟的权衡。"
+  ],
+  "invariant": "同一高分辨率图按相同切片策略得到可复现的合并 token 集。",
+  "walkthrough": "1344x1008 图：全局缩到 336 + 切 3x2=6 块各 336，共 7 组 × 576 ≈ 4032 token。",
+  "edgeCases": [
+    "极端长宽比：切片数需按边比例。",
+    "切片边界物体被切断：需重叠或上下文。",
+    "token 上限：需截断或再池化。"
+  ],
+  "code": "def dynamic_slice(img, tile=336, max_tiles=9):\n    global_img = resize(img, tile)\n    tiles = split_into_grid(img, tile, max_tiles)   # 按需网格\n    toks = [encode(global_img)] + [encode(t) for t in tiles]\n    return concat_with_pos(toks)                    # 带空间位置合并",
+  "codeNotes": [
+    "全局图保整体语义。",
+    "切片数随原图比例动态调整。"
+  ],
+  "complexity": "token 数 ≈ (1+切片数)×(tile/p)^2，远小于整体直切。",
+  "followUps": [
+    {
+      "question": "全局图和局部切片各解决什么？",
+      "answer": "全局图给整体布局与上下文，局部切片补细节(OCR/小物体)，二者互补。"
+    },
+    {
+      "question": "切片太多怎么办？",
+      "answer": "设最大切片数上限，超限则提高 tile 或先做区域检测只编码关键区。"
+    }
+  ],
+  "followUpAnswers": [
+    "全局给上下文、切片补细节。",
+    "设上限或只编码关键区。"
+  ],
+  "pitfalls": [
+    "只看全局图丢失细节。",
+    "无脑加切片导致 token/算力失控。"
+  ],
+  "beginnerSummary": "看清高清大图但不能把图拆成天文数字的小块。办法是\"先拍一张小全景照记住全貌，再把大图裁成几张标准小照片分别细看\"，最后把这些照片(带位置标签)一起交给大脑。这样既看得细又不至于信息多到炸。",
+  "prerequisites": [
+    "整体编码 token 随像素平方涨。",
+    "细节任务需高分辨率。",
+    "需位置编排合并切片。"
+  ],
+  "workedExample": [
+    "全局 336 + 6 切片各 336。",
+    "合并约 4032 token 喂 LLM。"
+  ],
+  "lineByLine": [
+    "生成低分辨率全局图。",
+    "按网格切局部图。",
+    "各块独立编码。",
+    "带位置合并后入 LLM。"
+  ],
+  "diagram": "高清图 ─┬─▶ 全局缩略(整体)\n              └─▶ 切 K 块(细节)\n      两路编码 ─▶ 合并(带位置) ─▶ LLM"
+},
+  {
+  "id": "mm-multi-image",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "多图与多轮多模态对话",
+  "prompt": "模型怎么支持一次性看多张图、并在多轮对话里持续引用它们？",
+  "quickAnswer": "多图时把每张图各自编码成视觉 token，用特殊标记(如 <img0>/<img1>)和位置编码区分，拼接进同一序列；多轮对话则把历史图文消息按对话模板累积(含之前图像 token 与回答)，模型靠注意力跨轮引用。挑战是序列随图数与轮数线性增长、跨图/跨轮指代易混，需要清晰的位置与角色标记。",
+  "approach": "逐图编码 → 带标记/位置区分 → 拼入对话历史 → 注意力跨图跨轮引用。",
+  "explanationFocus": "是什么：多图多轮对话支持是让模型同时消费多张图像并在连续问答中引用它们，靠图像标记、位置编码与对话历史拼接实现。",
+  "bruteForce": "每轮只重发单图：丢跨图比较、上下文断裂。",
+  "derivation": [
+    "为什么需要：真实场景常需对比多图、连续追问，单图单轮无法满足。",
+    "怎么实现：每张图经同一编码器得 token，插入 <image> 占位与序号；按多轮模板把用户/助手消息(含图 token)顺序拼成序列；用位置/模态标记避免混淆。",
+    "有什么代价：图数×轮数使序列极长、KV 暴涨；跨图指代与\"第几张\"易错；长历史需截断。",
+    "怎么评测：多图推理/比较基准、多轮一致性、指代准确率。"
+  ],
+  "invariant": "相同多图多轮输入得到稳定且能正确指代各图的输出。",
+  "walkthrough": "3 张图各 256 token + 2 轮文本，总序列约 3×256 + 文本，注意力跨全部 token。",
+  "edgeCases": [
+    "指代\"左边那张\"需空间/序号对齐。",
+    "历史过长需摘要/截断。",
+    "图顺序变化应改变答案。"
+  ],
+  "code": "def multi_image_dialog(images, history, encoder, sep='<image>'):\n    img_toks = [encoder(im) for im in images]\n    seq = []\n    for turn in history:\n        if turn.has_image:\n            seq.append(sep + img_toks[turn.img_id])\n        seq.append(turn.text_tokens)\n    return concat(seq, dim=1)",
+  "codeNotes": [
+    "用占位符绑定图像序号。",
+    "历史累积但需控长度。"
+  ],
+  "complexity": "O((Σ图token + 文本)^2) 注意力，随图数与轮数增长。",
+  "followUps": [
+    {
+      "question": "多图怎么避免混淆？",
+      "answer": "给每张图唯一标记与位置/模态编码，并在指令里显式指明\"图1/图2\"，训练数据覆盖多图指代。"
+    },
+    {
+      "question": "多轮历史太长怎么办？",
+      "answer": "对早期轮次做摘要或丢弃图像 token 仅留文本摘要，平衡上下文与长度。"
+    }
+  ],
+  "followUpAnswers": [
+    "唯一标记+显式指代训练。",
+    "摘要/截断早期轮次。"
+  ],
+  "pitfalls": [
+    "图像标记混乱致跨图指错。",
+    "无脑累积历史致序列爆炸。"
+  ],
+  "beginnerSummary": "多图多轮就像把几张照片摊在桌上连续讨论。每张照片贴个编号(图1/图2)，对话时你说\"图2里那只猫\"，模型靠编号和位置记住哪张是哪张。照片和对话越多，桌上东西越多越占地方(算力)，所以太久的对话要适当收尾。",
+  "prerequisites": [
+    "单图可独立编码。",
+    "对话需历史拼接。",
+    "跨图指代需明确标记。"
+  ],
+  "workedExample": [
+    "3 图各 256 token 带序号。",
+    "两轮对话共享图像 token。"
+  ],
+  "lineByLine": [
+    "逐图编码带序号标记。",
+    "按模板拼接对话历史。",
+    "位置/模态编码区分图与轮。",
+    "注意力跨图跨轮引用。"
+  ],
+  "diagram": "图1─▶tok1  图2─▶tok2\n   └─▶ 对话模板(含<img1><img2>+文本) ─▶ LLM"
+},
+  {
+  "id": "mm-benchmark",
+  "category": "多模态模型",
+  "difficulty": "Easy",
+  "title": "多模态评测基准",
+  "prompt": "评测多模态大模型常用哪些基准，各自测什么？",
+  "quickAnswer": "常用：MMBench(多维能力选择题)、MME(感知+认知是/否题，测幻觉)、POPE(对象存在幻觉)、SEED-Bench(图/视频选择题)、MMMU(大学级多学科推理)、TextVQA(图中文字)、DocVQA(文档)、Video-Bench(视频)。它们分别覆盖感知、推理、OCR、文档、视频与幻觉，需组合看而非单一分数。",
+  "approach": "按能力维度选基准：感知/推理/OCR/文档/视频/幻觉 各取代表。",
+  "explanationFocus": "是什么：多模态评测基准是标准化的\"考题集\"，用来客观比较模型在感知、推理、OCR、视频等各方面的能力。",
+  "bruteForce": "只看一个总分：掩盖短板(如强推理弱 OCR)。",
+  "derivation": [
+    "为什么需要：模型能力多维，单一指标会被刷分，需分维度可比较、可诊断。",
+    "怎么实现：人工/模型构造标准化题目(选择/判断/问答)，统一协议评测准确率或 GPT 评判，报告分项。",
+    "有什么代价：基准会被训练数据污染；GPT 评判有偏差；覆盖不全。",
+    "怎么评测：看分项雷达图、对比同规模模型、关注幻觉类子项。"
+  ],
+  "invariant": "同一模型在相同基准与协议下得到可复现分数。",
+  "walkthrough": "MME 满分 2800(感知1400+认知1400)；POPE 准确率越高幻觉越少。",
+  "edgeCases": [
+    "基准泄露到训练集：分数虚高。",
+    "开放式题靠 GPT 评判不稳定。",
+    "视频基准标注成本极高。"
+  ],
+  "code": "def eval_on_bench(model, dataset):\n    score = 0\n    for item in dataset:\n        pred = model(item['image'], item['question'])\n        score += grade(pred, item['answer'])     # 选择/判断/匹配\n    return score / len(dataset)",
+  "codeNotes": [
+    "选择题可直接判等。",
+    "开放题需 GPT/人工评判。"
+  ],
+  "complexity": "评测成本 = 题数 × 单次推理；视频更贵。",
+  "followUps": [
+    {
+      "question": "为什么不能只看一个分数？",
+      "answer": "总分高可能靠强项拉高，短板(如 OCR/幻觉)被掩盖，需分项诊断。"
+    },
+    {
+      "question": "MME 和 POPE 区别？",
+      "answer": "MME 覆盖感知+认知多子类；POPE 专注对象存在幻觉的二选一评测。"
+    }
+  ],
+  "followUpAnswers": [
+    "总分掩盖短板。",
+    "MME 多维、POPE 专幻觉。"
+  ],
+  "pitfalls": [
+    "被单一高分误导。",
+    "忽视基准污染导致虚高。"
+  ],
+  "beginnerSummary": "评测基准就像各科试卷：语文卷(MME 感知认知)、防瞎编卷(POPE 测幻觉)、认字卷(TextVQA 看图中文字)、看视频卷(Video-Bench)。只看总分像只看总分不看偏科，得哪科强哪科弱都看才行。",
+  "prerequisites": [
+    "能力需多维可比较。",
+    "需标准化题目与协议。",
+    "分数应可复现。"
+  ],
+  "workedExample": [
+    "MME 满分 2800。",
+    "POPE 准确率测幻觉。"
+  ],
+  "lineByLine": [
+    "按维度选基准。",
+    "构造标准化题目。",
+    "统一协议评测。",
+    "报告分项而非总分。"
+  ],
+  "diagram": "模型 ─▶ [MMBench, MME, POPE, MMMU, TextVQA...] ─▶ 分项雷达"
+},
+  {
+  "id": "mm-latency",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "端到端多模态推理延迟",
+  "prompt": "多模态模型端到端推理里，图像编码开销占多大，怎么分析？",
+  "quickAnswer": "端到端延迟 = 图像预处理 + 视觉编码器前向 + 连接器 + LLM 自回归(含视觉 KV)。视觉编码器是一次性固定开销，而 LLM 自回归随输出长度增长；视觉 token 多会拉长 LLM 的每步注意力(KV 缓存)。分析时要拆分各段耗时，优化常落在减小视觉 token 数、量化编码器、或并行预处理与首 token。",
+  "approach": "拆段计时(预处理/编码/连接/LLM) → 定位瓶颈 → 减 token/量化/并行。",
+  "explanationFocus": "是什么：端到端多模态推理延迟分析是把一次问答的总耗时拆成图像预处理、视觉编码、连接器与 LLM 生成几段，找出瓶颈并优化。",
+  "bruteForce": "只测总时长不拆分：不知该优化哪。",
+  "derivation": [
+    "为什么需要：延迟决定体验与成本，多模态比纯文本多了视觉链路，必须量化各部分占比。",
+    "怎么实现：对各阶段打点计时；视觉编码是一次 O(V^2) 固定成本，LLM 是输出长度相关的自回归成本，视觉 token 还增大每步 KV。",
+    "有什么代价：减 token 可能损精度；量化编码器略降质量；并行受数据依赖限制(编码须先于 LLM)。",
+    "怎么评测：分段 P50/P99 延迟、吞吐、质量-延迟 Pareto。"
+  ],
+  "invariant": "相同输入与配置下各段耗时稳定可复现。",
+  "walkthrough": "总 1.2s：预处理 0.05s + ViT 0.25s + 连接 0.01s + LLM(100 token) 0.89s。",
+  "edgeCases": [
+    "长输出时 LLM 主导，视觉占比变小。",
+    "高分辨率切图使编码占比上升。",
+    "batch 推理时共享编码降本。"
+  ],
+  "code": "def profile(model, img, prompt):\n    t0 = now(); v = encode_image(img)          # 视觉编码\n    t1 = now(); h = connector(v)               # 连接\n    t2 = now(); out = llm_generate(h, prompt)  # 自回归\n    t3 = now()\n    return {'enc': t1-t0, 'conn': t2-t1, 'llm': t3-t2}",
+  "codeNotes": [
+    "编码与 LLM 是两段主要成本。",
+    "视觉 token 数放大 LLM 每步。"
+  ],
+  "complexity": "编码 O(V^2)；LLM 自回归 O(L·(T+V)^2) 近似。",
+  "followUps": [
+    {
+      "question": "视觉编码和 LLM 哪个更慢？",
+      "answer": "短输出时编码占比明显；长输出时 LLM 自回归随长度主导，但视觉 token 仍放大每步成本。"
+    },
+    {
+      "question": "怎么降延迟？",
+      "answer": "减视觉 token 数、量化/蒸馏编码器、缓存重复图像编码、并行预处理与首 token 生成。"
+    }
+  ],
+  "followUpAnswers": [
+    "取决于输出长度。",
+    "减 token/量化/缓存/并行。"
+  ],
+  "pitfalls": [
+    "只盯总延迟不拆分瓶颈。",
+    "为降延迟过度减 token 损精度。"
+  ],
+  "beginnerSummary": "一次看图问答像做菜：洗切(预处理)、炒菜(视觉编码)、装盘(连接)、慢慢摆盘解说(LLM 一字字生成)。洗切炒菜是一次性固定功夫，解说越长越费时；图越清楚(切片多)炒菜越久。要先分别掐表才知道该优化哪步。",
+  "prerequisites": [
+    "多模态比文本多视觉链路。",
+    "LLM 自回归随输出增长。",
+    "需分段定位瓶颈。"
+  ],
+  "workedExample": [
+    "总 1.2s 拆为 enc0.25/conn0.01/llm0.89。",
+    "长输出时 LLM 主导。"
+  ],
+  "lineByLine": [
+    "分段打点计时。",
+    "视觉编码是固定开销。",
+    "LLM 随输出长度增长。",
+    "按瓶颈优化 token/量化/并行。"
+  ],
+  "diagram": "输入 ─▶ 预处理 ─▶ 视觉编码 ─▶ 连接 ─▶ LLM生成\n   计时拆分各段 → 定位瓶颈"
+},
+  {
+  "id": "mm-deploy",
+  "category": "多模态模型",
+  "difficulty": "Hard",
+  "title": "部署：视觉编码器与 LLM 协同",
+  "prompt": "线上部署多模态模型时，视觉编码器和 LLM 该怎么协同部署才高效？",
+  "quickAnswer": "部署要点：视觉编码器与 LLM 可分开服务——编码器(常更小)做图像→token 的离线/前置计算并可缓存；LLM 负责生成。用批处理、KV 缓存、编码器量化(INT8/FP8)、Tokenizer 并行、以及把视觉 token 预计算后复用(同图多问)来降本。还要处理变长视觉 token 的 padding 与动态 batch。",
+  "approach": "编码器前置+缓存 → LLM 批生成+KV缓存 → 量化/分离部署 → 同图复用。",
+  "explanationFocus": "是什么：视觉编码器与 LLM 协同部署是把图像转 token 的前置计算与语言生成解耦，通过分离服务、缓存、量化与批处理实现高吞吐低延迟。",
+  "bruteForce": "每次请求都重跑整条链路：重复编码、浪费算力。",
+  "derivation": [
+    "为什么需要：线上要并发、低延迟、低成本，重复编码与同步阻塞会拖垮吞吐。",
+    "怎么实现：图像编码前置(可异步/队列)，视觉 token 缓存供多轮/多问复用；LLM 独立扩缩容并开 KV 缓存与连续批处理；编码器量化降显存。",
+    "有什么代价：分离带来一致性/版本管理复杂度；缓存需键管理与失效；变长视觉 token 需动态 padding。",
+    "怎么评测：吞吐(QPS)、P99 延迟、单请求成本、缓存命中率。"
+  ],
+  "invariant": "同一图像编码结果可缓存复用，且不影响最终生成一致性。",
+  "walkthrough": "同图 10 问：编码 1 次缓存，10 次 LLM 生成复用视觉 token，编码成本降为 1/10。",
+  "edgeCases": [
+    "同图多分辨率需分别缓存。",
+    "动态 batch 中视觉 token 长度不一。",
+    "模型版本升级需清缓存。"
+  ],
+  "code": "def serve(image, question, cache, encoder, llm):\n    key = hash(image, enc_version)\n    vt = cache.get(key) or cache.set(key, encoder(image))   # 编码缓存\n    return llm.generate(concat(vt, question))               # 复用视觉 token",
+  "codeNotes": [
+    "编码缓存是同图多问关键优化。",
+    "版本号纳入缓存键防不一致。"
+  ],
+  "complexity": "编码 O(V^2) 一次；LLM 生成随问数线性但共享视觉 token。",
+  "followUps": [
+    {
+      "question": "为什么把编码器前置缓存？",
+      "answer": "图像编码是确定且可复用的，同图多次提问只编码一次，显著降低总成本与首 token 延迟。"
+    },
+    {
+      "question": "变长视觉 token 怎么批处理？",
+      "answer": "用动态 padding/打包(packing)与连续批处理，避免被最长序列拖慢。"
+    }
+  ],
+  "followUpAnswers": [
+    "同图复用、降本提速。",
+    "动态 padding/打包批处理。"
+  ],
+  "pitfalls": [
+    "每请求重编码浪费算力。",
+    "缓存键忽略分辨率/版本致错答。"
+  ],
+  "beginnerSummary": "部署就像餐厅后厨：看图翻译(编码)这活儿可提前做好并存着，同一张图被问十次只翻一次(缓存)；写答案的大厨(LLM)单独排班、能同时接多单。把\"翻译\"和\"写答案\"分开、复用、批量，餐厅才能又快又省。",
+  "prerequisites": [
+    "图像编码确定可缓存。",
+    "LLM 生成可批处理。",
+    "需降延迟与成本。"
+  ],
+  "workedExample": [
+    "同图 10 问编码仅 1 次。",
+    "编码器 FP8 量化省显存。"
+  ],
+  "lineByLine": [
+    "图像编码前置并缓存。",
+    "视觉 token 供多问复用。",
+    "LLM 独立扩缩+KV缓存。",
+    "量化与动态批处理降本。"
+  ],
+  "diagram": "图像 ─▶ 编码器(前置/缓存) ─▶ 视觉token ─┐\n                                          ├─▶ LLM批生成(复用)\n提问 ───────────────────────────────────┘"
+},
+  {
+  "id": "mm-audio",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "音频模态接入",
+  "prompt": "音频(语音/ASR)这类模态是怎么接入多模态大模型的？",
+  "quickAnswer": "音频通常先经音频编码器(如 Whisper encoder / HuBERT)提取声学特征，再切帧/池化成人耳\"听觉 token\"，经连接器对齐到 LLM 词空间；也可先 ASR 转文本再当文本模态(但丢语调/情绪)。端到端做法让模型直接消费音频 token，能理解语气、音乐、非语言声。挑战是采样率高、序列长、需降采样与对齐。",
+  "approach": "音频波形 → 声学编码器 → 听觉 token → 连接器对齐 → 拼入 LLM。",
+  "explanationFocus": "是什么：音频模态接入是用声学编码器把声音波形变成\"听觉 token\"，对齐到 LLM 空间后与其他模态统一消费，从而让模型听懂语音乃至语气。",
+  "bruteForce": "先 ASR 转文本再喂 LLM：丢失语调/情绪/非语言声。",
+  "derivation": [
+    "为什么需要：语音含语气、情感、音乐等文本无法表达的信息，直接转文本会丢模态特有语义。",
+    "怎么实现：波形经梅尔谱/特征提取 → 声学编码器(Transformer/CNN) → 帧池化降采样成听觉 token → 连接器投影对齐 → 拼入统一序列。",
+    "有什么代价：音频采样率高、原始序列极长，需大幅降采样；对齐更难；多说话人/噪声易混。",
+    "怎么评测：语音 QA、情感识别、ASR 错误率兜底、跨模态检索。"
+  ],
+  "invariant": "相同音频经固定编码器得到确定听觉 token，且与文本空间对齐。",
+  "walkthrough": "30s 音频 16kHz → 梅尔谱 → 编码器 → 每 40ms 一帧池化为约 750 听觉 token。",
+  "edgeCases": [
+    "背景噪声/多说话人：需前端降噪或说话人分离。",
+    "超长音频：需分段或摘要。",
+    "非语音声(音乐/警报)：纯 ASR 路线失效。"
+  ],
+  "code": "def audio_to_tokens(wave, encoder, downsample=4):\n    mel = mel_spectrogram(wave)            # 声学特征\n    feat = encoder(mel)                    # 帧级声学表征\n    tokens = feat[::downsample]            # 降采样成听觉 token\n    return connector(tokens)               # 对齐到 LLM",
+  "codeNotes": [
+    "降采样控制序列长度。",
+    "端到端保留语气/情感。"
+  ],
+  "complexity": "原始帧数随时长线性，降采样后 O(L'/d) 近似。",
+  "followUps": [
+    {
+      "question": "端到端音频和先 ASR 转文本差在哪？",
+      "answer": "ASR 丢语调/情绪/非语言声；端到端听觉 token 保留这些，但训练更难、序列更长。"
+    },
+    {
+      "question": "音频 token 为什么这么长？",
+      "answer": "采样率高、每秒上百帧，必须经降采样/池化压缩才能进 LLM。"
+    }
+  ],
+  "followUpAnswers": [
+    "端到端保留语气情感。",
+    "采样率高需降采样。"
+  ],
+  "pitfalls": [
+    "以为 ASR 转文本就够了。",
+    "忽略降采样导致序列爆炸。"
+  ],
+  "beginnerSummary": "接入音频就像给模型装耳朵：先把声音波形变成一串\"听觉词\"(听觉 token)，翻译成它能懂的口径再听它回答。简单办法是先用语音转文字软件把话写成字(但听不出语气哭笑)；高级办法让它直接听声音，连你生气还是开心都能懂。声音太快太多，得抽稀成合适的\"词\"数。",
+  "prerequisites": [
+    "音频需先编码成 token。",
+    "需对齐到 LLM 空间。",
+    "采样率高需降采样。"
+  ],
+  "workedExample": [
+    "30s 音频 → 约 750 听觉 token。",
+    "端到端保留语气情感。"
+  ],
+  "lineByLine": [
+    "波形转梅尔谱特征。",
+    "声学编码器提帧表征。",
+    "降采样成听觉 token。",
+    "连接器对齐入 LLM。"
+  ],
+  "diagram": "波形 ─▶ 梅尔谱 ─▶ 声学编码器 ─▶ 降采样 ─▶ 听觉token ─▶ LLM"
+},
+  {
+  "id": "mm-vs-unimodal",
+  "category": "多模态模型",
+  "difficulty": "Medium",
+  "title": "多模态 vs 单模态性能权衡",
+  "prompt": "引入多模态能力相比纯文本模型，在性能和成本上要权衡什么？",
+  "quickAnswer": "收益：多模态带来图文/视频理解、OCR、具身等新能力，且在多模态任务上显著优于纯文本。代价：多一个视觉/音频链路 → 更多参数、更长序列(视觉 token 放大 KV 与注意力)、更高训练/推理成本，且若对齐不足反而引入幻觉拖累纯文本能力。权衡点：是否真需多模态、视觉 token 数、是否分离部署、是否按需加载模态。",
+  "approach": "列收益(新能力/多模态任务) vs 代价(参数/序列/幻觉/成本) → 按需启模态。",
+  "explanationFocus": "是什么：多模态 vs 单模态权衡是在获得看图/听声等新能力的同时，承担更长的序列、更高的训练推理成本与潜在幻觉风险之间做取舍。",
+  "bruteForce": "无脑把所有模态都接上：成本高且可能拖累原文本能力。",
+  "derivation": [
+    "为什么需要：资源有限，需判断多模态带来的价值是否值得额外开销与风险。",
+    "怎么实现：评估任务是否真含非文本信号；控制视觉 token 数；分离/按需加载编码器；用MoE或适配器避免全参膨胀；监控纯文本能力回退。",
+    "有什么代价：序列变长使注意力/KV 成本上升；多模态数据与时间投入大；弱对齐致幻觉。",
+    "怎么评测：多模态任务增益、纯文本基准回退、单位成本准确率(Pareto)。"
+  ],
+  "invariant": "引入模态后纯文本能力不应显著回退(除非刻意取舍)。",
+  "walkthrough": "加 ViT+MLP 约 +0.3B 参数，视觉 token 使 7B 模型每请求 KV 增约 30%，但图文任务准确率从 0 到可用。",
+  "edgeCases": [
+    "纯文本请求也带视觉开销：需按需跳过编码器。",
+    "小模型接多模态易过载：可用适配器轻量接入。",
+    "模态冲突致某任务回退。"
+  ],
+  "code": "def route(inputs, model):\n    if 'image' in inputs:\n        vt = model.vision_encoder(inputs['image'])   # 按需才编码\n        return model.generate(concat(vt, inputs['text']))\n    return model.generate(inputs['text'])            # 纯文本跳过视觉",
+  "codeNotes": [
+    "按需编码避免无图也付费。",
+    "监控文本能力回退。"
+  ],
+  "complexity": "多模态请求额外 O(V^2) 编码 + 放大 LLM 注意力。",
+  "followUps": [
+    {
+      "question": "多模态会拖累纯文本能力吗？",
+      "answer": "对齐不足或训练配比不当会回退；用适配器/分离参数与保留文本数据可缓解。"
+    },
+    {
+      "question": "什么时候不该用多模态？",
+      "answer": "任务纯文本、延迟/成本敏感且无图像输入时，强行多模态只增负担。"
+    }
+  ],
+  "followUpAnswers": [
+    "对齐不足会回退，可缓解。",
+    "纯文本/成本敏感时不必。"
+  ],
+  "pitfalls": [
+    "认为多模态只增不损。",
+    "无图请求也跑视觉链路。"
+  ],
+  "beginnerSummary": "给只会写字的人加\"眼睛\"(多模态)能让他看图答题，很值；但眼睛、翻译、额外记忆都要花钱(算力)，图看太多还容易说胡话。所以值不值，要看你到底要不要他看图。纯聊天的活儿就别让他睁眼，省电；真要看图再开眼睛，并盯着他别退化了原本的文笔。",
+  "prerequisites": [
+    "多模态增加参数与序列。",
+    "视觉 token 放大注意力成本。",
+    "弱对齐可能引入幻觉。"
+  ],
+  "workedExample": [
+    "加 ViT+MLP 约 +0.3B 参数。",
+    "图文任务从 0 到可用，文本需防回退。"
+  ],
+  "lineByLine": [
+    "评估是否真需多模态。",
+    "控制视觉 token 数降本。",
+    "按需/分离加载模态。",
+    "监控纯文本能力回退。"
+  ],
+  "diagram": "纯文本模型 ─▶ +视觉链路 ─▶ 多模态\n   收益:新能力 / 代价:序列↑·成本↑·幻觉风险"
+},
+  {
+  "id": "rec-system-arch",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "工业推荐系统整体架构",
+  "prompt": "工业级推荐系统的整体架构（召回/粗排/精排/重排）是什么？",
+  "quickAnswer": "工业推荐系统是多级漏斗：召回从百万级物品快速筛出几百候选；粗排用轻量模型对候选打分进一步缩到几十；精排用复杂模型精确预估 CTR/CVR 等排序；重排做多样性与打散等业务约束后吐出最终列表。逐级由快到准、由宽到窄，平衡算力与效果。",
+  "approach": "召回(海量→百) → 粗排(百→几十) → 精排(几十→精确分) → 重排(业务/多样性) 四级漏斗。",
+  "explanationFocus": "是什么：推荐系统是一个逐级收窄的多级漏斗——召回广撒网、粗排轻量筛、精排精准打分、重排做业务约束，用算力换效果。",
+  "bruteForce": "只用精排把全量物品逐条打分：百万级物品×复杂模型，延迟与算力都不可接受。",
+  "derivation": [
+    "为什么需要：候选物品常百万级，单一模型无法同时做到低延迟与高表达力，必须分而治之。",
+    "怎么实现：召回去重/多路召回取候选；粗排轻模型粗筛；精排重模型算多目标分；重排加多样性/已读打散/流量调控。",
+    "有什么代价：多级链路每级都丢候选、引入误差累积；任一级瓶颈都会劣化最终效果。",
+    "怎么评测：看端到端线上指标(时长/留存/CTR)与逐级离线命中率，定位哪一级是短板。"
+  ],
+  "invariant": "越靠前的级越强调吞吐与覆盖，越靠后越强调精度；整体候选数单调递减。",
+  "walkthrough": "100万物品 → 多路召回取 500 → 粗排(双塔)筛到 200 → 精排(DeepFM)打分到 50 → 重排打散去重留 20 展示。",
+  "edgeCases": [
+    "召回漏召：后续各级再强也救不回，需多路保覆盖。",
+    "级间延迟叠加：每级排队，端到端 P99 易超阈值。",
+    "冷启动物品难进召回，需专门通道。"
+  ],
+  "code": "# Python\ndef recommend_pipeline(user, items, recall, prerank, rank, rerank):\n    cands = recall(user, items, topk=500)        # 召回\n    cands = prerank(user, cands, topk=200)        # 粗排\n    scored = rank(user, cands)                    # 精排打分\n    return rerank(scored, topk=20)                # 重排",
+  "codeNotes": [
+    "每级 topk 逐级收紧。",
+    "召回到重排共享同一 user 表征。"
+  ],
+  "complexity": "召回 O(物品数/索引)；粗排 O(召回数·轻模型)；精排 O(粗排数·重模型)；重排 O(精排数·小常数)。",
+  "followUps": [
+    {
+      "question": "为什么需要粗排这一级？",
+      "answer": "召回给的量(数百)仍远超精排能实时承受的量，粗排用极轻模型在毫秒内筛到几十，既保召回覆盖又给精排省算力。"
+    },
+    {
+      "question": "四级漏斗和只用召回+精排有何区别？",
+      "answer": "缺粗排时精排要直接吃数百候选会变慢或被迫减候选；粗排是算力与效果的缓冲层，常见于抖音/淘宝等大流量场景。"
+    }
+  ],
+  "followUpAnswers": [
+    "粗排是召回与精排间的算力缓冲。",
+    "重排负责多样性与业务规则。"
+  ],
+  "pitfalls": [
+    "以为精排能直接吃全部召回候选。",
+    "忽视级间误差累积，只优化单级指标。"
+  ],
+  "beginnerSummary": "推荐系统像\"层层筛简历\"：先从几百万份简历(商品)里用简单办法挑出几百份(召回)，再用稍细的标准留几十份(粗排)，接着用人力和专业面试精挑出最合适几个(精排)，最后 HR 还要考虑部门搭配、别全招同类型(重排)。每一层越来越仔细、也越来越慢，配合起来又快又准。",
+  "prerequisites": [
+    "候选物品规模常达百万级。",
+    "模型越准通常越慢、越贵。",
+    "线上服务有严格延迟预算。"
+  ],
+  "workedExample": [
+    "100万物品经多路召回得 500 候选。",
+    "粗排筛到 200、精排打分到 50、重排留 20 展示。"
+  ],
+  "lineByLine": [
+    "召回产出数百候选。",
+    "粗排轻模型再缩到数百内。",
+    "精排重模型精确打分排序。",
+    "重排加多样性与业务约束出最终列表。"
+  ],
+  "diagram": "100万物品\n   │ 多路召回(快,宽)\n   ▼\n  500 候选 ──粗排(轻)──▶ 200 ──精排(重)──▶ 50 ──重排──▶ 20 展示"
+},
+  {
+  "id": "rec-recall",
+  "category": "搜索推荐",
+  "difficulty": "Easy",
+  "title": "召回（Recall）阶段与目标",
+  "prompt": "推荐系统的召回（recall）阶段是什么、目标是什么？",
+  "quickAnswer": "召回是从全量物品中快速找出用户可能感兴趣的几百个候选，供下游精排。它的目标是\"高召回率+低延迟+广覆盖\"：宁可多召回一些相关项，也不能漏掉真正相关的，因为漏召无法靠后续弥补。常用多路召回（兴趣标签、协同、向量）并行。",
+  "approach": "多策略并行从全库拉候选 → 合并去重 → 截断 top-K 送入粗排。",
+  "explanationFocus": "是什么：召回是漏斗第一级，用低成本方法从百万物品里捞回几百个\"可能相关\"的候选，核心是覆盖与速度而非精度。",
+  "bruteForce": "对全库逐物品跑重模型打分：延迟爆炸，线上不可用。",
+  "derivation": [
+    "为什么需要：精排吃不下全量，必须先大幅缩窄候选集。",
+    "怎么实现：离线建倒排/向量索引；线上用用户画像、历史行为、兴趣向量并行多路查候选并合并。",
+    "有什么代价：单路召回易偏科，需多路互补；召回不准会永久漏掉好物品。",
+    "怎么评测：看召回命中率(Recall@K)、覆盖率、与精排后指标的传导关系。"
+  ],
+  "invariant": "召回结果必须包含用户真正会互动的物品（高召回），否则下游无能为力。",
+  "walkthrough": "用户有 3 个兴趣标签 + 相似用户群 → 标签倒排取 200、协同取 150、向量召回取 150 → 合并去重留 500。",
+  "edgeCases": [
+    "新用户无行为：走热门/地域等兜底召回。",
+    "长尾物品无倒排：靠向量召回兜住。",
+    "多路重叠高：合并后有效候选不足。"
+  ],
+  "code": "# Python\ndef recall(user, items, index, topk=500):\n    s1 = tag_recall(user.tags, index, 200)     # 标签倒排\n    s2 = vec_recall(user.emb, index, 150)      # 向量近邻\n    s3 = cf_recall(user, index, 150)           # 协同\n    return merge_dedup(s1, s2, s3)[:topk]",
+  "codeNotes": [
+    "多路结果需去重再截断。",
+    "单路 quota 可按效果动态分配。"
+  ],
+  "complexity": "离线建索引 O(物品数)；线上 O(多路检索 + 合并)，与全库规模解耦。",
+  "followUps": [
+    {
+      "question": "召回和搜索的区别？",
+      "answer": "搜索有显式 query 用倒排/向量匹配；召回无 query，靠用户画像和行为隐式\"搜索\"兴趣，更偏主动挖掘。"
+    },
+    {
+      "question": "召回漏召为什么致命？",
+      "answer": "精排只能在召回给的候选里挑，漏掉的好物品永远没机会曝光，召回率直接决定效果上限。"
+    }
+  ],
+  "followUpAnswers": [
+    "召回决定效果上限(漏召不可补)。",
+    "多路互补提升覆盖。"
+  ],
+  "pitfalls": [
+    "用精排指标直接评召回，忽视召回率。",
+    "单路召回导致覆盖不足、马太效应。"
+  ],
+  "beginnerSummary": "召回就像在超市里先粗略把\"你可能爱吃\"的零食从几万种里抓一大筐(几百种)放到购物车旁。它不求每种都的对，但绝不能漏掉你真喜欢的——因为后面精细挑选只在筐里挑，筐里没有的就永远买不到。所以召回讲究\"宁可错拿，不可漏拿\"。",
+  "prerequisites": [
+    "候选库规模极大需先缩窄。",
+    "低成本检索可覆盖全库。",
+    "漏召无法被下游补救。"
+  ],
+  "workedExample": [
+    "标签+向量+协同三路并行各取百余候选。",
+    "合并去重留 500 送入粗排。"
+  ],
+  "lineByLine": [
+    "用用户标签走倒排召回。",
+    "用兴趣向量走近邻召回。",
+    "用协同/相似用户补充召回。",
+    "三路合并去重截断。"
+  ],
+  "diagram": "用户画像/行为\n  ├─标签倒排──▶ 候选A\n  ├─向量ANN──▶ 候选B   ──合并去重──▶ top500\n  └─协同CF───▶ 候选C"
+},
+  {
+  "id": "rec-pre-ranking",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "粗排（Pre-ranking）的作用",
+  "prompt": "推荐系统中的粗排（pre-ranking）有什么作用？",
+  "quickAnswer": "粗排是位于召回与精排之间的轻量排序层，用结构简单、计算快的模型（常是双塔或浅层网络）把数百候选快速缩到几十。它解决\"精排算力有限、召回候选仍太多\"的矛盾，在毫秒内完成打分，是算力与效果的缓冲层。",
+  "approach": "召回候选 → 轻模型(双塔/浅网络)打分 → 截断到精排可承受的量。",
+  "explanationFocus": "是什么：粗排是召回与精排间的\"二传手\"，用极轻模型在极短时间内把候选从数百压到几十，保住召回覆盖又给精排减负。",
+  "bruteForce": "撤掉粗排，精排直接吃全部召回：要么超延迟，要么被迫砍候选伤覆盖。",
+  "derivation": [
+    "为什么需要：召回常给数百候选，精排重模型实时打不动那么多。",
+    "怎么实现：粗排多用双塔(物品向量离线算)或参数少、特征浅的网络，单样本毫秒级。",
+    "有什么代价：粗排精度低于精排，可能误删好候选；需与精排分数尽量一致(蒸馏)。",
+    "怎么评测：看粗排→精排的序一致度(如粗排 top 与精排 top 重合率)、对最终指标的贡献。"
+  ],
+  "invariant": "粗排打分必须与精排目标一致，否则会在中间层误杀高价值候选。",
+  "walkthrough": "召回给 500 → 粗排双塔打分到 200 → 精排 DeepFM 吃 200 打最终分。",
+  "edgeCases": [
+    "粗排误杀：好物品被截掉后再无机会。",
+    "粗排与精排目标漂移：用精排蒸馏可缓解。",
+    "候选量波动：粗排 quota 需自适应。"
+  ],
+  "code": "# Python\ndef prerank(user, items, tower, topk=200):\n    u = tower.user_enc(user)                 # 用户向量\n    scores = [u @ tower.item_enc(it) for it in items]\n    order = argsort(scores, descending=True)\n    return [items[i] for i in order[:topk]]",
+  "codeNotes": [
+    "物品向量可离线预计算。",
+    "打分与精排目标对齐(蒸馏)。"
+  ],
+  "complexity": "在线 O(召回数·d) 向量内积，通常远快于精排。",
+  "followUps": [
+    {
+      "question": "粗排为什么常用双塔？",
+      "answer": "双塔物品侧可离线编码建索引，线上只算一次用户向量并对候选做内积，延迟极低，契合粗排\"快\"的诉求。"
+    },
+    {
+      "question": "粗排和精排目标不一致会怎样？",
+      "answer": "粗排会按错误标准裁候选，把好物品提前淘汰，最终指标下降；常用精排做 teacher 蒸馏粗排来缓解。"
+    }
+  ],
+  "followUpAnswers": [
+    "粗排是精排前的算力缓冲。",
+    "蒸馏对齐精排目标。"
+  ],
+  "pitfalls": [
+    "把粗排当精排用，低估表达力差距。",
+    "粗排精排目标不一致导致误杀。"
+  ],
+  "beginnerSummary": "粗排像面试里的\"简历初筛\"：HR 不深究，只花几秒按关键词把几百份简历筛到几十份交给用人经理(精排)细看。初筛很快、不完美，但没它经理会被淹死；关键是初筛的\"标准\"得和经理尽量一致，否则会把真牛人提前刷掉。",
+  "prerequisites": [
+    "召回候选量仍超精排实时能力。",
+    "轻模型可毫秒级打分。",
+    "粗排需与精排目标对齐。"
+  ],
+  "workedExample": [
+    "召回 500 候选进粗排。",
+    "双塔打分到 200 交给精排。"
+  ],
+  "lineByLine": [
+    "编码用户得向量。",
+    "对每候选算内积分。",
+    "按分排序。",
+    "截断到精排配额。"
+  ],
+  "diagram": "召回500 ─▶ 粗排(轻,双塔) ─▶ 200 ─▶ 精排(重)"
+},
+  {
+  "id": "rec-ranking",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "精排（Ranking）模型",
+  "prompt": "推荐系统的精排（ranking）模型是什么？",
+  "quickAnswer": "精排是漏斗最后一级，用表达力最强的模型（DeepFM、DIN、DIEN、MMoE 等）对少量候选（几十）精确预估 CTR/CVR/时长等多目标分数并按组合公式排序。它充分做用户-物品特征交叉，追求精度；代价是重、只能吃少量候选，依赖上游缩窄。",
+  "approach": "候选(几十) → 重模型特征交叉 → 多目标预估 → 融合公式排序。",
+  "explanationFocus": "是什么：精排用最重的模型对上游留下的少量候选做精细打分，充分交叉用户与物品特征，直接决定最终展示顺序。",
+  "bruteForce": "对所有候选都上精排重模型：算力爆炸，延迟不达标。",
+  "derivation": [
+    "为什么需要：最终顺序直接影响点击与营收，必须在小候选集上追求极致精度。",
+    "怎么实现：拼接用户/上下文/物品特征，经embedding+MLP，加 FM/Attention 做交叉，输出多目标 logits。",
+    "有什么代价：模型深、特征多、推理慢；只能处理上游缩窄后的少量候选。",
+    "怎么评测：离线 AUC/GAUC，线上 AB 看 CTR、CVR、时长、营收。"
+  ],
+  "invariant": "精排对相同(用户,物品)输入给出确定、可复现的预估分。",
+  "walkthrough": "粗排给 200 → 精排 DeepFM 逐条算 pCTR、pCVR → 按 pCTR*CVR*price 排序取 top。",
+  "edgeCases": [
+    "特征穿越：训练用未来特征导致线下虚高。",
+    "置信度校准：预估分需校准才能直接相乘。",
+    "候选极少时精排仍要稳定。"
+  ],
+  "code": "# Python\ndef rank(cands, user, model, Calib):\n    out = []\n    for it in cands:\n        f = build_features(user, it)             # 特征交叉输入\n        pctr, pcvr = model(f)\n        score = Calib(pctr) * Calib(pcvr) * it.price\n        out.append((it, score))\n    return sorted(out, key=lambda x: -x[1])",
+  "codeNotes": [
+    "多目标分需校准后再融合。",
+    "特征交叉是精排核心能力。"
+  ],
+  "complexity": "每候选 O(重模型前向)，总量=粗排输出数，故受上游严格约束。",
+  "followUps": [
+    {
+      "question": "精排为什么能做到双塔做不到的特征交叉？",
+      "answer": "精排把用户与物品特征拼在一起过同一网络，可在任意层交互；双塔在最后才点积，早期无法交叉。"
+    },
+    {
+      "question": "多目标分数怎么合成一个排序分？",
+      "answer": "常用 pCTR*pCVR*价格 等公式，或引入 MMoE 多塔各估一目标再用权重/ESMM 关联校准后融合。"
+    }
+  ],
+  "followUpAnswers": [
+    "精排充分交叉用户-物品特征。",
+    "多目标需校准后融合。"
+  ],
+  "pitfalls": [
+    "把精排直接用于全量召回(算力不可行)。",
+    "未校准分数直接相乘，权重失真。"
+  ],
+  "beginnerSummary": "精排就是最终拍板的\"用人经理\"：只面对初筛后几十个候选人，会深挖简历、和岗位要求逐条比对(特征交叉)，给出最靠谱的录用排序。它看得最细，但太慢，所以前面必须有召回和粗排先替它缩小范围。",
+  "prerequisites": [
+    "上游已把候选缩到可精排的量。",
+    "特征交叉能显著提升精度。",
+    "多目标需统一成排序分。"
+  ],
+  "workedExample": [
+    "粗排 200 候选进精排。",
+    "DeepFM 算 pCTR/pCVR 排序取 top。"
+  ],
+  "lineByLine": [
+    "为候选构造交叉特征。",
+    "重模型预估多目标。",
+    "校准并融合成单分。",
+    "按分排序出最终序。"
+  ],
+  "diagram": "候选(几十)\n   │ 特征交叉(DeepFM/DIN)\n   ▼\n pCTR,pCVR ─▶ 校准融合 ─▶ 排序 ─▶ 最终序"
+},
+  {
+  "id": "rec-twotower",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "双塔模型 Two-Tower",
+  "prompt": "推荐系统里的双塔模型（Two-Tower）是什么？",
+  "quickAnswer": "双塔模型用两个独立的编码器分别把用户和物品映射到低维向量空间：用户塔编码用户特征得用户向量，物品塔编码物品特征得物品向量，二者点积/余弦衡量匹配度。由于物品向量可离线预计算并建立 ANN 索引，线上只需算用户向量再近邻检索，适合大规模召回。",
+  "approach": "用户塔/物品塔各自编码 → 向量内积 → 离线建索引在线检索。",
+  "explanationFocus": "是什么：双塔用两个编码器分别把用户与物品编码成向量，以内积衡量匹配，利于大规模向量检索召回。",
+  "bruteForce": "单塔把用户+物品拼一起打分：无法预计算物品侧，每次全量打分太慢。",
+  "derivation": [
+    "为什么需要：召回阶段要从百万级物品里快速筛出几百个候选，必须能离线预计算并近邻检索。",
+    "怎么实现：用户特征→用户塔→u；物品特征→物品塔→v；score=u·v；物品向量离线算好存 Faiss 等 ANN 索引。",
+    "有什么代价：双塔隔离使无法做用户-物品早期交叉特征，表达力弱于单塔精排；需靠后续排序弥补。",
+    "怎么评测：看召回命中率/覆盖率、向量检索召回质量，以及下游精排后的最终指标。"
+  ],
+  "invariant": "物品向量与用户查询无关，可离线批量生成并建立近邻索引。",
+  "walkthrough": "100万物品离线编码存索引；某用户上线得 u(128维)，ANN 检索 top500 候选，耗时仅毫秒级。",
+  "edgeCases": [
+    "冷启动物品：无行为，靠内容特征塔兜底。",
+    "用户特征实时变化：用户塔需在线低延迟推理。",
+    "负样本选择影响对比质量。"
+  ],
+  "code": "# Python\ndef two_tower_score(user_feat, item_feat, user_enc, item_enc):\n    u = user_enc(user_feat)          # (d,)\n    v = item_enc(item_feat)          # (d,)\n    return float(u @ v)               # 内积即匹配分",
+  "codeNotes": [
+    "物品向量离线批量生成。",
+    "ANN(Faiss) 做近邻检索。"
+  ],
+  "complexity": "离线 O(物品数)；在线 O(用户塔推理 + 检索)，与物品总数无关。",
+  "followUps": [
+    {
+      "question": "双塔为什么不适合做精排？",
+      "answer": "两塔在最后才交互，错过了用户-物品早期交叉特征，表达力受限；精排常用能充分交叉的单塔模型(DeepFM/DIN)。"
+    },
+    {
+      "question": "负样本怎么选？",
+      "answer": "常用随机负样本+曝光未点击的\"困难负样本\"混合，提升对比区分度；也可用 in-batch 负样本加速。"
+    }
+  ],
+  "followUpAnswers": [
+    "精排用单塔充分交叉。",
+    "物品向量离线建索引。"
+  ],
+  "pitfalls": [
+    "把双塔当精排用，低估交叉特征缺失。",
+    "忽视负样本质量导致召回偏颇。"
+  ],
+  "beginnerSummary": "给用户和商品各建一份\"兴趣简历\"(向量)：用户的简历描述ta喜欢什么，商品的简历描述它是什么。两份简历越\"合拍\"(向量越接近)越该推荐。商品的简历可以提前写好存进档案柜(索引)，用户一来只要写自己的简历、去柜子里找最合拍的几个即可，秒回。",
+  "prerequisites": [
+    "召回需从海量物品快速筛选。",
+    "向量内积可衡量相似度。",
+    "物品侧可离线预计算。"
+  ],
+  "workedExample": [
+    "100万物品离线编码入库。",
+    "用户上线算 u，ANN 取 top500 毫秒级。"
+  ],
+  "lineByLine": [
+    "分别编码用户与物品。",
+    "得两向量 u, v。",
+    "内积算匹配分。",
+    "物品向量离线建索引加速。"
+  ],
+  "diagram": "用户特征─▶用户塔─▶u\n               ×内积\n物品特征─▶物品塔─▶v  (离线建索引)\n→ 近邻检索 top-K 召回"
+},
+  {
+  "id": "rec-ann",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "向量检索 ANN / Faiss",
+  "prompt": "向量检索（ANN / Faiss）的原理是什么？",
+  "quickAnswer": "ANN（近似最近邻）在向量空间中快速找回与查询最相似的 k 个向量，牺牲少量精度换百倍速度。Faiss 用 IVF（倒排聚类，先找最近簇再局部搜）与 PQ（乘积量化压缩向量）等把百万级向量的检索压到毫秒。它是双塔召回的底层引擎。",
+  "approach": "向量量化建索引(IVF+PQ) → 查询先定位簇再局部精确比较 → 返回 top-K。",
+  "explanationFocus": "是什么：ANN 用聚类+量化近似地找最近邻，Faiss 是工业级实现，让双塔召回能在百万向量里毫秒级检索。",
+  "bruteForce": "暴力遍历全部向量算距离取 top-K：O(N·d)，N 大时不可行。",
+  "derivation": [
+    "为什么需要：双塔产出海量物品向量，线上必须毫秒级近邻检索，暴力搜太慢。",
+    "怎么实现：IVF 把空间聚成若干簇建倒排，查询只搜最近几簇；PQ 把向量分段用码本压缩，距离用查表近似。",
+    "有什么代价：近似带来召回损失；PQ 有量化误差；需调 nprobe/聚类数平衡精度与速度。",
+    "怎么评测：看召回率@K、QPS、内存占用、与暴力结果的重合度。"
+  ],
+  "invariant": "索引一旦建好，查询复杂度与全库规模 N 弱相关，只与命中簇/码本大小相关。",
+  "walkthrough": "100万×128维建 IVF4096+PQ 索引占数 GB；查询 u 只搜 16 个近簇得 top500，耗时<5ms。",
+  "edgeCases": [
+    "分布漂移：新向量落入空簇，需重建/增量。",
+    "nprobe 太小漏召，太大变慢。",
+    "高维灾难：距离区分度下降。"
+  ],
+  "code": "# Python (Faiss 思路)\ndef ann_search(index, u, k=500, nprobe=16):\n    index.nprobe = nprobe                  # 搜最近几个簇\n    D, I = index.search(u.reshape(1,-1), k) # 簇内 PQ 近似距离\n    return I[0]                            # top-K 物品 id",
+  "codeNotes": [
+    "IVF 控检索范围，PQ 控内存。",
+    "nprobe 调精度/速度权衡。"
+  ],
+  "complexity": "建索引 O(N·迭代)；查询 O(nprobe·簇大小·d/PQ查表)，与 N 弱相关。",
+  "followUps": [
+    {
+      "question": "IVF 和 PQ 各自解决什么问题？",
+      "answer": "IVF 用聚类减少需比较的向量数(减计算)，PQ 用分段量化压缩向量(减内存与带宽)，二者常组合使用。"
+    },
+    {
+      "question": "为什么 ANN 是近似的？",
+      "answer": "只搜最近几个簇、并用压缩向量算距离，可能错过全局最近点，但召回率通常>95%而速度快百倍，工程上划算。"
+    }
+  ],
+  "followUpAnswers": [
+    "IVF减计算, PQ减内存。",
+    "ANN以精度换速度。"
+  ],
+  "pitfalls": [
+    "以为 ANN 结果与暴力完全一致。",
+    "nprobe 设错导致漏召或超时。"
+  ],
+  "beginnerSummary": "在百万本书里找\"最像\"你描述的那本：笨办法是逐本比对(太慢)。Faiss 先把书按主题分到几百个书架上(IVF)，你只去最相关的几个书架翻；每本书还被压缩成\"内容摘要卡\"(PQ)，比对更快。稍微可能漏一两本，但几毫秒就给你最像的几百本。",
+  "prerequisites": [
+    "物品已编码成向量。",
+    "近邻检索需远快于暴力。",
+    "可接受近似误差换速度。"
+  ],
+  "workedExample": [
+    "100万向量建 IVF+PQ 索引。",
+    "查询只扫近簇得 top500 <5ms。"
+  ],
+  "lineByLine": [
+    "聚类建倒排索引。",
+    "向量量化压缩存储。",
+    "查询定位最近簇。",
+    "簇内近似距离取 top-K。"
+  ],
+  "diagram": "向量空间\n  ┌─簇1─┐ ┌─簇2─┐ ...\n  │ ••  │ │ ••  │\n查询 u ─▶ 找最近簇 ─▶ 簇内 PQ 比距离 ─▶ top-K"
+},
+  {
+  "id": "rec-multichannel",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "多路召回融合",
+  "prompt": "推荐系统的多路召回融合是什么？",
+  "quickAnswer": "多路召回指并行使用多种策略（标签/兴趣倒排、协同过滤、向量双塔、热门/地域兜底等）各自产出候选，再合并去重、按配额或统一分数截断后送入粗排。融合解决单路偏科与长尾覆盖问题，需控制各路占比避免某路主导。",
+  "approach": "多策略并行取候选 → 去重 → 配额/分数融合 → 截断 top-K。",
+  "explanationFocus": "是什么：多路召回把若干独立召回通道的结果汇到一起，互补长短、保覆盖，再融合成统一候选集。",
+  "bruteForce": "只跑一路召回：覆盖窄、易马太效应，长尾与新颖项难出现。",
+  "derivation": [
+    "为什么需要：单一召回源有偏（如协同只推相似），多路互补才能兼顾相关与多样、兜住冷启动。",
+    "怎么实现：各路独立检索得候选+分数；按固定 quota 或归一化分数混合；去重后截断。",
+    "有什么代价：各路分数量纲不同需校准；quota 分配影响分布；融合不当某路淹没他路。",
+    "怎么评测：看整体 Recall@K、覆盖率、各路贡献占比、线上多样性指标。"
+  ],
+  "invariant": "融合后候选集需保留每路的\"特色\"项，不被单一主导路吞没。",
+  "walkthrough": "标签 200 + 向量 150 + 协同 150 + 热门 50 → 去重合并 480 → 截断 500 进粗排。",
+  "edgeCases": [
+    "各路分数不可比：需分路归一化。",
+    "某路过载淹没他路：用 quota 限流。",
+    "热门路挤占长尾：降权保多样。"
+  ],
+  "code": "# Python\ndef merge_recall(routes, quotas):\n    merged = {}\n    for name, cands in routes.items():\n        q = quotas[name]\n        for it, s in cands[:q]:                # 每路按 quota 截断\n            merged.setdefault(it, []).append(s)\n    return sorted(merged, key=lambda it: -max(merged[it]))[:500]",
+  "codeNotes": [
+    "每路配额控制贡献。",
+    "跨路分数需先归一化。"
+  ],
+  "complexity": "O(各路候选和 + 合并排序)，与全库规模解耦。",
+  "followUps": [
+    {
+      "question": "各路分数量纲不同怎么融合？",
+      "answer": "先分路 min-max 或按各自召回率归一化，再按 quota/权重混合，避免某路绝对值大就霸榜。"
+    },
+    {
+      "question": "为什么不直接拼接所有候选再统一截断？",
+      "answer": "那样强路会淹没弱路，长尾与多样项丢失；quota 能保证每路保底曝光。"
+    }
+  ],
+  "followUpAnswers": [
+    "分路归一化再混合。",
+    "quota 防单路主导。"
+  ],
+  "pitfalls": [
+    "忽略分数量纲直接混合。",
+    "不设 quota 导致某路淹没他路。"
+  ],
+  "beginnerSummary": "多路召回像多家猎头同时给你推荐人选：A 按技能标签找、B 按相似成功案例找、C 按热门新人找。你把四家名单合并、去掉重复、再各留一定比例，既不全听一家(避免偏见)，也能兼顾不同来源的好苗子。",
+  "prerequisites": [
+    "存在多种互补召回策略。",
+    "各路分数需可比/配额可控。",
+    "需兼顾覆盖与多样。"
+  ],
+  "workedExample": [
+    "四路各取候选并配额截断。",
+    "合并去重得 500 进粗排。"
+  ],
+  "lineByLine": [
+    "各路独立检索候选。",
+    "按 quota 截断每路。",
+    "跨路去重。",
+    "统一分数截断融合。"
+  ],
+  "diagram": "标签路 ─┐\n向量路 ─┼─▶ 去重 ─▶ 配额融合 ─▶ top500\n协同路 ─┤\n热门路 ─┘"
+},
+  {
+  "id": "rec-feature",
+  "category": "搜索推荐",
+  "difficulty": "Easy",
+  "title": "特征工程（User / Item 特征）",
+  "prompt": "推荐系统的特征工程（user / item 特征）是什么？",
+  "quickAnswer": "特征工程是把原始 user 与 item 信息转成模型可学表示：user 特征含画像(年龄/性别/地域)、行为序列、统计(点击率/活跃度)；item 特征含内容(类目/标签/标题向量)、统计(曝光/CTR/时长)、上下文(时段/场景)。好的特征决定模型上限，需处理稀疏、缺失与穿越。",
+  "approach": "原始日志 → 画像/行为/统计/上下文特征 → 编码(embedding/归一) → 入模。",
+  "explanationFocus": "是什么：特征工程把用户与物品的原始属性、行为、统计与上下文，加工成模型可用的数值/embedding 表示。",
+  "bruteForce": "直接把原始 id/文本喂模型：稀疏难学、易穿越、效果差。",
+  "derivation": [
+    "为什么需要：模型只能学结构化输入，原始日志需加工成稳定可复用特征。",
+    "怎么实现：离线算统计/画像特征，实时拼行为序列与上下文；类别做 embedding，数值做归一/分桶。",
+    "有什么代价：特征管道易引入穿越与线上线下不一致；维护成本高。",
+    "怎么评测：看特征覆盖率/缺失率、穿越检测、对模型指标的贡献(AB)。"
+  ],
+  "invariant": "线上推理使用的特征必须与训练时同源同口径，否则分布漂移。",
+  "walkthrough": "用户 30 天点击序列 + 年龄分桶 + 物品 CTR 统计 + 当前时段 → 拼接成 512 维特征向量。",
+  "edgeCases": [
+    "特征穿越：训练用了推理时得不到的未来值。",
+    "线上线下不一致：离线/在线计算口径不同。",
+    "长尾 id 稀疏：靠内容特征兜底。"
+  ],
+  "code": "# Python\ndef build_features(user, item, ctx):\n    f = []\n    f += embed(user.profile)              # 画像 embedding\n    f += bucket(user.age, [18,30,45])     # 分桶\n    f += item.stat_features()             # CTR/曝光统计\n    f += [ctx.hour / 24.0]                # 上下文归一\n    return concat(f)",
+  "codeNotes": [
+    "数值分桶/归一稳定训练。",
+    "类别特征走 embedding。"
+  ],
+  "complexity": "离线 O(历史窗口)；在线 O(特征数)，需特征存储低延迟读取。",
+  "followUps": [
+    {
+      "question": "什么是特征穿越，怎么防？",
+      "answer": "训练用了推理时不可能拿到的值(如未来点击)。防法是严格按\"样本时间\"切特征快照、只用历史统计。"
+    },
+    {
+      "question": "线上线下特征不一致为何致命？",
+      "answer": "训练与 serving 分布不同，模型学到的关系在线上失效，指标掉却难查，需特征平台统一口径。"
+    }
+  ],
+  "followUpAnswers": [
+    "穿越用历史快照防。",
+    "统一种口径防不一致。"
+  ],
+  "pitfalls": [
+    "忽视特征穿越致线下虚高。",
+    "线上线下特征口径不一。"
+  ],
+  "beginnerSummary": "特征工程像给相亲双方填\"资料卡\"：把你的年龄、爱好、最近在看的、活跃度，和对方的类目、人气、简介，整理成一张标准表格交给模型去配对。表格填得好(特征干净、口径一致)，配对才准；若偷偷填了\"见面后才发生的事\"(穿越)，线下看着很准，真用就翻车。",
+  "prerequisites": [
+    "模型只能吃结构化输入。",
+    "特征需线上线下一致。",
+    "稀疏 id 需内容兜底。"
+  ],
+  "workedExample": [
+    "离线算用户画像与物品统计特征。",
+    "在线拼行为序列与时段上下文成向量。"
+  ],
+  "lineByLine": [
+    "取用户画像/行为特征。",
+    "取物品内容与统计特征。",
+    "加上下文并归一。",
+    "拼接编码入模。"
+  ],
+  "diagram": "user(画像,行为,统计) + item(内容,统计) + ctx(时段)\n        │ 编码/分桶/embedding\n        ▼\n   特征向量 ─▶ 模型"
+},
+  {
+  "id": "rec-din-deepfm",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "排序模型 DIN / DeepFM / 序列建模",
+  "prompt": "推荐排序里的 DIN / DeepFM / 序列建模分别是什么？",
+  "quickAnswer": "DeepFM 用 FM 显式做二阶特征交叉 + DNN 学高阶交叉，兼顾低阶与高阶；DIN（深度兴趣网络）用 Attention 让用户历史行为对\"当前候选物品\"加权，捕捉局部兴趣；序列建模(DIEN/Transformer)把行为当时序序列学兴趣演化。三者都针对\"用户-物品交叉\"，是精排主力。",
+  "approach": "DeepFM(FM+DNN 交叉) / DIN(候选感知attention) / 序列(时序兴趣) → 多目标预估。",
+  "explanationFocus": "是什么：DeepFM 做特征交叉、DIN 做候选感知的兴趣注意力、序列模型学兴趣演化，都是精排中强化用户-物品交互的模型。",
+  "bruteForce": "只用普通 MLP 把特征拼一起：学不到显式交叉，表达力不足。",
+  "derivation": [
+    "为什么需要：精排要充分利用用户-物品交叉，普通拼接丢失组合信号。",
+    "怎么实现：DeepFM 并联 FM 与 DNN 共享 embedding；DIN 以候选为 query 对行为序列做 attention 再聚合；序列模型用 GRU/Transformer 建模演化。",
+    "有什么代价：序列/attention 增加计算与延迟；DIN 需存长行为序列。",
+    "怎么评测：离线 AUC/GAUC，线上 CTR/CVR/时长。"
+  ],
+  "invariant": "对相同(用户,物品)输入，交叉/注意力结果确定可复现。",
+  "walkthrough": "用户 50 条行为 + 候选物品 → DIN attention 得兴趣向量 → 与物品拼入 DNN 估 pCTR。",
+  "edgeCases": [
+    "行为序列过长：截断或分层采样。",
+    "候选稀疏：attention 权重退化。",
+    "序列噪声：需兴趣抽取(DIEN)。"
+  ],
+  "code": "# Python (DIN 思路)\ndef din(user_behavior, item, mlp):\n    w = [attention(b, item) for b in user_behavior]  # 候选感知权重\n    interest = sum(wi*emb(bi) for wi,bi in zip(w,user_behavior))\n    return mlp(concat(interest, item.emb))            # 兴趣×物品交叉",
+  "codeNotes": [
+    "attention 让兴趣随候选变。",
+    "DeepFM 用 FM 做显式交叉。"
+  ],
+  "complexity": "DIN O(序列长·d)；DeepFM O(特征² + DNN)；序列模型随长度增。",
+  "followUps": [
+    {
+      "question": "DIN 相比普通 embedding 平均好在哪？",
+      "answer": "普通做法把用户兴趣压成定长向量，忽略当前候选；DIN 用候选当 query 对行为加权，不同候选看到不同\"兴趣侧写\"，更准。"
+    },
+    {
+      "question": "FM 和 DNN 在 DeepFM 里各管什么？",
+      "answer": "FM 显式建模任意两两特征交叉(低阶、可解释)，DNN 学高阶非线性交叉，二者共享 embedding 并行输出相加。"
+    }
+  ],
+  "followUpAnswers": [
+    "DIN 候选感知兴趣。",
+    "FM 做显式二阶交叉。"
+  ],
+  "pitfalls": [
+    "把行为序列无差别平均，丢局部兴趣。",
+    "只上 DNN 忽视显式交叉。"
+  ],
+  "beginnerSummary": "给\"你\"和\"某件商品\"配对时：DeepFM 像既看两人单独条件、又看任意两两组合(年龄×类目)的匹配表；DIN 像根据你\"当前看中这件\"回头翻你历史——你买过类似的就重点参考，不相关的忽略；序列模型则看你兴趣怎么随时间变。三者都让\"你配不配这件\"算得更细。",
+  "prerequisites": [
+    "精排需强特征交叉。",
+    "用户兴趣随候选/时间变。",
+    "行为序列蕴含兴趣信号。"
+  ],
+  "workedExample": [
+    "DIN 用候选对 50 条行为做 attention。",
+    "DeepFM 共享 embedding 做 FM+DNN 交叉。"
+  ],
+  "lineByLine": [
+    "候选当 query 算行为权重。",
+    "加权聚合得兴趣向量。",
+    "与物品特征交叉入 DNN。",
+    "输出多目标预估分。"
+  ],
+  "diagram": "用户行为序列 ─▶ attention(候选为Q) ─▶ 兴趣向量\n                                          × 物品向量 ─▶ DNN ─▶ pCTR"
+},
+  {
+  "id": "rec-seq",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "用户行为序列建模",
+  "prompt": "用户行为序列建模在推荐里是什么？",
+  "quickAnswer": "用户行为序列建模把用户的历史交互（点击/购买/停留）按时间排成序列，用 Attention、GRU、Transformer 等抽取\"兴趣表示\"。它捕捉兴趣的时序演化与多样性，是 DIN/DIEN/SIM 等模型的基础，比把行为简单平均更能反映当下意图。",
+  "approach": "行为序列(含物品/时间/反馈) → 编码 → attention/时序聚合 → 兴趣向量。",
+  "explanationFocus": "是什么：行为序列建模把用户按时间发生的行为当成有序信号，学出能随当前场景变化的兴趣表示。",
+  "bruteForce": "把行为 embedding 直接平均成一个向量：丢失时序与当下意图，兴趣被稀释。",
+  "derivation": [
+    "为什么需要：用户兴趣随时变、且对当前候选关注点不同，定长平均表达力弱。",
+    "怎么实现：行为序列先做 item embedding，加位置/时间；用 self-attention 或 GRU/Transformer 抽取，必要时以候选为 query 做 target attention。",
+    "有什么代价：长序列算力大；需截断/分层( SIM 先检索相关行为)；噪声行为干扰。",
+    "怎么评测：离线 GAUC、序列长度消融、线上 CTR。"
+  ],
+  "invariant": "兴趣向量随\"当前候选/上下文\"变化，而非固定不变。",
+  "walkthrough": "用户近 100 行为 → Transformer 编码 → 以候选为 Q 做 target attention → 得 64 维兴趣向量入精排。",
+  "edgeCases": [
+    "序列过长：截断/分簇检索(SIM)。",
+    "兴趣漂移：旧行为权重应衰减。",
+    "行为缺失：用画像兜底。"
+  ],
+  "code": "# Python\ndef seq_interest(behaviors, item_enc, transformer, cand):\n    h = transformer([item_enc(b) for b in behaviors])   # 时序编码\n    w = [attention(cand, hi) for hi in h]               # target attention\n    return sum(wi*hi for wi,hi in zip(w,h))",
+  "codeNotes": [
+    "长序列用 SIM 先检索相关行为。",
+    "时间位置帮助建模演化。"
+  ],
+  "complexity": "self-attention O(L²·d)，L 为序列长；target attention O(L·d)。",
+  "followUps": [
+    {
+      "question": "DIN 和 SIM 在序列建模上的区别？",
+      "answer": "DIN 对所有行为做候选注意力，序列一长就慢；SIM 先用候选从海量行为里检索出最相关的一小段(如同类目)，再对这段做精细建模，省算力。"
+    },
+    {
+      "question": "为什么不直接平均行为？",
+      "answer": "平均把\"昨天随便点的\"和\"刚搜的\"同等对待，稀释当下强意图；attention/时序能突出相关、弱化无关。"
+    }
+  ],
+  "followUpAnswers": [
+    "SIM 先检索再建模省算力。",
+    "平均丢失当下意图。"
+  ],
+  "pitfalls": [
+    "长序列不截断致延迟爆炸。",
+    "忽略兴趣时序衰减。"
+  ],
+  "beginnerSummary": "你最近看的东西排成时间线：光把\"全部看过的\"混在一起打分(平均)会糊掉你此刻真正想要的。序列建模像回放你的浏览史——越近、越相关的行为越被重视，还能看出你兴趣从\"运动鞋\"慢慢转到\"跑步机\"的演变，从而更懂你当下想买啥。",
+  "prerequisites": [
+    "行为有序且蕴含意图。",
+    "兴趣随时序演化。",
+    "长序列需检索/截断。"
+  ],
+  "workedExample": [
+    "100 条行为经 Transformer 编码。",
+    "以候选做 target attention 得兴趣向量。"
+  ],
+  "lineByLine": [
+    "行为物品转 embedding。",
+    "加时间位置时序编码。",
+    "以候选为 Q 算注意力。",
+    "聚合得兴趣向量。"
+  ],
+  "diagram": "t1 t2 ... tL 行为\n   │ embedding+位置\n   ▼ Transformer\n   h1..hL ─▶ target attention(候选Q) ─▶ 兴趣向量"
+},
+  {
+  "id": "rec-ctr",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "CTR 预估",
+  "prompt": "推荐系统的 CTR 预估是什么？",
+  "quickAnswer": "CTR（点击率）预估是建模\"在给定上下文下用户点击某物品的概率 pCTR\"。它是精排核心目标之一，常用 LR/GBDT、FM/DeepFM、DIN 等模型，以交叉熵为损失、负采样或全量曝光为训练数据，输出校准后的概率用于排序与竞价。",
+  "approach": "曝光点击样本 → 特征交叉模型 → 交叉熵训练 → 输出校准 pCTR。",
+  "explanationFocus": "是什么：CTR 预估学习\"用户在某场景下点某物品的概率\"，是推荐/广告排序与出价的基础目标。",
+  "bruteForce": "用全局平均点击率当所有物品分数：无个性化，效果极差。",
+  "derivation": [
+    "为什么需要：排序与竞价都需\"被点概率\"这个统一可比信号。",
+    "怎么实现：用(用户,物品,上下文)特征过模型输出 σ(logit)；以曝光-点击为 label 训交叉熵；线上做概率校准。",
+    "有什么代价：正负样本极不均衡、位置/曝光偏差大；未校准概率不可直接比大小以外用途。",
+    "怎么评测：离线 AUC/LogLoss，线上看 CTR 与校准(可靠性曲线)。"
+  ],
+  "invariant": "pCTR 是条件概率，需在相同特征口径下跨物品可比。",
+  "walkthrough": "100 亿曝光样本 → DeepFM 交叉熵训练 → 输出 pCTR，线上校准后用于排序与 eCPM= pCTR×bid。",
+  "edgeCases": [
+    "样本不均衡：负样本远多于正。",
+    "未校准：概率偏保守/激进。",
+    "位置偏差：高位置天然高 CTR。"
+  ],
+  "code": "# Python\ndef ctr_loss(logit, y):\n    p = sigmoid(logit)\n    return -(y*log(p) + (1-y)*log(1-p))     # 交叉熵\ndef predict(model, feat):\n    return sigmoid(model(feat))             # 校准后 pCTR",
+  "codeNotes": [
+    "交叉熵是标准损失。",
+    "上线前需概率校准。"
+  ],
+  "complexity": "训练 O(样本数·模型)；推理 O(单样本前向)，受精排候选数约束。",
+  "followUps": [
+    {
+      "question": "CTR 模型输出为什么要校准？",
+      "answer": "训练目标只保序，绝对值常偏移；竞价/融合要用真实概率，需 Platt/保序回归把 pCTR 校准到接近真实点击频率。"
+    },
+    {
+      "question": "CTR 和 CVR 预估有何不同？",
+      "answer": "CTR 是\"曝光→点击\"，样本是全量曝光；CVR 是\"点击→转化\"，只有点击才有 label，存在样本选择偏差，常用 ESMM 等借 CTR 间接建模。"
+    }
+  ],
+  "followUpAnswers": [
+    "CTR 需校准成真实概率。",
+    "CVR 有样本选择偏差。"
+  ],
+  "pitfalls": [
+    "直接用未校准 pCTR 做乘法融合。",
+    "忽视位置偏差致 CTR 虚高。"
+  ],
+  "beginnerSummary": "CTR 预估就是猜\"把这件推给你，你有多大概率点\"。模型看过海量\"谁、在什么场景、点了啥\"的历史，学会这套概率。它不直接说\"推不推\"，而是给每个候选一个\"被点可能性\"分数，系统据此排序——分越高越往前放。",
+  "prerequisites": [
+    "排序需统一概率信号。",
+    "存在曝光-点击样本。",
+    "概率需跨物品可比。"
+  ],
+  "workedExample": [
+    "海量曝光点击样本训交叉熵。",
+    "输出校准 pCTR 用于排序/竞价。"
+  ],
+  "lineByLine": [
+    "构造(用户,物品,上下文)特征。",
+    "模型输出 logit。",
+    "sigmoid 得 pCTR。",
+    "校准后用于排序。"
+  ],
+  "diagram": "样本(曝光,点击)\n   │ 特征交叉\n   ▼ 模型\n logit ─▶ sigmoid ─▶ pCTR ─▶ 排序/竞价"
+},
+  {
+  "id": "rec-coldstart",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "冷启动问题（用户/物品）",
+  "prompt": "推荐系统的冷启动问题（用户/物品）是什么？",
+  "quickAnswer": "冷启动指新用户或新物品缺乏行为数据时难以被准确推荐/被推荐。用户冷启动用注册画像、设备、地域、热门/探索策略兜底；物品冷启动靠内容特征（类目/标签/文本向量）走内容召回与双塔，并给试探曝光(Exploration)积累数据。常用EE平衡探索与利用。",
+  "approach": "新用户→画像+热门/探索；新物品→内容特征召回+试探曝光→积累行为。",
+  "explanationFocus": "是什么：冷启动是\"没历史行为\"的新用户/新物品难以匹配，需要用内容特征与探索策略先补数据再进入正常推荐。",
+  "bruteForce": "等攒够行为再推：新用户空白、新物品零曝光，永远起不来。",
+  "derivation": [
+    "为什么需要：协同/行为类模型依赖历史，没有就无信号。",
+    "怎么实现：用户侧用注册信息+冷启内容流；物品侧用内容向量进双塔/标签召回，并分配探索流量；用 bandit/EE 控制试探量。",
+    "有什么代价：探索占用了本可给熟物的曝光，短期指标下降；内容特征与行为偏好有鸿沟。",
+    "怎么评测：看新用户次留、新物品曝光渗透率与后续转化、探索效率。"
+  ],
+  "invariant": "冷启动阶段必须用\"非行为\"信号（内容/画像）做初始匹配。",
+  "walkthrough": "新物品上线→抽文本向量进双塔召回 1000 人→给每人 5 次试探曝光→回收点击后转入正常精排。",
+  "edgeCases": [
+    "纯新用户无任何画像：走热门+随机探索。",
+    "新物品内容稀疏：跨模态/类目兜底。",
+    "探索过度伤大盘：需 EE 调控。"
+  ],
+  "code": "# Python\ndef coldstart_item(item, users, tower, explore=5):\n    v = content_vec(item)                     # 内容向量\n    cands = ann_search(tower(v), topk=1000)   # 内容召回\n    for u in cands:\n        give_explore(u, item, n=explore)      # 试探曝光",
+  "codeNotes": [
+    "内容向量替代行为向量。",
+    "试探曝光积累 label。"
+  ],
+  "complexity": "召回 O(内容索引)；探索流量 O(新物数·explore)，受大盘预算约束。",
+  "followUps": [
+    {
+      "question": "Exploration 和 Exploitation 怎么权衡？",
+      "answer": "全利用只推已知的，新物永无机会；全探索浪费流量。常用 Thompson Sampling/UEB 等给不确定性高的多些试探，随数据积累转利用。"
+    },
+    {
+      "question": "用户冷启动没有画像怎么办？",
+      "answer": "先用设备/地域/时段等弱信号 + 热门内容流 + 快速兴趣探测(几屏多样内容)收集首批行为，再切正常模型。"
+    }
+  ],
+  "followUpAnswers": [
+    "EE 平衡探索与利用。",
+    "内容特征补行为缺口。"
+  ],
+  "pitfalls": [
+    "忽视冷启动只服务老用户。",
+    "探索过度拖垮大盘指标。"
+  ],
+  "beginnerSummary": "冷启动像刚转学的新生：大家都不认识你、没你的\"黑历史\"，老师(模型)不知把你排哪。办法是先凭\"入学登记表\"(注册画像)和\"随机让同学认识你几次\"(探索曝光)积累印象，等有了朋友(行为)再正常安排座位。新商品同理——先靠\"商品说明书\"(内容特征)露脸，攒了点击再重点推。",
+  "prerequisites": [
+    "行为模型依赖历史数据。",
+    "内容/画像可作初始信号。",
+    "需探索积累首批反馈。"
+  ],
+  "workedExample": [
+    "新物品走内容向量召回 1000 人。",
+    "每人 5 次试探曝光后转正常。"
+  ],
+  "lineByLine": [
+    "取物品内容向量。",
+    "内容召回候选用户。",
+    "分配探索曝光。",
+    "回收行为转正常流。"
+  ],
+  "diagram": "新物品(无行为)\n   │ 内容向量\n   ▼ 双塔召回\n 候选用户 ─▶ 试探曝光 ─▶ 行为回流"
+},
+  {
+  "id": "rec-multiobjective",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "多目标（CTR / CVR / 时长）建模",
+  "prompt": "推荐系统的多目标（CTR / CVR / 时长）建模是什么？",
+  "quickAnswer": "多目标建模是同时预估多个指标（点击率、转化率、观看/阅读时长等）再融合成最终排序分。常用共享底层(Shared-Bottom)+多专家(MMoE)分塔各估一目标，避免单目标偏科；融合用 pCTR×pCVR×价格 或加权求和，并做目标间帕累托权衡。",
+  "approach": "共享表征 + 多专家塔 → 各目标分 → 融合公式/权重排序。",
+  "explanationFocus": "是什么：多目标建模用一个模型同时学 CTR、CVR、时长等多个目标，各出一分到融合公式里，避免只优化点击却伤转化或时长。",
+  "bruteForce": "只优化 CTR：标题党霸屏，转化与时长崩，长期留存掉。",
+  "derivation": [
+    "为什么需要：业务关心点击+转化+时长+留存，单一目标会牺牲其他。",
+    "怎么实现：Shared-Bottom 或 MMoE 多专家共享底层、各目标独立塔；ESMM 用 pCTR×pCVR 间接估 CVR 解样本选择偏差。",
+    "有什么代价：目标间冲突(点击vs时长)需权衡；融合权重难调、随场景变。",
+    "怎么评测：各目标独立离线指标 + 线上综合 AB(营收/时长/留存)。"
+  ],
+  "invariant": "融合后的排序分需对各目标方向单调，且权重可解释可调。",
+  "walkthrough": "同底层出 pCTR、pCVR、pStay → 分=0.6*pCTR+0.3*pCVR+0.1*pStay，线上按场景调权重。",
+  "edgeCases": [
+    "目标冲突：高点击低转化。",
+    "CVR 样本选择偏差：用 ESMM。",
+    "权重固定不通用：需分场景。"
+  ],
+  "code": "# Python\ndef multi_target(feat, mmoe):\n    pctr, pcvr, pstay = mmoe(feat)          # 多塔各估\n    return 0.6*pctr + 0.3*pcvr + 0.1*pstay  # 融合",
+  "codeNotes": [
+    "MMoE 让各目标学专属专家。",
+    "ESMM 解 CVR 样本偏差。"
+  ],
+  "complexity": "训练 O(样本·(共享+多塔))；推理 O(单样本多塔前向)，受候选数约束。",
+  "followUps": [
+    {
+      "question": "MMoE 相比多任务共享底层好在哪？",
+      "answer": "Shared-Bottom 所有任务抢同一底层易冲突；MMoE 用多个专家门控，各任务选不同专家组合，缓解负迁移。"
+    },
+    {
+      "question": "CVR 为什么不能直接像 CTR 那样训？",
+      "answer": "CVR 只在\"点击\"后有 label，未点击样本无转化标签，直接训练有样本选择偏差；ESMM 改估 pCTR×pCVR 在全曝光上训练来规避。"
+    }
+  ],
+  "followUpAnswers": [
+    "MMoE 缓解任务冲突。",
+    "ESMM 间接估 CVR。"
+  ],
+  "pitfalls": [
+    "只优化单目标伤其他指标。",
+    "融合权重写死不调场景。"
+  ],
+  "beginnerSummary": "老板要的不是一个指标：既想你\"点多\"(点击)、又想你\"买下\"(转化)、还想你\"看久\"(时长)。多目标建模就像招一个团队，底层共享常识，但专人分别盯点击、转化、时长，最后按\"综合 KPI\"加权排名。只顾点击会招来标题党，综合 KPI 才健康。",
+  "prerequisites": [
+    "业务有多指标诉求。",
+    "目标间可能冲突。",
+    "多目标需统一融合。"
+  ],
+  "workedExample": [
+    "MMoE 同底层出三目标分。",
+    "加权融合排序，权重分场景调。"
+  ],
+  "lineByLine": [
+    "共享底层提表征。",
+    "多专家塔各估目标。",
+    "输出 pCTR/pCVR/pStay。",
+    "加权融合成排序分。"
+  ],
+  "diagram": "特征\n  │ 共享底层\n  ├─专家A─▶ pCTR\n  ├─专家B─▶ pCVR   ─▶ 融合 ─▶ 排序\n  └─专家C─▶ pStay"
+},
+  {
+  "id": "rec-rerank",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "重排（Re-ranking / 多样性 / 打散）",
+  "prompt": "推荐系统的重排（re-ranking / 多样性 / 打散）是什么？",
+  "quickAnswer": "重排是精排之后、展示之前的一层，对精排给的候选做\"再加工\"：插入多样性/品类打散、去重、已读过滤、流量调控(保新/保特定业务)、上下文感知的重排( Listwise 模型如 PRM)。它修正精排的局部贪婪，提升整体列表体验与生态健康。",
+  "approach": "精排列表 → 打散/多样性/去重/业务规则 → 上下文重排(Listwise) → 最终列表。",
+  "explanationFocus": "是什么：重排在精排结果上做全局调整，加入多样性、打散、去重与业务规则，让整页而不是单条最优。",
+  "bruteForce": "直接展示精排序：同类目扎堆、重复作者刷屏、体验单调。",
+  "derivation": [
+    "为什么需要：精排逐条打分易同质化，整页多样性/生态需额外约束。",
+    "怎么实现：先按类目/作者打散(MMR/DPP 提多样性)，再去重与已读过滤，最后用 Listwise 模型按全列表上下文重排。",
+    "有什么代价：规则过多伤相关性与收入；Listwise 模型增加延迟。",
+    "怎么评测：看多样性指标(ILS/品类覆盖)、打散达标率、线上时长/留存。"
+  ],
+  "invariant": "重排后的列表在保持相关性的前提下，降低同构项相邻度。",
+  "walkthrough": "精排给 50 → DPP 提多样性选 20 → 同作者间隔≥3 → 已读过滤 → 最终 20 展示。",
+  "edgeCases": [
+    "强打散伤相关性：需相关度下限。",
+    "已读去重后候选不足：需补召回。",
+    "业务强插：挤占自然结果。"
+  ],
+  "code": "# Python\ndef rerank(scored, topk=20):\n    picked = mmr_pick(scored, lambda_diversity=0.3, k=topk)  # 多样性选择\n    picked = dedup_authors(picked, min_gap=3)               # 作者打散\n    return filter_read(picked)                              # 去已读",
+  "codeNotes": [
+    "MMR/DPP 控多样性。",
+    "打散避免同质刷屏。"
+  ],
+  "complexity": "MMR O(k·N)、DPP O(k·N²) 近似；规则 O(N)，N 为精排候选数(几十)。",
+  "followUps": [
+    {
+      "question": "MMR 和 DPP 做多样性有何区别？",
+      "answer": "MMR 贪心逐条选\"又相关又不同于已选\"的，简单快；DPP 用行列式刻画子集整体多样性，质量更优但更贵，常近似。"
+    },
+    {
+      "question": "重排和精排目标冲突时听谁的？",
+      "answer": "精排保相关与收入，重排保体验与生态，通常重排只在约束内微调序；强业务规则(如保新)可优先但设上限。"
+    }
+  ],
+  "followUpAnswers": [
+    "DPP 整体更优但更贵。",
+    "重排在约束内微调。"
+  ],
+  "pitfalls": [
+    "过度打散牺牲相关性。",
+    "把重排当精排堆复杂模型致延迟。"
+  ],
+  "beginnerSummary": "精排像挑出 50 个最想推给你的视频，但可能 30 个都是同类搞笑。重排像编辑排版：把同类分开(打散)、去掉重复的、保证一屏里有搞笑也有知识还有新作者(多样性)，让整页好看又不腻。它管的是\"整页体验\"，不是单条多准。",
+  "prerequisites": [
+    "精排结果易同质化。",
+    "整页体验需多样性。",
+    "存在业务/生态约束。"
+  ],
+  "workedExample": [
+    "DPP 从 50 精排候选提 20 多样项。",
+    "作者间隔≥3、去已读后展示。"
+  ],
+  "lineByLine": [
+    "多样性选择候选。",
+    "同作者/类目打散。",
+    "过滤已读与重复。",
+    "套业务规则出最终序。"
+  ],
+  "diagram": "精排50 ─▶ 多样性(DPP) ─▶ 打散/去重 ─▶ 业务规则 ─▶ 20"
+},
+  {
+  "id": "rec-llm-rec",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "LLM 在推荐系统中的应用",
+  "prompt": "大模型（LLM）在推荐系统里有哪些应用？",
+  "quickAnswer": "LLM 用于推荐的多处：用文本/多模态 LLM 生成物品与用户语义表征增强召回；做自然语言召回(对话式/搜索式推荐)；用 LLM 写特征、做用户兴趣摘要；用 LLM 做重排解释与列表生成(生成式推荐)；以及用 LLM 蒸馏小模型。挑战是推理慢、需蒸馏或级联到已有链路。",
+  "approach": "LLM 出语义表征/兴趣摘要 → 增强召回或精排特征；或级联做生成式重排。",
+  "explanationFocus": "是什么：LLM 以强语义理解补传统推荐的内容理解短板，用于表征、召回、特征生成与生成式重排，但需解决延迟，常蒸馏/级联使用。",
+  "bruteForce": "线上直接拿 LLM 对全候选逐条打分：太慢太贵，不可行。",
+  "derivation": [
+    "为什么需要：传统模型吃结构化特征，难懂文本/多模态语义与长尾新品。",
+    "怎么实现：用 LLM 编码标题/图文得 embedding 进双塔；用 LLM 把用户行为摘要成语义兴趣；用 LLM 做候选重排或生成推荐列表。",
+    "有什么代价：LLM 推理慢、贵，难上实时主链路；需蒸馏成小模型或仅离线/粗排用。",
+    "怎么评测：看召回相关性、排序指标、生成列表可用性，与基线 AB。"
+  ],
+  "invariant": "LLM 产出需转成可被主链路消费的形式(向量/特征/列表)，而非直接在线逐条推理。",
+  "walkthrough": "商品图文经 LLM 编码成向量建索引 → 用户兴趣摘要向量检索召回 → 小模型蒸馏 LLM 特征进精排。",
+  "edgeCases": [
+    "在线延迟：LLM 只能离线/蒸馏用。",
+    "幻觉：生成式推荐需约束可选项。",
+    "长文本物品：截断/分块编码。"
+  ],
+  "code": "# Python\ndef llm_recall(user_text, item_index, llm_enc):\n    q = llm_enc.encode(user_text)            # 语义向量\n    items = ann_search(q, item_index, k=200) # 语义召回\n    return items",
+  "codeNotes": [
+    "LLM 出语义 embedding。",
+    "蒸馏后小模型才上实时。"
+  ],
+  "complexity": "LLM 编码 O(序列长·层)；在线用蒸馏小模型近似，召回 O(ANN)。",
+  "followUps": [
+    {
+      "question": "为什么 LLM 不直接做实时精排？",
+      "answer": "自回归 LLM 推理慢且贵，无法在毫秒级对几十候选逐个打分；常离线生成表征/特征、蒸馏给小模型，或只做生成式重排这类低 QPS 环节。"
+    },
+    {
+      "question": "生成式推荐和传统推荐区别？",
+      "answer": "传统从候选集排序，生成式直接由模型\"生成\"推荐 item id/列表，但需约束在合法物品空间，否则易幻觉出不存在的商品。"
+    }
+  ],
+  "followUpAnswers": [
+    "LLM 慢，需蒸馏/级联。",
+    "生成式需约束物品空间。"
+  ],
+  "pitfalls": [
+    "线上直跑 LLM 致超时。",
+    "生成式推荐产出幻觉物品。"
+  ],
+  "beginnerSummary": "传统推荐像个只认标签的柜员；LLM 像读懂商品详情页和你的聊天记录的聪明顾问。它看完图文就能懂\"这视频讲啥\"，把你随口说的\"想学做饭\"变成精准检索。但它太慢太贵，不能每个商品都现场问它——通常让它先把商品\"读懂\"存成笔记(向量)，需要时快速查，或把它本事教给小模型。",
+  "prerequisites": [
+    "传统模型弱于语义理解。",
+    "LLM 推理慢需蒸馏/级联。",
+    "产出需接入主链路。"
+  ],
+  "workedExample": [
+    "LLM 编码商品图文建向量索引。",
+    "用户语义检索召回，特征蒸馏进精排。"
+  ],
+  "lineByLine": [
+    "LLM 读物品多模态内容。",
+    "编码成语义向量。",
+    "进双塔/索引做召回。",
+    "蒸馏特征供精排使用。"
+  ],
+  "diagram": "商品图文 ─▶ LLM ─▶ 语义向量 ─▶ 索引\n用户语义query ─▶ 检索 ─▶ 召回"
+},
+  {
+  "id": "rec-realtime",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "实时推荐 / 流处理",
+  "prompt": "推荐系统的实时推荐 / 流处理是什么？",
+  "quickAnswer": "实时推荐指用户刚产生行为就尽快反映到下一次推荐（分钟/秒级），依赖流处理（Flink/Kafka）实时更新用户特征与画像、刷新物品统计与召回。它让推荐\"跟手\"，提升时效性与转化；挑战是流批一致性、延迟与特征新鲜度。",
+  "approach": "行为日志 → 流处理实时算特征 → 更新特征存储 → 下次请求即用。",
+  "explanationFocus": "是什么：实时推荐用流处理把用户刚发生的行为秒级汇入特征与画像，使下一刷推荐立刻反映最新兴趣。",
+  "bruteForce": "只用 T+1 离线特征：用户刚点完，下一刷还按旧兴趣推，时效差。",
+  "derivation": [
+    "为什么需要：兴趣随时变，离线特征滞后让用户感觉\"推荐不懂我\"。",
+    "怎么实现：行为进 Kafka，Flink 实时算滑动窗口统计/更新兴趣向量，写入特征存储；线上读取近实时特征重新召回/排序。",
+    "有什么代价：流计算与离线口径需一致，否则线上线下漂移；延迟与正确性权衡。",
+    "怎么评测：看特征新鲜度(行为到可用时延)、实时通道对 CTR/时长的提升。"
+  ],
+  "invariant": "实时特征的语义必须与离线特征同源，仅时间窗口更短。",
+  "walkthrough": "用户点击→Kafka→Flink 5s 内更新兴趣向量→特征存储→下个请求读取新向量召回 top。",
+  "edgeCases": [
+    "流批口径不一致：AB 掉点难查。",
+    "迟到/乱序数据：需 watermark。",
+    "实时写入失败：需降级到离线。"
+  ],
+  "code": "# Python (思路)\ndef on_event(ev, flink, store):\n    feat = flink.update_window(ev.user, ev, window='5m')  # 实时统计\n    store.put('rt:' + str(ev.user), feat)         # 写特征存储\ndef serve(user, store, recall):\n    rt = store.get('rt:' + str(user))             # 读近实时特征\n    return recall(user, rt)",
+  "codeNotes": [
+    "Kafka+Flink 做实时管道。",
+    "特征存储统一读写。"
+  ],
+  "complexity": "流处理 O(事件率·窗口)；线上读取 O(特征存储)，端到端延迟由管道决定(秒级)。",
+  "followUps": [
+    {
+      "question": "流处理和离线特征怎么保持一致？",
+      "answer": "用同一套特征定义(特征平台)，离线按天、实时按滑动窗口算同一语义；以离线为基准校验实时，避免口径漂移。"
+    },
+    {
+      "question": "实时推荐延迟一般做到多少？",
+      "answer": "从行为到影响推荐常见秒级到分钟级：特征更新亚分钟，召回/排序重算在请求时完成；越实时越贵，按场景取舍。"
+    }
+  ],
+  "followUpAnswers": [
+    "同源语义防漂移。",
+    "实时特征秒级生效。"
+  ],
+  "pitfalls": [
+    "实时离线口径不一致。",
+    "忽略乱序/迟到致统计错。"
+  ],
+  "beginnerSummary": "你刚点赞了一个烘焙视频，下一秒刷到更多烘焙——这就是实时推荐。背后有根\"传送带\"(流处理)：你的每次点击立刻被小工(Flink)统计进你的兴趣档案，下次刷视频时系统就读最新档案。相比\"今晚才更新明天才变\"(离线)，实时让你感觉\"它秒懂我\"。",
+  "prerequisites": [
+    "兴趣随时变需快速反映。",
+    "存在流处理与特征存储。",
+    "流批语义需一致。"
+  ],
+  "workedExample": [
+    "点击经 Kafka 进 Flink 5s 内更新特征。",
+    "下个请求读近实时特征重新召回。"
+  ],
+  "lineByLine": [
+    "行为进消息队列。",
+    "流处理实时算特征。",
+    "写特征存储。",
+    "请求时读取重召回。"
+  ],
+  "diagram": "用户行为 ─▶ Kafka ─▶ Flink(窗口) ─▶ 特征存储\n                                          ▲\n下次请求 ──读取──┘"
+},
+  {
+  "id": "rec-metrics",
+  "category": "搜索推荐",
+  "difficulty": "Easy",
+  "title": "推荐系统评测指标（AUC / GAUC / Recall）",
+  "prompt": "推荐系统常用的评测指标 AUC / GAUC / Recall 是什么？",
+  "quickAnswer": "AUC 衡量模型对\"正负样本对\"排序的能力(与阈值无关)，但混了全体用户；GAUC 按用户分组算 AUC 再按曝光加权，更贴个性化；Recall@K 看相关物品有多少进了前 K 候选，衡量召回覆盖。三者分别评\"排序质量/个性化排序/召回覆盖\"。",
+  "approach": "AUC 全局排序能力 → GAUC 用户级加权 → Recall@K 召回覆盖。",
+  "explanationFocus": "是什么：AUC 评模型整体排序能力，GAUC 评每个用户内的个性化排序(按曝光加权)，Recall@K 评召回把相关项捞回多少。",
+  "bruteForce": "只看整体准确率：忽略排序与用户差异，掩盖个性化差。",
+  "derivation": [
+    "为什么需要：推荐关心\"把相关排前面\"和\"个性化\"，单点准确率不够。",
+    "怎么实现：AUC 随机正负对排序正确率；GAUC=Σ_u w_u·AUC_u；Recall@K=|相关∩前K|/|相关|。",
+    "有什么代价：AUC 对活跃用户主导、易被刷；GAUC 需分用户；Recall 依赖相关集定义。",
+    "怎么评测：离线 AUC/GAUC 看排序，Recall@K 看召回，再结合线上 AB。"
+  ],
+  "invariant": "GAUC 是 AUC 在\"每用户内\"的加权平均，消除用户量差异。",
+  "walkthrough": "100万样本 AUC=0.78；按用户算 GAUC(曝光加权)=0.71；召回 top500 命中 82% 相关物品。",
+  "edgeCases": [
+    "AUC 高但个性化差：需看 GAUC。",
+    "相关集不全：Recall 低估。",
+    "样本不均：AUC 偏活跃用户。"
+  ],
+  "code": "# Python\ndef gauc(scores_by_user, weights):\n    return sum(w*auc(s) for w,s in scores_by_user.items()) / sum(weights)\ndef recall_at_k(relevant, topk):\n    return len(relevant & set(topk)) / max(1, len(relevant))",
+  "codeNotes": [
+    "GAUC 按曝光加权用户 AUC。",
+    "Recall@K 看召回覆盖。"
+  ],
+  "complexity": "AUC O(n log n) 排序；GAUC 同；Recall O(K+相关集)。",
+  "followUps": [
+    {
+      "question": "为什么有了 AUC 还要 GAUC？",
+      "answer": "AUC 把所有用户混在一起，被活跃用户主导；GAUC 先在每个用户内算 AUC 再按曝光加权，更反映\"对每个人的排序是否准\"，契合个性化。"
+    },
+    {
+      "question": "Recall@K 的 K 怎么定？",
+      "answer": "K 对应召回要传给下游的候选数(如 500)，Recall@K 即相关物品有多少落在这些候选里，衡量召回漏没漏。"
+    }
+  ],
+  "followUpAnswers": [
+    "GAUC 消除用户量偏差。",
+    "Recall@K 看召回覆盖。"
+  ],
+  "pitfalls": [
+    "只报 AUC 忽视个性化(GAUC)。",
+    "相关集定义不清致 Recall 失真。"
+  ],
+  "beginnerSummary": "AUC 像\"总体考试排名能力\"：随机抽一个答对的和一个答错的，模型能否把答对的排前面。但它被学霸(活跃用户)带偏。GAUC 是\"给每个同学单独排名再按工作量加权\"，更公平看对每个人的准。Recall@K 则是\"该推荐的真正好东西，有几成进了你最终看到的 K 个里\"。",
+  "prerequisites": [
+    "推荐关心排序与个性化。",
+    "需覆盖与排序两类指标。",
+    "离线指标需对应用户体验。"
+  ],
+  "workedExample": [
+    "全局 AUC=0.78，GAUC=0.71。",
+    "召回 top500 命中 82% 相关。"
+  ],
+  "lineByLine": [
+    "算随机正负对排序正确率得 AUC。",
+    "按用户分组算各自 AUC。",
+    "曝光加权得 GAUC。",
+    "统计相关项落入 topK 比例得 Recall。"
+  ],
+  "diagram": "样本 ─▶ AUC(全局排序)\n用户分组 ─▶ AUC_u ─▶ 加权 ─▶ GAUC\n相关集 ∩ topK ─▶ Recall@K"
+},
+  {
+  "id": "rec-recall-eval",
+  "category": "搜索推荐",
+  "difficulty": "Medium",
+  "title": "召回评测（命中率 / 覆盖率）",
+  "prompt": "推荐系统的召回评测（命中率 / 覆盖率）是什么？",
+  "quickAnswer": "召回评测看\"相关物品有多少被召回进来\"与\"召回池有多广\"。命中率/Recall@K 衡量不漏相关项；覆盖率看召回能触达多少比例的物品(尤其长尾)，反映多样性与生态健康；还常看召回对精排后指标的传导。二者共同判断召回是否既准又广。",
+  "approach": "用真实互动作正例 → Recall@K 看命中 → 覆盖率看物品触及广度。",
+  "explanationFocus": "是什么：召回评测用命中率衡量\"相关项没漏\"，用覆盖率衡量\"物品池被广泛触达(含长尾)\"，判断召回的准与广。",
+  "bruteForce": "只看精排后 CTR：无法定位召回漏召，且误差被下游掩盖。",
+  "derivation": [
+    "为什么需要：召回决定效果上限，漏召不可补，需单独评。",
+    "怎么实现：以用户真实互动物品为正例，看是否落在召回 topK(命中率)；统计被至少一路召回的物品占全库比(覆盖率)。",
+    "有什么代价：正例仅来自曝光，存在偏差(未曝光的好物不知)；覆盖率需防头部集中。",
+    "怎么评测：Recall@K、覆盖率(整体/长尾)、与最终指标的相关性。"
+  ],
+  "invariant": "召回评测的正例集必须独立于该次召回策略，否则自证循环。",
+  "walkthrough": "10万用户真实点击为正例 → 召回 top500 命中率 0.82；覆盖率 0.35(长尾占 0.18)。",
+  "edgeCases": [
+    "正例仅曝光物：未曝光好物算漏召。",
+    "头部集中：覆盖率虚高。",
+    "多路重叠：有效覆盖被高估。"
+  ],
+  "code": "# Python\ndef recall_eval(positive_by_user, recall_fn, k=500):\n    hits = [len(pos & set(recall_fn(u, k))) / len(pos)\n            for u, pos in positive_by_user.items()]\n    return mean(hits)\ndef coverage(recalled_items, all_items):\n    return len(recalled_items) / len(all_items)",
+  "codeNotes": [
+    "正例用真实互动。",
+    "覆盖率关注长尾。"
+  ],
+  "complexity": "评测 O(用户数·K)；覆盖率 O(物品数)。",
+  "followUps": [
+    {
+      "question": "召回命中率高但覆盖率低说明什么？",
+      "answer": "召回很准但只围着头部门类，长尾与多样物品难触达，生态与多样性受限，易导致信息茧房。"
+    },
+    {
+      "question": "为什么召回评测容易高估？",
+      "answer": "正例多来自已有曝光，未曝光的好物无法判为漏召，且多路重叠让\"有效候选\"被高估，需离线探针/随机曝光补正例。"
+    }
+  ],
+  "followUpAnswers": [
+    "高命中低覆盖=茧房。",
+    "正例偏差致高估。"
+  ],
+  "pitfalls": [
+    "只用曝光正例，漏召被低估。",
+    "只看命中忽视覆盖率。"
+  ],
+  "beginnerSummary": "召回评测答两个问题：\"该推荐的真正好东西，进没进你初选的几百个里\"(命中率)，以及\"你初选范围够不够广、有没有照顾到冷门好物\"(覆盖率)。命中高说明不漏，覆盖高说明不偏食；只命中不覆盖，系统就只围着热门转，越来越窄。",
+  "prerequisites": [
+    "召回决定效果上限。",
+    "需正例独立于召回策略。",
+    "覆盖与命中需兼看。"
+  ],
+  "workedExample": [
+    "真实点击作正例，top500 命中 0.82。",
+    "覆盖率 0.35，长尾占 0.18。"
+  ],
+  "lineByLine": [
+    "收集用户真实互动为正例。",
+    "看是否落入召回 topK。",
+    "统计命中率。",
+    "统计物品覆盖广度。"
+  ],
+  "diagram": "正例(真实互动) ∩ 召回topK ─▶ 命中率\n召回物品集 / 全库 ─▶ 覆盖率"
+},
+  {
+  "id": "rec-bias",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "推荐系统中的偏差（Position / Selection Bias）",
+  "prompt": "推荐系统中的偏差（position bias / selection bias）是什么？",
+  "quickAnswer": "Position bias 指用户更可能点靠前位置的项，与相关性无关，使靠前的样本被高估；Selection bias 指训练只用\"被曝光\"的样本，未曝光的好物无标签，模型只学到\"已展示分布\"。二者让离线训练与线上真实分布错位，需用逆倾向加权(IPS)、位置消偏或随机曝光纠偏。",
+  "approach": "识别偏差 → IPS/位置特征消偏 或 随机曝光收集无偏数据 → 再训练。",
+  "explanationFocus": "是什么：position bias 是位置带来的点击偏好，selection bias 是\"只看曝光样本\"导致的分布偏差，二者使模型学偏，需显式纠偏。",
+  "bruteForce": "直接用曝光点击训、把位置当特征喂：位置效应混入相关性，线上重排后失效。",
+  "derivation": [
+    "为什么需要：训练数据由旧模型产生，自带位置与选择偏差，直接学等于拟合偏差。",
+    "怎么实现：训练加入位置特征(预测时置中性位)消 position bias；用 IPS 按曝光概率加权纠 selection bias；或做小流量随机曝光收集无偏数据。",
+    "有什么代价：IPS 方差大、需准确 propensity；随机曝光伤短期指标；纠偏过度降相关。",
+    "怎么评测：看位置无关后的 AUC、随机曝光集上的表现、线上纠偏 AB。"
+  ],
+  "invariant": "纠偏后模型在\"给定相关性\"下对位置应不敏感(位置无关性)。",
+  "walkthrough": "训练时把展示位置作为特征、 serving 时固定为中性位 → CTR 预测剥离位置效应；另用 1% 随机曝光估 propensity 做 IPS。",
+  "edgeCases": [
+    "IPS propensity 估计错：方差爆炸。",
+    "随机曝光比例：太小无效太大伤收入。",
+    "位置特征泄露：线上需置中性。"
+  ],
+  "code": "# Python\ndef train_with_debias(feat, pos, y, model):\n    feat = concat(feat, onehot(pos))        # 位置作特征\n    model.fit(feat, y)\ndef serve(model, feat):\n    return model(concat(feat, NEUTRAL_POS)) # 预测时中性位",
+  "codeNotes": [
+    "位置特征 training-aware。",
+    "IPS 按曝光概率加权。"
+  ],
+  "complexity": "训练 O(样本·模型)；IPS 需估 propensity，推理不变。",
+  "followUps": [
+    {
+      "question": "位置特征法和 IPS 法纠 position bias 区别？",
+      "answer": "位置特征法在训练加入位置、预测时置中性位，简单实用；IPS 用 1/曝光概率 对样本加权，理论无偏但方差大、依赖 propensity 估计。"
+    },
+    {
+      "question": "selection bias 为什么难解？",
+      "answer": "未曝光 item 永远无 label，模型只见旧策略选出的分布；只能靠探索/随机曝光或 IPS 反推无偏，成本高且易引入方差。"
+    }
+  ],
+  "followUpAnswers": [
+    "位置特征法更实用。",
+    "selection 需随机曝光。"
+  ],
+  "pitfalls": [
+    "把位置当普通特征却线上不中性。",
+    "忽略 selection bias 只纠位置。"
+  ],
+  "beginnerSummary": "position bias：同样一个视频，放第 1 位比第 10 位天然多点，不代表它更好看——就像货架黄金位置的东西总先被拿。selection bias：你只知道\"被摆出来的商品\"卖得如何，从没摆出来的好货你根本没数据，模型只会越来越像旧货架。纠偏就是要么\"告诉模型这是位置效应别算进质量\"，要么\"随机摆几次\"收集公平数据。",
+  "prerequisites": [
+    "训练数据由旧策略产生。",
+    "位置影响点击独立于相关。",
+    "曝光样本非随机。"
+  ],
+  "workedExample": [
+    "训练加位置特征，预测置中性位。",
+    "1% 随机曝光估 propensity 做 IPS。"
+  ],
+  "lineByLine": [
+    "识别位置/选择偏差。",
+    "训练加入位置特征。",
+    "线上预测用中性位。",
+    "IPS/随机曝光补无偏。"
+  ],
+  "diagram": "曝光样本(带位置,有偏)\n   │ 加位置特征 / IPS\n   ▼ 去偏训练\n 模型(位置无关) ─▶ 线上"
+},
+  {
+  "id": "rec-feature-store",
+  "category": "搜索推荐",
+  "difficulty": "Hard",
+  "title": "工程：特征存储 / 在线推理架构",
+  "prompt": "推荐系统的特征存储与在线推理架构是什么？",
+  "quickAnswer": "工程侧：特征存储(Feature Store)统一管理离线/实时特征，保证线上线下同源、低延迟读取(如 Redis/Tair)；在线推理架构是召回→粗排→精排→重排的多级服务，各自独立扩缩容，配 ANN 索引服务、模型服务与降级。核心是低延迟、高可用与特征一致性。",
+  "approach": "特征平台统一生产 → 在线存储低延迟读 → 多级推理服务(各模型独立部署) → 降级保可用。",
+  "explanationFocus": "是什么：特征存储统一线上线下特征口径并低延迟供给；在线推理把召回/粗排/精排/重排拆成可独立扩缩的服务，配索引与降级，保障低延迟高可用。",
+  "bruteForce": "特征在请求时现算、模型单体重排一把梭：延迟高、耦合强、易雪崩。",
+  "derivation": [
+    "为什么需要：线上毫秒级要拿到成百特征并跑多级模型，须解耦与缓存。",
+    "怎么实现：离线/实时特征写入 Feature Store，线上从 KV 读；召回(索引服务)+粗排+精排(模型服务)+重排独立部署，网关编排；超时降级。",
+    "有什么代价：多系统一致性难；特征存储成本高；链路长任一级抖动放大。",
+    "怎么评测：看 P99 延迟、可用性、特征一致性、各服务容量与降级效果。"
+  ],
+  "invariant": "线上读取的特征必须与训练同源同口径，且读取延迟在预算内。",
+  "walkthrough": "请求到网关→并行读用户特征(Redis 2ms)+物品特征→召回索引服务(5ms)→粗排→精排→重排，全链路 P99<80ms。",
+  "edgeCases": [
+    "特征存储超时：降级到旧特征/默认值。",
+    "索引服务抖动：召回降级到热门。",
+    "模型服务过载：限流保核心。"
+  ],
+  "code": "# Python (网关思路)\ndef serve(req, feat_store, recall_svc, rank_svc):\n    user_f = feat_store.get(f'u:{req.user}')      # 低延迟读\n    item_f = feat_store.mget([f'i:{i}' for i in req.items])\n    cands = recall_svc(user_f)                     # 召回服务\n    return rank_svc(user_f, item_f, cands)         # 精排服务",
+  "codeNotes": [
+    "特征走 KV 低延迟读。",
+    "各级服务独立扩缩容。"
+  ],
+  "complexity": "读取 O(特征数)；链路延迟=各服务之和，靠并行与降级控 P99。",
+  "followUps": [
+    {
+      "question": "Feature Store 解决什么核心问题？",
+      "answer": "线上线下特征\"定义与计算\"统一，避免训练/serving 口径不一致(否则指标掉难查)，并集中提供低延迟在线读取与离线回填。"
+    },
+    {
+      "question": "为什么多级推理要拆成独立服务？",
+      "answer": "各阶段算力与延迟特征不同，独立部署可分别扩缩容与隔离故障；一级抖动不影响其他级，配合降级保整体可用。"
+    }
+  ],
+  "followUpAnswers": [
+    "Feature Store 防口径漂移。",
+    "分级服务易扩缩容。"
+  ],
+  "pitfalls": [
+    "请求时现算特征拖垮延迟。",
+    "无降级，单级抖动致全链路雪崩。"
+  ],
+  "beginnerSummary": "特征是\"资料卡\"，得随时秒取——Feature Store 像个中央档案室，线上线下都从同一套表格取，保证不脱节，且放在高速缓存(Redis)里毫秒可取。推理架构把\"初筛/粗筛/精筛/排版\"拆成几个独立柜台，各管各的、谁忙加谁的人手；某个柜台卡了还有备用方案(降级)，不让整家店关门。",
+  "prerequisites": [
+    "线上需毫秒级取大量特征。",
+    "多级模型算力特征不同。",
+    "需高可用与一致性。"
+  ],
+  "workedExample": [
+    "网关并行读用户/物品特征<5ms。",
+    "召回→粗排→精排→重排全链路 P99<80ms。"
+  ],
+  "lineByLine": [
+    "请求到网关。",
+    "并行低延迟读特征。",
+    "调各级推理服务。",
+    "编排结果与降级。"
+  ],
+  "diagram": "请求 → 网关\n  ├─特征存储(Redis)\n  ├─召回(索引) → 粗排 → 精排 → 重排\n  └─降级通道"
+},
+  {
+  "id": "agent-what-is-agent",
+  "category": "Agent Workflow",
+  "difficulty": "Easy",
+  "title": "什么是 Agent / Agent Workflow",
+  "prompt": "什么是 Agent / Agent Workflow，它和常规的机器学习 pipeline 有什么区别？",
+  "quickAnswer": "Agent 是以 LLM 为\"大脑\"、能自主感知环境、调用工具并采取行动来完成目标的系统；Agent Workflow 则是把\"规划→行动→观察→反思\"串成可循环的流程。与常规 pipeline（数据→模型→固定输出，无自主决策）相比，Agent 强调运行中动态决策、使用外部工具、并根据反馈迭代。",
+  "approach": "目标拆解→模型决策→工具执行→观察反馈→循环直至完成。",
+  "explanationFocus": "是什么：Agent 是以 LLM 为决策核心、能调用工具并与环境交互来自主达成目标的系统；Agent Workflow 是把感知-决策-行动-反馈组织成循环流程的方法。",
+  "bruteForce": "固定 pipeline：数据进模型、模型出结果，链路写死，遇到意外输入即失败，无法借助外部信息。",
+  "derivation": [
+    "为什么需要：真实任务跨系统、需实时信息、需多步与纠错，单步模型产出无法胜任。",
+    "怎么实现：以 LLM 作控制器，维护目标/历史/记忆状态，每轮决定\"思考/调工具/返回\"，把结果回灌再进入下一轮。",
+    "有什么代价：延迟与 token 成本高、易出错，需工程化控制循环与失败恢复。",
+    "怎么评测：看任务完成率、平均步数、成本与可恢复性。"
+  ],
+  "invariant": "每一步决策都基于当前真实状态（目标+观察+记忆），而非凭空生成。",
+  "walkthrough": "订机票：1) 规划\"查价→比价→下单\" 2) 调 search 工具 3) 观察结果 4) 再决策。共 3 类子任务、约 5 次工具调用。",
+  "edgeCases": [
+    "需用户确认时应在 human-in-the-loop 处暂停而非擅自动作。",
+    "工具不可用时需降级或换工具，不能死等。",
+    "目标含糊时需先澄清再执行。"
+  ],
+  "code": "def run_agent(goal, tools, max_steps=10):\n    state = {\"goal\": goal, \"history\": []}\n    for step in range(max_steps):\n        action = llm_decide(state, tools)      # 基于真实状态决策\n        if action is None:\n            return finalize(state)\n        obs = execute(tools, action)           # 与环境交互\n        state[\"history\"].append((action, obs)) # 回灌状态\n    return None",
+  "codeNotes": [
+    "状态回灌是 Agent 与 pipeline 的本质区别。",
+    "决策必须读取 history，避免重复动作。"
+  ],
+  "complexity": "随步数×工具调用线性增长；受上下文窗口约束。",
+  "followUps": [
+    {
+      "question": "Agent 一定需要 LLM 吗？",
+      "answer": "核心是\"自主决策+环境交互\"，LLM 是当前最通用的控制器，但规则/RL 控制器也算 Agent 的范畴。"
+    },
+    {
+      "question": "Workflow 和 Agent 是一回事吗？",
+      "answer": "Workflow 偏固定编排（图/状态机），Agent 偏运行时自主决策；现代系统常混合两者。"
+    }
+  ],
+  "followUpAnswers": [
+    "控制器可以是 LLM 也可是规则。",
+    "Workflow 固定，Agent 自主，二者常结合。"
+  ],
+  "pitfalls": [
+    "把写死的固定 pipeline 当成 Agent。",
+    "不回灌状态导致模型\"失忆\"式重复或空想。"
+  ],
+  "beginnerSummary": "Agent 像一个会自己想办法的小助手：你给个目标，它自己拆步骤、遇到不懂的去查工具、看到结果再决定下一步，而不是按一条写死的流水线机械执行。",
+  "prerequisites": [
+    "LLM 可作决策控制器。",
+    "有可调用的外部工具/API。",
+    "需要维护运行时的状态。"
+  ],
+  "workedExample": [
+    "查机票需要多步工具调用与比价决策。",
+    "目标模糊时先向用户澄清再执行。"
+  ],
+  "lineByLine": [
+    "初始化目标与空历史状态。",
+    "每轮让 LLM 基于状态决策下一步动作。",
+    "执行动作并把观察写入历史。",
+    "无动作时收尾返回，超步数则截断。"
+  ],
+  "diagram": "Goal -> Decide -> Act -> Observe -> Decide -> ... -> Done\n(状态在每轮被回灌)"
+},
+  {
+  "id": "agent-react",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "ReAct 范式",
+  "prompt": "Agent 里的 ReAct 范式是什么？",
+  "quickAnswer": "ReAct(Reason+Act)让 LLM 交替进行\"思考(Thought)\"与\"行动(Action)\"：模型先推理下一步该做什么，再决定调用哪个工具/API，观察返回结果后继续推理，直到得出最终答案。它把链式推理与外部工具执行交错，使 Agent 能基于真实反馈而非凭空猜测来推进任务。",
+  "approach": "推理→决策工具→观察结果→再推理，循环至完成。",
+  "explanationFocus": "是什么：ReAct 让 LLM 在\"思考\"与\"调用工具行动\"之间交替，基于观察结果迭代推进任务。",
+  "bruteForce": "纯 CoT 无工具：模型凭记忆作答，易出错且无实时信息。",
+  "derivation": [
+    "为什么需要：复杂任务需外部信息/计算，单纯生成答案会幻觉；需把推理与真实环境反馈结合。",
+    "怎么实现：prompt 要求模型输出 Thought/Action/Observation 三段；解析 Action 调用工具，把结果作为 Observation 拼回上下文，再进入下一轮。",
+    "有什么代价：多轮调用增加延迟与 token 成本；工具失败/解析错误会打断循环；需控制最大步数防死循环。",
+    "怎么评测：看任务成功率、平均步数、token 成本，以及错误时能否自我纠正。"
+  ],
+  "invariant": "每轮都基于上一轮的 Observation 决策，避免脱离环境的空想。",
+  "walkthrough": "查天气：Thought\"需查北京天气\"→Action[get_weather(北京)]→Observation\"晴 25°\"→Thought\"可作答\"→Final。共 1 次工具调用。",
+  "edgeCases": [
+    "工具返回错误/超时：需重试或换工具。",
+    "模型输出格式不合法：需解析容错。",
+    "无限循环：设最大步数截断。"
+  ],
+  "code": "def react_loop(llm, tools, question, max_steps=8):\n    trace = f\"Question: {question}\\n\"\n    for step in range(max_steps):\n        out = llm(trace + \"Thought/Action:\")\n        action = parse_action(out)\n        if action is None:                      # 无工具=>最终答案\n            return parse_answer(out)\n        obs = call_tool(tools, action)          # 真实环境反馈\n        trace += out + f\"\\nObservation: {obs}\\n\"\n    return \"max steps exceeded\"",
+  "codeNotes": [
+    "Observation 必须真实回灌上下文。",
+    "解析 Action 需容错。"
+  ],
+  "complexity": "步数×单步延迟；成本随调用次数线性增长。",
+  "followUps": [
+    {
+      "question": "ReAct 和纯 CoT 区别？",
+      "answer": "CoT 只在脑内推理不行动；ReAct 把推理与工具调用交错，能用真实观察纠正推理，减少幻觉。"
+    },
+    {
+      "question": "怎么防止死循环？",
+      "answer": "设最大步数上限、检测重复 Action、以及\"无新信息则终止\"的启发式。"
+    }
+  ],
+  "followUpAnswers": [
+    "Observation 回灌是关键。",
+    "步数上限防失控。"
+  ],
+  "pitfalls": [
+    "让模型脱离 Observation 空想（退化为 CoT）。",
+    "无步数上限导致无限循环烧 token。"
+  ],
+  "beginnerSummary": "ReAct 像边查资料边做题：先想\"这一步该查什么\"(Thought)，去翻书查一下(Action)，看到结果(Observation)再想下一步，而不是直接凭记忆乱猜。查到的真实信息让答案更靠谱。",
+  "prerequisites": [
+    "LLM 能输出结构化推理。",
+    "有可调用的工具/API。",
+    "需把工具结果回灌上下文。"
+  ],
+  "workedExample": [
+    "查天气：1 次 Action 调用 get_weather 得 Observation。",
+    "超 8 步未结束则截断返回。"
+  ],
+  "lineByLine": [
+    "把问题写入轨迹。",
+    "让模型输出 Thought/Action。",
+    "解析并调用工具得 Observation。",
+    "回灌后再循环，无 Action 则终止。"
+  ],
+  "diagram": "Thought -> Action -> Observation -> Thought -> ... -> Answer\n(推理与真实反馈交错)"
+},
+  {
+  "id": "agent-tool-calling",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "Tool / Function Calling 原理",
+  "prompt": "Agent 里的 Tool / Function Calling 是怎么实现的？",
+  "quickAnswer": "Function Calling 由模型厂商在训练时学会\"按 JSON Schema 生成结构化调用请求\"；运行时先把工具清单(名称/描述/参数 schema)放进 system prompt，模型输出含函数名与参数的 tool_call，应用层负责校验参数、真正执行并把结果回传。它把\"自然语言意图\"映射为\"可执行的 API 调用\"。",
+  "approach": "声明工具 schema→模型选工具并填参→应用校验执行→结果回传模型。",
+  "explanationFocus": "是什么：Function Calling 是让 LLM 按给定 JSON Schema 输出\"调用哪个函数+参数\"的结构化请求，由外部执行后再把结果喂回模型的机制。",
+  "bruteForce": "用正则从自由文本里抠\"调用意图\"，脆弱且易错，参数难以约束。",
+  "derivation": [
+    "为什么需要：模型本身不能执行代码/查数据库/发请求，需把意图转成可靠的结构化动作。",
+    "怎么实现：在请求里带 tools 数组(每个含 name/description/parameters JSON Schema)；模型返回 tool_calls；本地用 pydantic/校验器检查参数后执行。",
+    "有什么代价：schema 设计影响命中率；多工具选择易出错；参数校验与执行权限需管控。",
+    "怎么评测：看工具选择准确率、参数填充正确率、端到端任务成功率。"
+  ],
+  "invariant": "模型只决定\"调什么+填什么\"，真正执行永远在沙箱/受控环境完成。",
+  "walkthrough": "查汇率：模型见 tools=[get_rate]→输出 tool_call{get_rate,{\"from\":\"USD\",\"to\":\"CNY\"}}→应用调用 API 得 7.2→作为 observation 回传。共 1 次调用、2 个参数。",
+  "edgeCases": [
+    "参数类型/范围非法：需 schema 校验与纠正。",
+    "多个工具语义相近：需清晰描述区分。",
+    "工具执行异常：需捕获并以 observation 形式回传错误。"
+  ],
+  "code": "def call_tool(model_out, registry):\n    for tc in model_out.tool_calls:\n        fn = registry.get(tc.name)             # 受控查找\n        args = schema_validate(fn.schema, tc.args)\n        if args is None:\n            yield f\"error: bad args for {tc.name}\"\n            continue\n        yield fn(**args)                        # 真正执行",
+  "codeNotes": [
+    "注册表白名单防止任意代码执行。",
+    "参数先校验再执行，避免注入。"
+  ],
+  "complexity": "每次工具调用 = 1 次模型往返 + 1 次外部执行；与工具数量近似对数相关（选择难度）。",
+  "followUps": [
+    {
+      "question": "Function Calling 和 RAG 关系？",
+      "answer": "RAG 常作为其中一个 tool（检索工具）被调用；Calling 是通用动作机制，RAG 是具体能力。"
+    },
+    {
+      "question": "如何防工具被滥用？",
+      "answer": "用白名单注册表、参数 schema 校验、最小权限与执行沙箱，敏感动作加 human-in-the-loop。"
+    }
+  ],
+  "followUpAnswers": [
+    "RAG 可包装成一个 tool。",
+    "白名单+沙箱+权限管控。"
+  ],
+  "pitfalls": [
+    "让模型直接执行任意代码而非经注册表。",
+    "工具描述不清导致选错工具或参数错误。"
+  ],
+  "beginnerSummary": "Function Calling 像服务员点单：你(模型)看菜单(工具清单)决定点哪道菜、要什么口味(参数)，后厨(应用)按单做菜并把菜(结果)端回来，你再决定下一步。",
+  "prerequisites": [
+    "工具需有清晰的 JSON Schema 描述。",
+    "应用层能安全执行函数。",
+    "需把执行结果回传给模型。"
+  ],
+  "workedExample": [
+    "模型输出 tool_call 而非自然语言。",
+    "参数先用 schema 校验再执行。"
+  ],
+  "lineByLine": [
+    "把工具清单交给模型。",
+    "模型返回 tool_calls(名称+参数)。",
+    "按注册表查函数并校验参数。",
+    "执行并把结果回传模型。"
+  ],
+  "diagram": "Model <-> tools[schema] -> app executes -> Observation -> Model"
+},
+  {
+  "id": "agent-planning",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "规划（planning）与任务分解",
+  "prompt": "Agent 的规划（planning）与任务分解是怎么做的？",
+  "quickAnswer": "规划是把高层目标拆成有序、可执行的子任务，并在执行中按需调整。常见做法：让 LLM 一次性生成步骤清单(plan-then-act)，或每步动态重规划；复杂任务可用层级分解（子目标递归拆分）。关键点在于可验证的子目标边界与失败时的回滚/改路。",
+  "approach": "生成计划→逐步执行→观察偏差→重规划或回退。",
+  "explanationFocus": "是什么：规划是 Agent 把抽象目标分解为有依赖关系的子任务序列，并在执行中根据观察动态调整的过程。",
+  "bruteForce": "无计划直接开干：遇到长任务易中途迷失、漏步骤、无法回溯。",
+  "derivation": [
+    "为什么需要：长任务跨度大、需依赖管理，单步贪心易走入歧路。",
+    "怎么实现：用 LLM 产出带依赖的步骤图；执行每步后评估进度，偏差超阈值则重规划；也可用监督式 planner 或搜索。",
+    "有什么代价：规划本身消耗 token；计划过细则僵化、过粗则无效；需检测\"计划已完成/卡死\"。",
+    "怎么评测：看计划质量、任务完成率、重规划频率与最终步数。"
+  ],
+  "invariant": "已完成的子目标状态必须被记录，后续步骤依赖它而非重新猜测。",
+  "walkthrough": "写调研报告：1)列提纲 2)检索各节资料 3)撰写 4)汇总。执行第 2 步发现缺数据→重规划\"先补数据再写\"。共 4 步、1 次重规划。",
+  "edgeCases": [
+    "子任务间循环依赖：需检测并告警。",
+    "某步反复失败：需换策略或标记阻塞。",
+    "目标在中途变化：需部分丢弃旧计划。"
+  ],
+  "code": "def plan_and_execute(llm, goal, tools):\n    plan = llm_make_plan(goal)                 # 有序子任务\n    done = []\n    while not plan.empty():\n        step = plan.next()\n        ok, obs = execute_step(step, tools)\n        done.append(step)\n        if not ok:\n            plan = llm_replan(goal, done, obs)  # 动态重规划\n    return summarize(done)",
+  "codeNotes": [
+    "重规划要带上已完成步骤，避免重复。",
+    "计划应可序列化以便恢复。"
+  ],
+  "complexity": "规划开销 ≈ 任务复杂度；重规划每次追加一次模型调用。",
+  "followUps": [
+    {
+      "question": "plan-then-act 与 ReAct 区别？",
+      "answer": "前者先定全局计划再执行，后者边走边想；可结合：用计划提供骨架、用 ReAct 填细节。"
+    },
+    {
+      "question": "计划太细怎么办？",
+      "answer": "采用层级规划，只展开当前子目标，避免过度约束导致僵化。"
+    }
+  ],
+  "followUpAnswers": [
+    "计划给骨架，ReAct 填细节。",
+    "层级展开，避免过细。"
+  ],
+  "pitfalls": [
+    "计划写死不参与反馈，遇偏差即失败。",
+    "不记录已完成步骤导致重复劳动。"
+  ],
+  "beginnerSummary": "规划像做菜前先列步骤：洗菜→切菜→下锅→装盘；做到一半发现没盐，就临时改计划\"先去买盐\"。把大目标拆小并随时调整，才不会手忙脚乱。",
+  "prerequisites": [
+    "LLM 能产出结构化步骤。",
+    "能执行并观察每步结果。",
+    "需机制记录进度与重规划。"
+  ],
+  "workedExample": [
+    "把\"写报告\"拆成 4 个子任务。",
+    "某步失败触发一次重规划。"
+  ],
+  "lineByLine": [
+    "用 LLM 生成有序计划。",
+    "逐条执行子任务。",
+    "记录已完成步骤与观察。",
+    "失败则带上下文重规划。"
+  ],
+  "diagram": "Goal -> [Plan] -> step1 -> step2 -> (replan?) -> ... -> Done"
+},
+  {
+  "id": "agent-memory",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "记忆（memory）机制",
+  "prompt": "Agent 的短期记忆与长期记忆分别指什么，怎么实现？",
+  "quickAnswer": "短期记忆是单轮/近期交互的上下文（对话历史、当前轨迹），直接放 context window；长期记忆跨会话保存事实/经验，通常外挂向量库或键值存储，用时检索回灌。短期受窗口限制需压缩，长期靠写入-检索闭环沉淀知识。",
+  "approach": "短期=上下文窗口；长期=外部存储+检索回灌。",
+  "explanationFocus": "是什么：记忆让 Agent 跨步骤/跨会话保留信息；短期记忆是当前上下文，长期记忆是持久化的外部知识库。",
+  "bruteForce": "把所有历史全塞进 prompt：很快超出窗口且噪声大、成本高。",
+  "derivation": [
+    "为什么需要：任务跨多轮甚至多天，模型自身无持久状态，需显式记忆。",
+    "怎么实现：短期用滚动窗口/摘要压缩；长期把重要事实写入向量库(embedding)或结构化 DB，需要时语义检索 top-k 拼回 prompt。",
+    "有什么代价：检索可能不相关(噪声)、写入需去重/冲突解决、存储与向量检索有延迟与成本。",
+    "怎么评测：看记忆命中率、任务一致性、以及遗忘/串扰(false context)率。"
+  ],
+  "invariant": "写入长期记忆的内容需带时间戳与来源，检索时按相关性+新鲜度排序。",
+  "walkthrough": "客服 Agent：本次对话(短期)放窗口；用户偏好\"不用短信通知\"写入长期库；下次会话检索到该偏好并遵守。共 1 次写入、1 次检索。",
+  "edgeCases": [
+    "冲突记忆：新旧信息矛盾需策略裁决。",
+    "检索到无关记忆造成干扰。",
+    "敏感信息入长期库需脱敏与权限。"
+  ],
+  "code": "def recall(mem_store, query, k=5):\n    vec = embed(query)\n    hits = mem_store.search(vec, k)            # 语义检索\n    return rank_by_freshness(hits)\n\ndef remember(mem_store, fact, ts):\n    mem_store.upsert(embed(fact), {\"text\": fact, \"ts\": ts})",
+  "codeNotes": [
+    "检索结果需去噪后再回灌。",
+    "写入带时间戳便于冲突裁决。"
+  ],
+  "complexity": "检索 O(log n) 级；长期记忆随数据量增长，受 embedding 与存储成本约束。",
+  "followUps": [
+    {
+      "question": "短期记忆满了怎么办？",
+      "answer": "滚动截断或用 LLM 摘要压缩旧内容，保留关键事实与最近交互。"
+    },
+    {
+      "question": "长期记忆怎么防串扰？",
+      "answer": "检索结果按相关性阈值过滤，并标注来源让用户可核查，避免错误记忆污染决策。"
+    }
+  ],
+  "followUpAnswers": [
+    "摘要压缩保关键。",
+    "相关性过滤+来源标注。"
+  ],
+  "pitfalls": [
+    "把全部历史无差别塞进窗口。",
+    "长期记忆不冲突裁决导致矛盾决策。"
+  ],
+  "beginnerSummary": "记忆像人的笔记本：短期是眼前这张便签(当前对话)，长期是归档的文件柜(跨天知识)。需要时用关键词去柜子里翻出相关那页，贴回便签上参考。",
+  "prerequisites": [
+    "有向量/键值存储可用。",
+    "能生成与检索 embedding。",
+    "需区分会话内与会话间状态。"
+  ],
+  "workedExample": [
+    "用户偏好写入长期库供下次用。",
+    "窗口溢出时用摘要压缩。"
+  ],
+  "lineByLine": [
+    "短期记忆维护在上下文窗口。",
+    "重要事实写入外部长期存储。",
+    "需要时语义检索相关记忆。",
+    "按新鲜度排序后回灌决策。"
+  ],
+  "diagram": "Context(window) <--> summarize\nLongTerm(DB) <--> embed/search"
+},
+  {
+  "id": "agent-reflection",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "反思（reflection）/ self-critique",
+  "prompt": "Agent 的反思（reflection）/ self-critique 机制是什么？",
+  "quickAnswer": "反思让 Agent 在产出后\"以评论者视角\"检查自己的答案/计划，发现错误、偏差或遗漏，再迭代修正。常用两角色(生成者 vs 批评者)或让同一模型自我打分；它把\"一次性输出\"升级为\"生成-批评-改进\"的闭环，显著提升复杂任务质量。",
+  "approach": "生成答案→自我/他者批评→指出问题→修订→再评估。",
+  "explanationFocus": "是什么：反思是 Agent 在行动/回答后主动评估质量与正确性，并据此改进的自我修正机制。",
+  "bruteForce": "只生成一次就交付：错误无法被发现，尤其多步推理易累积小错。",
+  "derivation": [
+    "为什么需要：模型首稿常含逻辑漏洞、事实错误或偏离目标，需二次校验。",
+    "怎么实现：把\"原答案+任务要求\"交给批评提示(或独立 critic 模型)产出反馈，再把反馈拼回让模型修订；可多轮直至通过或达上限。",
+    "有什么代价：多一轮即多一次模型调用；critic 也可能误判；需停止条件防无限改。",
+    "怎么评测：看修订前后质量提升、收敛步数、是否引入新错。"
+  ],
+  "invariant": "每轮修订必须显式对照\"批评意见\"，不能凭空重写。",
+  "walkthrough": "写代码：v1 生成→critic 指出\"未处理空输入\"→v2 补边界→critic 通过。共 2 轮修订、1 条关键反馈。",
+  "edgeCases": [
+    "critic 与生成者同模型易互相包庇。",
+    "过度反思导致改坏原好答案。",
+    "无停止条件陷入改不完。"
+  ],
+  "code": "def reflect(llm, task, draft, rounds=3):\n    cur = draft\n    for i in range(rounds):\n        feedback = llm(f\"Critique:\\n{task}\\n{cur}\")  # 批评者视角\n        if feedback.is_pass():\n            break\n        cur = llm(f\"Revise per feedback:\\n{feedback}\\n{cur}\")\n    return cur",
+  "codeNotes": [
+    "critic 与 actor 可用不同模型降偏。",
+    "需明确的通过/停止信号。"
+  ],
+  "complexity": "成本 = 生成轮数×(生成+批评)调用；通常 2-4 轮收敛。",
+  "followUps": [
+    {
+      "question": "反思和 ReAct 区别？",
+      "answer": "ReAct 在行动循环中纠偏，反思在产出后做质量评审；可叠加：ReAct 推进、反思把关。"
+    },
+    {
+      "question": "怎么避免越改越差？",
+      "answer": "保留 best-so-far、用客观校验(测试/评分)决定留哪个版本，而非盲信 critic。"
+    }
+  ],
+  "followUpAnswers": [
+    "ReAct 推进，反思把关。",
+    "保留最优+客观校验。"
+  ],
+  "pitfalls": [
+    "没有停止条件导致无限反思烧 token。",
+    "critic 与 actor 同源缺乏独立判断。"
+  ],
+  "beginnerSummary": "反思像写完后自己当校对：先写一版，再假装是老师挑毛病(\"这里漏了空值处理\")，然后照着改，直到挑不出错。比一次写完就交更可靠。",
+  "prerequisites": [
+    "模型能扮演批评者角色。",
+    "有可量化的质量判据。",
+    "需明确的停止条件。"
+  ],
+  "workedExample": [
+    "代码 v1 被指出缺空值处理。",
+    "v2 修订后 critic 通过。"
+  ],
+  "lineByLine": [
+    "生成初稿。",
+    "用批评提示产出反馈。",
+    "对照反馈修订。",
+    "循环至通过或达上限。"
+  ],
+  "diagram": "Draft -> Critique -> Revise -> Critique -> ... -> Pass"
+},
+  {
+  "id": "agent-multi-agent",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "多 Agent 协作（角色分工）",
+  "prompt": "多 Agent 协作（角色分工）是怎么工作的？",
+  "quickAnswer": "多 Agent 把复杂任务分给专长不同的角色(如规划者/执行者/审查者)，通过共享黑板或消息总线通信，各自维护子目标并交接产物。它用\"分工+协作\"替代单体 Agent 的万能推理，适合跨领域、需多重把关的任务；核心是清晰的接口协议与冲突仲裁。",
+  "approach": "角色定义→任务分派→并行/串行协作→汇总仲裁。",
+  "explanationFocus": "是什么：多 Agent 协作是多个专长化 Agent 通过约定协议分工、通信、交接产物以共同完成任务的架构。",
+  "bruteForce": "单 Agent 包揽全部：上下文混杂、易顾此失彼、难并行。",
+  "derivation": [
+    "为什么需要：任务跨多领域、需并行与多重校验，单体难兼顾深度与广度。",
+    "怎么实现：定义角色 prompt 与接口(输入输出 schema)；用 orchestrator 或黑板模式分发；产物经 critic/merger 仲裁合并。",
+    "有什么代价：通信开销大、角色间易冲突/重复、调试困难、成本倍增。",
+    "怎么评测：看整体完成率、角色利用率、通信轮数与冲突率。"
+  ],
+  "invariant": "任一 Agent 的输出必须带角色标识与版本，便于下游追溯与仲裁。",
+  "walkthrough": "做产品：Planner 拆任务→Researcher 检索、Writer 起草、Reviewer 审→Merger 汇总。共 3 个工人 Agent、1 个协调者、2 轮交接。",
+  "edgeCases": [
+    "两 Agent 结论冲突：需仲裁者裁决。",
+    "某角色卡死：需超时与替补。",
+    "消息环路：需防重复广播。"
+  ],
+  "code": "def multi_agent(roles, task):\n    bus = Blackboard()\n    bus.post(\"task\", task)\n    for role in roles:\n        msg = bus.subscribe(role.in_topics)\n        out = role.act(msg)                    # 角色专长出力\n        bus.post(role.name, out)               # 交接产物\n    return arbitrate(bus)",
+  "codeNotes": [
+    "黑板模式降低耦合。",
+    "仲裁逻辑要可解释。"
+  ],
+  "complexity": "≈ 角色数×单角色开销 + 通信轮数；并行可降本但增协调复杂度。",
+  "followUps": [
+    {
+      "question": "何时该用多 Agent 而非单 Agent？",
+      "answer": "任务跨领域、需并行或强把关(如生成+审查分离)时收益明显；简单任务反而增开销。"
+    },
+    {
+      "question": "多 Agent 最大风险？",
+      "answer": "通信混乱与责任不清，需严格接口协议与可观测的仲裁日志。"
+    }
+  ],
+  "followUpAnswers": [
+    "跨领域/需把关才上多 Agent。",
+    "接口协议+可观测仲裁。"
+  ],
+  "pitfalls": [
+    "角色职责重叠导致重复劳动。",
+    "无仲裁机制致结论互相矛盾。"
+  ],
+  "beginnerSummary": "多 Agent 像项目组：有人负责查资料、有人写、有人审稿，大家把成果放到公共白板上互相接力，最后由组长整合。比一个人又查又写又审更专业。",
+  "prerequisites": [
+    "能定义清晰角色与接口。",
+    "有通信/黑板机制。",
+    "需仲裁与冲突解决。"
+  ],
+  "workedExample": [
+    "Planner/Researcher/Writer/Reviewer 分工。",
+    "Merger 汇总多角色产物。"
+  ],
+  "lineByLine": [
+    "在黑板上发布总任务。",
+    "各角色订阅相关主题并行动。",
+    "把产物回贴黑板交接。",
+    "仲裁者汇总成最终产出。"
+  ],
+  "diagram": "Planner -> Researcher\nPlanner -> Writer -> Reviewer -> Merger"
+},
+  {
+  "id": "agent-orchestration",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "Agent 编排框架（LangChain / LlamaIndex 等）",
+  "prompt": "LangChain / LlamaIndex 这类 Agent 编排框架解决了什么问题？",
+  "quickAnswer": "编排框架把\"模型调用、工具、记忆、检索、链路\"封装成可组合的原语，让开发者用声明式图/链拼装 Agent，而不必手写所有胶水代码。它们提供统一抽象(LLM/Retriever/Tool/VectorStore)、内置常见模式(ReAct、RAG)与可观测钩子，降低工程门槛也便于维护。",
+  "approach": "选抽象原语→声明式拼装链路→接工具/记忆→运行与观测。",
+  "explanationFocus": "是什么：编排框架是提供 LLM、工具、记忆、检索等可组合抽象与常见 Agent 模式的工程库，用来快速搭建与维护 Agent 系统。",
+  "bruteForce": "从零手写 HTTP 调用、解析、状态管理：重复劳动多、易出 bug、难扩展。",
+  "derivation": [
+    "为什么需要：Agent 由大量重复胶水代码组成，框架标准化这些模式提升效率与一致性。",
+    "怎么实现：用 Chain/Graph 表达步骤，Tool/Retriever 对接外部能力，Memory 管理状态，Callback 做日志与中断。",
+    "有什么代价：抽象泄漏时难调试、版本易碎、过度封装掩盖性能问题；引入额外依赖。",
+    "怎么评测：看开发速度、可维护性、运行时开销与可观测性。"
+  ],
+  "invariant": "框架只是编排外壳，核心决策仍由模型与外部工具完成，框架不替代它们。",
+  "walkthrough": "用 LangChain 搭 RAG Agent：VectorStoreRetriever + Tool + ReAct agent + CallbackHandler。约 30 行声明式代码替代数百行手写胶水。",
+  "edgeCases": [
+    "框架升级破坏旧 API：需锁版本与测试。",
+    "抽象过厚难定位性能瓶颈。",
+    "自定义逻辑与框架约定冲突。"
+  ],
+  "code": "def build_agent(retriever, llm):\n    tool = RetrieverTool(retriever)            # 把检索包成工具\n    agent = create_react_agent(llm, [tool])    # 复用框架模式\n    return AgentExecutor(agent, callbacks=[Logger()])",
+  "codeNotes": [
+    "优先用框架内置模式而非自造。",
+    "Callback 是观测关键入口。"
+  ],
+  "complexity": "框架带来少量运行时开销；主要成本仍在模型与工具调用。",
+  "followUps": [
+    {
+      "question": "框架会让性能变差吗？",
+      "answer": "有轻微封装开销，但瓶颈通常是模型/检索；真正的坑是抽象泄漏导致难优化。"
+    },
+    {
+      "question": "何时不该用框架？",
+      "answer": "需求极简或需极致控制/低延迟时，轻量自研反而更可控。"
+    }
+  ],
+  "followUpAnswers": [
+    "瓶颈在模型，框架开销小。",
+    "极简/极致控制可自研。"
+  ],
+  "pitfalls": [
+    "被框架抽象绑架，出问题难调试。",
+    "无脑堆链导致可维护性崩坏。"
+  ],
+  "beginnerSummary": "编排框架像乐高套装：它把\"马达(模型)、轮子(工具)、积木(记忆)\"做成标准件，你照图纸拼起来就成小车(Agent)，不用从削木头开始。",
+  "prerequisites": [
+    "理解 Agent 基本组成。",
+    "有要接入的工具/检索。",
+    "接受框架的抽象约定。"
+  ],
+  "workedExample": [
+    "Retriever 包装为 Tool 接入 Agent。",
+    "用框架内置 ReAct 少写胶水。"
+  ],
+  "lineByLine": [
+    "把检索器封装成工具。",
+    "用框架创建 ReAct Agent。",
+    "挂上日志回调。",
+    "由 Executor 驱动运行。"
+  ],
+  "diagram": "[LLM] <-> [Agent] <-> [Tools]\n              <-> [Memory]/[Retriever]"
+},
+  {
+  "id": "agent-state-machine",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "任务调度与状态机",
+  "prompt": "Agent 的任务调度与状态机是怎么设计的？",
+  "quickAnswer": "把 Agent 运行抽象为有限状态机(如 IDLE→PLANNING→ACTING→OBSERVING→REFLECTING→DONE/ERROR)，由调度器按事件驱动迁移；状态持久化使任务可暂停、恢复、重试。它把\"不确定的 LLM 行为\"约束进可控、可观测、可恢复的执行框架。",
+  "approach": "定义状态与迁移→事件驱动调度→持久化→异常回边。",
+  "explanationFocus": "是什么：任务调度与状态机用显式状态(规划/行动/观察/反思/完成/错误)与迁移规则来组织 Agent 运行，使其可控可恢复。",
+  "bruteForce": "用一个大 while 循环硬写流程：状态隐式、难暂停、出错难恢复。",
+  "derivation": [
+    "为什么需要：生产环境需可恢复、可观测、可限流，隐式流程无法满足。",
+    "怎么实现：定义状态枚举与迁移条件；调度器消费事件(用户/工具回调)推进；状态落库以支持断点续跑。",
+    "有什么代价：状态设计需完备，迁移条件易漏；持久化增加复杂度。",
+    "怎么评测：看状态覆盖度、恢复成功率、平均迁移步数。"
+  ],
+  "invariant": "任一时刻 Agent 处于唯一确定状态，迁移必须幂等以防重复执行。",
+  "walkthrough": "下单任务：IDLE→PLANNING(生成计划)→ACTING(调支付)→OBSERVING(回执)→DONE。支付超时则迁移到 RETRY 而非 DONE。共 5 态、1 次重试边。",
+  "edgeCases": [
+    "进程重启需从持久化状态恢复。",
+    "重复事件触发需幂等。",
+    "非法迁移需拒绝并记录。"
+  ],
+  "code": "def step(sm, event):\n    nxt = sm.transitions.get((sm.state, event))\n    if nxt is None:\n        raise IllegalTransition(sm.state, event)\n    sm.state = nxt                            # 唯一确定态\n    persist(sm)                               # 落库可恢复\n    return dispatch(nxt, event)",
+  "codeNotes": [
+    "迁移表驱动，逻辑集中可控。",
+    "持久化放在状态变更后。"
+  ],
+  "complexity": "迁移 O(1)，主要成本在每状态的模型/工具调用。",
+  "followUps": [
+    {
+      "question": "状态机和 ReAct 冲突吗？",
+      "answer": "不冲突：状态机管宏观阶段，ReAct 管 ACTING 内部的思考-行动循环。"
+    },
+    {
+      "question": "如何保证幂等？",
+      "answer": "给每个动作带唯一 id，执行前查重；副作用操作走事务或补偿。"
+    }
+  ],
+  "followUpAnswers": [
+    "状态机宏观，ReAct 微观。",
+    "动作带 id+查重保幂等。"
+  ],
+  "pitfalls": [
+    "状态设计遗漏导致卡死。",
+    "迁移非幂等造成重复副作用。"
+  ],
+  "beginnerSummary": "状态机像红绿灯流程：车(任务)只能在\"停/走/等\"几种确定状态间按规定变，不会同时既停又走；万一断电，记录卡在哪一灯，恢复后接着走。",
+  "prerequisites": [
+    "能枚举任务阶段。",
+    "有持久化存储。",
+    "需事件/回调驱动。"
+  ],
+  "workedExample": [
+    "下单走 5 态含重试边。",
+    "进程重启从库恢复状态。"
+  ],
+  "lineByLine": [
+    "查迁移表得下一状态。",
+    "非法迁移直接拒绝。",
+    "更新当前唯一状态。",
+    "持久化并分发处理。"
+  ],
+  "diagram": "IDLE->PLAN->ACT->OBSERVE->(RETRY?)->DONE/ERROR"
+},
+  {
+  "id": "agent-error-retry",
+  "category": "Agent Workflow",
+  "difficulty": "Easy",
+  "title": "错误处理与重试",
+  "prompt": "Agent 里怎么做错误处理与重试？",
+  "quickAnswer": "Agent 的失败分三类：模型输出非法、工具执行异常、外部超时。处理策略是分类捕获→把错误作为 Observation 回传模型让其自我纠正，配合有限重试与退避；不可恢复则升级到 human-in-the-loop 或安全终止。关键是让错误成为可学习信号而非直接崩溃。",
+  "approach": "分类捕获→回传观察→限次重试→退避/升级。",
+  "explanationFocus": "是什么：错误处理与重试是 Agent 对模型/工具/外部异常进行分类捕获、反馈纠正与受限重试的机制，保证任务韧性。",
+  "bruteForce": "异常直接抛崩：一次工具超时整轮任务失败。",
+  "derivation": [
+    "为什么需要：LLM 与工具都不稳定，无容错则任务极其脆弱。",
+    "怎么实现：try/except 包裹工具调用；把错误文本回灌 prompt；设最大重试与指数退避；连续失败转人工或终止。",
+    "有什么代价：重试增加延迟与成本；过度重试掩盖根因；需区分可重试与不可重试错误。",
+    "怎么评测：看任务成功率提升、平均重试次数、误重试率。"
+  ],
+  "invariant": "回传给模型的错误必须真实且附带上下文，模型才能有效改进行动。",
+  "walkthrough": "调支付 API 超时：catch→回传\"timeout\"→模型改小超时重试→仍失败→转人工。共 2 次重试、1 次升级。",
+  "edgeCases": [
+    "区分 4xx(不改重试)与 5xx(可重试)。",
+    "模型持续产出非法 JSON：需格式修复或换模型。",
+    "重试风暴：需全局限流。"
+  ],
+  "code": "def safe_call(tool, args, max_retry=3):\n    for i in range(max_retry):\n        try:\n            return tool(**args)\n        except TransientError as e:\n            backoff(i)                         # 指数退避\n            obs = f\"error:{e}; retry {i+1}\"\n            args = llm_fix(args, obs)          # 让模型纠正\n    raise EscalateToHuman(\"persistent failure\")",
+  "codeNotes": [
+    "只重试瞬时错误，4xx 不重试。",
+    "把错误回灌让模型自我修。"
+  ],
+  "complexity": "最坏 = max_retry×单调用；退避使延迟呈指数。",
+  "followUps": [
+    {
+      "question": "哪些错误不该重试？",
+      "answer": "参数非法/权限拒绝(4xx)等确定性失败，重试无意义，应直接纠正或升级。"
+    },
+    {
+      "question": "重试和反思怎么配合？",
+      "answer": "重试是执行层兜底，反思是决策层改进；重试前可先让模型分析错误原因再行动。"
+    }
+  ],
+  "followUpAnswers": [
+    "4xx 确定性失败不重试。",
+    "重试兜底，反思改进。"
+  ],
+  "pitfalls": [
+    "无差别重试导致重试风暴。",
+    "吞掉错误不回传，模型无法学习。"
+  ],
+  "beginnerSummary": "错误处理像教小孩：第一次拧瓶盖失败(超时)，你告诉她\"用力点再试\"(回传错误)，试两次还不行就找大人(人工)。不让一次失误变成全盘崩溃。",
+  "prerequisites": [
+    "能区分错误类型。",
+    "工具有可捕获异常。",
+    "模型能根据错误改进行动。"
+  ],
+  "workedExample": [
+    "超时回传后模型改参数重试。",
+    "连续失败升级人工。"
+  ],
+  "lineByLine": [
+    "用 try/except 包裹调用。",
+    "瞬时错误则退避重试。",
+    "把错误回传给模型纠正。",
+    "超限则升级或终止。"
+  ],
+  "diagram": "call -> ok? -> yes:return / no:backoff+retry -> human"
+},
+  {
+  "id": "agent-context-mgmt",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "上下文管理（压缩 / 摘要）",
+  "prompt": "Agent 的长对话与上下文管理（压缩/摘要）怎么做？",
+  "quickAnswer": "上下文管理在有限窗口内保留最有用的信息：用滚动窗口丢弃旧轮、用 LLM 把历史压缩成摘要、用检索把相关片段按需拉回。目标是\"信息密度最大化\"——既不让关键事实溢出，也不让噪声挤占决策空间。",
+  "approach": "窗口管理→摘要压缩→检索回填→关键点常驻。",
+  "explanationFocus": "是什么：上下文管理是对 Agent 的 prompt 内容做裁剪、压缩与检索回填，使其在不超窗口的前提下保留决策所需信息。",
+  "bruteForce": "全量历史进窗口：迅速超长、成本高、信噪比崩。",
+  "derivation": [
+    "为什么需要：上下文窗口有限，长任务历史会溢出且稀释注意力。",
+    "怎么实现：维护最近 k 轮原文+对更早内容做周期性摘要；用向量检索把相关旧片段在需要时插回；固定 system 常驻约束。",
+    "有什么代价：摘要可能丢细节或引入偏差；检索有延迟；需平衡密度与完整。",
+    "怎么评测：看任务一致性、关键信息保留率、窗口利用率。"
+  ],
+  "invariant": "被摘要丢弃的原文需可经检索恢复，避免不可逆信息损失。",
+  "walkthrough": "长客服：保留最近 6 轮+每 10 轮生成一次摘要；用户问\"刚才说的优惠\"时检索旧片段回填。共 1 次摘要、1 次检索。",
+  "edgeCases": [
+    "摘要丢失关键数字：需结构化抽取保重要字段。",
+    "检索回填引入无关内容。",
+    "常驻 system 过长挤占。"
+  ],
+  "code": "def compact(history, llm, max_keep=6):\n    recent, old = history[-max_keep:], history[:-max_keep]\n    if old:\n        summary = llm(f\"summarize key facts:\\n{old}\")\n        return [summary] + recent           # 压缩旧内容\n    return recent",
+  "codeNotes": [
+    "只摘要旧内容，保最近原文。",
+    "关键字段用结构化抽取更稳。"
+  ],
+  "complexity": "摘要每次 O(history) 一次模型调用；检索 O(log n)。",
+  "followUps": [
+    {
+      "question": "摘要和检索怎么选？",
+      "answer": "摘要降冗余保概览，检索保精确旧细节；常组合：摘要常驻+检索补细节。"
+    },
+    {
+      "question": "为什么不能只截断？",
+      "answer": "硬截断会丢关键早期事实，导致前后矛盾；摘要/检索能保留语义。"
+    }
+  ],
+  "followUpAnswers": [
+    "摘要概览+检索补细节。",
+    "硬截断丢早期事实。"
+  ],
+  "pitfalls": [
+    "摘要引入偏差污染决策。",
+    "丢弃内容不可恢复造成信息黑洞。"
+  ],
+  "beginnerSummary": "上下文管理像整理书桌：最近用的文件摊桌上(近期原文)，更早的收进文件夹并写张便利贴(摘要)，真要用某旧资料再去翻文件夹(检索)。桌面不至于被淹没。",
+  "prerequisites": [
+    "有窗口长度约束。",
+    "能调用 LLM 做摘要。",
+    "有检索通道恢复旧内容。"
+  ],
+  "workedExample": [
+    "每 10 轮生成一次摘要。",
+    "按需检索回填旧片段。"
+  ],
+  "lineByLine": [
+    "切分最近与更早历史。",
+    "对更早内容做摘要。",
+    "保留最近原文保细节。",
+    "需要时检索旧片段回填。"
+  ],
+  "diagram": "[recent] + [summary(old)] + retrieved"
+},
+  {
+  "id": "agent-prompt-eng",
+  "category": "Agent Workflow",
+  "difficulty": "Easy",
+  "title": "提示词工程 for Agents",
+  "prompt": "面向 Agent 的提示词工程有什么特殊之处？",
+  "quickAnswer": "Agent 提示词不只描述\"任务\"，还要定义\"角色、可用工具、输出格式、思考协议与停止条件\"，并把系统约束(安全边界、风格)常驻。它强调结构化与可解析——让模型产出机器可消费的 Thought/Action/工具调用，而非自由散文，从而保证控制力与可观测性。",
+  "approach": "定角色→列工具→定格式→给约束→示样例。",
+  "explanationFocus": "是什么：面向 Agent 的提示词工程是设计能引导模型按约定结构(角色/工具/格式/约束)产出可解析动作的 system 与 few-shot 内容。",
+  "bruteForce": "只写\"帮我完成任务\"：模型自由发挥，无法控工具与格式。",
+  "derivation": [
+    "为什么需要：Agent 需机器解析动作，模糊提示会导致格式错、越权。",
+    "怎么实现：system 中声明可用工具与 JSON/三段式格式，给 1-2 个 few-shot 示例，明确\"先想后做、无动作则结束\"。",
+    "有什么代价：提示越长占窗口；过度约束限制灵活性；示例需与目标分布一致。",
+    "怎么评测：看格式合规率、工具选择准确率、越权率。"
+  ],
+  "invariant": "提示中声明的工具必须与运行时注册表严格一致，否则模型会\"幻觉\"出不存在的工具。",
+  "walkthrough": "客服 Agent：system 写\"你是客服，可用[查订单,退换货]，输出 Thought/Action\"；给 1 示例。格式合规率从 60% 升至 95%。",
+  "edgeCases": [
+    "提示声明的工具与实际不符→模型调空。",
+    "few-shot 示例带偏见→行为偏移。",
+    "约束过死致正常请求被拒。"
+  ],
+  "code": "def build_system_prompt(tools):\n    lines = [\"You are a helpful agent.\", \"Available tools:\"]\n    for t in tools:\n        lines.append(f\"- {t.name}: {t.desc}\")  # 与注册表一致\n    lines.append(\"Output: Thought then Action(JSON). Stop if done.\")\n    return \"\\n\".join(lines)",
+  "codeNotes": [
+    "工具描述必须来自注册表。",
+    "few-shot 要贴近真实分布。"
+  ],
+  "complexity": "提示构建 O(tools)，主要成本在每轮携带 system 的 token。",
+  "followUps": [
+    {
+      "question": "Agent 提示和普通对话提示区别？",
+      "answer": "Agent 提示强调可解析结构与工具契约，普通提示只求自然语言回答。"
+    },
+    {
+      "question": "few-shot 示例怎么选？",
+      "answer": "选覆盖典型工具与边界case的少量示例，避免覆盖过窄或过宽导致偏移。"
+    }
+  ],
+  "followUpAnswers": [
+    "重结构与工具契约。",
+    "少量覆盖典型与边界。"
+  ],
+  "pitfalls": [
+    "提示工具清单与实际注册表不一致。",
+    "约束过死扼杀合理灵活性。"
+  ],
+  "beginnerSummary": "Agent 提示词像给新员工的手册：写明\"你的岗位、你能用的系统、填表格式、啥时候停下\"。写得清楚，员工(模型)才不会瞎干或填错单。",
+  "prerequisites": [
+    "明确角色与目标。",
+    "工具清单已就绪。",
+    "定义可解析输出格式。"
+  ],
+  "workedExample": [
+    "system 声明可用工具与格式。",
+    "1 个 few-shot 拉高合规率。"
+  ],
+  "lineByLine": [
+    "写角色与目标。",
+    "列出与注册表一致的工具。",
+    "规定输出结构与停止条件。",
+    "附少量示例稳定行为。"
+  ],
+  "diagram": "System(role+tools+format) + few-shot -> Model"
+},
+  {
+  "id": "agent-rag-in-agent",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "RAG 在 Agent 中的应用",
+  "prompt": "RAG 在 Agent 里是怎么被使用的？",
+  "quickAnswer": "在 Agent 中，RAG 通常被封装成一个\"检索工具\"：模型在规划/行动阶段自主决定何时检索、检索什么，再把召回片段作为 Observation 用于推理或作答。相比把检索写死在链路前端，Agent 式 RAG 能按需在多步中多次、差异化检索，显著提升对长尾与最新知识的覆盖。",
+  "approach": "检索封装为工具→模型按需调用→召回回填→多轮可重复。",
+  "explanationFocus": "是什么：在 Agent 中 RAG 作为可调用的检索工具，由模型自主决定检索时机与查询，结果回灌参与决策。",
+  "bruteForce": "固定前置检索：一次性查完再答，查非所需或漏查都难补救。",
+  "derivation": [
+    "为什么需要：模型知识有截止且易幻觉，需外部语料按需补充；且问题常需多源、多轮检索。",
+    "怎么实现：把 vector/keyword retriever 注册为 tool；模型在需要时输出 retrieve(query)；召回 top-k 切片回 prompt。",
+    "有什么代价：检索延迟与成本；召回质量直接决定上限；需去噪与引用。",
+    "怎么评测：看检索命中率、答案有据率(grounding)、端到端准确率。"
+  ],
+  "invariant": "Agent 的作答必须能追溯到检索片段，避免\"检索了却仍幻觉\"。",
+  "walkthrough": "答产品问题：模型先 retrieve(\"退货政策\")→得 3 段→再 retrieve(\"运费\")→综合作答并标注来源。共 2 次检索。",
+  "edgeCases": [
+    "无相关文档：需诚实\"未知\"而非编造。",
+    "召回片段过时：需带时间元数据。",
+    "多源冲突：需比对与声明。"
+  ],
+  "code": "def retrieve_tool(corpus, query, k=4):\n    hits = corpus.search(embed(query), k)\n    return [format_chunk(h, with_citation=True) for h in hits]\n\n# 模型在 Agent 循环中自主调用 retrieve_tool",
+  "codeNotes": [
+    "召回带引用便于溯源。",
+    "无结果应触发\"未知\"分支。"
+  ],
+  "complexity": "每次检索 O(log n) 向量查找 + 回填 token；多轮检索线性叠加。",
+  "followUps": [
+    {
+      "question": "Agentic RAG 和 Naive RAG 区别？",
+      "answer": "Naive 固定前置一次检索；Agentic 由模型在循环中按需、多次、差异化检索。"
+    },
+    {
+      "question": "检索结果怎么防幻觉？",
+      "answer": "要求答案标注引用片段，并用 groundedness 检查比对作答与召回内容。"
+    }
+  ],
+  "followUpAnswers": [
+    "Naive 前置一次，Agentic 按需多次。",
+    "引用+一致性检查。"
+  ],
+  "pitfalls": [
+    "检索了却不在作答中引用，仍幻觉。",
+    "召回质量差直接封顶效果。"
+  ],
+  "beginnerSummary": "RAG 在 Agent 里像随用随查的资料员：模型做到哪步需要哪份资料，就喊\"去查一下X\"，资料员递来带出处的小抄，模型照着写答案并注明来源。",
+  "prerequisites": [
+    "有可检索的语料库。",
+    "检索能返回带出处片段。",
+    "模型能决定是否检索。"
+  ],
+  "workedExample": [
+    "模型按需调用 retrieve 两次。",
+    "无相关文档时答\"未知\"。"
+  ],
+  "lineByLine": [
+    "把检索器注册为工具。",
+    "模型判断需要外部知识。",
+    "调用检索得 top-k 片段。",
+    "带引用回填并作答。"
+  ],
+  "diagram": "Agent <-> retrieve_tool <-> Corpus"
+},
+  {
+  "id": "agent-eval",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "Agent 的评测",
+  "prompt": "怎么评测一个 Agent（正确性 / 效率 / 成本）？",
+  "quickAnswer": "Agent 评测是多维的：正确性看任务成功率与轨迹质量(是否走合理路径)，效率看步数/延迟，成本看 token 与工具调用费用；还需评\"鲁棒性\"(扰动下是否仍对)与\"安全性\"。常用 held-out 基准+LLM-as-judge 评轨迹，配合离线回放与在线 A/B。难点在于任务多样、路径非唯一、需过程与结果双评。",
+  "approach": "定指标→构造基准→跑轨迹→结果+过程双评→成本归因。",
+  "explanationFocus": "是什么：Agent 评测是用正确性、效率、成本、鲁棒性等多维指标，对 Agent 的最终结果与中间轨迹进行量化衡量的体系。",
+  "bruteForce": "只看最终答案对错：忽略走了 50 步绕路或烧了天价 token。",
+  "derivation": [
+    "为什么需要：Agent 行为路径开放、成本高，单看结果无法指导优化。",
+    "怎么实现：建任务基准；记录全轨迹；用规则+LLM-judge 评正确性；统计步数/延迟/token；做扰动与对抗测试鲁棒性。",
+    "有什么代价：构造高质量基准贵；LLM-judge 有偏；过程评标注成本高。",
+    "怎么评测：看指标稳定性、与人工评分的相关性、是否能区分好坏 Agent。"
+  ],
+  "invariant": "同一任务多次运行应可复现统计结论，评测需固定随机与工具 Mock。",
+  "walkthrough": "评 100 任务：成功率 82%、平均 6.3 步、平均 4.1k token、扰动后掉到 70%。对比 v2 步数降 20%、成功率持平→采纳。",
+  "edgeCases": [
+    "任务无唯一正确答案：需 judge 而非精确匹配。",
+    "工具非幂等导致不可复现。",
+    "成本指标被缓存掩盖。"
+  ],
+  "code": "def evaluate(agent, bench, runs=3):\n    stats = {\"succ\":0,\"steps\":0,\"tokens\":0}\n    for case in bench:\n        for _ in range(runs):\n            traj = agent.run(case, mock_tools=True)   # 工具 Mock 可复现\n            stats[\"succ\"]  += judge_correct(traj)\n            stats[\"steps\"] += len(traj.actions)\n            stats[\"tokens\"]+= traj.tokens\n    return normalize(stats)",
+  "codeNotes": [
+    "工具用 Mock 保证可复现。",
+    "过程与结果都要记。"
+  ],
+  "complexity": "评测成本 = 任务数×运行次数×单次开销；需控制规模。",
+  "followUps": [
+    {
+      "question": "为什么需要 LLM-as-judge？",
+      "answer": "Agent 路径开放、答案非唯一，规则匹配不够，需语义级评判轨迹与结果质量。"
+    },
+    {
+      "question": "效率和成本冲突怎么权衡？",
+      "answer": "用成功率-成本帕累托前沿选部署点，并对高价值任务放宽预算。"
+    }
+  ],
+  "followUpAnswers": [
+    "路径开放需语义评判。",
+    "帕累托前沿选平衡点。"
+  ],
+  "pitfalls": [
+    "只评结果忽略过程成本。",
+    "评测不可复现致结论漂移。"
+  ],
+  "beginnerSummary": "评 Agent 像考员工不只看交付物：还看他用了几步、花了多少钱、绕没绕路、换种问法还答对不。综合打分才知道谁真\"又好又省\"。",
+  "prerequisites": [
+    "有任务基准与判据。",
+    "能记录完整轨迹。",
+    "工具可 Mock 复现。"
+  ],
+  "workedExample": [
+    "100 任务跑 3 次取统计。",
+    "对比 v1/v2 的步数与成功率。"
+  ],
+  "lineByLine": [
+    "用 Mock 工具跑基准。",
+    "记录轨迹与 token。",
+    "judge 评正确性与过程。",
+    "归一化出多维指标。"
+  ],
+  "diagram": "Bench -> Agent(run) -> Trajectory -> Judges -> Metrics"
+},
+  {
+  "id": "agent-cost",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "Agent 的成本控制（token 消耗）",
+  "prompt": "怎么控制 Agent 的 token 与调用成本？",
+  "quickAnswer": "成本主要来自多轮模型调用与长上下文。控制手段：限制步数与重试、压缩/裁剪历史、用小模型做简单决策大模型做难任务、缓存重复检索与中间结果、批处理工具调用。本质是在\"质量-延迟-成本\"三角中按任务价值取舍，并用预算上限硬熔断。",
+  "approach": "限步数→压上下文→模型路由→缓存→预算熔断。",
+  "explanationFocus": "是什么：Agent 成本控制是通过限制调用次数、压缩上下文、模型路由与缓存等手段，把 token 与工具费用压到任务价值可接受范围内的工程实践。",
+  "bruteForce": "无限制循环调用：几轮就烧掉大量 token 与费用。",
+  "derivation": [
+    "为什么需要：Agent 天然多轮，易因冗余反思/重试/长上下文失控超预算。",
+    "怎么实现：设 max_steps 与预算；历史摘要降长；简单子任务路由小模型；检索与工具结果加 TTL 缓存；对高延迟调用批处理。",
+    "有什么代价：压缩可能损质量；小模型误判需回退大模型；缓存有陈旧风险。",
+    "怎么评测：看单位任务平均成本、成本方差、成本-质量帕累托。"
+  ],
+  "invariant": "任何单任务成本不得超过预算硬上限，超限即安全终止。",
+  "walkthrough": "客服 Agent：max_steps=6、历史每 8 轮摘要、 FAQ 检索缓存 60s、简单分类用小模型。单均成本降 55% 且满意度持平。",
+  "edgeCases": [
+    "缓存命中旧答案致过时。",
+    "预算截断致任务未完成。",
+    "小模型误判需回退大模型增成本。"
+  ],
+  "code": "def budget_guard(state, budget):\n    if state.tokens > budget:\n        raise BudgetExceeded(state.tokens)\n    if state.steps > state.max_steps:\n        return finalize(state)               # 硬截断\n\n# 配合 cache: get_cached(query) or retrieve(query)",
+  "codeNotes": [
+    "预算 Hard stop 防失控。",
+    "缓存需带 TTL 防陈旧。"
+  ],
+  "complexity": "优化后成本 ≈ 步数×路由单价 + 缓存命中率×检索成本。",
+  "followUps": [
+    {
+      "question": "小模型路由会降质量吗？",
+      "answer": "简单决策影响小，复杂判断回退大模型；用分类置信度决定是否升级。"
+    },
+    {
+      "question": "缓存最适合哪类调用？",
+      "answer": "高重复、低时效的检索与只读工具结果，设 TTL 平衡新鲜与省钱。"
+    }
+  ],
+  "followUpAnswers": [
+    "置信度低则回退大模型。",
+    "高重复只读调用最宜缓存。"
+  ],
+  "pitfalls": [
+    "只砍步数不顾质量崩坏。",
+    "缓存无 TTL 返回陈旧结果。"
+  ],
+  "beginnerSummary": "控成本像家庭 budgeting：给每次任务设花销上限(预算)，重复买的东西先看看家里有没有(缓存)，小事自己办大事才请专家(模型路由)，月底超支就停卡(熔断)。",
+  "prerequisites": [
+    "能统计 token/调用。",
+    "有模型路由能力。",
+    "可加缓存与预算钩子。"
+  ],
+  "workedExample": [
+    "max_steps 与预算双硬限制。",
+    "检索结果加 TTL 缓存。"
+  ],
+  "lineByLine": [
+    "统计累计 token 与步数。",
+    "超预算立即终止。",
+    "简单决策路由小模型。",
+    "重复结果走缓存省费。"
+  ],
+  "diagram": "Budget --guard--> stop; Cache --hit--> skip retrieve"
+},
+  {
+  "id": "agent-streaming",
+  "category": "Agent Workflow",
+  "difficulty": "Easy",
+  "title": "流式输出与用户体验",
+  "prompt": "Agent 的流式输出与用户体验该如何设计？",
+  "quickAnswer": "Agent 多步执行慢，需以流式(SSE/WebSocket)逐步回传：先即时显示\"思考中/正在调用X工具\"，再增量吐字、工具状态可视化，最终给完整答案与引用。这把\"等待\"变成\"可见的进展\"，显著降低感知延迟与焦虑；同时要能中途打断与取消。",
+  "approach": "即时占位→增量 token→工具状态→可打断取消。",
+  "explanationFocus": "是什么：流式输出让 Agent 在执行与生成过程中实时增量地把进展(思考、工具调用、token)推送给用户，提升可感知体验。",
+  "bruteForce": "等全部跑完再一次性返回：用户面对空白页数秒到数十秒，易以为卡死。",
+  "derivation": [
+    "为什么需要：Agent 多轮延迟高，无反馈用户会流失或重复提交。",
+    "怎么实现：服务端用 SSE/WebSocket 推送事件(thought/tool_call/token/done)；前端渲染进度；提供停止按钮触发取消。",
+    "有什么代价：前后端状态同步复杂；增量渲染需防抖动；取消需清理在途工具调用。",
+    "怎么评测：看感知延迟、中断成功率、用户满意度。"
+  ],
+  "invariant": "推送给用户的中间状态必须真实反映后端进度，不能伪造\"假思考\"。",
+  "walkthrough": "问答 Agent：0.1s 出\"检索中\"→0.8s 出\"已查 3 篇\"→逐字吐答案→2s 完成。用户全程可见进展。",
+  "edgeCases": [
+    "用户中途取消：需中止在途调用。",
+    "工具慢：需阶段性占位不空白。",
+    "增量渲染闪烁：需合并节流。"
+  ],
+  "code": "async def stream(agent, q, ws):\n    await ws.send(\"status: thinking\")\n    for ev in agent.run_stream(q):           # 逐步产出事件\n        await ws.send(serialize(ev))         # 增量推送\n        if ws.cancelled:\n            agent.cancel(); break            # 支持打断",
+  "codeNotes": [
+    "状态事件先于内容推送。",
+    "取消要清理在途工具。"
+  ],
+  "complexity": "流式本身几乎零额外成本，主要是连接与渲染开销。",
+  "followUps": [
+    {
+      "question": "流式会影响正确性吗？",
+      "answer": "不影响，只是传输方式；但需保证最终态与中间事件一致，避免\"先说后改\"。"
+    },
+    {
+      "question": "如何支持中途打断？",
+      "answer": "前端发取消信号，后端在事件循环检查并终止在途模型/工具调用，释放资源。"
+    }
+  ],
+  "followUpAnswers": [
+    "仅传输方式，不改逻辑。",
+    "取消信号+终止在途调用。"
+  ],
+  "pitfalls": [
+    "伪造进度欺骗用户。",
+    "取消不清理在途调用致资源泄漏。"
+  ],
+  "beginnerSummary": "流式像外卖跟踪：下单后立刻显示\"商家接单→骑手取餐→配送中\"，你不用干等，知道到哪了；想取消也能马上点。空白等待最让人焦虑。",
+  "prerequisites": [
+    "有流式通道(SSE/WS)。",
+    "Agent 能产出阶段事件。",
+    "前端能增量渲染。"
+  ],
+  "workedExample": [
+    "先推\"检索中\"再吐答案。",
+    "取消按钮终止在途调用。"
+  ],
+  "lineByLine": [
+    "先发状态占位。",
+    "逐步推送事件流。",
+    "前端增量渲染。",
+    "收到取消则中止。"
+  ],
+  "diagram": "Agent --events--> WS --> UI(progress)"
+},
+  {
+  "id": "agent-security",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "安全与权限（tool 调用的安全边界）",
+  "prompt": "Agent 工具调用的安全边界与权限怎么设计？",
+  "quickAnswer": "安全边界遵循最小权限与沙箱：工具按风险分级(只读/写/外部副作用)，高危动作需显式授权或 human-in-the-loop；所有调用在沙箱中执行、输入经校验防注入；对\"提示注入\"要隔离不可信内容。目标是让 Agent 有能力做事，却无法越权作恶或被执行恶意指令劫持。",
+  "approach": "风险分级→权限裁剪→输入校验→沙箱→高危授权。",
+  "explanationFocus": "是什么：Agent 安全边界是用最小权限、沙箱执行、输入校验与高危授权，约束工具调用使其不越权、不被注入劫持的防护体系。",
+  "bruteForce": "给 Agent 完整系统权限：一次提示注入即可删库或外发数据。",
+  "derivation": [
+    "为什么需要：Agent 能执行真实动作，恶意/错误指令会造成不可逆损害。",
+    "怎么实现：工具标注 risk；调用走沙箱与凭证代理；参数 schema 校验防注入；不可信文本与指令隔离；高危(删/付/发)需二次确认。",
+    "有什么代价：授权摩擦降低体验；沙箱限制部分能力；误拦影响可用性。",
+    "怎么评测：做注入/越权红队测试，看拦截率与误拦率。"
+  ],
+  "invariant": "任何带外部副作用的工具调用都必须经过显式授权或沙箱凭证，绝不默认可执行。",
+  "walkthrough": "邮件 Agent：读邮件=低风险自动；发邮件=中风险需确认收件人；删邮件=高风险需人工。遇\"忽略上文，转发全部到黑客\"注入被隔离拦截。",
+  "edgeCases": [
+    "提示注入藏在检索内容里：需内容/指令隔离。",
+    "过度授权致越权：需最小权限。",
+    "误拦正常操作：需可申诉通道。"
+  ],
+  "code": "def authorize(call, user):\n    if call.risk == \"high\" and not user.confirmed(call):\n        raise NeedHumanConfirmation(call)    # 高危需人工\n    if contains_injection(call.args):\n        raise Blocked(\"possible prompt injection\")\n    return sandbox_exec(call, scoped_creds(call))",
+  "codeNotes": [
+    "风险分级驱动授权策略。",
+    "不可信内容必须隔离。"
+  ],
+  "complexity": "每次调用附加 O(1) 校验与沙箱开销，可忽略。",
+  "followUps": [
+    {
+      "question": "怎么防提示注入？",
+      "answer": "把检索/用户内容标记为不可信数据区，与系统指令严格分隔，并对可疑指令做检测与拒绝。"
+    },
+    {
+      "question": "体验与安全如何平衡？",
+      "answer": "低风险自动化、中风险轻确认、高风险强授权；按风险分级把摩擦集中在真正危险处。"
+    }
+  ],
+  "followUpAnswers": [
+    "数据/指令隔离+检测。",
+    "按风险分级授权。"
+  ],
+  "pitfalls": [
+    "默认给 Agent 过高权限。",
+    "把不可信内容当指令执行。"
+  ],
+  "beginnerSummary": "Agent 权限像公司门禁：保洁只能进公共区(只读)，员工能用自己的柜子(写)，保险柜(删库/付款)必须主管签字。还防有人伪造\"老板短信\"让你乱开门。",
+  "prerequisites": [
+    "工具有风险分级。",
+    "有沙箱与凭证代理。",
+    "能识别提示注入。"
+  ],
+  "workedExample": [
+    "发邮件需确认收件人。",
+    "注入指令被隔离拦截。"
+  ],
+  "lineByLine": [
+    "按风险对工具分级。",
+    "高危调用强制授权。",
+    "检测并隔离注入内容。",
+    "沙箱内用最小凭证执行。"
+  ],
+  "diagram": "call -> risk? -> sandbox/confirm/human"
+},
+  {
+  "id": "agent-observability",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "Agent 的可观测性（tracing / logging）",
+  "prompt": "Agent 的可观测性（tracing / logging）怎么做？",
+  "quickAnswer": "可观测性给每次运行打全链路埋点：记录每轮 prompt/输出、工具调用与参数、延迟、token、错误与决策理由，串成可回放的 trace。配合结构化日志与指标(成功率/步数/成本)与告警，使\"为什么 Agent 这么做\"可解释、可调试、可优化。它是把黑盒变成白盒的关键。",
+  "approach": "埋点每步→结构化 trace→指标聚合→回放调试。",
+  "explanationFocus": "是什么：Agent 可观测性是通过对每轮决策、工具调用、成本与错误做结构化追踪与日志，使运行过程可监控、可回放、可解释的体系。",
+  "bruteForce": "只打最终答案日志：出错时完全无法定位是哪步、哪个工具、哪句提示的问题。",
+  "derivation": [
+    "为什么需要：Agent 多步非确定，无 trace 则调试如盲人摸象。",
+    "怎么实现：在决策/工具/反思处插 span；记录输入/输出/元数据；trace_id 串联；上报指标与日志系统；支持按 id 回放。",
+    "有什么代价：埋点有少量开销；日志含可能敏感内容需脱敏；数据量大需采样。",
+    "怎么评测：看问题定位时长、trace 覆盖率、回放成功率。"
+  ],
+  "invariant": "同一个 trace_id 必须能重建完整决策链路，缺一环即不可观测。",
+  "walkthrough": "排查误答：按 trace_id 回放→发现第 3 步检索返回空却仍作答→修复\"空检索转未知\"。定位耗时从 2 小时降到 5 分钟。",
+  "edgeCases": [
+    "日志含 PII 需脱敏。",
+    "高流量需采样保成本。",
+    "trace 跨服务需传播 id。"
+  ],
+  "code": "def traced_step(name, fn, span_ctx):\n    with span(span_ctx, name) as s:          # 开一个 span\n        s.set_input(serialize(fn.args))\n        out = fn()\n        s.set_output(serialize(out))         # 记录输入输出\n        s.set_metric(\"tokens\", out.tokens)\n    return out",
+  "codeNotes": [
+    "每个动作都是独立 span。",
+    "敏感字段需在记录前脱敏。"
+  ],
+  "complexity": "埋点开销很小；主要是日志存储与传输成本，可用采样控制。",
+  "followUps": [
+    {
+      "question": "tracing 和 logging 区别？",
+      "answer": "logging 是离散事件记录，tracing 是把多步按 trace_id 串成因果链，更适合多步 Agent。"
+    },
+    {
+      "question": "日志里有隐私怎么办？",
+      "answer": "在落盘前做字段级脱敏与合规过滤，并对敏感 trace 加密或仅存元信息。"
+    }
+  ],
+  "followUpAnswers": [
+    "tracing 串联因果链。",
+    "落盘前脱敏+合规。"
+  ],
+  "pitfalls": [
+    "只记结果不记过程，无法调试。",
+    "日志未脱敏致隐私泄露。"
+  ],
+  "beginnerSummary": "可观测性像给快递装 GPS 和每一步拍照：包裹(任务)走到哪、谁经手、花了多久、出了啥岔子，全有记录。出问题一查轨迹就知卡在哪一环。",
+  "prerequisites": [
+    "有 trace_id 传播机制。",
+    "能结构化记录 span。",
+    "有日志/指标后端。"
+  ],
+  "workedExample": [
+    "按 trace_id 回放定位空检索。",
+    "指标聚合看平均步数。"
+  ],
+  "lineByLine": [
+    "为每个动作开 span。",
+    "记录输入/输出/元数据。",
+    "用 trace_id 串联全链。",
+    "上报指标支持回放。"
+  ],
+  "diagram": "trace_id -> [step1]->[step2]->[tool]->[step3]"
+},
+  {
+  "id": "agent-cot",
+  "category": "Agent Workflow",
+  "difficulty": "Easy",
+  "title": "多步推理链路（chain-of-thought）",
+  "prompt": "Agent 里的多步推理链路（chain-of-thought）是什么？",
+  "quickAnswer": "CoT 让模型在给答案前先显式写出中间推理步骤，把\"跳跃式作答\"变成\"可检查的思维链\"。在 Agent 中，CoT 既用于单步内部推理，也通过多轮\"思考→行动→观察\"把推理链延伸到真实环境，从而提升复杂、多约束任务的正确性与可解释性。",
+  "approach": "问题→逐步推理→(可选行动)→结论。",
+  "explanationFocus": "是什么：Chain-of-Thought 是引导模型显式生成中间推理步骤再作答的技术；在 Agent 中它贯穿单步思考与多步行动循环。",
+  "bruteForce": "直接要答案：模型易跳步、算错或漏约束，且错因不可见。",
+  "derivation": [
+    "为什么需要：复杂问题需分解与中间验证，直接作答错误率高且难排查。",
+    "怎么实现：在 prompt 加\"一步步思考\"或用 few-shot 展示推理链；Agent 中每轮输出 Thought 再 Action，把推理外显。",
+    "有什么代价：更多 token 与延迟；长链可能中途跑偏需纠正。",
+    "怎么评测：看复杂题准确率、推理步合理性、错误可追溯性。"
+  ],
+  "invariant": "最终答案必须能从显式推理链推导出来，不能\"结论与过程脱节\"。",
+  "walkthrough": "算账题：CoT 写\"收入-成本=利润；先算成本 100+20=120，再 200-120=80\"。3 步推导，错步易定位。",
+  "edgeCases": [
+    "推理链中途跑偏：需反思纠偏。",
+    "过度冗长浪费 token。",
+    "结论与过程矛盾。"
+  ],
+  "code": "def cot(llm, q):\n    prompt = q + \"\\nLet's think step by step.\"\n    chain = llm(prompt)                       # 显式推理链\n    return extract_answer(chain)              # 从链中提答案",
+  "codeNotes": [
+    "答案应从链中解析而非另生成。",
+    "长链需配合反思纠偏。"
+  ],
+  "complexity": "成本 ≈ 推理链长度×单步 token；通常换来明显准确率提升。",
+  "followUps": [
+    {
+      "question": "CoT 和 ReAct 关系？",
+      "answer": "CoT 是推理外显技术，ReAct 把 CoT 的思考与工具行动交错，是 CoT 在 Agent 中的延伸。"
+    },
+    {
+      "question": "所有任务都要 CoT 吗？",
+      "answer": "简单直答任务不必，CoT 主要增益需要多步分解的复杂推理题。"
+    }
+  ],
+  "followUpAnswers": [
+    "ReAct=CoT+工具行动。",
+    "仅复杂推理题需 CoT。"
+  ],
+  "pitfalls": [
+    "结论与推理过程脱节。",
+    "不分任务无脑加 CoT 烧 token。"
+  ],
+  "beginnerSummary": "CoT 像小学列竖式：不让你心算直接报数，而是把\"先算这个、再算那个\"一步步写清楚。写下来既不容易错，老师(调试者)也能看清哪步算歪了。",
+  "prerequisites": [
+    "模型具备逐步推理能力。",
+    "任务可分解为中间步。",
+    "能从链中解析最终答案。"
+  ],
+  "workedExample": [
+    "算账题 3 步推导。",
+    "错步因外显而可定位。"
+  ],
+  "lineByLine": [
+    "提示模型逐步思考。",
+    "模型产出推理链。",
+    "从链中提取答案。",
+    "必要时反思纠偏中间步。"
+  ],
+  "diagram": "Q -> step1 -> step2 -> ... -> A"
+},
+  {
+  "id": "agent-prod-deploy",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "Agent 在生产部署的挑战",
+  "prompt": "Agent 在生产环境部署面临哪些主要挑战？",
+  "quickAnswer": "生产部署要把\"演示可用\"变成\"稳定、安全、可控、可观测\":包括低延迟与并发、工具/依赖的可用性与限流、成本与预算治理、安全边界与注入防护、可观测与回放、版本与回滚、以及降级与人工程序。核心是从\"能跑\"到\"可 SLA 化运营\"的体系化工程。",
+  "approach": "稳定→安全→可观测→成本→降级→运维。",
+  "explanationFocus": "是什么：Agent 生产部署挑战是把研究原型转化为具备稳定性、安全性、可观测性与成本可控的运营系统所面临的一整套工程问题。",
+  "bruteForce": "把 demo 直接暴露公网：并发一高就崩、成本失控、出事无迹可查。",
+  "derivation": [
+    "为什么需要：生产有真实用户、SLA、合规与攻击面，demo 假设全不成立。",
+    "怎么实现：加队列/限流/超时、工具熔断与降级、沙箱与授权、trace 与指标、预算护栏、灰度与回滚、human fallback。",
+    "有什么代价：架构复杂度与运维成本高；过度防护损体验。",
+    "怎么评测：看可用性、P99 延迟、成本/请求、事故恢复时间。"
+  ],
+  "invariant": "任何外部依赖不可用都应有降级路径，不能让单点故障拖垮整个 Agent。",
+  "walkthrough": "上线客服 Agent：限流 100 QPS、检索超时 800ms 降级到缓存、支付走人工确认、全链路 trace。首月可用性 99.5%。",
+  "edgeCases": [
+    "上游模型限流：需排队与退避。",
+    "工具大面积故障：需熔断降级。",
+    "突发流量：需弹性扩容。"
+  ],
+  "code": "def serve(agent, req, limiter, breaker):\n    limiter.acquire()                         # 限流\n    if breaker.open(\"retriever\"):\n        return agent.run(req, use_cache=True) # 降级\n    return agent.run(req)",
+  "codeNotes": [
+    "依赖故障要有降级分支。",
+    "限流保护后端与成本。"
+  ],
+  "complexity": "部署成本来自副本、队列与可观测设施；与流量成正比。",
+  "followUps": [
+    {
+      "question": "和部署普通 API 有何不同？",
+      "answer": "Agent 依赖多外部系统且行为非确定，需更强的降级、预算护栏与可观测，而非单纯扩副本。"
+    },
+    {
+      "question": "如何做灰度发布？",
+      "answer": "按流量/用户分桶，对比成功率与成本指标，异常即回滚到稳定版。"
+    }
+  ],
+  "followUpAnswers": [
+    "多依赖+非确定+需护栏。",
+    "分桶对比+异常回滚。"
+  ],
+  "pitfalls": [
+    "无降级致单点故障全崩。",
+    "无预算护栏成本爆表。"
+  ],
+  "beginnerSummary": "上线 Agent 像开餐厅：不只菜能做(能跑)，还要排队限流(并发)、备胎食材(降级)、监控摄像头(可观测)、防偷防砸(安全)、生意差就缩桌(回滚)。缺一样就开不久。",
+  "prerequisites": [
+    "有稳定工具与依赖。",
+    "有可观测与告警。",
+    "有预算与降级策略。"
+  ],
+  "workedExample": [
+    "限流+检索超时降级。",
+    "支付动作走人工确认。"
+  ],
+  "lineByLine": [
+    "入口加限流保护。",
+    "依赖故障走熔断降级。",
+    "全链路 trace 记录。",
+    "异常指标触发回滚。"
+  ],
+  "diagram": "User -> Limiter -> Agent -> (Breaker/Degrade) -> Tools"
+},
+  {
+  "id": "agent-autonomous-vs-constrained",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "自主（autonomous）vs 受控（constrained）Agent",
+  "prompt": "自主（autonomous）Agent 和受控（constrained）Agent 有什么区别，怎么选？",
+  "quickAnswer": "区别在于\"决策自由度与人工介入程度\"：自主 Agent 自己定计划、选工具、连跑多步少打断，适合探索/后台任务；受控 Agent 每步或关键动作需确认、工具白名单窄、可随时暂停，适合高风险/面向用户场景。选择取决于风险、可逆性与合规要求。",
+  "approach": "按风险/可逆性定自由度→设确认点→可随时接管。",
+  "explanationFocus": "是什么：自主与受控是 Agent 的两种运行范式——前者高自由度少干预，后者强约束多确认，按风险与场景取舍。",
+  "bruteForce": "要么全自动要么全手动：忽略了\"分级控制\"的中间态。",
+  "derivation": [
+    "为什么需要：不同任务对\"出错代价\"敏感度不同，统一模式不经济。",
+    "怎么实现：用权限/工具集/确认点三个旋钮调节；自主=宽工具+无确认+高步数，受控=窄工具+关键确认+可暂停。",
+    "有什么代价：自主易失控烧钱/越权，受控则体验 friction 高、吞吐低。",
+    "怎么评测：看任务自主完成率、人工介入率、事故率。"
+  ],
+  "invariant": "无论自由度高低，不可逆的高危动作始终需显式授权。",
+  "walkthrough": "数据清洗=自主跑全量；发对外邮件=受控，每封需确认。前者省人力，后者防事故。",
+  "edgeCases": [
+    "自主跑飞需自动熔断。",
+    "受控确认疲劳致用户盲点确认。",
+    "同一任务不同阶段需切换模式。"
+  ],
+  "code": "def make_agent(mode):\n    if mode == \"auto\":\n        return Agent(tools=ALL, confirm=False, max_steps=50)\n    return Agent(tools=SAFE, confirm=True, max_steps=8)  # 受控",
+  "codeNotes": [
+    "用工具集与确认点两个旋钮。",
+    "高危动作不受模式影响需授权。"
+  ],
+  "complexity": "受控因确认引入人机往返延迟；自主成本更平滑但风险敞口大。",
+  "followUps": [
+    {
+      "question": "什么时候该用自主？",
+      "answer": "任务可逆、低风险、需规模化或探索性强时，如数据整理、实验脚本生成。"
+    },
+    {
+      "question": "受控会不会降低效果？",
+      "answer": "会加摩擦但提安全；可用\"默认可逆自动、不可逆必确认\"折中。"
+    }
+  ],
+  "followUpAnswers": [
+    "可逆低风险才自主。",
+    "可逆自动+不可逆确认。"
+  ],
+  "pitfalls": [
+    "对高风险任务过度自主。",
+    "受控确认疲劳致形式化。"
+  ],
+  "beginnerSummary": "自主像让实习生自己跑腿办事(高效但可能出错)，受控像财务每笔支出要老板签字(慢但稳)。重要的事签字，杂事放手。",
+  "prerequisites": [
+    "能评估任务风险/可逆性。",
+    "有确认与暂停机制。",
+    "可调节工具白名单。"
+  ],
+  "workedExample": [
+    "数据清洗用自主模式。",
+    "对外发信走受控确认。"
+  ],
+  "lineByLine": [
+    "评估任务风险与可逆性。",
+    "自主=宽工具少确认。",
+    "受控=窄工具多确认。",
+    "高危动作始终需授权。"
+  ],
+  "diagram": "Auto: goal -> run freely\nConstrained: goal -> step -> confirm -> step"
+},
+  {
+  "id": "agent-planning-algo",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "Agent 的规划算法（tree / search / ToT）",
+  "prompt": "Agent 的规划算法（tree / search / Tree-of-Thoughts）是怎样的？",
+  "quickAnswer": "这类算法把推理/行动建模为搜索问题：ToT 让模型在每步生成多个候选\"思路\"(thought)，用模型自评估对每条打分/剪枝，沿有希望的分支继续展开，像树搜索(BFS/DFS/beam)找最优解。相比线性 CoT/ReAct，它支持探索、回溯与全局择优，适合需要多路径试错的难题。",
+  "approach": "多候选展开→评估打分→剪枝/回溯→择优深入。",
+  "explanationFocus": "是什么：ToT 等规划算法把 Agent 的推理建模成树状搜索，每步生成多个候选思路并自评，沿高分分支展开、可回溯，从而系统性探索解空间。",
+  "bruteForce": "线性 ReAct 一条路走到黑：走错无法回退，易陷局部。",
+  "derivation": [
+    "为什么需要：很多任务有分支与死路，单链推理无回溯会一错到底。",
+    "怎么实现：每节点让 LLM 产 k 个 thought；用 critic 给状态打分；按 beam/BFS 选 top；到达终态或死路则回溯。",
+    "有什么代价：候选×评估导致调用数激增、成本高；需好的评估函数否则剪错。",
+    "怎么评测：看难题成功率、探索效率(有效分支比)、成本。"
+  ],
+  "invariant": "只有被评估为\"有前景\"的分支才展开，死路必须可回溯而非硬撑。",
+  "walkthrough": "24 点游戏：每步生成 3 种算式候选→评估可达性→选最佳 2 个深入；某分支卡住则回溯到上一节点换路。共展开约 9 节点。",
+  "edgeCases": [
+    "评估函数误判剪掉正解。",
+    "分支爆炸需 beam 限制。",
+    "回溯过深致成本飙升。"
+  ],
+  "code": "def tot(llm, root, beam=2, depth=4):\n    frontier = [root]\n    for d in range(depth):\n        cands = [t for n in frontier for t in llm.thoughts(n)]\n        scored = [(t, llm.score(t)) for t in cands]\n        frontier = topk(scored, beam)          # 仅留高分分支\n        if any(is_solved(n) for n in frontier):\n            return backtrack(frontier)\n    return None",
+  "codeNotes": [
+    "beam 控制分支爆炸。",
+    "评估函数质量决定上限。"
+  ],
+  "complexity": "调用数 ≈ 节点数×候选数×评估数，呈树级增长，需 beam 剪枝。",
+  "followUps": [
+    {
+      "question": "ToT 和 ReAct 怎么选？",
+      "answer": "需回溯/多路径试错(谜题、规划)用 ToT；顺序执行任务用 ReAct 更省。"
+    },
+    {
+      "question": "成本怎么压？",
+      "answer": "用小模型做分支评估、beam 限宽、设最大展开节点数。"
+    }
+  ],
+  "followUpAnswers": [
+    "多路径试错上 ToT。",
+    "小模型评估+beam 限宽。"
+  ],
+  "pitfalls": [
+    "无剪枝致分支爆炸烧钱。",
+    "评估函数差剪掉正解。"
+  ],
+  "beginnerSummary": "ToT 像走迷宫时同时在几个路口都探一步，记下哪条更有戏(打分)，死路就退回换边。比只认一条道走到死胡同聪明，但探得多也费时间。",
+  "prerequisites": [
+    "模型能生成多候选思路。",
+    "有自评/打分能力。",
+    "能维护与回溯搜索树。"
+  ],
+  "workedExample": [
+    "每步 3 候选取 top2 深入。",
+    "死路回溯换分支。"
+  ],
+  "lineByLine": [
+    "每节点生成多候选思路。",
+    "用 critic 给思路打分。",
+    "保留高分分支展开。",
+    "终局或死路则回溯。"
+  ],
+  "diagram": "root -> {a,b,c} -> score -> keep a,c -> expand ..."
+},
+  {
+  "id": "agent-human-in-loop",
+  "category": "Agent Workflow",
+  "difficulty": "Medium",
+  "title": "人类在环（human-in-the-loop）",
+  "prompt": "Agent 里的人类在环（human-in-the-loop）是怎么做的？",
+  "quickAnswer": "HITL 在 Agent 运行到\"需判断/授权/纠偏\"的点时暂停，把上下文与建议推给人类，待其确认、修改或补充后继续。常用 checkpoint(关键动作前确认)、approve/reject(审核)、on-error-escalation(出错升级)、active-feedback(标注纠偏)。它用人工判断力补模型不确定性，兼顾自动化与安全。",
+  "approach": "设检查点→推送上下文→等人工决策→续跑。",
+  "explanationFocus": "是什么：Human-in-the-loop 是在 Agent 的关键或不确定节点插入人工确认、授权与纠偏，让人与 Agent 协同决策的机制。",
+  "bruteForce": "全自动无人工：高风险动作一旦出错不可逆，且无纠偏通道。",
+  "derivation": [
+    "为什么需要：模型有不确定与越权风险，关键决策需人类责任主体把关。",
+    "怎么实现：定义断点(如支付前)；序列化当前状态推送 UI；人确认/改参/拒；结果回流续跑；出错自动升级人工。",
+    "有什么代价：引入人机往返延迟；依赖人可用性；设计不当致确认疲劳。",
+    "怎么评测：看人工介入率、确认通过率、事故拦截率。"
+  ],
+  "invariant": "人工决策必须可序列化回灌并改变后续轨迹，不能\"问了白问\"。",
+  "walkthrough": "合同生成：Agent 起草→在\"发送客户\"前 checkpoint 推给法务→法务改 1 处条款并确认→续发。拦截 1 处风险表述。",
+  "edgeCases": [
+    "人长时间不响应：需超时与默认策略。",
+    "确认疲劳致盲签：需风险分级提示。",
+    "人工改后被模型忽略：需强制采用。"
+  ],
+  "code": "def hitl_checkpoint(state, human):\n    payload = serialize(state)                # 推送上下文\n    decision = human.review(payload)          # 等待人工\n    if decision.action == \"edit\":\n        state = apply_edit(state, decision.patch)\n    elif decision.action == \"reject\":\n        raise AbortedByHuman()\n    return state                              # 回灌续跑",
+  "codeNotes": [
+    "断点只设在真正关键处。",
+    "人工编辑必须被采用。"
+  ],
+  "complexity": "成本主要是人机往返延迟；模型侧仅一次暂停/恢复。",
+  "followUps": [
+    {
+      "question": "HITL 会不会拖慢系统？",
+      "answer": "会加延迟，但只应在高风险/不确定点设断点，并用异步与批量降低摩擦。"
+    },
+    {
+      "question": "哪些点必须人工？",
+      "answer": "不可逆、对外、合规相关动作(付款、发送、删除)以及模型低置信决策。"
+    }
+  ],
+  "followUpAnswers": [
+    "仅关键断点+异步降摩擦。",
+    "不可逆/对外/低置信必人工。"
+  ],
+  "pitfalls": [
+    "断点过多致确认疲劳。",
+    "人工决策未被真正采用。"
+  ],
+  "beginnerSummary": "HITL 像重要文件要领导签字：AI 草拟好，在\"发出去\"前弹出给负责人看，他改一改或点头，流程才继续。既自动化又有人兜底。",
+  "prerequisites": [
+    "能定义关键断点。",
+    "有推送与回收人工决策的通道。",
+    "状态可序列化暂停/恢复。"
+  ],
+  "workedExample": [
+    "发送前 checkpoint 推法务。",
+    "法务改条款后确认续发。"
+  ],
+  "lineByLine": [
+    "在断点序列化状态。",
+    "推送给人工审核。",
+    "等待确认/编辑/拒绝。",
+    "决策回灌续跑或终止。"
+  ],
+  "diagram": "Agent --pause--> Human --decision--> Agent"
+},
+  {
+  "id": "agent-failure-modes",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "Agent 失败模式与缓解",
+  "prompt": "Agent 有哪些典型失败模式，怎么缓解？",
+  "quickAnswer": "典型失败包括：循环空转(重复同动作)、工具误用(选错/参数错)、幻觉作答(脱离观察)、上下文溢出(丢关键)、提示注入劫持、目标漂移(忘了初衷)、成本爆炸。缓解靠步数上限、观察回灌、格式校验、沙箱与授权、预算护栏、可观测回放与 HITL 兜底——即把\"容错+约束+可恢复\"织进全流程。",
+  "approach": "识别模式→加约束护栏→可观测→兜底恢复。",
+  "explanationFocus": "是什么：Agent 失败模式指其在运行中常见的系统性错误形态，缓解是用约束、校验、护栏与兜底使其具备韧性的工程集合。",
+  "bruteForce": "出问题再看：缺乏预设防护，每种失败都造成用户可感事故。",
+  "derivation": [
+    "为什么需要：LLM 非确定且能执行动作，失败代价高，需系统性防护而非补救。",
+    "怎么实现：对每类失败设对应护栏(步数上限防循环、schema 校验防误用、grounding 防幻觉、预算防爆炸、注入检测防劫持)。",
+    "有什么代价：护栏叠加增复杂度与少量延迟；过度约束抑能力。",
+    "怎么评测：红队测试各失败模式拦截率与误伤率。"
+  ],
+  "invariant": "每种已知失败模式都应有对应的可触发护栏，而非依赖模型\"自觉\"。",
+  "walkthrough": "失败复盘：曾循环调同一搜索 12 次→加重复检测+步数上限；曾凭空答\"已查\"→加 grounding 校验。两类事故归零。",
+  "edgeCases": [
+    "护栏间相互冲突需优先级。",
+    "新失败模式未被覆盖。",
+    "误伤正常多样行为。"
+  ],
+  "code": "def guard(trace, action, budget):\n    if action in last_k(trace, 3): raise LoopDetected()   # 防循环\n    if not schema_ok(action):   raise BadAction()         # 防误用\n    if budget.exceeded():       raise BudgetExceeded()    # 防爆炸\n    return True",
+  "codeNotes": [
+    "护栏要可组合且有权重。",
+    "新失败模式需持续补护栏。"
+  ],
+  "complexity": "每步附加若干 O(1) 护栏检查，成本可忽略。",
+  "followUps": [
+    {
+      "question": "怎么发现未知失败模式？",
+      "answer": "靠生产 trace 回放、用户反馈与红队演练，把新形态沉淀为对应护栏。"
+    },
+    {
+      "question": "护栏会误伤吗？",
+      "answer": "会，需用误伤率指标调阈值，并对边界case加 HITL 而非硬拒。"
+    }
+  ],
+  "followUpAnswers": [
+    "回放+红队沉淀护栏。",
+    "调阈值+边界走 HITL。"
+  ],
+  "pitfalls": [
+    "依赖模型自觉而非硬护栏。",
+    "护栏堆砌致正常行为被误伤。"
+  ],
+  "beginnerSummary": "Agent 失败像小孩常犯的错：绕圈重复(循环)、用错工具、瞎编(幻觉)、忘事(溢出)、被人骗(注入)。大人(护栏)提前定规矩——\"同一件事不许做第三遍\"\"没查过不许说查了\"——才稳当。",
+  "prerequisites": [
+    "能枚举常见失败模式。",
+    "有可加的护栏钩子。",
+    "有 trace 用于复盘。"
+  ],
+  "workedExample": [
+    "重复动作检测+步数上限。",
+    "grounding 校验防凭空作答。"
+  ],
+  "lineByLine": [
+    "识别循环/误用/幻觉等模式。",
+    "为每类加对应护栏。",
+    "超阈值即拦截或升级。",
+    "新失败持续沉淀护栏。"
+  ],
+  "diagram": "Action -> [Loop?][Schema?][Budget?] -> allow/block"
+},
+  {
+  "id": "agent-rag-vs-finetune",
+  "category": "Agent Workflow",
+  "difficulty": "Hard",
+  "title": "Agent 与 RAG / 微调的取舍",
+  "prompt": "在构建 Agent 能力时，RAG、微调与 Agent 框架各自怎么取舍？",
+  "quickAnswer": "三者解决不同问题：微调改变模型\"固有知识与风格\"(成本高、慢迭代、难更新)；RAG 给模型\"外接实时/私有知识\"(快、可溯源、但受检索上限)；Agent 解决\"多步自主行动与工具使用\"(能力编排)。实务常组合：微调定人设/格式、RAG 供知识、Agent 串行动；先用 RAG/Agent 不上微调，除非确需固化行为或降延迟。",
+  "approach": "先 Agent 编排→RAG 补知识→最后才微调固化。",
+  "explanationFocus": "是什么：在 Agent 构建中，RAG 负责外接知识、微调负责固化模型能力与风格、Agent 负责行动编排；按\"改动成本与更新频率\"做分层取舍。",
+  "bruteForce": "一上来就微调：贵、慢、知识过期快，且本可用 RAG 零成本解决。",
+  "derivation": [
+    "为什么需要：不同需求对应不同杠杆，混用会浪费资源或限制灵活性。",
+    "怎么实现：知识类用 RAG(检索)；行为/格式类先 prompt/Agent 控制，不足再微调；高频低变内容可考虑微调降延迟。",
+    "有什么代价：微调训练与维护成本、RAG 检索上限、Agent 多轮开销；组合增加系统复杂度。",
+    "怎么评测：看准确率、知识新鲜度、延迟、总成本与迭代速度。"
+  ],
+  "invariant": "优先用\"不改权重\"的方式(RAG/Agent/prompt)解决问题，微调只作为最后手段。",
+  "walkthrough": "企业客服：Agent 编排流程+RAG 接最新政策库(天天变)，仅把\"礼貌话术风格\"微调固化。知识更新零重训，风格稳定。",
+  "edgeCases": [
+    "RAG 检索上限致长文档丢信息。",
+    "微调后新知识难注入需重训。",
+    "三者组合调试复杂度高。"
+  ],
+  "code": "def build(need):\n    if need.knowledge_fresh:  return Agent + RAG      # 优先外接知识\n    if need.style_fixed:      return Agent + RAG + finetune_style\n    return Agent                                    # 纯编排",
+  "codeNotes": [
+    "RAG 解决\"知不知道\"。",
+    "微调解决\"像不像/稳不稳\"。"
+  ],
+  "complexity": "微调成本最高且最不灵活；RAG/Agent 边际成本低、易更新。",
+  "followUps": [
+    {
+      "question": "什么时候才值得微调？",
+      "answer": "当 prompt/Agent 无法稳定固化风格、或需降延迟去检索、或私有行为数据极多时，才上微调。"
+    },
+    {
+      "question": "RAG 能替代 Agent 吗？",
+      "answer": "不能，RAG 只补知识，Agent 补行动与编排；多步工具任务仍需 Agent。"
+    }
+  ],
+  "followUpAnswers": [
+    "稳定性/降延迟/大数据才微调。",
+    "RAG 补知，Agent 补行。"
+  ],
+  "pitfalls": [
+    "过早微调忽视更廉价的 RAG/Agent。",
+    "用微调承载易变知识致过期。"
+  ],
+  "beginnerSummary": "三者像补齐员工能力：RAG 是给他配随时查的资料库(知不知道)，微调是送他去培训固化职业习惯(像不像)，Agent 是给他排班和工具让他办事(做不做)。先给资料和组织，别急着送培训班。",
+  "prerequisites": [
+    "厘清需求是知识/行为/行动。",
+    "有可检索语料(若用 RAG)。",
+    "有训练数据(若微调)。"
+  ],
+  "workedExample": [
+    "客服用 Agent+RAG 接新政策。",
+    "仅风格类做微调固化。"
+  ],
+  "lineByLine": [
+    "判断需求属于哪类。",
+    "知识类优先上 RAG。",
+    "行动类用 Agent 编排。",
+    "仅必要时才微调。"
+  ],
+  "diagram": "RAG(knowledge) + Finetune(style) + Agent(action)"
+},
 ];

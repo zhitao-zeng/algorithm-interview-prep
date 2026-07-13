@@ -26,7 +26,7 @@ const beginnerFixture = {
 };
 
 test('现有 60 道题均通过基础内容校验', () => {
-  assert.equal(questions.length, 100);
+  assert.equal(questions.length, 265);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -316,4 +316,86 @@ test('GitHub Pages 工作流声明正确的部署步骤', () => {
   assert.match(workflow, /actions\/configure-pages@v5/);
   assert.match(workflow, /actions\/upload-pages-artifact@v3/);
   assert.match(workflow, /actions\/deploy-pages@v4/);
+});
+
+// ---- 子 Agent 批量新增模块校验 (auto-generated) ----
+test('子Agent模块【Continuous Batching】全部题卡通过初学者契约', () => {
+  const ids = new Set(["cb-what","cb-why-needed","cb-static-problems","cb-release-slot","cb-iteration-scheduling","cb-padding-waste","cb-throughput-compare","cb-kv-dynamic","cb-preemption","cb-metrics","cb-pagedattention","cb-implementation-pitfalls","cb-load-balance","cb-vllm","cb-trt-llm"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 15, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【PagedAttention】全部题卡通过初学者契约', () => {
+  const ids = new Set(["pa-what","pa-why-fragment","pa-os-paging","pa-block-alloc","pa-block-table","pa-attention-adapt","pa-fragment-reduction","pa-continuous-batching","pa-cow-prefix","pa-block-size","pa-eval","pa-vllm-impl"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 12, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【量化推理】全部题卡通过初学者契约', () => {
+  const ids = new Set(["quant-what","quant-ptq-vs-qat","quant-int8-sym-asym","quant-int4-gptq","quant-int4-awq","quant-fp8","quant-weight-act-kv","quant-granularity","quant-outlier-smoothquant","quant-mixed-precision","quant-dequant-qmm","quant-eval-accuracy","quant-hardware","quant-speedup","quant-calibration","quant-dynamic-vs-static","quant-w4a16-equivalence","quant-deploy-pitfalls"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 18, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【服务性能评测】全部题卡通过初学者契约', () => {
+  const ids = new Set(["perf-why-eval","perf-ttft-tpot-tps","perf-throughput-vs-latency","perf-qps-concurrency","perf-vram","perf-e2e-decomp","perf-load-tools","perf-percentiles","perf-saturation-capacity","perf-batch-size","perf-long-context","perf-streaming","perf-sla","perf-cold-start","perf-gpu-util","perf-cost","perf-framework-bench","perf-traps","perf-script-design","perf-monitor-vs-offline"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 20, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【多GPU并行】全部题卡通过初学者契约', () => {
+  const ids = new Set(["mgpu-why-multi","mgpu-dp","mgpu-tp","mgpu-pp","mgpu-sp","mgpu-tp-matmul","mgpu-tp-comm","mgpu-pp-bubble","mgpu-pp-1f1b","mgpu-ep","mgpu-zero","mgpu-comm-compare","mgpu-tp-infer","mgpu-nccl","mgpu-strategy"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 15, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【ONNX/TensorRT】全部题卡通过初学者契约', () => {
+  const ids = new Set(["onnx-what","onnx-opset-fusion","onnx-export-issues","onnx-trt-what","onnx-trt-optimizations","onnx-trt-fp16-int8","onnx-trt-build-engine","onnx-trt-dynamic-shape","onnx-trt-plugin","onnx-to-trt","onnx-trt-int8-calibration","onnx-trt-latency-compare","onnx-graph-optimization","onnx-qat-to-trt-int8","onnx-multi-framework","onnx-deployment-pitfalls","onnx-trt-llm-intro","onnx-dynamic-batch-shape","onnx-evaluate-trt-speedup","onnx-trt-deploy-best-practice"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 20, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【多模态模型】全部题卡通过初学者契约', () => {
+  const ids = new Set(["mm-architecture","mm-vit","mm-clip","mm-alignment","mm-fusion","mm-vistoken","mm-qformer","mm-mrope","mm-video-temporal","mm-pretrain","mm-preprocess","mm-sft","mm-hallucination","mm-hires","mm-multi-image","mm-benchmark","mm-latency","mm-deploy","mm-audio","mm-vs-unimodal"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 20, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【搜索推荐】全部题卡通过初学者契约', () => {
+  const ids = new Set(["rec-system-arch","rec-recall","rec-pre-ranking","rec-ranking","rec-twotower","rec-ann","rec-multichannel","rec-feature","rec-din-deepfm","rec-seq","rec-ctr","rec-coldstart","rec-multiobjective","rec-rerank","rec-llm-rec","rec-realtime","rec-metrics","rec-recall-eval","rec-bias","rec-feature-store"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 20, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【Agent Workflow】全部题卡通过初学者契约', () => {
+  const ids = new Set(["agent-what-is-agent","agent-react","agent-tool-calling","agent-planning","agent-memory","agent-reflection","agent-multi-agent","agent-orchestration","agent-state-machine","agent-error-retry","agent-context-mgmt","agent-prompt-eng","agent-rag-in-agent","agent-eval","agent-cost","agent-streaming","agent-security","agent-observability","agent-cot","agent-prod-deploy","agent-autonomous-vs-constrained","agent-planning-algo","agent-human-in-loop","agent-failure-modes","agent-rag-vs-finetune"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 25, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
 });
