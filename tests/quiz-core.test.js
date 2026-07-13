@@ -26,7 +26,7 @@ const beginnerFixture = {
 };
 
 test('现有 60 道题均通过基础内容校验', () => {
-  assert.equal(questions.length, 265);
+  assert.equal(questions.length, 281);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
