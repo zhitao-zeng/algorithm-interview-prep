@@ -55,6 +55,22 @@ test('默认校验仍接受旧版字符串追问', () => {
   assert.equal(validateQuestionCard(legacyFixture).valid, true);
 });
 
+test('链表与二叉树第一批题卡满足完整初学者学习契约', () => {
+  const ids = new Set([
+    '206', '92', '23', '146', '21', '25', '141', '142', '160',
+    '102', '103', '105', '124', '297', '331', '236',
+  ]);
+  const cards = questions.filter((question) => ids.has(question.id));
+
+  assert.equal(cards.length, ids.size);
+  for (const question of cards) {
+    assert.equal(validateQuestionCard(question, { beginner: true }).valid, true, question.title);
+    assert.match(question.code, /def |class |from |import /, `${question.title} 应提供完整 Python 代码`);
+    assert.ok(question.lineByLine.length >= 3, `${question.title} 应至少有三段逐行讲解`);
+    assert.ok(question.workedExample.length >= 2, `${question.title} 应至少有两步演练`);
+  }
+});
+
 test('快速详情按初学者学习顺序展示', () => {
   assert.deepEqual(
     detailSections(beginnerFixture, 'quick').map((section) => section.key),
