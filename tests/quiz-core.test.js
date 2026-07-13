@@ -139,3 +139,20 @@ test('快速详情按初学者学习顺序展示', () => {
     ['beginnerSummary', 'code', 'complexity', 'followUps', 'pitfalls'],
   );
 });
+
+test('第三批题卡的示例类型与复杂度说明一致', () => {
+  const islands = questions.find((question) => question.id === '200');
+  assert.match(islands.workedExample[0], /['"]1['"]/);
+  const run = spawnSync('python3', ['-c', `${islands.code}\nassert num_islands([['1','1','0'],['0','1','0'],['0','0','1']]) == 2`], { encoding: 'utf8' });
+  assert.equal(run.status, 0, run.stderr);
+
+  const wordBreak = questions.find((question) => question.id === '139');
+  assert.match(wordBreak.code, /max_word_len/);
+  assert.match(wordBreak.complexity, /O\(n·L²\)/);
+
+  const oranges = questions.find((question) => question.id === '994');
+  assert.match(oranges.workedExample[0], /一个/);
+  const maxSubArray = questions.find((question) => question.id === '53');
+  assert.match(maxSubArray.workedExample[1], /-2\+4=2/);
+  assert.doesNotMatch(maxSubArray.code, /nums\[1:\]/);
+});

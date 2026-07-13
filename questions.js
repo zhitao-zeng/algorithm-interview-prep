@@ -348,6 +348,7 @@ export const questions = [
 // 第三批题卡的完整初学者内容：保留题目顺序，只替换迁移阶段的占位代码和讲解。
 const enhance = (id, fields) => Object.assign(questions.find((question) => question.id === id), fields);
 enhance('46', {
+  complexity: '时间 O(n·n!)，辅助空间 O(n)（不计存放全部排列的输出空间）',
   beginnerSummary: '排列要求每个位置都放一个尚未使用的数字；走到底就得到一种顺序，退回一步时必须撤销选择。',
   prerequisites: ['回溯状态由 path（当前顺序）和 used（数字是否占用）组成。', 'path[:] 是快照，不能把之后会变化的同一个列表直接放进答案。'],
   workedExample: ['nums=[1,2,3] 先选 1，再选 2、3 得到 [1,2,3]。', '退回到 [1,2] 撤销 3，再换成其他未使用数字；最终得到 6 种顺序。'],
@@ -462,7 +463,7 @@ enhance('79', {
 enhance('994', {
   beginnerSummary: '所有腐烂橘子在同一时刻开始传播；BFS 每处理一层就是过去 1 分钟，最后检查是否仍有新鲜橘子。',
   prerequisites: ['队列保存待扩散的腐烂坐标，入队时立即把新鲜橘子改为 2。', 'fresh 计数让我们区分已经没有新鲜橘子和永远无法到达的情况。'],
-  workedExample: ['网格 [[2,1,1],[0,1,1]]：初始队列只有 (0,0)，第一层感染两个邻居。', '按层继续传播，fresh 变成 0 时返回经过的分钟数；若被 0 隔断则返回 -1。'],
+  workedExample: ['网格 [[2,1,1],[0,1,1]]：初始队列只有 (0,0)，第一层只感染右侧一个邻居（下方是 0）。', '按层继续传播，fresh 变成 0 时返回经过的分钟数；若被 0 隔断则返回 -1。'],
   derivation: ['逐个腐烂源做 DFS 会重复计算时间且无法表达同时发生。', '多源 BFS 把所有源放在同一层，层数就是到达每格的最短分钟数。'],
   code: py(`from collections import deque
 
@@ -498,7 +499,7 @@ def oranges_rotting(grid):
 enhance('200', {
   beginnerSummary: '扫描每个格子；遇到陆地就把岛屿数量加一，并用 DFS/BFS 把这个四连通陆地整体淹没，之后不会重复计数。',
   prerequisites: ['四连通只允许上、下、左、右，不包含对角线。', '访问过的陆地可以原地改成 "0"，也可用 visited 集合记录。'],
-  workedExample: ['网格 [[1,1,0],[0,1,0],[0,0,1]]：左上陆地触发一次 flood，淹没三个相连格。', '最后右下孤立的 1 再触发一次，答案为 2。'],
+  workedExample: ['网格 [["1","1","0"],["0","1","0"],["0","0","1"]]：左上陆地触发一次 flood，淹没三个相连格。', '最后右下孤立的 "1" 再触发一次，答案为 2；代码约定网格元素是字符串。'],
   derivation: ['对每个陆地单独判断会重复遍历同一连通块。', '发现一个新岛后一次 flood 访问其所有成员；每格最多进出一次，整体线性。'],
   code: py(`from collections import deque
 
@@ -522,8 +523,8 @@ def num_islands(grid):
                         grid[nr][nc] = '0'
                         queue.append((nr, nc))
     return islands`),
-  lineByLine: ['遇到非 1 格直接跳过，只有未访问陆地才增加 islands。', '入队前立刻淹没起点，保证同一格不会重复入队。', 'BFS 四方向扩展整个连通块，水和对角线都不会连岛。', '外层扫描结束后每个岛只计数一次。'],
-  edgeCases: ['空网格返回 0', '全是 0 返回 0', '单个 1 或只有对角相邻的 1 分别计数'],
+  lineByLine: ['遇到非字符串 "1" 的格子直接跳过，只有未访问陆地才增加 islands。', '入队前立刻把字符串 "1" 改成 "0"，保证同一格不会重复入队。', 'BFS 四方向扩展整个连通块，水和对角线都不会连岛。', '外层扫描结束后每个岛只计数一次。'],
+  edgeCases: ['空网格返回 0', '全是字符串 "0" 返回 0', '单个字符串 "1" 或只有对角相邻的字符串 "1" 分别计数'],
   followUps: [{ question: '可以用 DFS 吗？', answer: '可以，递归或显式栈都能淹没连通块；显式队列更不容易触发 Python 递归深度限制。' }, { question: '为什么入队时就改成 0？', answer: '若等出队才标记，同一陆地可能被多个邻居重复发现，队列会膨胀。' }],
   pitfalls: ['把对角线也当连通会少算岛屿。', '调用未定义的 flood 辅助函数会使代码无法独立运行。'],
 });
@@ -531,13 +532,14 @@ def num_islands(grid):
 enhance('53', {
   beginnerSummary: '把 cur 定义为“必须以当前位置结尾”的最大和；当前数可以单独开新子数组，也可以接在旧 cur 后面。',
   prerequisites: ['连续子数组不能跳过元素。', '全负数组不能把答案初始化为 0，必须从第一个数开始。'],
-  workedExample: ['[-2,1,-3,4]：cur 从 -2 开始，读到 1 时重启为 1。', '读到 4 时比较 4 与 -3+4，重启得到 4；全程 best 记录最大值。'],
+  workedExample: ['[-2,1,-3,4]：cur 从 -2 开始，读到 1 时重启为 1。', '读到 -3 后 cur=-2，读到 4 时比较 4 与 -2+4=2，重启得到 4；全程 best 记录最大值。'],
   derivation: ['枚举起点终点是 O(n²)。', '若前缀 cur 为负，接下去只会拖累后面的和，因此在每个位置比较 x 与 cur+x 即可丢弃负前缀。'],
   code: py(`def max_sub_array(nums):
     if not nums:
         return 0
-    cur = best = nums[0]
-    for value in nums[1:]:
+    values = iter(nums)
+    cur = best = next(values)
+    for value in values:
         cur = max(value, cur + value)
         best = max(best, cur)
     return best`),
@@ -620,26 +622,30 @@ enhance('1143', {
   pitfalls: ['把子串（必须连续）和子序列混淆。', '相等时错误取 max 上方/左方会漏掉当前配对。'],
 });
 enhance('139', {
+  complexity: '时间 O(n·L²)（L 为词典最大词长，含切片复制成本），空间 O(n)',
   beginnerSummary: 'dp[i] 表示 s 的前 i 个字符能否被词典拆开；若存在 j<i，dp[j] 为真且 s[j:i] 在词典中，则 dp[i] 为真。',
   prerequisites: ['字符串切片 s[j:i] 左闭右开。', 'dp[0]=True 表示空前缀是可拆的起点。'],
   workedExample: ['s="leetcode"、词典 {leet,code}：dp[4] 因 leet 为真。', '处理 i=8 时找到 j=4 且 code 在词典中，dp[8]=True。'],
-  derivation: ['递归尝试每个切分点会重复计算相同前缀。', '按结束位置递推，所有更短前缀已确定；集合查词平均 O(1)。'],
+  derivation: ['递归尝试每个切分点会重复计算相同前缀。', '按结束位置递推，且只回看最长词长 L 个字符；由于 Python 切片会复制最多 L 个字符，时间复杂度是 O(n·L²)，空间 O(n)。'],
   code: py(`def word_break(s, word_dict):
     words = set(word_dict)
+    max_word_len = max((len(word) for word in words), default=0)
     dp = [False] * (len(s) + 1)
     dp[0] = True
     for end in range(1, len(s) + 1):
-        for start in range(end):
+        start_min = max(0, end - max_word_len)
+        for start in range(start_min, end):
             if dp[start] and s[start:end] in words:
                 dp[end] = True
                 break
     return dp[-1]`),
-  lineByLine: ['words=set 让词典查询清晰且快速。', 'dp[0] 是空前缀基线。', 'end 固定当前要证明的前缀长度，start 枚举最后一个词的起点。', '找到一个合法切分就 break，不必继续试其他起点。'],
+  lineByLine: ['words=set 让词典查询清晰且快速，并计算最长词长 max_word_len。', 'dp[0] 是空前缀基线。', 'end 固定当前要证明的前缀长度，start 只在最近 L 个字符内枚举。', '找到一个合法切分就 break，不必继续试其他起点。'],
   edgeCases: ['空字符串返回 True（零个词即可拼出）', '词典为空时非空字符串返回 False', '词典中有重复词不影响集合判断'],
   followUps: [{ question: '如何返回一种拆分方案？', answer: 'dp[end] 变为保存前驱 start；命中时记录 parent[end]=start，最后从 n 反向切片。' }, { question: '如何优化长词典？', answer: '按最大词长限制 start 范围，或使用 Trie 从每个可达位置向前匹配。' }],
   pitfalls: ['dp[0] 忘记设 True 会导致所有前缀都无法启动。', '把不可达状态当成空字符串误判。'],
 });
 enhance('416', {
+  complexity: '时间 O(n·target)，空间 O(target)，其中 target=sum(nums)/2',
   beginnerSummary: '两组和相等等价于从 nums 中选出一个子集，其和等于总和的一半；一维布尔背包记录每个和是否可达。',
   prerequisites: ['总和为奇数时不可能平分。', '每个数字只能使用一次，所以容量循环必须从大到小。'],
   workedExample: ['[1,5,11,5] 总和 22，目标 11；先用 1、5 更新可达和。', '遇到 11 时 dp[11] 变真，表示找到子集 [11]，另一组为 [1,5,5]。'],
