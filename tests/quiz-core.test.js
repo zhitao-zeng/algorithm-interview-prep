@@ -164,6 +164,17 @@ test('模拟模式切题入口统一重置揭晓进度', () => {
   assert.match(appSource, /state\.revealIndex = 0/);
 });
 
+test('移动端先展示详情，切题后把用户带回详情区', () => {
+  const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const stylesSource = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+
+  assert.match(stylesSource, /@media\s*\(max-width:\s*920px\)[\s\S]*\.app-shell\s*\{[^}]*display\s*:\s*flex/);
+  assert.match(stylesSource, /@media\s*\(max-width:\s*920px\)[\s\S]*\.detail-pane\s*\{[^}]*order\s*:\s*1/);
+  assert.match(stylesSource, /@media\s*\(max-width:\s*920px\)[\s\S]*\.question-pane\s*\{[^}]*order\s*:\s*2/);
+  assert.match(appSource, /function scrollToMobileDetail\(\)/);
+  assert.match(appSource, /scrollIntoView\(\{ behavior: 'smooth', block: 'start' \}\)/);
+});
+
 test('第三批题卡的示例类型与复杂度说明一致', () => {
   const islands = questions.find((question) => question.id === '200');
   assert.match(islands.workedExample[0], /['"]1['"]/);

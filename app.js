@@ -19,6 +19,11 @@ function selectQuestion(id) {
   if (state.mode === 'review') state.detailLevel = 'deep';
 }
 
+function scrollToMobileDetail() {
+  if (typeof window === 'undefined' || !window.matchMedia?.('(max-width: 920px)').matches) return;
+  el('question-detail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 function renderCategories() {
   el('category-list').replaceChildren(...categories.map((category) => {
     const button = document.createElement('button');
@@ -45,6 +50,7 @@ function renderList() {
     card.addEventListener('click', () => {
       selectQuestion(q.id);
       render();
+      scrollToMobileDetail();
     });
     return card;
   }));
