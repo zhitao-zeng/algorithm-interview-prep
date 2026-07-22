@@ -1,5 +1,5 @@
 // 自动生成：讲解字段由构建脚本套用覆盖，code 字段原样保留。
-export const categories = ["全部", "链表", "二叉树", "数组/窗口", "二分/TopK", "搜索/图", "动态规划", "模型手写", "ASR 专项", "语音大模型", "RL 后训练", "大模型推理原理", "KV Cache", "Continuous Batching", "PagedAttention", "多GPU并行", "量化推理", "ONNX/TensorRT", "服务性能评测", "多模态模型", "搜索推荐", "Agent Workflow", "计算机系统基础"];
+export const categories = ["全部", "链表", "二叉树", "数组/窗口", "二分/TopK", "搜索/图", "动态规划", "模型手写", "ASR 专项", "语音大模型", "RL 后训练", "大模型推理原理", "KV Cache", "Continuous Batching", "PagedAttention", "多GPU并行", "量化推理", "ONNX/TensorRT", "服务性能评测", "多模态模型", "搜索推荐", "Agent Workflow", "计算机系统基础", "Transformer 架构", "训练与微调", "RAG", "长上下文与位置编码"];
 
 export const questions = [
   { "id": "206", "category": "链表", "difficulty": "Easy", "title": "反转链表", "prompt": "给定单链表头节点 head，将其原地反转（只修改节点的 next 指针，不新建链表），返回反转后的新头节点。链表长度可为 0，节点值为任意整数；要求空间 O(1)。示例：输入 1→2→3→null，输出 3→2→1→null。", "diagram": "反转前:  head → [1]→[2]→[3]→[4]→ null\n\n每轮(以第1轮为例):\n  nxt = cur.next        # 先暂存后继, 否则断链\n  cur.next = prev       # 掉头\n  prev, cur = cur, nxt  # 两指针前进\n\n指针演化:\n  prev=null   cur=1→2→3→4→null\n  → prev=1→null        cur=2→3→4→null\n  → prev=2→1→null      cur=3→4→null\n  → prev=3→2→1→null    cur=4→null\n  → prev=4→3→2→1→null  cur=null  (返回 prev)", "quickAnswer": "维护 prev、cur、nxt；先保存 nxt 再反转 cur.next。", "approach": "维护 prev、cur、nxt；先保存 nxt 再反转 cur.next。", "explanationFocus": "反转链表：维护 prev、cur、nxt；先保存 nxt 再反转 cur.next。", "bruteForce": "《反转链表》可先把节点值或指针关系完整收集后重建；这能验证结果，但额外空间掩盖了原地指针操作。", "invariant": "prev 始终是已经反转好的前缀头结点。", "walkthrough": "演练《反转链表》时，在纸上标出头、尾和临时指针，每次连边后检查是否仍能到达剩余节点。", "derivation": ["最直观的做法是把所有值读进数组再倒序重建，但那样没有练习到指针操作，也没有做到原地修改，面试通常不认可。", "核心观察是：只要在处理 cur 之前保存它的后继 nxt，就能安全地把 cur.next 接到 prev 上，而不会因为改了指针而丢失后半段链表。", "每轮把 cur 接到 prev 前面，然后 prev、cur 一起向前走一步；当 cur 走到 None，prev 恰好停在原本的最后一个节点，也就是反转后的新头。"], "edgeCases": ["空链表：head 为 None，循环不执行，直接返回 None，调用方需要处理。", "单节点链表：循环执行一次后 cur 变为 None，prev 指向该节点本身，正确。", "头节点或尾节点参与操作：反转后原头变尾（next 为 None），原尾变头，指针逻辑无需特判。"], "code": "# Python\nclass ListNode:\n    def __init__(self, val=0, next=None):\n        self.val, self.next = val, next\n\ndef reverse_list(head):\n    prev, cur = None, head\n    while cur:\n        nxt = cur.next\n        cur.next = prev\n        prev, cur = cur, nxt\n    return prev", "codeNotes": ["节点重连前先保存 next，避免断链。", "dummy 节点能统一头部变化的分支。"], "complexity": "时间 O(n)，空间 O(1)。每个节点只被访问一次，且只用到 prev、cur、nxt 三个指针，额外空间是常数。", "followUps": [{ "question": "为什么必须先保存 nxt？", "answer": "改写 cur.next 后，原来通往剩余节点的箭头会断开。把它保存到 nxt，才能在本轮结束后继续走到原链表的下一个节点，否则后面的节点就访问不到了。" }, { "question": "能否用递归实现？", "answer": "可以，递归先翻转后半段再把当前节点接到末尾；但递归会占用 O(n) 的调用栈空间，而迭代版本只需要三个指针，空间为 O(1)，实际面试更推荐迭代。" }], "followUpAnswers": ["多数链表题可用常数个指针原地完成，但要明确哪些节点仍被引用。", "只保留后续操作需要的边界节点或缓存窗口。"], "pitfalls": ["覆盖 next 前没有暂存后继节点，导致后续节点全部丢失、链表断裂。", "头节点变化却没有用 prev 或新头变量承接，最后返回了错误的节点（如返回 None 或原 head）。"], "beginnerSummary": "反转链表就是把一条单向链表的指向全部掉头：原本 head → … → tail 变成 tail → … → head。面试里通常要求「原地」完成，也就是不新建一整条链表，只通过修改每个节点的 next 指针来实现。理解它的关键只有一句话：在改动某个节点的 next 之前，必须先记住它原本指向的下一个节点，否则从它通往后面节点的路就断了，链表也就跟着断链。", "prerequisites": ["单链表每个节点由 val（存值）和 next（指向下一个节点，末尾为 None）组成，只能顺着 next 单向前进。", "我们需要两个游标：prev 指向「已经反转好的那段链表的头部」，cur 指向「当前正在处理的节点」。", "一旦把 cur.next 改指 prev，原来从 cur 通往后方节点的箭头就消失了，所以改之前必须先暂存 cur.next。"], "workedExample": ["以 1 → 2 → 3 为例，初始 prev=None、cur=1。第一轮：暂存 nxt=2，把 1.next 指向 None（它变成新链尾），再令 prev=1、cur=2。", "第二轮：暂存 nxt=3，把 2.next 指向 1，prev=2、cur=3。第三轮：暂存 nxt=None，把 3.next 指向 2，prev=3、cur=None，循环结束。", "此时 prev 指向 3，从 3 出发是 3 → 2 → 1 → None，整条链已反转，返回 prev 即为新头节点。"], "lineByLine": ["ListNode 类定义了题目约定的节点结构，包含值和下一跳，方便我们构造与返回链表。", "while cur: 保证即使链表为空（cur 一开始就是 None）也会直接返回 prev（也就是 None），不会进入循环。", "nxt = cur.next 必须在改写 cur.next 之前执行，这是「暂存后继」的关键，避免断链。", "cur.next = prev 完成一次「掉头」；prev, cur = cur, nxt 让两个游标同时前进，最终 prev 成为新头节点并返回。"] },
@@ -12173,5 +12173,3997 @@ export const questions = [
       "监控 Pinned 占用，防主机内存压力。"
     ],
     "diagram": "主机 Pageable ──(驱动中转,常同步)──► GPU 显存\n主机 Pinned   ──(DMA,可异步,需stream)─► GPU 显存\nGPU 显存: Kernel 直读, 带宽最高, 容量有限"
+  },
+  {
+    "id": "arch-rope",
+    "category": "Transformer 架构",
+    "difficulty": "Hard",
+    "title": "RoPE 旋转位置编码原理",
+    "prompt": "RoPE 旋转位置编码是怎么把绝对位置信息变成相对位置感知的？",
+    "quickAnswer": "对 Q/K 乘上位置相关的旋转矩阵 R_θ,m（块对角 2D 旋转），使 q^⊤k 只依赖相对位置 n−m。",
+    "approach": "用正交旋转矩阵对投影后的 Q/K 做旋转，利用 R_θ,m^⊤R_θ,n=R_θ,n−m 让内积退化为相对位置函数。",
+    "explanationFocus": "是什么：RoPE（Rotary Position Embedding）是一种乘性位置编码，把每个 token 的 Q/K 向量按绝对位置 m 旋转一个角度，使得旋转后两向量的内积只与它们位置差 n−m 有关，从而在无额外偏置参数的情况下注入相对位置信息。",
+    "bruteForce": "朴素做法是在 token 表示上直接加绝对/相对位置向量（加法式），但加法式难以让注意力分数精确只依赖相对位置，且相对位置偏置往往需要额外可学习参数表。",
+    "derivation": [
+      "为什么需要：Transformer 本身对输入顺序不变，必须显式注入位置；加法式编码无法让 q^⊤k 精确只依赖相对距离。",
+      "怎么实现：把 d 维拆成 d/2 个 2D 子空间，第 i 个子空间按角度 m·θ_i 旋转，θ_i=10000^{−2(i−1)/d}，形成块对角旋转矩阵 R_Θ,m，计算 q'=R_Θ,m W_q x。",
+      "有什么代价：需对每个位置、每个 head 计算 sin/cos 并配对乘加，但只是 O(Nd) 的前处理，不增加注意力 O(N²d) 主复杂度；远场（大 n−m）注意力有内置衰减。",
+      "怎么评测：在长文本困惑度、外推长度、长程依赖任务上对比；验证注意力分数随距离衰减、且在未训练长度上的泛化。"
+    ],
+    "invariant": "旋转矩阵正交 → 不变量是「内积只依赖相对位置 n−m」，且范数保持不变；高频维度编码近距、低频维度编码远距。",
+    "walkthrough": "设 d=2，位置 m=1，θ=0.1，则 R_θ,1=[[cos0.1,−sin0.1],[sin0.1,cos0.1]]≈[[0.995,−0.0998],[0.0998,0.995]]，把 W_q x 旋转约 5.7°；位置 n=4 的 k 旋转约 22.9°，二者内积只由角度差 3·θ 决定。",
+    "edgeCases": [
+      "d 为奇数时最后一个维度无法成对旋转，需特殊处理或 padding 到偶数维。",
+      "θ_i 基频 base（默认 10000）的选择影响外推；base 过小高频过早饱和、过大低频区分度差。",
+      "相对位置很大时旋转角度大幅重叠，远距位置区分度下降（长度外推问题）。"
+    ],
+    "code": "import math\n\ndef rope(x, pos, dim, base=10000.0):\n    # x: (dim,) 某 head 的 query/key 向量\n    half = dim // 2\n    inv_freq = [base ** (-2 * i / dim) for i in range(half)]\n    angles = [pos * inv_freq[i] for i in range(half)]\n    out = [0.0] * dim\n    for i in range(half):\n        a, b = x[2*i], x[2*i+1]\n        c, s = math.cos(angles[i]), math.sin(angles[i])\n        out[2*i] = a*c - b*s\n        out[2*i+1] = a*s + b*c\n    return out",
+    "codeNotes": [
+      "inv_freq 只与维度有关，可预先计算并缓存，训练/推理时按位置查表。",
+      "实际框架用复数乘法或奇偶交错 gather 做向量化，避免 Python 循环。"
+    ],
+    "complexity": "位置旋转为 O(N·d) 前处理；不增加注意力主体的 O(N²d) 计算复杂度，显存 O(Nd)。",
+    "followUps": [
+      {
+        "question": "RoPE 为什么能长度外推？",
+        "answer": "旋转角是位置的连续函数，未见过的位置也能算出角度，因此可在更长序列上泛化，但需配合 base 调整或 NTK-aware 缩放。"
+      },
+      {
+        "question": "RoPE 和 Sinusoidal 编码的本质区别？",
+        "answer": "Sinusoidal 是加法式且只加在输入嵌入上、只在绝对位置；RoPE 是乘性（旋转），直接作用在 Q/K 上并让注意力分数精确依赖相对位置。"
+      }
+    ],
+    "followUpAnswers": [
+      "旋转角是位置的连续函数，未见过的位置也能算出角度，因此可在更长序列上泛化，但需配合 base 调整或 NTK-aware 缩放。",
+      "Sinusoidal 是加法式且只在输入嵌入上、仅绝对位置；RoPE 乘性旋转作用在 Q/K 上，使注意力分数精确依赖相对位置。"
+    ],
+    "pitfalls": [
+      "误以为 RoPE 在 value 上也编码了位置——实际 v_n=W_v x_n 不带旋转。",
+      "把 θ_i 的底数 10000 当作可调超参却忽略其对长序列外推的影响。"
+    ],
+    "beginnerSummary": "RoPE 就像给每个位置的 Q/K 向量按位置角度「拧一下」，拧的角度只和位置差有关，于是两个 token 越接近，它们「对齐」得越好，远了就自然疏远。",
+    "prerequisites": [
+      "自注意力机制",
+      "正交矩阵与旋转",
+      "正弦位置编码"
+    ],
+    "workedExample": [
+      "取维度 d=2，第 i 个 2D 子空间旋转角 m·θ_i。",
+      "token m=1 的 q 旋转 5.7°，token n=4 的 k 旋转 22.9°，内积由角度差 17.2°=3·θ 决定，与 1、4 本身无关。"
+    ],
+    "lineByLine": [
+      "inv_freq 计算每个 2D 子空间的基频 θ_i。",
+      "angles 用当前位置 pos 乘基频得到旋转角。",
+      "对每个 (a,b) 配对用 2D 旋转公式更新，得到旋转后的向量分量。"
+    ],
+    "diagram": "q_m --R(m)--> q'_m       k_n --R(n)--> k'_n\n   q'_m · k'_n = x_m W_q^T R(n-m) W_k x_n\n   (只与 n-m 有关，与绝对位置无关)"
+  },
+  {
+    "id": "arch-rope-vs-abs-rel",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "RoPE 与绝对/相对位置编码对比",
+    "prompt": "RoPE、绝对位置编码、相对位置偏置三者有什么区别和取舍？",
+    "quickAnswer": "绝对编码加在输入上、只给绝对位置；相对偏置改注意力分数矩阵；RoPE 用乘性旋转让分数天然依赖相对位置且无额外参数。",
+    "approach": "从「信息注入位置」「是否相对感知」「是否引入可学习偏置」三个维度对比。",
+    "explanationFocus": "是什么：绝对位置编码（Sinusoidal/可学习）把位置信息加在 token 嵌入上；相对位置编码（如 T5 bias、偏置项）在注意力分数矩阵上叠加相对位置项；RoPE 则通过旋转 Q/K 把相对位置嵌入分数本身，不需要额外可学习位置参数。",
+    "bruteForce": "最简单是加可学习绝对位置向量到每个 embedding，但这样分数 q^⊤k 无法直接表达相对距离，长序列外推也差。",
+    "derivation": [
+      "为什么需要：要让模型区分顺序并感知距离关系，否则自注意力对排列不变。",
+      "怎么实现：绝对编码做 x_m+p_m；相对偏置做 a_mn+q_m^⊤k_n+b(n−m)；RoPE 做 R_m q 与 R_n k 的内积。",
+      "有什么代价：绝对编码不显式建模相对距离；相对偏置需存储/学习偏置表；RoPE 几乎零额外参数但需旋转计算。",
+      "怎么评测：在翻译、长文本、外推基准上对比困惑度与长程依赖准确率。"
+    ],
+    "invariant": "RoPE 与相对偏置都满足「分数只依赖 n−m」这一不变量；绝对编码不满足（依赖绝对位置）。",
+    "walkthrough": "BERT 用可学习绝对位置（加到 embedding）；T5 用 bucket 化的相对位置偏置加到 logits；LLaMA 用 RoPE 旋转 Q/K。三者都能让模型用上顺序，但只有后两者显式得到相对距离。",
+    "edgeCases": [
+      "可学习绝对编码在超过训练长度时无法外推。",
+      "相对偏置的 bucket 划分对长序列需谨慎设计。",
+      "RoPE 在 d 为奇数或 base 设置不当会退化。"
+    ],
+    "code": "def compare_schemes():\n    # 仅示意三类的分数构成\n    abs_score = 'q^T k + (p_m + p_n)  # 含绝对项'\n    rel_bias = 'q^T k + bias[n-m]      # 相对偏置'\n    rope_score = 'R(m)q ^T R(n)k = q^T R(n-m) k  # 相对旋转'\n    return [abs_score, rel_bias, rope_score]",
+    "codeNotes": [
+      "代码仅展示三类分数公式差异，非可运行算法。"
+    ],
+    "complexity": "三类均不改变注意力 O(N²d) 主复杂度；绝对/相对编码额外 O(Nd) 或 O(N²) 偏置存储。",
+    "followUps": [
+      {
+        "question": "为什么现代 LLM 多放弃绝对编码？",
+        "answer": "绝对编码无法让注意力分数直接表达相对距离，且长度外推差；RoPE/相对偏置在长上下文与长程依赖上更强。"
+      },
+      {
+        "question": "相对偏置与 RoPE 能共存吗？",
+        "answer": "可以，但多数现代模型选其一即可；二者都服务于「分数依赖相对位置」这一共同目标。"
+      }
+    ],
+    "followUpAnswers": [
+      "绝对编码无法让注意力分数直接表达相对距离，且长度外推差；RoPE/相对偏置在长上下文与长程依赖上更强。",
+      "可以共存但多数模型只选一种；二者服务同一目标——让分数依赖相对位置。"
+    ],
+    "pitfalls": [
+      "把「可学习绝对位置」误认为能感知相对距离。",
+      "以为 RoPE 属于「相对位置偏置」一类——它其实是乘性旋转而非加性偏置。"
+    ],
+    "beginnerSummary": "绝对编码像给每个位置贴门牌号；相对偏置像在两人之间贴「距离标签」；RoPE 像把向量按位置转动，使远近直接体现在对齐程度上。",
+    "prerequisites": [
+      "位置编码基础",
+      "自注意力分数计算",
+      "RoPE 原理"
+    ],
+    "workedExample": [
+      "绝对编码：embed + 位置向量，位置 5 与位置 8 仅在各自向量里含 5、8。",
+      "RoPE：位置 5 与 8 的 Q/K 旋转后，其内积只由 8−5=3 决定。"
+    ],
+    "lineByLine": [
+      "abs_score 显示绝对项 p_m+p_n 仍含绝对位置。",
+      "rel_bias 用 bias[n-m] 直接建模相对距离。",
+      "rope_score 用旋转矩阵把相对位置写进内积。"
+    ],
+    "diagram": "绝对: x + p_m  ─┐\n相对: score + bias[n-m]\nRoPE: R(m)q · R(n)k = (相对角度)"
+  },
+  {
+    "id": "arch-swiglu",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "SwiGLU 门控前馈激活",
+    "prompt": "SwiGLU 的公式是什么，为什么它取代了 ReLU/GELU 成为主流 FFN 激活？",
+    "quickAnswer": "FFN(x)=W2·(SiLU(W1·x)⊙W3·x)，用门控乘性交互提升表达力，且参数效率更高。",
+    "approach": "把标准 FFN 的两矩阵结构扩展为「候选+门」三矩阵（W1 候选、W3 门、W2 下投影），门控做逐元素乘。",
+    "explanationFocus": "是什么：SwiGLU 是 GLU 门控线性单元家族的一员，把 FFN 输出写成 (SiLU(W1·x) ⊙ W3·x) 再经 W2 投影；⊙ 是逐元素乘，W3·x 作为数据依赖的门控，决定哪些特征通过。",
+    "bruteForce": "标准 FFN=W2·ReLU(W1·x) 只有一个固定非线性，缺乏输入依赖的「开关」，表达力受限。",
+    "derivation": [
+      "为什么需要：Shazeer(2020)发现门控线性单元在固定参数量下一致优于标准 FFN/ReLU/GELU。",
+      "怎么实现：FFN(x)=W2·(SiLU(W1·x)⊙W3·x)，W1/W3 升维、W2 降维；为保参数量，中间维取约 8/3·d_model。",
+      "有什么代价：比标准 FFN 多一个 W3 矩阵（+50% FFN 参数），但靠把中间维从 4d 降到 8/3 d 抵消，总参数接近。",
+      "怎么评测：在同等参数量下对比困惑度，SwiGLU/GeGLU 通常更优；LLaMA/Qwen/Mistral 均采用。"
+    ],
+    "invariant": "门控的不变量：W3·x 是逐元素、依赖输入的「软开关」；中间维 ≈ 8/3·d 以保持与 4d 标准 FFN 参数预算相当（建议二次核对具体模型的 ffn_mult）。",
+    "walkthrough": "设 d_model=1024，标准 FFN 中间维 4096（2 矩阵 ≈ 8.4M）；SwiGLU 取中间维 2752（3 矩阵 ≈ 8.5M），参数相当但多了一个门控通道。",
+    "edgeCases": [
+      "不同模型 ffn_dim_multiplier 不同（如 LLaMA 用 1.3 再对齐到 1024 倍数）。",
+      "Gemma 用 GeGLU（把 SiLU 换 GELU），属同一家族。",
+      "无 bias 的线性层（LLaMA 风格）与有 bias 实现并存。"
+    ],
+    "code": "import torch.nn.functional as F\n\ndef swiglu_ffn(x, w1, w3, w2):\n    # x:(B,T,d) w1,w3:(d_ff,d) w2:(d,d_ff)\n    gate = F.silu(x @ w1.T)   # 候选经 SiLU\n    up = x @ w3.T             # 门控信号\n    h = gate * up             # 逐元素乘\n    return h @ w2.T           # 下投影",
+    "codeNotes": [
+      "SiLU(x)=x·sigmoid(x)，比 ReLU 更平滑、处处可导。",
+      "w3 即「up」投影，与 w1「gate」投影共享输入 x。"
+    ],
+    "complexity": "FFN 为 O(N·d·d_ff)；SwiGLU 因 3 矩阵略多于标准 2 矩阵，但中间维更小，整体参数与计算接近。",
+    "followUps": [
+      {
+        "question": "SwiGLU 与 GeGLU 差别大吗？",
+        "answer": "仅激活不同（SiLU vs GELU），经验表现接近，SwiGLU 因 LLaMA 惯例成默认，Gemma 用 GeGLU。"
+      },
+      {
+        "question": "为何门控有效而标准激活不行？",
+        "answer": "门控引入输入依赖的乘性交互，是「学出来的非线性开关」，比固定非线性更灵活。"
+      }
+    ],
+    "followUpAnswers": [
+      "仅激活不同（SiLU vs GELU），经验表现接近，SwiGLU 因 LLaMA 惯例成默认，Gemma 用 GeGLU。",
+      "门控引入输入依赖的乘性交互，是学出来的非线性开关，比固定非线性更灵活。"
+    ],
+    "pitfalls": [
+      "混淆 W1/W3 角色：W1 是 gate 候选、W3 是 up 门控，命名因实现而异。",
+      "以为 SwiGLU 参数一定更多——靠缩小中间维可与标准 FFN 参数持平。"
+    ],
+    "beginnerSummary": "SwiGLU 像给 FFN 加了一个「水龙头」：一份数据算出一个开关量，逐元素决定另一份数据哪些放行，从而更精细地控制信息流。",
+    "prerequisites": [
+      "Transformer FFN",
+      "激活函数 ReLU/GELU/SiLU",
+      "矩阵乘法与参数预算"
+    ],
+    "workedExample": [
+      "标准 FFN: h=ReLU(xW1)W2。",
+      "SwiGLU: h=SiLU(xW1)⊙(xW3) 再乘 W2，多一路门控。"
+    ],
+    "lineByLine": [
+      "F.silu(x@w1.T)：候选分支过 SiLU。",
+      "x@w3.T：门控分支生成开关。",
+      "gate*up 与 h@w2.T：逐元素乘后下投影。"
+    ],
+    "diagram": "x ──> W1 ─> SiLU ─┐\n   └─> W3 ─────────> ⊙ ─> W2 ─> out\n        (门控)      (乘)"
+  },
+  {
+    "id": "arch-preln-postln",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "Pre-LN 与 Post-LN 对比",
+    "prompt": "Pre-LN 和 Post-LN 在训练稳定性和梯度路径上有什么差别？",
+    "quickAnswer": "Pre-LN 先归一化再做子层、残差路径不被归一化，梯度更稳，可训练更深；Post-LN 反之易在深层发散。",
+    "approach": "对比两种残差块的归一化位置：Pre-LN 为 x+Sub(Norm(x))，Post-LN 为 Norm(x+Sub(x))。",
+    "explanationFocus": "是什么：Pre-LN（前置归一化）在注意力/FFN 子层之前对输入做归一化，残差直接加回未归一化的输入；Post-LN（后置归一化）是原始 Transformer 做法，在残差相加之后再归一化。",
+    "bruteForce": "原始 Transformer 用 Post-LN，需要精心学习率 warmup 才能在深层稳定，否则梯度爆炸/消失。",
+    "derivation": [
+      "为什么需要：深层堆叠时若不做归一化，激活/梯度幅值会逐层漂移导致不可训练。",
+      "怎么实现：Pre-LN→ x = x + Sub(Norm(x))；Post-LN→ x = Norm(x + Sub(x))。",
+      "有什么代价：Post-LN 在 >12~24 层时常需 warmup 且深层易不稳；Pre-LN 残差路径「干净」，梯度经恒等路径回传，无需复杂 warmup。",
+      "怎么评测：对比同深度下无 warmup 的训练曲线与最终困惑度；现代 LLM 全用 Pre-LN。"
+    ],
+    "invariant": "不变量：Pre-LN 的残差流保持恒等直通，梯度方差不随深度被归一化压缩——这是它能训百层的关键。",
+    "walkthrough": "12 层以内 Post-LN 还能靠 warmup 训练；但 32 层如 LLaMA 用 Post-LN 会发散，换成 Pre-LN 后稳定收敛且无需激进 warmup。",
+    "edgeCases": [
+      "Post-LN 并非不可用，浅层+warmup 仍可。",
+      "Pre-LN 有时最终质量略逊 Post-LN（同设置下），但稳定优势压倒。",
+      "归一化对象（RMSNorm vs LayerNorm）与前后置是正交选择。"
+    ],
+    "code": "def block(x, sub, norm, pre_ln=True):\n    if pre_ln:\n        return x + sub(norm(x))      # 前置归一化\n    return norm(x + sub(x))          # 后置归一化",
+    "codeNotes": [
+      "sub 可为注意力或 FFN；norm 可为 LayerNorm/RMSNorm。"
+    ],
+    "complexity": "两种方案每层计算量相同 O(N·d² + N²·d)；差别在数值稳定性而非复杂度。",
+    "followUps": [
+      {
+        "question": "Pre-LN 会不会让特征不被归一化？",
+        "answer": "残差流本身不归一化，但每个子层输入都被归一化，子层输出以「归一化后的增量」加回，整体尺度仍受控。"
+      },
+      {
+        "question": "为什么原始 Transformer 用 Post-LN 也能训？",
+        "answer": "原始模型仅 6 层且用 warmup，层数浅、warmup 充分时 Post-LN 仍可稳定。"
+      }
+    ],
+    "followUpAnswers": [
+      "残差流不归一化，但子层输入被归一化，输出作为受控增量加回，整体尺度仍稳定。",
+      "原始模型仅 6 层且配 warmup，浅层+充分 warmup 时 Post-LN 仍可训练。"
+    ],
+    "pitfalls": [
+      "把 Pre/Post 与 LayerNorm/RMSNorm 混为一谈——二者正交。",
+      "误以为 Post-LN 一定更差，它只是需要更多训练技巧。"
+    ],
+    "beginnerSummary": "Pre-LN 像先「整理桌面」再干活，残差那条捷径始终保持畅通；Post-LN 则干完活再整理，深层时捷径被「整理」卡住导致梯度不稳。",
+    "prerequisites": [
+      "残差连接",
+      "层归一化",
+      "梯度消失/爆炸"
+    ],
+    "workedExample": [
+      "Pre-LN: 输入先 Norm 再过 Attention，结果加回原输入。",
+      "Post-LN: 输入过 Attention 加回原输入后再 Norm。"
+    ],
+    "lineByLine": [
+      "pre_ln 分支：先 norm(x) 再 sub，最后残差加。",
+      "非 pre_ln 分支：先 sub(x) 残差加，再整体 norm。",
+      "两者仅顺序不同，但梯度路径差异巨大。"
+    ],
+    "diagram": "Pre:  x -> Norm -> Sub ->+ x -> out\nPost: x -> Sub ->+ x -> Norm -> out"
+  },
+  {
+    "id": "arch-rmsnorm-layernorm",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "RMSNorm 与 LayerNorm 对比",
+    "prompt": "RMSNorm 相比 LayerNorm 计算式有何不同，为什么 LLM 偏好它？",
+    "quickAnswer": "RMSNorm 去掉均值中心化与 β，仅 x/RMS·γ；少一次规约、快约 10–15% 且质量持平。",
+    "approach": "从计算公式逐项对比：LayerNorm 减均值除标准差加 β；RMSNorm 只除均方根乘 γ。",
+    "explanationFocus": "是什么：LayerNorm(x)=γ·(x−μ)/σ+β，先减均值再除标准差；RMSNorm(x)=γ·x/√(mean(x²)+ε)，跳过均值中心化与偏置 β，仅用均方根缩放。",
+    "bruteForce": "标准 LayerNorm 需两次规约（求均值、求方差）与两个可学习参数 γ,β，每个 token 多一次跨线程同步。",
+    "derivation": [
+      "为什么需要：Zhang & Sennrich(2019)发现 LayerNorm 的收益几乎全来自「重缩放」而非「重居中」。",
+      "怎么实现：RMS=√(mean(x²))，输出 γ·x/RMS；省去 μ、σ 与 β。",
+      "有什么代价：少一次规约与减半归一化参数，单操作快约 10–15%；每 token 每层都省，百层模型累计可观。",
+      "怎么评测：WMT 翻译上质量与 LayerNorm 持平；LLaMA/Qwen/Mistral/DeepSeek 均验证可用。"
+    ],
+    "invariant": "不变量：RMSNorm 对输入「缩放」不变、对「平移」不再不变（因去掉均值）；质量上近似等于输入已居中的 LayerNorm。",
+    "walkthrough": "向量 [3,−1,2,0]：RMS=√((9+1+4+0)/4)=√3.5≈1.87，输出≈[1.60,−0.53,1.07,0]×γ；LayerNorm 会先减均值 1 再除标准差。",
+    "edgeCases": [
+      "LLaMA 变量名仍叫 input_layernorm 但实为 RMSNorm（命名陷阱）。",
+      "RMSNorm 与 LayerNorm 不能直接替换已训练权重，需微调。",
+      "eps 通常放在根号内（1e-5/1e-6），与部分 LayerNorm 实现不同。"
+    ],
+    "code": "import torch\n\ndef rmsnorm(x, weight, eps=1e-6):\n    # x: (..., d)\n    rms = torch.sqrt(x.pow(2).mean(-1, keepdim=True) + eps)\n    return weight * (x / rms)",
+    "codeNotes": [
+      "weight 即 γ，初始化为全 1，无 β。",
+      "eps 加在 mean(x²) 内，区别于某些 LayerNorm 把 eps 加在方差外。"
+    ],
+    "complexity": "RMSNorm 每层 O(N·d)，比 LayerNorm 少一次规约；在 N·层数 上累计省约 10–15% 归一化耗时。",
+    "followUps": [
+      {
+        "question": "去掉均值会不会损失信息？",
+        "answer": "经验上几乎无损；深层训练中激活近似已居中，重居中贡献小，且 γ 仍提供每维缩放。"
+      },
+      {
+        "question": "RMSNorm 对输入平移不变吗？",
+        "answer": "不变，它只对尺度不变；平移会改变输出，而 LayerNorm 对平移也不变（减均值后）。"
+      }
+    ],
+    "followUpAnswers": [
+      "经验上几乎无损；深层训练中激活近似已居中，重居中贡献小，且 γ 仍提供每维缩放。",
+      "RMSNorm 对平移不变，只对尺度不变；LayerNorm 因减均值对平移也不变。"
+    ],
+    "pitfalls": [
+      "误把 LLaMA 的 *layernorm 变量名当成真 LayerNorm。",
+      "以为 RMSNorm 是『除以 L2 范数』——实际除以 √mean(x²)，尺度为 √d 而非 1。"
+    ],
+    "beginnerSummary": "LayerNorm 先「平移到原点再缩放」，RMSNorm 嫌平移没用，直接「按向量长度缩放」，步骤更少、更快，效果差不多。",
+    "prerequisites": [
+      "层归一化 LayerNorm",
+      "均值与方差",
+      "Transformer 训练稳定性"
+    ],
+    "workedExample": [
+      "x=[3,−1,2,0]，RMS=√3.5≈1.87。",
+      "输出=x/1.87·γ≈[1.60,−0.53,1.07,0]·γ。"
+    ],
+    "lineByLine": [
+      "x.pow(2).mean(-1)：求各 token 特征的均方。",
+      "sqrt(+eps)：开根得 RMS，eps 防除零。",
+      "weight*(x/rms)：缩放并乘可学习 γ。"
+    ],
+    "diagram": "LayerNorm: (x-μ)/σ·γ + β\nRMSNorm:  x/rms · γ      (无 μ, 无 β)"
+  },
+  {
+    "id": "arch-flash-attention",
+    "category": "Transformer 架构",
+    "difficulty": "Hard",
+    "title": "FlashAttention 原理",
+    "prompt": "FlashAttention 是如何通过 IO-aware 与 tiling 加速注意力并省显存的？",
+    "quickAnswer": "把 Q/K/V 切块在 SRAM 内做局部注意力+在线 softmax，避免物化 N×N 矩阵，显存 O(N²)→O(N)。",
+    "approach": "用分块（tiling）让每个 (Q块,K/V块) 在 SRAM 内算分数与加权，借在线 softmax 维护运行最大/分母/输出累加器。",
+    "explanationFocus": "是什么：FlashAttention 是 IO 感知的精确注意力算法，不把完整 N×N 分数矩阵写入 HBM，而是把 Q/K/V 切成能放入 SRAM 的块，在片上增量计算 softmax，结果与标准注意力数学等价。",
+    "bruteForce": "标准注意力：先算 S=QKᵀ 写 HBM（N²），softmax 再读写 HBM，最后 PV；全程 HBM 带宽受限且 O(N²) 显存。",
+    "derivation": [
+      "为什么需要：长序列下瓶颈是 HBM↔SRAM 带宽而非 FLOPs，O(N²) 中间矩阵撑爆显存。",
+      "怎么实现：Q 按行切块、K/V 按列切块；每块算 S_ij，用在线 softmax 更新运行 (m,ℓ,O)，永不写回整个 S/P。",
+      "有什么代价：FLOPs 与标准相同（仍 O(N²d)）；但 HBM 访问从 ~4N² 降到 O(N²/B+Nd)，显存 O(N) 级，speedup 2–4×。",
+      "怎么评测：同输入下输出与标准 softmax(QKᵀ/√d)V 数值一致（至多舍入差）；实测 A100 长序列加速 2–4×。"
+    ],
+    "invariant": "不变量：在线 softmax 的运行统计量 (m,ℓ,O) 保证分块累加结果与一次性 softmax 完全等价；输出精确非近似。",
+    "walkthrough": "N=8192,d=64：标准注意力 S 需 8192²×2B≈128MB/头；FlashAttention 只在 SRAM 留块，显存降为 O(N)，长序列可训练。",
+    "edgeCases": [
+      "因果掩码下可跳过上三角块，约再快 2×。",
+      "块大小 Br=Bc 由 SRAM 容量决定（典型 128）。",
+      "需重写 kernel（CUDA），框架层不易直接 numpy 复现全部收益。"
+    ],
+    "code": "def flash_step(Qi, Kj, Vj, m, l, O, Br, Bc):\n    # Qi:(Br,d) Kj:(Bc,d) Vj:(Bc,d); m,l,O 为运行统计量\n    S = (Qi @ Kj.T)                # (Br,Bc) 留在 SRAM\n    m_new = torch.maximum(m, S.max(1).values)\n    p = torch.exp(S - m_new[:, None])\n    l = l * torch.exp(m - m_new) + p.sum(1)\n    O = (l_old_exp * O + p @ Vj) / l[:, None]\n    return m_new, l, O",
+    "codeNotes": [
+      "真实实现用在线 softmax 的 rescale 因子 e^{m−m_new} 校正已累加项。",
+      "块循环需对 K/V 的所有块流式扫描同一 Q 块。"
+    ],
+    "complexity": "FLOPs O(N²d) 同标准；HBM 访问 O(N²/B + N·d)，显存 O(N)（不存 N×N 矩阵），长序列 2–4× 加速。",
+    "followUps": [
+      {
+        "question": "FlashAttention 是近似吗？",
+        "answer": "不是，输出与标准注意力数学等价，只是重排计算顺序避免物化大矩阵。"
+      },
+      {
+        "question": "在线 softmax 为什么数值稳定？",
+        "answer": "维护运行最大值 m 与分母 ℓ，新块到来时用 e^{m_old−m_new} 校正历史累加，等价于先见全局最大值再归一。"
+      }
+    ],
+    "followUpAnswers": [
+      "不是，输出与标准注意力数学等价，只是重排计算顺序避免物化大矩阵。",
+      "维护运行最大值 m 与分母 ℓ，新块用 e^{m_old−m_new} 校正历史累加，等价于先见全局最大值再归一。"
+    ],
+    "pitfalls": [
+      "误以为 FlashAttention 省了计算量——它只省 IO 与显存，FLOPs 不变。",
+      "把『显存 O(N)』误解为序列可无限长——受 SRAM 块大小与地址位宽限制。"
+    ],
+    "beginnerSummary": "标准注意力把整张巨大的分数表写进慢速显存再读；FlashAttention 把表切成小块在高速缓存里边算边丢，永远不全表落地，又快又省显存。",
+    "prerequisites": [
+      "GPU 内存层级 HBM/SRAM",
+      "softmax 数值稳定",
+      "自注意力计算流程"
+    ],
+    "workedExample": [
+      "标准：S(N×N) 写 HBM→softmax→读→PV，访问 ~4N²。",
+      "Flash：Q/K/V 切块进 SRAM，逐块更新 (m,ℓ,O)，只写回 O。"
+    ],
+    "lineByLine": [
+      "S=Qi@Kj.T：块内分数，留在 SRAM 不落 HBM。",
+      "m_new=max(m, S.max)：更新运行最大值保稳定。",
+      "rescale+l 与 O：用 e^{m−m_new} 校正并累加加权值。"
+    ],
+    "diagram": "HBM: Q K V  ──load块──> SRAM\n  SRAM: S=QiKj^T → 在线softmax → 更新 O\n  只把最终 O 写回 HBM（S/P 从不落盘）"
+  },
+  {
+    "id": "arch-flash-vs-std",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "FlashAttention 与标准注意力复杂度差异",
+    "prompt": "FlashAttention 与标准注意力在复杂度与显存上到底差在哪？",
+    "quickAnswer": "两者 FLOPs 同为 O(N²d)；但标准显存 O(N²)、HBM 访问 ~4N²，Flash 显存 O(N)、访问 O(N²/B+Nd)。",
+    "approach": "固定 FLOPs 不变，比较中间矩阵物化与否带来的显存与 IO 差异。",
+    "explanationFocus": "是什么：标准注意力需物化并反复读写 N×N 分数矩阵（显存 O(N²)、HBM 访问约 4N²）；FlashAttention 通过 tiling 不物化该矩阵，显存降到 O(N)、HBM 访问降到 O(N²/B+Nd)，输出等价。",
+    "bruteForce": "逐元素存下 S 与 P 两个 N×N 矩阵，长序列下显存与带宽都成为瓶颈。",
+    "derivation": [
+      "为什么需要：N 增大 2 倍，标准注意力显存/带宽需求涨 4 倍，限制上下文长度。",
+      "怎么实现：Flash 用块循环+在线 softmax，使中间值始终在 SRAM。",
+      "有什么代价：FLOPs 不变（仍是 O(N²d)），仅重排；需专用 fused kernel。",
+      "怎么评测：固定 N 测显存峰值与 wall-clock；同 N 下输出数值一致。"
+    ],
+    "invariant": "不变量：FLOPs 恒定 O(N²d)，复杂度提升只来自 IO 与显存，而非算法近似。",
+    "walkthrough": "N=4096,d=128：标准 S 约 4096²×2B≈32MB/头×32头≈1GB；Flash 仅保留块级状态，显存降一个数量级。",
+    "edgeCases": [
+      "短序列（N 很小）时 Flash 优势不明显，kernel 启动开销占比上升。",
+      "因果掩码可省掉约一半块计算。",
+      "不同 GPU 的 SRAM 大小决定最佳块尺寸 B。"
+    ],
+    "code": "def complexity_note(N, d, B=128):\n    std_mem = N * N          # O(N^2) 分数矩阵\n    flash_mem = N * d + (N*B) # 近似 O(N) 级\n    return {'std': std_mem, 'flash': flash_mem}",
+    "codeNotes": [
+      "数值仅为规模示意，非精确字节。"
+    ],
+    "complexity": "FLOPs 均 O(N²d)；标准显存 O(N²)、HBM 访问 O(N²)；Flash 显存 O(N)、HBM 访问 O(N²/B+N·d)。",
+    "followUps": [
+      {
+        "question": "为什么 FLOPs 一样速度却快？",
+        "answer": "注意力本受内存带宽限制，Flash 减少 HBM 读写次数，使算力被更充分利用。"
+      },
+      {
+        "question": "Flash 对推理和训练都有效吗？",
+        "answer": "都有效；训练还需重计算反向，但前向省显存直接放大可支持上下文长度。"
+      }
+    ],
+    "followUpAnswers": [
+      "注意力本受内存带宽限制，Flash 减少 HBM 读写次数，使算力被更充分利用。",
+      "都有效；训练还需重计算反向，但前向省显存直接放大可支持上下文长度。"
+    ],
+    "pitfalls": [
+      "把『更快』误解为『更少计算』——实际是更少数据搬运。",
+      "以为 O(N²d) 被消除——Flash 不改渐近 FLOPs。"
+    ],
+    "beginnerSummary": "两者算的量一样多，但标准做法频繁把大表搬进搬出慢速显存，Flash 只在高速缓存里算完就丢，搬得少所以快、占得少。",
+    "prerequisites": [
+      "FlashAttention 原理",
+      "大 O 复杂度",
+      "GPU 带宽瓶颈"
+    ],
+    "workedExample": [
+      "标准：4 次 N² 级 HBM 读写（写 S、读 S、写 P、读 P）。",
+      "Flash：仅 O(N²/B) 块级访问 + 读一次 QKV、写一次 O。"
+    ],
+    "lineByLine": [
+      "std_mem 体现 O(N²) 分数矩阵。",
+      "flash_mem 体现 O(N) 块状态。",
+      "B 为块大小，越大 HBM 访问越少但有 SRAM 上限。"
+    ],
+    "diagram": "标准: QK^T(N²)->HBM->softmax(N²)->HBM->PV\nFlash: tile loop in SRAM, 仅 O 回写 HBM"
+  },
+  {
+    "id": "arch-mha-mqa-gqa-deep",
+    "category": "Transformer 架构",
+    "difficulty": "Hard",
+    "title": "MHA/MQA/GQA 深化对比",
+    "prompt": "从 KV 复用与解码吞吐的角度，如何深化理解 MHA、MQA、GQA 的取舍？",
+    "quickAnswer": "MHA 每头独立 KV（质量高、KV 缓存大）；MQA 全共享 1 组 KV（省显存快但质量降）；GQA 折中分组共享。",
+    "approach": "以「Q 头数 : KV 头数」比例为主线，分析 KV 缓存大小、访存带宽与质量三者权衡。",
+    "explanationFocus": "是什么：MHA 中每个 Q 头有独立 K/V 头（比例 1:1）；MQA 所有 Q 头共享单一 K/V 头（比例 h:1）；GQA 把 Q 头分成若干组，每组共享一个 K/V 头（比例 h:g，1<g<h）。",
+    "bruteForce": "MHA 在自回归解码时每 token 都要缓存 h 组 K/V，长序列+大 batch 下 KV 缓存成为显存与带宽瓶颈。",
+    "derivation": [
+      "为什么需要：解码受限于 KV 缓存的显存容量与每步从 HBM 读 KV 的带宽，而非算力。",
+      "怎么实现：MQA 令 n_kv_heads=1；GQA 令 n_kv_heads=g，每组内 Q 头插值/复用同一 K/V 头。",
+      "有什么代价：KV 缓存随 n_kv_heads 线性缩小（MQA 缩 h 倍）；MQA 质量常降，GQA 在质量与速度间折中。",
+      "怎么评测：对比同参数下困惑度与解码吞吐；LLaMA2/3、Mistral、Qwen 均用 GQA。"
+    ],
+    "invariant": "不变量：KV 缓存大小 ∝ n_kv_heads × N × d_head；吞吐瓶颈在 KV 的 HBM 读取带宽，减少 KV 头数直接提升每步解码速度。",
+    "walkthrough": "32 Q 头：MHA 需 32 组 KV；MQA 仅 1 组（省 32× 缓存）；GQA 取 4 组（省 8×），每组服务 8 个 Q 头。",
+    "edgeCases": [
+      "GQA 组数 g 需整除 h，否则要插值（如 PaLM 的 8:1 近似）。",
+      "MQA 在强解码任务上质量损失明显，需更大模型补偿。",
+      "训练时 GQA 与 MHA 计算量几乎相同，收益主要体现在推理。"
+    ],
+    "code": "def gqa_split(q, k, v, n_q, n_kv):\n    # q:(n_q,d) 按组映射到 n_kv 个 KV 头\n    group = n_q // n_kv\n    outs = []\n    for i in range(n_kv):\n        qi = q[i*group:(i+1)*group]      # 一组 Q 头\n        outs.append(qi @ k[i].T)          # 共享第 i 个 KV 头\n    return outs",
+    "codeNotes": [
+      "真实实现用 repeat_interleave 把 KV 头复制以对齐 Q 头数。",
+      "GQA 训练计算量与 MHA 相近，推理才显缓存优势。"
+    ],
+    "complexity": "训练 FLOPs 三者相近（≈O(N²d)）；推理 KV 缓存 MHA:O(h·N·d)，MQA:O(1·N·d)，GQA:O(g·N·d)。",
+    "followUps": [
+      {
+        "question": "为什么 KV 缓存比算力更限制解码？",
+        "answer": "自回归每步只产 1 token，算力需求小，但需读全部历史 KV，受 HBM 带宽限制，读得越少越快。"
+      },
+      {
+        "question": "GQA 怎么选组数 g？",
+        "answer": "按硬件与质量权衡，常取 2 的幂且整除 h（如 32 头配 4 或 8 组），兼顾缓存节省与质量。"
+      }
+    ],
+    "followUpAnswers": [
+      "自回归每步只产 1 token，算力需求小，但需读全部历史 KV，受 HBM 带宽限制，读得越少越快。",
+      "按硬件与质量权衡，常取 2 的幂且整除 h（如 32 头配 4 或 8 组），兼顾缓存节省与质量。"
+    ],
+    "pitfalls": [
+      "以为 GQA 省的是训练算力——实际主要省推理 KV 缓存与带宽。",
+      "忽略 g 必须整除 h，否则需要插值会有质量/实现细节。"
+    ],
+    "beginnerSummary": "MHA 像每个读者都有自己的笔记本（贵但细）；MQA 全组共用一本（省但糙）；GQA 几个读者合看一本（折中）。",
+    "prerequisites": [
+      "多头注意力",
+      "KV 缓存与自回归解码",
+      "显存带宽瓶颈"
+    ],
+    "workedExample": [
+      "MHA: 32 Q 头 ↔ 32 KV 头，缓存 32 份。",
+      "GQA: 32 Q 头 ↔ 4 KV 头，缓存 4 份，每组 8 Q 头共享。"
+    ],
+    "lineByLine": [
+      "group=n_q//n_kv：每组 Q 头数。",
+      "qi 取该组 Q 头。",
+      "qi@k[i].T：整组共享第 i 个 KV 头做注意力。"
+    ],
+    "diagram": "MHA: Q1..Q32 各用 K1..K32\nMQA: Q1..Q32 共用 K1\nGQA: {Q1..Q8}->K1 {Q9..Q16}->K2 ..."
+  },
+  {
+    "id": "arch-gqa-tradeoff",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "GQA 如何折中 MHA 与 MQA",
+    "prompt": "GQA 具体是怎样在 MHA 的质量与 MQA 的速度之间做折中的？",
+    "quickAnswer": "GQA 把 Q 头分组，每组共享一个 KV 头，既大幅缩减 KV 缓存又比 MQA 保留更多头间差异。",
+    "approach": "将 n_kv_heads 设为介于 1（MQA）与 n_q_heads（MHA）之间，按组映射复用 KV。",
+    "explanationFocus": "是什么：Grouped-Query Attention 让多个查询头组成一组，共享同一个 K/V 头；组数 g 决定折中程度：g=1 退化为 MQA，g=h 退化为 MHA。",
+    "bruteForce": "直接在 MHA（质量好但慢/费显存）与 MQA（快但质量掉）两极选，难兼顾。",
+    "derivation": [
+      "为什么需要：MQA 解码快但质量明显下降，MHA 质量好却受 KV 缓存限制，需中间方案。",
+      "怎么实现：设 n_kv_heads=g，把 h 个 Q 头均分 g 组，每组重复用对应 KV 头（推理时通过 repeat 对齐）。",
+      "有什么代价：g 越小越快越省显存但越接近 MQA 的质量损失；g 越大越接近 MHA。",
+      "怎么评测：在困惑度与解码 tokens/s 上扫 g，选帕累托最优；LLaMA2/3、Qwen 用 GQA。"
+    ],
+    "invariant": "不变量：KV 缓存缩减倍数 = h/g；质量随 g 增大单调趋近 MHA，速度与显存随 g 减小单调改善。",
+    "walkthrough": "h=32,g=8：缓存缩 4×，每 4 个 Q 头共享 1 个 KV 头；相比 MQA(1 组) 保留更多头专门化，相比 MHA 省 4× 缓存。",
+    "edgeCases": [
+      "g 必须整除 h（常见取 2 的幂）。",
+      "训练时 GQA 与 MHA 前向计算几乎一致，折中只在推理体现。",
+      "个别模型用非整除近似（如 PaLM 8:1 需插值）。"
+    ],
+    "code": "import torch\n\ndef gqa_repeat(k, v, n_q, n_kv):\n    # 把 n_kv 个 KV 头 repeat 成 n_q 个以对齐 Q\n    group = n_q // n_kv\n    k_r = k.repeat_interleave(group, dim=0)  # (n_q, ...)\n    v_r = v.repeat_interleave(group, dim=0)\n    return k_r, v_r",
+    "codeNotes": [
+      "repeat_interleave 保证第 i 组 Q 头对应同一个 KV 头。",
+      "训练时可不 repeat，直接按组索引以省计算。"
+    ],
+    "complexity": "KV 缓存 O(g·N·d_head)，介于 MHA(O(h·) )与 MQA(O(1·))之间；训练 FLOPs≈MHA。",
+    "followUps": [
+      {
+        "question": "GQA 训练时怎么算？",
+        "answer": "训练时按组索引共享 KV，计算量与 MHA 相近；repeat 主要服务于推理实现对齐。"
+      },
+      {
+        "question": "选 g 的经验法则？",
+        "answer": "常见 g∈{2,4,8}，需整除 h，并据目标硬件显存与质量预算选帕累托点。"
+      }
+    ],
+    "followUpAnswers": [
+      "训练时按组索引共享 KV，计算量与 MHA 相近；repeat 主要服务推理对齐。",
+      "常见 g∈{2,4,8}，需整除 h，并据目标硬件显存与质量预算选帕累托点。"
+    ],
+    "pitfalls": [
+      "把 GQA 当成全新注意力机制——它只是 MHA 的 KV 共享变体。",
+      "忽略 g 整除约束导致实现需插值、引入额外复杂度。"
+    ],
+    "beginnerSummary": "GQA 像把读者分成几个小组，每组共用一本笔记：比每人一本省，比全组一本细，卡在中间最实用。",
+    "prerequisites": [
+      "MHA/MQA/GQA 对比",
+      "KV 缓存",
+      "推理吞吐"
+    ],
+    "workedExample": [
+      "h=32,g=4：缓存缩 8×，每 8 个 Q 头共用 1 KV 头。",
+      "随 g 从 1→32，逐步从 MQA 过渡到 MHA。"
+    ],
+    "lineByLine": [
+      "group=h//g：每组 Q 头数。",
+      "repeat_interleave：把 KV 头复制 group 次对齐 Q。",
+      "对齐后可直接用标准 MHA 代码路径。"
+    ],
+    "diagram": "MHA h:h | MQA h:1 | GQA h:g(1<g<h)\nGQA = 多组共享，缓存缩 h/g 倍"
+  },
+  {
+    "id": "arch-rope-extrapolation",
+    "category": "Transformer 架构",
+    "difficulty": "Hard",
+    "title": "RoPE 高频/低频维度外推问题",
+    "prompt": "RoPE 在长度外推时高频与低频维度分别出现什么问题，怎么缓解？",
+    "quickAnswer": "高频维（小 i）对位置过敏感、易超出训练角度周期；低频维（大 i）区分度不足；可用调 base/NTK 缩放缓解。",
+    "approach": "分析 θ_i=base^{−2(i−1)/d}：i 小→θ 大→高频，位置变化引起大角度旋转；外推时高频过早绕回。",
+    "explanationFocus": "是什么：RoPE 各 2D 子空间基频 θ_i 随维度 i 递减，低维（小 i）对应高频、对位置变化极敏感，高维（大 i）对应低频、变化缓慢；长度外推时高频维率先『绕回』造成歧义，是外推失败主因之一。",
+    "bruteForce": "直接用训练长度内的 base=10000 去推更长序列，高频维角度 m·θ_i 远超 2π，位置信息混叠。",
+    "derivation": [
+      "为什么需要：训练长度 L_train 内高频维角度范围有限，外推到 L>L_train 后高频维角度溢出周期，相对位置不再唯一。",
+      "怎么实现：NTK-aware 缩放或增大 base，使高频维频率下降、低频维略微上升，重分配『频率预算』。",
+      "有什么代价：改 base 需与已训权重兼容处理（位置插值/缩放），否则要微调；纯推理缩放可能略损短程。",
+      "怎么评测：在 >L_train 的困惑度与长程检索任务上对比 base 调整前后的表现。"
+    ],
+    "invariant": "不变量：旋转角 = 位置 × 基频；外推失败等价于『高频维角度超出可区分周期』，增大 base 等效降低所有 θ_i。",
+    "walkthrough": "d=4096,base=10000：θ_1≈1，位置 1000 时角度 1000rad 已绕多圈；把 base 调大到 100000，θ_1 变小，外推到 32k 仍不混叠。",
+    "edgeCases": [
+      "仅调 base 不配合位置插值，仍可能需少量微调。",
+      "NTK-aware 缩放对不同维施加不同缩放率，比统一调 base 更细。",
+      "训练时若已用大 base，短序列上可能轻微欠拟合。"
+    ],
+    "code": "def rope_freqs(dim, base, max_pos):\n    import math\n    half = dim // 2\n    inv = [base ** (-2*i/dim) for i in range(half)]\n    # 高频维(i小)角度随位置增长最快\n    ang_at_max = [max_pos * inv[i] for i in range(half)]\n    return inv, ang_at_max",
+    "codeNotes": [
+      "inv[0] 最大（高频），inv[half-1] 最小（低频）。",
+      "外推关注 ang_at_max[0] 是否远超 2π。"
+    ],
+    "complexity": "频率计算 O(d)；外推缓解为超参调整，不增加推理计算。",
+    "followUps": [
+      {
+        "question": "NTK-aware 缩放与直接调 base 区别？",
+        "answer": "NTK 对不同维用不同缩放率（高频多降、低频少动），比全局调 base 更平滑，外推更稳。"
+      },
+      {
+        "question": "为什么低频维也要动？",
+        "answer": "单纯压高频会让低频维相对占比上升、近距区分度下降，需轻微上抬低频以平衡。"
+      }
+    ],
+    "followUpAnswers": [
+      "NTK 对不同维用不同缩放率（高频多降、低频少动），比全局调 base 更平滑，外推更稳。",
+      "单纯压高频会让低频维相对占比上升、近距区分度下降，需轻微上抬低频以平衡。"
+    ],
+    "pitfalls": [
+      "以为调大 base 一定无代价——会改变训练期位置分布。",
+      "混淆『高频维』与『低维』——RoPE 中低维即高频，易说反。"
+    ],
+    "beginnerSummary": "RoPE 里低维像秒针转得快、高维像时针转得慢；推太长的序列时秒针转太多圈分不清了，于是把『时钟』整体调慢（调 base）来适配更长的时间。",
+    "prerequisites": [
+      "RoPE 原理",
+      "频率与周期",
+      "长度外推"
+    ],
+    "workedExample": [
+      "θ_1 对应高频：位置 1000 已绕多圈。",
+      "base 10000→100000：θ_1 缩小 10 倍，外推更稳。"
+    ],
+    "lineByLine": [
+      "inv[i]：第 i 个 2D 子空间基频，i 小则大。",
+      "ang_at_max：在最大位置处的累计角度。",
+      "检查 ang_at_max[0] 是否超出 2π 整数倍导致混叠。"
+    ],
+    "diagram": "维度 i: 小 -> 大\n基频 θ:  大 -> 小\n角色:   高频(秒针) -> 低频(时针)\n外推: 高频先溢出 -> 调 base 放慢时钟"
+  },
+  {
+    "id": "arch-pos-evolution",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "位置编码演进：Sinusoidal→RoPE→ALiBi",
+    "prompt": "从 Sinusoidal 到 RoPE 再到 ALiBi，位置编码是如何演进的？",
+    "quickAnswer": "Sinusoidal 加法绝对编码；RoPE 乘性旋转注入相对位置；ALiBi 直接在分数上加与距离线性成比例的偏置、天然外推。",
+    "approach": "按『注入位置』（输入/分数）与『相对感知方式』（乘性/加性）梳理三条主线。",
+    "explanationFocus": "是什么：Sinusoidal 把固定频率正弦向量加到输入嵌入（加法式绝对编码）；RoPE 用旋转矩阵把相对位置写进 Q/K 内积；ALiBi 在注意力分数上叠加一个随相对距离线性衰减的偏置（不加任何位置嵌入），从而无需位置向量即可外推。",
+    "bruteForce": "可学习绝对位置向量最简单，但无相对距离建模且不能外推。",
+    "derivation": [
+      "为什么需要：要让模型感知顺序与距离，并尽量支持长序列外推。",
+      "怎么实现：Sinusoidal 用 sin/cos 预定义；RoPE 旋转 Q/K；ALiBi 加 bias=m·(i−j)。",
+      "有什么代价：Sinusoidal/RoPE 需位置计算；ALiBi 不编码绝对位置、靠偏置表达距离，外推好但丢弃绝对线索。",
+      "怎么评测：长上下文困惑度与长程任务；ALiBi 在长外推上突出，RoPE 综合最强。"
+    ],
+    "invariant": "不变量：三者最终都让『距离越远注意力越弱』；RoPE/ALiBi 显式依赖相对距离，Sinusoidal 仅隐式。",
+    "walkthrough": "BERT 用 Sinusoidal/可学习；LLaMA/Qwen 用 RoPE；ALiBi（GLM 部分变体、MPT）用分数偏置，训练 2k 可推 8k+。",
+    "edgeCases": [
+      "ALiBi 无绝对位置信息，某些需绝对顺序的任务略吃亏。",
+      "RoPE 与 ALiBi 都需额外处理因果掩码。",
+      "Sinusoidal 在现代 decoder LLM 中已基本被 RoPE 取代。"
+    ],
+    "code": "def alibi_bias(n, heads, slopes):\n    # 在分数矩阵上加 m*(i-j) 偏置\n    import torch\n    idx = torch.arange(n)\n    rel = idx[:, None] - idx[None, :]      # (i-j)\n    bias = torch.stack([s * rel for s in slopes])  # (h, n, n)\n    return bias",
+    "codeNotes": [
+      "slopes 为每头不同斜率，通常几何递减。",
+      "ALiBi 偏置加到 QKᵀ/√d 之后、softmax 之前。"
+    ],
+    "complexity": "三者均 O(Nd) 级别额外开销；不增加注意力 O(N²d) 主复杂度。ALiBi 偏置可预计算缓存。",
+    "followUps": [
+      {
+        "question": "ALiBi 为什么能外推？",
+        "answer": "偏置只依赖相对距离 i−j 且线性，未训练长度处仍按同规律衰减，无周期性溢出问题。"
+      },
+      {
+        "question": "RoPE 与 ALiBi 能结合吗？",
+        "answer": "一般不叠加，二者都服务相对位置；部分工作尝试混合但非主流。"
+      }
+    ],
+    "followUpAnswers": [
+      "偏置只依赖相对距离 i−j 且线性，未训练长度处仍按同规律衰减，无周期性溢出问题。",
+      "一般不叠加，二者都服务相对位置；部分工作尝试混合但非主流。"
+    ],
+    "pitfalls": [
+      "以为 Sinusoidal 能像 RoPE 一样精确相对感知——它只是加法式绝对编码。",
+      "把 ALiBi 的偏置当成『位置嵌入』——它从不出现在输入上。"
+    ],
+    "beginnerSummary": "Sinusoidal 像给每个位置贴固定坐标；RoPE 把坐标转成旋转角度写进注意力；ALiBi 干脆在注意力分数上按距离扣分，越远的越压低。",
+    "prerequisites": [
+      "Sinusoidal 编码",
+      "RoPE 原理",
+      "注意力偏置"
+    ],
+    "workedExample": [
+      "Sinusoidal：embed += sin/cos(pos)。",
+      "RoPE：Q/K 按位置旋转。",
+      "ALiBi：score += slope·(i−j)。"
+    ],
+    "lineByLine": [
+      "idx 生成位置序列。",
+      "rel=i−j 得到相对距离矩阵。",
+      "bias=slope*rel 每头不同斜率施加距离惩罚。"
+    ],
+    "diagram": "Sinusoidal: 加在输入\nRoPE: 旋转 Q/K\nALiBi: score += m*(i-j)  偏置\n趋势: 绝对 -> 相对乘性 -> 相对加性偏置"
+  },
+  {
+    "id": "arch-kqv-projection",
+    "category": "Transformer 架构",
+    "difficulty": "Easy",
+    "title": "Attention 的 K/Q/V 投影与 head 维度",
+    "prompt": "注意力里的 Q/K/V 投影和 head 维度 d_k 分别起什么作用？",
+    "quickAnswer": "用三个可学习矩阵把同一输入投影成 Query/Key/Value；d_k 是每个头的维度，缩放 1/√d_k 防止点积过大。",
+    "approach": "从单头公式 Attention=softmax(QKᵀ/√d_k)V 出发，解释投影意义与 d_k 的归一化作用。",
+    "explanationFocus": "是什么：对输入 X 用 W_Q/W_K/W_V 投影得到 Q/K/V；多头时把 d_model 拆成 h 个 head，每头维度 d_k=d_model/h；点积 QKᵀ 除以 √d_k 做缩放，避免维度越大点积方差越大导致 softmax 饱和。",
+    "bruteForce": "若不做投影直接拿 X 当 Q/K/V，则无法区分『查什么/匹配什么/取什么』三种角色，且缺缩放易梯度消失。",
+    "derivation": [
+      "为什么需要：投影让模型在不同子空间分别学习查询、键匹配、值提取；缩放保持 softmax 输入方差稳定。",
+      "怎么实现：Q=XW_Q,K=XW_K,V=XW_V，分 head 后每头算 softmax(QKᵀ/√d_k)V 再拼接。",
+      "有什么代价：投影带来 3 个 d_model² 矩阵；d_k 过小表达弱、过大则计算与方差问题，通常 64 左右。",
+      "怎么评测：消融无缩放会 softmax 饱和、训练变慢；head 数影响表达与并行。"
+    ],
+    "invariant": "不变量：缩放 1/√d_k 使 QKᵀ 的方差约与 d_k 无关；多头拼接后维度仍为 d_model。",
+    "walkthrough": "d_model=512,h=8→d_k=64；QKᵀ 元素方差约随 d_k 增，除以 8(=√64) 把 softmax 输入拉回合理范围。",
+    "edgeCases": [
+      "d_model 必须整除 h（否则需 pad 或线性映射适配）。",
+      "MQA/GQA 下 K/V 头数少于 Q 头数，但 d_k 定义不变。",
+      "训练初期随机初始化下 QKᵀ/√d_k 量级应接近 1。"
+    ],
+    "code": "import torch\n\ndef single_head_attn(q, k, v):\n    d_k = q.size(-1)\n    scores = q @ k.transpose(-2, -1) / (d_k ** 0.5)\n    weights = torch.softmax(scores, dim=-1)\n    return weights @ v",
+    "codeNotes": [
+      "√d_k 缩放关键，遗漏会导致 softmax 梯度极小。",
+      "q,k,v 形状通常 (..., n, d_k)。"
+    ],
+    "complexity": "单头 O(N²·d_k)，h 头总计 O(N²·d_model)；投影 O(N·d_model²)。",
+    "followUps": [
+      {
+        "question": "为什么除以 √d_k 而不是 d_k？",
+        "answer": "QKᵀ 方差随 d_k 线性增长，标准差随 √d_k 增长，故除以 √d_k 可将 softmax 输入方差归一化。"
+      },
+      {
+        "question": "head 数越多越好吗？",
+        "answer": "不一定；head 多提升并行与子空间多样性，但每头 d_k 变小、单头表达弱，需整体权衡。"
+      }
+    ],
+    "followUpAnswers": [
+      "QKᵀ 方差随 d_k 线性增长，标准差随 √d_k 增长，故除以 √d_k 可将 softmax 输入方差归一化。",
+      "不一定；head 多提升并行与子空间多样性，但每头 d_k 变小、单头表达弱，需整体权衡。"
+    ],
+    "pitfalls": [
+      "漏掉 √d_k 缩放导致 softmax 饱和、梯度消失。",
+      "误以为 d_k 是总模型维度——它只是每头维度。"
+    ],
+    "beginnerSummary": "Q/K/V 投影像把同一段话复印三份分别标『我想找什么』『我有什么标签』『我能提供什么』；√d_k 是把匹配分数调到一个稳定范围，防止分数过大让 softmax 『一根筋』。",
+    "prerequisites": [
+      "自注意力机制",
+      "矩阵投影",
+      "softmax 数值问题"
+    ],
+    "workedExample": [
+      "X→W_Q/W_K/W_V 得 Q/K/V。",
+      "分 8 头，每头 d_k=64，算 softmax(QKᵀ/8)V。"
+    ],
+    "lineByLine": [
+      "d_k=q.size(-1)：取每头维度。",
+      "scores/√d_k：缩放防饱和。",
+      "softmax 后加权求和得输出。"
+    ],
+    "diagram": "X --W_Q--> Q\nX --W_K--> K\nX --W_V--> V\nScore = QK^T/√d_k -> softmax -> *V"
+  },
+  {
+    "id": "arch-causal-mask",
+    "category": "Transformer 架构",
+    "difficulty": "Easy",
+    "title": "因果掩码 causal mask 实现与含义",
+    "prompt": "自回归 Transformer 的因果掩码是怎么实现、含义是什么？",
+    "quickAnswer": "在分数矩阵上把未来位置（j>i）置 −∞，使 softmax 后权重为 0，token 只能看自己和过去。",
+    "approach": "构造上三角为 −∞、对角线及下三角为 0 的掩码，加到 QKᵀ/√d_k 后再 softmax。",
+    "explanationFocus": "是什么：因果掩码（causal mask）是一个下三角可见、上三角屏蔽的掩码，保证第 i 个位置在注意力中只能 attend 到位置 ≤i 的 token，防止信息从未来泄漏，是自回归训练/推理的基础。",
+    "bruteForce": "不用掩码则双向可见，模型在预测第 i 个词时『偷看』了答案，无法用于自回归生成。",
+    "derivation": [
+      "为什么需要：语言模型按序生成，训练时若看未来词等于泄露标签，需屏蔽上三角。",
+      "怎么实现：mask[i][j]=0 if j≤i else −∞，加到分数后 softmax 使未来权重为 0。",
+      "有什么代价：仅屏蔽约一半注意力（损失一半并行上限），但保证正确性；FlashAttention 可跳过上三角块。",
+      "怎么评测：检查掩码后未来位置输出权重严格为 0；生成不自 leakage。"
+    ],
+    "invariant": "不变量：对任意 i，sum_j weight[i][j]=1 且 j>i 时 weight=0；位置 i 的表征只依赖 1..i。",
+    "walkthrough": "长度 4：掩码矩阵对角线及左下为 0、右上为 −∞；位置 2 只能看 0,1,2，softmax 后 weight[2][3]=0。",
+    "edgeCases": [
+      "padding 位置需额外 mask 避免 attend 到 pad。",
+      "双向编码器（BERT）不用因果掩码，而用双向注意力。",
+      "−∞ 用大负数（如 -1e9）近似，注意数值溢出。"
+    ],
+    "code": "import torch\n\ndef causal_mask(n):\n    # 返回 (n, n) 掩码：下三角 0，上三角 -inf\n    m = torch.triu(torch.full((n, n), float('-inf')), diagonal=1)\n    return m",
+    "codeNotes": [
+      "triu(diagonal=1) 保留对角线为 0、上三角 -inf。",
+      "推理时也可逐 token 增量计算，不必每次全矩阵。"
+    ],
+    "complexity": "掩码构造 O(N²)，加法 O(N²)；不增加渐近复杂度，但屏蔽约一半有效注意力。",
+    "followUps": [
+      {
+        "question": "因果掩码和 padding mask 能叠加吗？",
+        "answer": "可以，两者都是加到分数上的加性掩码，分别屏蔽未来与填充位，常合并成一个 mask。"
+      },
+      {
+        "question": "推理时也要全量掩码吗？",
+        "answer": "不必；推理可维护 KV 缓存并只用当前 query 对历史做注意力，等价于因果掩码效果。"
+      }
+    ],
+    "followUpAnswers": [
+      "可以，两者都是加到分数上的加性掩码，分别屏蔽未来与填充位，常合并成一个 mask。",
+      "不必；推理可维护 KV 缓存并只用当前 query 对历史做注意力，等价于因果掩码效果。"
+    ],
+    "pitfalls": [
+      "把 diagonal=1 写成 0 会屏蔽对角线自身（含自己都看不到）。",
+      "用 0 而非 −∞ 屏蔽未来，softmax 仍会分配非零权重。"
+    ],
+    "beginnerSummary": "因果掩码像给一句话盖上一块『只能看左边』的挡板：每个词生成时只能参考它自己和前面的词，不能偷看后面的答案。",
+    "prerequisites": [
+      "自回归生成",
+      "softmax 与掩码",
+      "注意力分数"
+    ],
+    "workedExample": [
+      "位置 i=2，可被看的是 0,1,2。",
+      "mask[2][3]=−∞ → softmax 后权重为 0。"
+    ],
+    "lineByLine": [
+      "torch.full((n,n),-inf)：先全 −inf。",
+      "triu(diagonal=1)：保留对角线及以下为 0。",
+      "加到分数后再 softmax 实现单向可见。"
+    ],
+    "diagram": "i\\j 0 1 2 3\n0   0 -∞ -∞ -∞\n1   0  0 -∞ -∞\n2   0  0  0 -∞\n3   0  0  0  0"
+  },
+  {
+    "id": "arch-ffn-swiglu-relation",
+    "category": "Transformer 架构",
+    "difficulty": "Easy",
+    "title": "Transformer 前馈层 FFN 与 SwiGLU 的关系",
+    "prompt": "标准 FFN 与 SwiGLU 是什么关系，SwiGLU 改了哪部分？",
+    "quickAnswer": "SwiGLU 是 FFN 的一种激活/结构升级：把单矩阵+固定激活换成『门控双路（W1/W3）+SiLU』再 W2 投影。",
+    "approach": "把 FFN 写成『升维→非线性→降维』，对比标准 ReLU/GELU 与 SwiGLU 在中间结构上的差异。",
+    "explanationFocus": "是什么：FFN 是 Transformer 块里对每个位置独立作用的双层 MLP（升维激活再降维）；SwiGLU 是 FFN 的一种具体实现，用门控线性单元替换传统的单路激活，引入第三个矩阵 W3 作为门控。",
+    "bruteForce": "原始 FFN=W2·ReLU(W1·x) 只有两个矩阵和单一固定非线性。",
+    "derivation": [
+      "为什么需要：标准激活表达力有限，门控结构在同等参数下质量更好。",
+      "怎么实现：SwiGLU 在升维后分两路（W1 候选、W3 门），逐元素乘后经 W2 降维。",
+      "有什么代价：多一个 W3 矩阵，但靠缩小中间维（≈8/3 d）与标准 FFN 参数持平。",
+      "怎么评测：同参数困惑度对比，SwiGLU 优于 ReLU/GELU FFN。"
+    ],
+    "invariant": "不变量：FFN 始终为『逐位置 MLP』，输入/输出维度均为 d_model；SwiGLU 只改变中间非线性与矩阵数。",
+    "walkthrough": "标准 FFN 两矩阵；SwiGLU 三矩阵（W1,W3,W2），其中 W3 生成门控与 W1 候选逐元素相乘。",
+    "edgeCases": [
+      "GeGLU/ReGLU 是同族变体，仅激活不同。",
+      "部分模型 FFN 带 bias，LLaMA 风格无 bias。",
+      "中间维度公式因模型而异（4d / 8/3 d / multiplier）。"
+    ],
+    "code": "import torch.nn.functional as F\n\ndef ffn_swiglu(x, w1, w3, w2):\n    return (F.silu(x @ w1.T) * (x @ w3.T)) @ w2.T",
+    "codeNotes": [
+      "W1/W3 升维，W2 降维；门控来自 W3 分支。"
+    ],
+    "complexity": "FFN/SwiGLU 均为 O(N·d·d_ff)；SwiGLU 因 3 矩阵略多 FLOPs，但 d_ff 更小使其整体接近标准 FFN。",
+    "followUps": [
+      {
+        "question": "FFN 为什么对每个位置独立？",
+        "answer": "FFN 是 position-wise，不含跨 token 交互，跨 token 信息交换由注意力完成，二者分工。"
+      },
+      {
+        "question": "SwiGLU 能换回 GELU 吗？",
+        "answer": "可以（即 GeGLU），质量相近，SwiGLU 因 LLaMA 惯例更常见。"
+      }
+    ],
+    "followUpAnswers": [
+      "FFN 是 position-wise，不含跨 token 交互，跨 token 信息交换由注意力完成，二者分工。",
+      "可以（即 GeGLU），质量相近，SwiGLU 因 LLaMA 惯例更常见。"
+    ],
+    "pitfalls": [
+      "误以为 SwiGLU 改变了 FFN 的逐位置性质——它只改内部激活结构。",
+      "把 W3 当成输出投影——W2 才是降维输出。"
+    ],
+    "beginnerSummary": "FFN 是每个词各自过的一道『全连接小网络』；SwiGLU 给这道网络加了个门：一份算内容、一份算开关，相乘后再压缩回去。",
+    "prerequisites": [
+      "Transformer FFN",
+      "SwiGLU 激活",
+      "逐位置前馈"
+    ],
+    "workedExample": [
+      "标准: h=ReLU(xW1)W2。",
+      "SwiGLU: h=(SiLU(xW1)⊙xW3)W2。"
+    ],
+    "lineByLine": [
+      "x@w1.T：候选分支升维。",
+      "x@w3.T：门控分支升维。",
+      "(silu*up)@w2.T：门控相乘后降维。"
+    ],
+    "diagram": "FFN: x -> W1 -> act -> W2 -> out\nSwiGLU: x->W1->SiLU ┐\n        x->W3 ----->⊙->W2->out"
+  },
+  {
+    "id": "arch-preln-rmsnorm-combo",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "为何大模型普遍用 Pre-LN + RMSNorm",
+    "prompt": "为什么现代大模型几乎都同时采用 Pre-LN 和 RMSNorm 这个组合？",
+    "quickAnswer": "Pre-LN 保残差路径稳定可训深，RMSNorm 省一次规约更快且质量持平，二者正交叠加出稳定+高效。",
+    "approach": "分别说明 Pre-LN（梯度路径）与 RMSNorm（计算效率）的独立收益，再说明二者正交可叠加。",
+    "explanationFocus": "是什么：Pre-LN 指归一化放在子层之前、残差路径保持恒等直通；RMSNorm 指去掉均值中心化的轻量归一化。二者是正交选择，现代 LLM 同时采用以获得『深层可稳定训练』+『每层更快』的叠加收益。",
+    "bruteForce": "原始 Transformer 用 Post-LN+LayerNorm，需 warmup 且仅适合浅层；直接放大到百层会发散。",
+    "derivation": [
+      "为什么需要：百层模型既要梯度稳定（Pre-LN），又要每层省算力（RMSNorm 快 10–15%）。",
+      "怎么实现：块内 x=x+Sub(RMSNorm(x))，注意力和 FFN 前各放一个 RMSNorm。",
+      "有什么代价：几乎无代价；Pre-LN 可能最终质量略逊同设置 Post-LN，但稳定优势压倒；RMSNorm 精度与 LN 持平。",
+      "怎么评测：LLaMA/Qwen/Mistral/DeepSeek/Gemma 均采用此组合，是事实标准。"
+    ],
+    "invariant": "不变量：Pre-LN 保证残差恒等路径（梯度不随深度被压缩）；RMSNorm 保证每层归一化开销最小；二者独立成立可叠加。",
+    "walkthrough": "一个 32 层 LLaMA 块：RMSNorm→Attn→+残差→RMSNorm→SwiGLU→+残差；若换成 Post-LN+LN 在同等 recipe 下深层易不稳且更慢。",
+    "edgeCases": [
+      "个别模型（如部分 encoder）仍用 Post-LN+LayerNorm。",
+      "RMSNorm 的 γ 在深度训练中可能增长过大（gamma 爆炸），需监控。",
+      "Pre-LN 与归一化类型完全独立，也可 Pre-LN+LayerNorm。"
+    ],
+    "code": "def block(x, attn, ffn, norm):\n    x = x + attn(norm(x))   # Pre-LN + 任意 norm\n    x = x + ffn(norm(x))\n    return x",
+    "codeNotes": [
+      "norm 可为 RMSNorm 或 LayerNorm；两个 norm 实例独立。"
+    ],
+    "complexity": "每层 O(N·d²+N²·d)；RMSNorm 比 LayerNorm 少一次规约，百层累计省约 10–15% 归一化时间。",
+    "followUps": [
+      {
+        "question": "Pre-LN 与 RMSNorm 必须一起用吗？",
+        "answer": "不必，二者正交；但组合最常见，因为分别解决稳定与效率，叠加收益最大。"
+      },
+      {
+        "question": "RMSNorm 会不会影响 Pre-LN 的梯度？",
+        "answer": "不会，RMSNorm 只替代归一化计算，Pre-LN 的残差恒等路径保持不变。"
+      }
+    ],
+    "followUpAnswers": [
+      "不必，二者正交；但组合最常见，因为分别解决稳定与效率，叠加收益最大。",
+      "不会，RMSNorm 只替代归一化计算，Pre-LN 的残差恒等路径保持不变。"
+    ],
+    "pitfalls": [
+      "把『Pre-LN』与『RMSNorm』当成同一件事——前者是位置、后者是计算式。",
+      "以为 RMSNorm 是为了稳定而存在——它主要为效率，稳定靠 Pre-LN 位置。"
+    ],
+    "beginnerSummary": "Pre-LN 像保证主干管道畅通（梯度稳），RMSNorm 像把每个阀门做得更轻巧（算得快），两个改进互不冲突，于是大模型一起用。",
+    "prerequisites": [
+      "Pre-LN vs Post-LN",
+      "RMSNorm vs LayerNorm",
+      "残差连接"
+    ],
+    "workedExample": [
+      "Pre-LN：先归一化再子层，残差直连。",
+      "RMSNorm：归一化时省去均值步骤更快。"
+    ],
+    "lineByLine": [
+      "x+attn(norm(x))：注意力子层 Pre-LN。",
+      "x+ffn(norm(x))：FFN 子层 Pre-LN。",
+      "norm 用 RMSNorm 实现轻量化。"
+    ],
+    "diagram": "x -> RMSNorm -> Attn ->+ x\nx -> RMSNorm -> FFN  ->+ x\n(残差流不被归一化)"
+  },
+  {
+    "id": "arch-attn-complexity",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "Attention 计算复杂度 O(N²d) 含义",
+    "prompt": "注意力复杂度 O(N²d) 具体指什么，瓶颈来自哪里？",
+    "quickAnswer": "O(N²d) = N 个 query 各与 N 个 key 做 d 维点积并加权求和；瓶颈在 N² 的成对交互与 N×N 中间矩阵。",
+    "approach": "从单头公式展开：QKᵀ 是 N×N、每元素 d 维点积，PV 再 N×N 乘 d，得 O(N²d)。",
+    "explanationFocus": "是什么：标准自注意力对每个 query 与所有 N 个 key 计算 d 维点积（O(N²d)），再对 N 个 value 加权求和（又 O(N²d)），故总复杂度 O(N²d)。瓶颈在于 query-key 的成对比较随序列长度平方增长。",
+    "bruteForce": "朴素循环：对每个 i 遍历所有 j 做点积，显式 O(N²d)，且在长序列下内存需存 N×N 分数。",
+    "derivation": [
+      "为什么需要：注意力本质是『全连接』的成对比较，N 翻倍计算与显存约翻 4 倍。",
+      "怎么实现：矩阵化 QKᵀ（O(N²d)）+ softmax + PV（O(N²d)）。",
+      "有什么代价：长序列 N 大时 N² 主导，显存与带宽成瓶颈（见 FlashAttention）。",
+      "怎么评测：测不同 N 下的 FLOPs/显存，验证随 N² 增长；长上下文需稀疏/线性注意力或 Flash。"
+    ],
+    "invariant": "不变量：注意力对序列长度 N 是平方复杂度，对头维度 d 线性；这是自注意力的固有性质，不随实现改变。",
+    "walkthrough": "N=1024,d=64：QKᵀ 约 1024²×64≈6.7×10⁷ 次乘加/头；N 增到 4096 则约 16 倍。",
+    "edgeCases": [
+      "因果掩码不降低渐近 O(N²)，只省常数（约一半）。",
+      "线性/稀疏注意力旨在把 N² 降为 O(N) 或 O(N√N)。",
+      "d 固定时瓶颈完全在 N²。"
+    ],
+    "code": "def attn_flops(N, d, h=1):\n    # 单头 QK^T: N*N*d ; PV: N*N*d\n    per_head = 2 * N * N * d\n    return per_head * h",
+    "codeNotes": [
+      "仅估乘加次数，忽略 softmax 的 N² 指数运算。"
+    ],
+    "complexity": "时间/空间均与 N² 成正比（O(N²d) 计算、O(N²) 分数矩阵）；FlashAttention 将显存降到 O(N) 但不改 FLOPs。",
+    "followUps": [
+      {
+        "question": "想把 N² 降下来有哪些路线？",
+        "answer": "稀疏注意力（局部窗口/稀疏模式）、线性注意力（核技巧近似）、或 FlashAttention 仅降显存不降 FLOPs。"
+      },
+      {
+        "question": "多头会乘以 h 吗？",
+        "answer": "多头下总 FLOPs 约乘 h，但 h·d_k=d_model，故整体仍是 O(N²·d_model)。"
+      }
+    ],
+    "followUpAnswers": [
+      "稀疏注意力（局部窗口/稀疏模式）、线性注意力（核技巧近似）、或 FlashAttention 仅降显存不降 FLOPs。",
+      "多头下总 FLOPs 约乘 h，但 h·d_k=d_model，故整体仍是 O(N²·d_model)。"
+    ],
+    "pitfalls": [
+      "以为 FlashAttention 把 O(N²d) 变成 O(N)——它只降显存，FLOPs 仍是 O(N²d)。",
+      "把 d 与 N 的瓶颈混淆：长序列时 N² 主导。"
+    ],
+    "beginnerSummary": "注意力让每个词和所有词两两打分，词数翻倍，『两两组合』就翻四倍，所以复杂度随长度平方增长，这就是它处理超长文本费力的根源。",
+    "prerequisites": [
+      "自注意力公式",
+      "大 O 复杂度",
+      "FlashAttention 动机"
+    ],
+    "workedExample": [
+      "N=1024：分数矩阵 1024×1024。",
+      "N=4096：约 16 倍计算与显存。"
+    ],
+    "lineByLine": [
+      "2*N*N*d：QKᵀ 与 PV 各一次 N²d。",
+      "乘 h：多头叠加。",
+      "瓶颈在 N² 项随序列平方增长。"
+    ],
+    "diagram": "复杂度来源:\nQK^T : (N,N,d) -> N*N*d\nsoftmax: (N,N)\nPV    : (N,N,d) -> N*N*d\n总计 O(N^2 d)，瓶颈 N^2"
+  },
+  {
+    "id": "arch-relpos-other",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "其他相对位置编码方案（T5 bias、ALiBi）",
+    "prompt": "除了 RoPE，T5 的相对位置偏置和 ALiBi 是怎么做相对位置编码的？",
+    "quickAnswer": "T5 把相对位置分 bucket 学偏置加到 logits；ALiBi 用随距离线性递减的预设偏置，无需位置嵌入且易外推。",
+    "approach": "对比两类加性相对方案：T5 的可学习 bucket 偏置 vs ALiBi 的固定斜率偏置。",
+    "explanationFocus": "是什么：T5 的相对位置编码把相对距离 |i−j| 分桶（近距细、远距粗），每桶学一个偏置加到注意力分数；ALiBi 则不加任何位置嵌入，直接在分数上加 m·(i−j) 的线性惩罚（m 为每头预设斜率），距离越远分越低。",
+    "bruteForce": "可学习绝对位置向量简单但无相对距离建模、不能外推。",
+    "derivation": [
+      "为什么需要：要让分数直接依赖相对距离，并尽量支持长序列外推。",
+      "怎么实现：T5→score+=bias[bucket(|i−j|)]；ALiBi→score+=m·(i−j)。",
+      "有什么代价：T5 需学偏置表且外推靠 bucket 设计；ALiBi 无绝对位置、丢弃绝对顺序线索但外推极佳。",
+      "怎么评测：长上下文困惑度；ALiBi 训练短推长表现好，T5 在编码任务强。"
+    ],
+    "invariant": "不变量：二者都让『分数仅依赖相对距离』；ALiBi 偏置线性无周期故天然外推，T5 偏置可学但受 bucket 范围限制。",
+    "walkthrough": "T5 bucket：距离 0–7 每格一桶、更远处对数合并；ALiBi：8 头斜率如 1/2,1/4,... 使不同头关注不同距离范围。",
+    "edgeCases": [
+      "ALiBi 无绝对位置，纯靠相对偏置，个别任务需补绝对线索。",
+      "T5 bucket 边界是超参，影响长距建模。",
+      "二者均为加性，可与 RoPE 思路对照（RoPE 为乘性）。"
+    ],
+    "code": "def t5_bias(rel_dist, buckets, bucket_bias):\n    # rel_dist=|i-j|, 映射到 bucket 索引\n    if rel_dist < len(buckets):\n        b = rel_dist\n    else:\n        b = buckets[rel_dist]      # 远处对数合并\n    return bucket_bias[b]",
+    "codeNotes": [
+      "T5 实际用对数桶：近距每距一桶、远距合并。",
+      "bias 加到 softmax 前的分数。"
+    ],
+    "complexity": "均 O(N²) 偏置项（可缓存）；不增加注意力 O(N²d) 主复杂度。ALiBi 偏置无参数，T5 偏置参数量 O(buckets)。",
+    "followUps": [
+      {
+        "question": "T5 bias 和 ALiBi 谁更易外推？",
+        "answer": "ALiBi 更易，因偏置线性无限延伸；T5 需设计 bucket 上限与外延策略。"
+      },
+      {
+        "question": "为何 ALiBi 多头用不同斜率？",
+        "answer": "不同斜率让各头关注不同距离尺度，类似多分辨率的距离先验。"
+      }
+    ],
+    "followUpAnswers": [
+      "ALiBi 更易，因偏置线性无限延伸；T5 需设计 bucket 上限与外延策略。",
+      "不同斜率让各头关注不同距离尺度，类似多分辨率的距离先验。"
+    ],
+    "pitfalls": [
+      "以为 T5 bias 含绝对位置——它只建模相对距离。",
+      "把 ALiBi 的斜率当成可学习——原始 ALiBi 斜率为预设几何序列。"
+    ],
+    "beginnerSummary": "T5 像给不同距离准备一叠『距离贴纸』（近的细、远的粗）贴到分数上；ALiBi 像一条固定规则：离得越远自动扣分，简单且能无限延伸。",
+    "prerequisites": [
+      "相对位置编码",
+      "RoPE 原理",
+      "注意力偏置"
+    ],
+    "workedExample": [
+      "T5：距离 3 → bucket 3 的偏置。",
+      "ALiBi：score += slope·(i−j)，越远越负。"
+    ],
+    "lineByLine": [
+      "近距每距一桶、远距对数合并。",
+      "bucket_bias[b] 查得可学偏置。",
+      "偏置加到 softmax 前分数。"
+    ],
+    "diagram": "T5:   score += learned_bias[bucket(|i-j|)]\nALiBi:score += m * (i - j)   (m 预设, 线性)"
+  },
+  {
+    "id": "arch-rope-multidim",
+    "category": "Transformer 架构",
+    "difficulty": "Hard",
+    "title": "RoPE 在 2D/多维的推广",
+    "prompt": "RoPE 的旋转思想如何推广到 2D（视觉）或多维序列？",
+    "quickAnswer": "把 (x,y) 等多维坐标拆成多个 1D 位置，对每个维度分别施加对应频率的旋转并乘积，使内积依赖多维相对坐标。",
+    "approach": "将绝对位置从标量 m 扩展为向量 (m_x,m_y,...)，对每个坐标维度做独立 1D RoPE 再组合。",
+    "explanationFocus": "是什么：在图像/视频等结构化输入中，位置是多维的（如 (row,col) 或 (t,row,col)）。多维 RoPE 对每个坐标维度分别构造 1D 旋转矩阵（各自基频），组合后让注意力分数同时依赖各维的相对位移 (Δx,Δy,...)。",
+    "bruteForce": "朴素把 2D 坐标展平成一维再套 1D RoPE，会丢失行列方向的独立相对关系，近邻结构被扭曲。",
+    "derivation": [
+      "为什么需要：视觉/视频的局部性在 2D/3D 网格上，需分别编码每个轴的相对位移。",
+      "怎么实现：对每个轴 α 用其位置分量 p_α 构造 R_α，最终旋转为各轴旋转的组合（可分解为维度专属频率块）。",
+      "有什么代价：频率设计与轴向解耦需仔细，避免不同轴频率混叠；实现比 1D 复杂。",
+      "怎么评测：在图像/视频长序列任务上对比展平 1D RoPE，验证轴间相对位置被正确建模。"
+    ],
+    "invariant": "不变量：旋转的可分性——各坐标轴旋转相互独立，内积同时依赖 (Δx,Δy,...)，保持正交与范数不变。",
+    "walkthrough": "2D 位置 (r,c)：对行轴用频率组 θ^row、列轴用 θ^col，分别旋转对应维度块，使 q^⊤k 依赖 (Δr,Δc)。",
+    "edgeCases": [
+      "频率组需在行/列轴分配不重叠的维度区间，防混叠。",
+      "视频需额外时间轴旋转，3D 位置更要小心频率预算。",
+      "部分工作用『轴向分解 RoPE』而非全耦合。"
+    ],
+    "code": "def rope_2d(x_rc, r, c, dim, base=10000.0):\n    # x_rc: (dim,) 按前半维给行、后半维给列\n    half = dim // 2\n    inv = [base ** (-2*i/dim) for i in range(half)]\n    ang_r = [r * inv[i] for i in range(half//2)]\n    ang_c = [c * inv[i] for i in range(half//2, half)]\n    # 对对应维度块分别旋转（示意）\n    return 'rotate row-block by ang_r, col-block by ang_c'",
+    "codeNotes": [
+      "真实实现把维度切成行/列专属频率块。",
+      "需保证行/列频率区间不重叠以免混叠。"
+    ],
+    "complexity": "仍是 O(Nd) 前处理（N 为 token 数）；不增加注意力 O(N²d)。视觉 token 数常因 patch 化而很大。",
+    "followUps": [
+      {
+        "question": "多维 RoPE 与展平 1D RoPE 差在哪？",
+        "answer": "展平丢失轴间独立相对关系，多维 RoPE 分别编码每轴位移，保留 2D/3D 局部结构。"
+      },
+      {
+        "question": "频率怎么在轴上分配？",
+        "answer": "通常把维度均分给各轴、各自用一组基频，避免不同轴频率混叠导致相对关系模糊。"
+      }
+    ],
+    "followUpAnswers": [
+      "展平丢失轴间独立相对关系，多维 RoPE 分别编码每轴位移，保留 2D/3D 局部结构。",
+      "通常把维度均分给各轴、各自用一组基频，避免不同轴频率混叠导致相对关系模糊。"
+    ],
+    "pitfalls": [
+      "把 2D 坐标直接拼成标量再套 1D RoPE——会扭曲网格局部性。",
+      "行/列频率区间重叠造成混叠，模型难分辨轴间位移。"
+    ],
+    "beginnerSummary": "1D RoPE 像沿一条线拧；2D RoPE 像在『横』和『竖』两个方向各拧各的，于是图片里上下左右的距离都被分别记下来。",
+    "prerequisites": [
+      "RoPE 原理",
+      "多维坐标",
+      "视觉 Transformer"
+    ],
+    "workedExample": [
+      "1D：位置 m 单轴旋转。",
+      "2D：位置 (r,c) 行轴、列轴分别旋转，分数依赖 (Δr,Δc)。"
+    ],
+    "lineByLine": [
+      "inv 生成基频。",
+      "ang_r/ang_c 分别用行/列位置。",
+      "对维度块分别旋转实现轴解耦。"
+    ],
+    "diagram": "1D RoPE:  rot(m)\n2D RoPE:  rot_row(r) ⊗ rot_col(c)\n内积依赖 (Δr, Δc)"
+  },
+  {
+    "id": "arch-attn-vs-conv",
+    "category": "Transformer 架构",
+    "difficulty": "Medium",
+    "title": "注意力 vs 卷积的归纳偏置差异",
+    "prompt": "自注意力与卷积在归纳偏置上有什么本质差异？",
+    "quickAnswer": "卷积内置局部性/平移等变，注意力无局部先验、全局交互但需数据学位置与局部性。",
+    "approach": "从『感受野』『局部性』『平移等变』『参数共享方式』四个角度对比两类操作。",
+    "explanationFocus": "是什么：卷积对局部邻域做权值共享，天然带有局部性、平移等变等强归纳偏置，适合网格数据；自注意力是全局、内容驱动的交互，没有局部性先验，感受野随层动态可变，更灵活但数据效率较低、需更多数据。",
+    "bruteForce": "纯注意力在小型数据集上易过拟合，因为它不假设局部结构；若强加局部窗口则退化成类卷积。",
+    "derivation": [
+      "为什么需要：小数据/网格数据下强先验（卷积）更高效；大数据/长程依赖下全局内容交互（注意力）更强。",
+      "怎么实现：卷积用滑动核（局部、权值共享）；注意力用 QK 全局打分（全局、内容相关）。",
+      "有什么代价：卷积受限局部、难建模超长程；注意力 O(N²) 且缺局部先验、需位置编码补顺序。",
+      "怎么评测：小数据集上卷积胜出，大数据/长序列上注意力（尤其 ViT 大模型）反超。"
+    ],
+    "invariant": "不变量：卷积的感受野固定且局部；注意力的感受野是『软』全局、由内容决定，二者互补，常混合使用。",
+    "walkthrough": "3×3 卷积只看邻近 9 像素（强局部先验）；自注意力中每个像素可 attend 全图，但需 RoPE/卷积式偏置才学出局部性。",
+    "edgeCases": [
+      "局部窗口注意力（如 Swin）兼具二者优点。",
+      "注意力仍需位置编码补足『顺序』这一卷积天然有的信息。",
+      "卷积因权值共享具平移等变，注意力对排列敏感（需位置编码）。"
+    ],
+    "code": "def conv_vs_attn(x):\n    # 示意：卷积局部、注意力全局\n    conv = 'sum over local kernel (shared weights)'\n    attn = 'softmax(QK^T) over ALL positions'\n    return conv, attn",
+    "codeNotes": [
+      "代码仅对比两类操作的感受野范围。"
+    ],
+    "complexity": "卷积 O(N·k²·C²)（k 为核、C 通道）与 N 近线性；注意力 O(N²d) 与 N 平方；感受野卷积固定、注意力全局。",
+    "followUps": [
+      {
+        "question": "为什么 ViT 还要加位置编码？",
+        "answer": "卷积因滑动窗口隐含位置/局部性，注意力对排列不变，必须显式注入位置信息才能区分空间顺序。"
+      },
+      {
+        "question": "二者能结合吗？",
+        "answer": "能，如 Conformer、Swin（窗口注意力）、ConvAttention，混合局部先验与全局交互。"
+      }
+    ],
+    "followUpAnswers": [
+      "卷积因滑动窗口隐含位置/局部性，注意力对排列不变，必须显式注入位置信息才能区分空间顺序。",
+      "能，如 Conformer、Swin（窗口注意力）、ConvAttention，混合局部先验与全局交互。"
+    ],
+    "pitfalls": [
+      "以为注意力『比卷积强』——只是归纳偏置不同，小数据下卷积更高效。",
+      "忽略注意力需位置编码补足卷积天然拥有的局部/顺序信息。"
+    ],
+    "beginnerSummary": "卷积像戴着『只看邻居』的眼镜，先入为主认为局部重要；注意力像没有眼镜、谁都看但得自己学哪儿重要，更灵活却更费数据。",
+    "prerequisites": [
+      "卷积神经网络",
+      "归纳偏置",
+      "自注意力机制"
+    ],
+    "workedExample": [
+      "卷积：3×3 核只看 9 邻域，权值共享。",
+      "注意力：每像素对全图 softmax 打分。"
+    ],
+    "lineByLine": [
+      "conv：局部核、权值共享（强先验）。",
+      "attn：全局内容打分（弱先验）。",
+      "二者感受野与参数共享方式本质不同。"
+    ],
+    "diagram": "卷积: [■■■] 局部滑动, 权值共享\n注意力: ■──┐\n      ■──┴ 全连接打分(内容驱动)\n归纳偏置: 局部/平移等变 vs 全局/无局部先验"
+  },
+  {
+    "id": "arch-norm-placement",
+    "category": "Transformer 架构",
+    "difficulty": "Easy",
+    "title": "归一化放在注意力与 FFN 的哪（norm 位置约定）",
+    "prompt": "现代 Transformer 里 RMSNorm/LayerNorm 具体放在注意力和 FFN 的什么位置？",
+    "quickAnswer": "Pre-LN 约定：每个子层『之前』各放一个归一化（attn 前、FFN 前），最后块末再放一个最终 norm。",
+    "approach": "按现代 decoder 块顺序给出归一化位置：RMSNorm→Attn→+残差→RMSNorm→FFN→+残差→(可选)末 Norm。",
+    "explanationFocus": "是什么：在 Pre-LN 约定下，每个 Transformer 块内有两处归一化——注意力子层输入前、FFN 子层输入前，各一个（RMSNorm 或 LayerNorm）；残差连接绕过归一化直接加回；部分模型在最后一块后再加一个最终归一化再接 LM head。",
+    "bruteForce": "Post-LN 把归一化放在残差相加『之后』（x=Norm(x+Sub(x))），原始 Transformer 如此，但深层不稳。",
+    "derivation": [
+      "为什么需要：归一化位置决定梯度路径；Pre-LN 让残差流保持恒等直通，深层可训。",
+      "怎么实现：x = x + Attn(Norm(x))；x = x + FFN(Norm(x))；末尾可选 Norm。",
+      "有什么代价：几乎无；仅约定差异。Pre-LN 可能略损同设置质量但稳定压倒。",
+      "怎么评测：对照 Post-LN 看深层训练曲线；现代 LLM 全部 Pre-LN 双 norm。"
+    ],
+    "invariant": "不变量：残差流本身不被归一化，仅子层『输入』被归一化——这是 Pre-LN 稳定训练的核心约定。",
+    "walkthrough": "LLaMA 块：input_layernorm(RMSNorm)→Attn→残差；post_attention_layernorm(RMSNorm)→SwiGLU→残差；末尾 final_norm→LM head。",
+    "edgeCases": [
+      "个别架构把 FFN 的 norm 与注意力共用或省略其一（少见）。",
+      "命名陷阱：LLaMA 变量名 *layernorm 实为 RMSNorm。",
+      "编码器（BERT）常 Post-LN 双 LayerNorm。"
+    ],
+    "code": "def block(x, attn, ffn, n1, n2):\n    h = x + attn(n1(x))   # 注意力前归一化\n    h = h + ffn(n2(h))    # FFN 前归一化\n    return h",
+    "codeNotes": [
+      "n1,n2 为两个独立归一化层实例。"
+    ],
+    "complexity": "两个归一化每层 O(N·d)，与整体 O(N²d) 相比可忽略；位置改变不影响复杂度只影响稳定性。",
+    "followUps": [
+      {
+        "question": "注意力后的 norm 在哪？",
+        "answer": "在 FFN 子层『之前』（即注意力残差之后、FFN 输入前），称为 post_attention_layernorm。"
+      },
+      {
+        "question": "为什么残差不加 norm？",
+        "answer": "保持残差恒等路径，使梯度可无损回传，这是 Pre-LN 稳定的关键。"
+      }
+    ],
+    "followUpAnswers": [
+      "在 FFN 子层之前（注意力残差之后、FFN 输入前），称为 post_attention_layernorm。",
+      "保持残差恒等路径，使梯度可无损回传，这是 Pre-LN 稳定的关键。"
+    ],
+    "pitfalls": [
+      "把注意力后的 norm 误以为在注意力『之后』——实际在 FFN 之前、残差之外。",
+      "被 LLaMA 的 *layernorm 命名误导以为用的是 LayerNorm。"
+    ],
+    "beginnerSummary": "现代块里归一化像『进门前的安检』：进注意力前要过一次，进 FFN 前再过一次，而残差那条主干道不设安检，保证信息畅通。",
+    "prerequisites": [
+      "Pre-LN vs Post-LN",
+      "RMSNorm/LayerNorm",
+      "Transformer 块结构"
+    ],
+    "workedExample": [
+      "注意力前：RMSNorm(x)→Attn→+x。",
+      "FFN 前：RMSNorm→FFN→+x；块末可选 final norm。"
+    ],
+    "lineByLine": [
+      "n1(x)：注意力子层输入归一化。",
+      "n2(h)：FFN 子层输入归一化。",
+      "残差 x/h 不经归一化直接加回。"
+    ],
+    "diagram": "x ->[RMSNorm]-> Attn --\\\n                                 + -> x' ->[RMSNorm]-> FFN -->+ -> out\n(残差主干不经 norm)"
+  },
+  {
+    "id": "train-scaling-laws-chinchilla",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "Chinchilla 计算最优：模型参数量与训练 token 的关系",
+    "prompt": "给定固定训练算力预算，模型参数量 N 与训练 token 数 D 应如何分配才能最小化损失？",
+    "quickAnswer": "Chinchilla 规律表明 N 与 D 应同比例缩放，约每 1 个参数配 20 个训练 token（70B 参数配 1.4T token）。",
+    "approach": "在固定 FLOPs 下联合优化 N 与 D，使二者沿 C^0.5 对称增长，而非偏向堆参数。",
+    "explanationFocus": "是什么：Chinchilla scaling 是 Hoffmann 等（2022）提出的计算最优训练法则，指出此前 GPT-3/ Gopher 等大模型参数量过大而训练 token 不足（欠训练）；最优配置下训练 token 数约为参数量的 20 倍，即 token/param≈20。",
+    "bruteForce": "Kaplan（2020）做法：固定算力下尽量放大模型、复用同一批数据多 epoch，导致数据复用过拟合与算力浪费，最终损失高于均衡方案。",
+    "derivation": [
+      "为什么需要：Gopher(280B,300B)、GPT-3(175B,300B) 证明同样算力下大参数+少数据明显欠训练，需要为给定算力找到 N、D 最优组合。",
+      "怎么实现：用 C≈6ND（每 token 每参数约6 FLOPs），令 N∝C^0.5、D∝C^0.5，得 D≈20N；70B 模型配 1.4T token。",
+      "有什么代价：该规律仅优化训练损失，未考虑推理成本；前沿模型受高质量数据可得性约束，常被迫超 Chinchilla 比例过训练小模型。",
+      "怎么评测：在多个 iso-FLOP 预算上比较最终验证损失，Chinchilla 点处损失最低；经验上 70B/1.4T 在多数基准超越 4 倍参数的 Gopher。"
+    ],
+    "invariant": "固定算力下，N 与 D 大致各占 C^0.5，token/param≈20 是经验法则（建议二次核对具体架构）。",
+    "walkthrough": "预算 C=5.76e23 FLOPs：N_opt≈sqrt(C/120)≈70B，D_opt≈C/(6·N)≈1.4T，比例≈20 token/param。",
+    "edgeCases": [
+      "MoE、检索增强等非稠密 Transformer 的最优比例可能不同",
+      "数据耗尽时无法满足 Chinchilla 比例，只能多 epoch 或合成数据",
+      "仅优化训练算力，未计入推理成本，生产常反向过训练小模型"
+    ],
+    "code": "def chinchilla_optimal(C_flops):\n    # 估算给定算力下的最优参数量与 token 数\n    N_opt = (C_flops / 120) ** 0.5   # C ≈ 6 * N * (20N) = 120 N^2\n    D_opt = C_flops / (6 * N_opt)\n    return N_opt, D_opt, D_opt / N_opt",
+    "codeNotes": [
+      "因子 120 = 6 × 20，其中 6 为每参数每 token 的近似训练 FLOPs",
+      "结果为粗估，真实训练需配合学习率扫描与余弦调度"
+    ],
+    "complexity": "估算为 O(1)；实际需训练上百个小模型拟合幂律，成本极高。",
+    "followUps": [
+      {
+        "question": "Kaplan 规律与 Chinchilla 的根本分歧在哪？",
+        "answer": "Kaplan 用固定学习率调度导致大模型看似更样本高效，实际是欠训练；Chinchilla 为每个尺寸独立调 LR，揭示应按 C^0.5 对称缩放。"
+      },
+      {
+        "question": "为什么生产常违背 Chinchilla 比例？",
+        "answer": "推理成本按模型规模持续付费，故宁可在更多 token 上过训练更小模型（如 LLaMA-3 8B 用 15T token），以换更低 serving 成本。"
+      }
+    ],
+    "followUpAnswers": [
+      "Kaplan 用固定学习率调度导致大模型看似更样本高效，实际是欠训练；Chinchilla 为每个尺寸独立调 LR，揭示应按 C^0.5 对称缩放。",
+      "推理成本按模型规模持续付费，故宁可在更多 token 上过训练更小模型（如 LLaMA-3 8B 用 15T token），以换更低 serving 成本。"
+    ],
+    "pitfalls": [
+      "误读比例为『20 参数 : 1 token』，正确是 1 参数 : 20 token",
+      "把 Chinchilla 视为部署最优，忽略推理成本维度"
+    ],
+    "beginnerSummary": "训练大模型像分预算：钱（算力）固定时，不要全买『更宽的脑子』（参数），也要买够『读的书』（数据）。Chinchilla 说两者大致按 1:20 配最划算。",
+    "prerequisites": [
+      "Transformer 基础",
+      "FLOPs 与算力预算概念",
+      "幂律 scaling 直觉"
+    ],
+    "workedExample": [
+      "取算力 C=5.76e23 FLOPs，代入公式 N=sqrt(C/120)",
+      "得 N≈7.0e10(70B)，D≈1.4e12(1.4T)，比例≈20"
+    ],
+    "lineByLine": [
+      "N_opt = (C_flops/120)**0.5：由 C=6·N·20N 反解最优参数量",
+      "D_opt = C_flops/(6*N_opt)：用总算力减去参数占用得到训练 token",
+      "返回三者中 D_opt/N_opt 即 Chinchilla 比例≈20"
+    ],
+    "diagram": "算力 C 固定\n ┌─────────────┐\n │  N (参数)   │  ∝ C^0.5\n │  D (token)  │  ∝ C^0.5\n └─────────────┘\n D / N ≈ 20 : 1"
+  },
+  {
+    "id": "train-data-mixture",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "预训练数据配比与质量过滤",
+    "prompt": "预训练语料中网页、书籍、代码等数据应如何配比并做质量过滤？",
+    "quickAnswer": "常用网页(CommonCrawl)为主、搭配书籍/代码/学术等多源配比，并以分类器打分、去噪、语言/毒性过滤提升质量。",
+    "approach": "先按数据源定比例（如网页~60-70%、书籍~15%、代码~10-15%），再用质量分类器与启发式规则剔除低质文本。",
+    "explanationFocus": "是什么：预训练数据配比指在混合语料中给各来源（网页、书籍、代码、对话、学术）分配权重；质量过滤是用规则或模型剔除噪声、重复、低信息量文本，直接决定模型能力上限。",
+    "bruteForce": "直接把原始 CommonCrawl 全量喂入，含大量 spam、机器翻译、重复页，训练损失与下游质量都差，且浪费算力。",
+    "derivation": [
+      "为什么需要：不同来源覆盖不同能力（代码提升推理、书籍提升长文连贯），且原始网页噪声极大需清洗。",
+      "怎么实现：人工设定配比（参考 The Pile / RedPajama），用 fastText 语言识别、质量分类器（如 GPT-3 评分回训）、去噪规则过滤。",
+      "有什么代价：配比与过滤阈值是强超参，调错会偏科；高质量来源（书籍）有限，过度依赖会数据耗尽。",
+      "怎么评测：在下游基准（MMLU、HumanEval）与困惑度上做消融，观察配比变化带来的能力涨跌。"
+    ],
+    "invariant": "质量优先于数量；配比要覆盖目标能力维度，避免单一来源主导（建议二次核对各模型公开配比）。",
+    "walkthrough": "LLaMA 系列：网页(CommonCrawl 去重后)约 80%+，加 C4、GitHub、书籍、Wikipedia、arXiv 等；代码占比约 10-15% 以保代码能力。",
+    "edgeCases": [
+      "低资源语言数据稀少，配比需上采样否则能力崩塌",
+      "代码占比过高可能削弱自然语言流畅度",
+      "过滤阈值过严导致高质量数据不足、语料枯竭"
+    ],
+    "code": "def quality_filter(text, scorer, threshold=0.5):\n    # 用训练好的质量分类器过滤低质文本\n    if scorer is None:\n        return len(text) > 50 and not is_spam(text)\n    return scorer(text) >= threshold",
+    "codeNotes": [
+      "scorer 常用『用高质量数据训练二分类器』或调用强模型打分蒸馏",
+      "阈值需配合配比在验证集上联合调参"
+    ],
+    "complexity": "批量过滤为 O(语料量 × 单条打分)，可用多进程流式处理。",
+    "followUps": [
+      {
+        "question": "为什么不直接用全部网页数据？",
+        "answer": "原始 CommonCrawl 含大量 SEO 垃圾、机器翻译、重复与低信息页，会拉高损失并污染能力，需去噪与质量打分。"
+      },
+      {
+        "question": "配比能否自动学习？",
+        "answer": "可基于下游任务做 DoReMi 式数据重加权，用小模型代理搜索最优配比后再迁移到大模型。"
+      }
+    ],
+    "followUpAnswers": [
+      "原始 CommonCrawl 含大量 SEO 垃圾、机器翻译、重复与低信息页，会拉高损失并污染能力，需去噪与质量打分。",
+      "可基于下游任务做 DoReMi 式数据重加权，用小模型代理搜索最优配比后再迁移到大模型。"
+    ],
+    "pitfalls": [
+      "用强模型打分过滤会引入模型自身偏见",
+      "过度依赖网页会导致书籍/代码等稀缺高质量源被稀释"
+    ],
+    "beginnerSummary": "给大模型『喂书』不能只逮网页全塞进去，要像配营养餐：网页多但杂、书籍精、代码补逻辑，并先挑掉馊掉的内容。",
+    "prerequisites": [
+      "语料来源知识",
+      "文本分类器",
+      "困惑度/下游评测"
+    ],
+    "workedExample": [
+      "设定配比：网页 65%、书籍 15%、代码 12%、学术 8%",
+      "对每条文本跑质量分类器，score<0.5 丢弃，最终保留约 1.4T token"
+    ],
+    "lineByLine": [
+      "def quality_filter(text, scorer, threshold=0.5): 定义过滤接口",
+      "无 scorer 时退化为长度+spam 启发式规则",
+      "return scorer(text) >= threshold：用模型分数做硬阈值过滤"
+    ],
+    "diagram": "原始语料\n ┌────┬────┬────┐\n │网页│书籍│代码│\n └─┬──┴─┬──┴─┬─┘\n 去噪→打分→配比混合→训练"
+  },
+  {
+    "id": "train-dedup",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "去重（精确/语义）对预训练的影响",
+    "prompt": "预训练中的精确去重与语义去重分别怎么做，对训练有何影响？",
+    "quickAnswer": "精确去重用哈希（如 MinHash/后缀数组）删重复文档；语义去重用 embedding 聚簇删近重复；可显著降低记忆与过拟合。",
+    "approach": "先以文档/段落级哈希做精确去重，再用句子 embedding 近邻聚类消除语义近似重复，减少数据泄漏与基准污染。",
+    "explanationFocus": "是什么：去重是在预训练前移除完全重复（精确去重，如相同文档哈希）与近似重复（语义去重，如 paraphrase、模板生成）的样本，避免模型记忆与基准污染。",
+    "bruteForce": "不做去重直接训练，同一网页被抓多次会反复出现，模型过拟合这些样本、记住隐私/基准答案，且浪费算力。",
+    "derivation": [
+      "为什么需要：CommonCrawl 中同一内容常出现数十次，重复样本抬高有效 epoch 数并导致数据泄漏。",
+      "怎么实现：精确去重用 SHA-256/MinHash+LSH 按文档或 50-token 窗口分块；语义去重用 SBERT embedding 做近邻聚簇。",
+      "有什么代价：MinHash 需扫描全语料建索引，内存与 I/O 大；语义去重需 embedding 推理，成本高且阈值敏感。",
+      "怎么评测：统计唯一文档比例、在保留基准上测污染率（如 C4 去重后基准得分变化），观察记忆化指标下降。"
+    ],
+    "invariant": "先精确后语义、由便宜到贵；去重是预训练标准前置步骤，不可跳过（建议二次核对具体阈值）。",
+    "walkthrough": "C4 流程：对 50-token 滑动窗口算哈希，文档内 90% 窗口与已见重复则丢弃；可减少数倍重复量，困惑度下降。",
+    "edgeCases": [
+      "合法重复（如许可证、常引用段落）也可能被误删",
+      "语义去重阈值过严会删掉有用的近义多样表述",
+      "多语言下哈希与 embedding 需按语言分别处理"
+    ],
+    "code": "import hashlib\ndef exact_dedup(docs):\n    seen = set()\n    out = []\n    for d in docs:\n        h = hashlib.sha256(d.encode()).hexdigest()\n        if h not in seen:\n            seen.add(h); out.append(d)\n    return out",
+    "codeNotes": [
+      "生产常用 MinHash+LSH 做近似级精确去重以省内存",
+      "窗口级（而非整文档）去重对网页更有效"
+    ],
+    "complexity": "精确去重 O(语料量)；MinHash 近似为亚线性，语义去重加 O(N·嵌入维度)。",
+    "followUps": [
+      {
+        "question": "去重会影响下游基准公平性吗？",
+        "answer": "会；若测试集与训练集重复，模型『背答案』虚高，去重正是为降低这种污染。"
+      },
+      {
+        "question": "语义去重和精确去重怎么选？",
+        "answer": "先用便宜的精确去重清重复，再用语义去重清 paraphrase/模板近重复，二者互补。"
+      }
+    ],
+    "followUpAnswers": [
+      "会；若测试集与训练集重复，模型『背答案』虚高，去重正是为降低这种污染。",
+      "先用便宜的精确去重清重复，再用语义去重清 paraphrase/模板近重复，二者互补。"
+    ],
+    "pitfalls": [
+      "过度去重可能误删合法复用文本（许可、引用）",
+      "仅靠哈希忽略近义重复，污染仍在"
+    ],
+    "beginnerSummary": "训练前先把『抄来的相同文章』和『换汤不换药的近似文章』清掉，否则模型只是背答案、还容易泄露测试题。",
+    "prerequisites": [
+      "哈希与 MinHash",
+      "文本 embedding",
+      "数据泄漏概念"
+    ],
+    "workedExample": [
+      "对 1M 文档算 SHA-256，发现 12% 完全重复并删除",
+      "再用 embedding 近邻聚类删掉 5% 语义近似文档"
+    ],
+    "lineByLine": [
+      "seen = set()：记录已见文档哈希",
+      "h = hashlib.sha256(d.encode()).hexdigest()：整文档指纹",
+      "若未见则保留，实现精确去重"
+    ],
+    "diagram": "语料 → [哈希去重] → 唯一集 → [embedding 近邻] → 近重复簇合并"
+  },
+  {
+    "id": "train-token-estimate",
+    "category": "训练与微调",
+    "difficulty": "Easy",
+    "title": "训练 token 量估算（给定模型规模推 token）",
+    "prompt": "已知模型参数量，如何估算其计算最优的训练 token 数？",
+    "quickAnswer": "按 Chinchilla 比例，训练 token≈20×参数量（如 7B 模型约 140B token），再按算力预算用 C≈6ND 校正。",
+    "approach": "先用经验比例 D≈20N 粗估，再用算力约束 C=6ND 反解验证，二者一致即为计算最优训练量。",
+    "explanationFocus": "是什么：训练 token 量估算是在已知模型规模 N 或算力预算 C 时，推算应喂多少训练 token D，使算力用得最值（Chinchilla 下 D≈20N）。",
+    "bruteForce": "拍脑袋定 token（如所有模型都喂 300B），导致大模型欠训练、小模型过训练，算力利用低效。",
+    "derivation": [
+      "为什么需要：数据需求随模型规模增长，需规划语料规模与训练步数，避免中途断料或欠训练。",
+      "怎么实现：D = 20 × N；或已知 C 时 D = C/(6N)，两者联立可得 N=sqrt(C/120)。",
+      "有什么代价：高质量数据有限时 D 达不到 20N，只能多 epoch 或接受次优；过训练小模型时 D 远超 20N。",
+      "怎么评测：观察训练损失是否随步数平稳下降、验证困惑度是否饱和，判断是否还欠训练。"
+    ],
+    "invariant": "默认 D≈20N；受数据上限时用多 epoch 但需配合课程/重采样（建议二次核对前沿模型实际比例）。",
+    "walkthrough": "7B 模型：N=7e9，D≈20×7e9=1.4e11（140B token）；若算力只允许 8e22 FLOPs，则 D≈8e22/(6×7e9)≈1.9e12，说明可更充分训练。",
+    "edgeCases": [
+      "数据不足时 D 远小于 20N，被迫多 epoch 易过拟合",
+      "推理优先场景 D 取数百倍 N（过训练）",
+      "MoE 的『激活参数』而非总参数决定比例"
+    ],
+    "code": "def estimate_tokens(params, C_flops=None):\n    D_from_N = 20 * params\n    if C_flops:\n        return min(D_from_N, C_flops / (6 * params))\n    return D_from_N",
+    "codeNotes": [
+      "返回 min 表示受『比例』与『算力』双重约束取较小可行值",
+      "真实训练还需换算成 steps = D / (batch × seq_len)"
+    ],
+    "complexity": "O(1) 估算。",
+    "followUps": [
+      {
+        "question": "若数据只有 100B 但模型 7B 怎么办？",
+        "answer": "只能在 100B 上多 epoch，但需配合数据重采样与早停，避免记忆化；或缩小模型以贴合数据。"
+      },
+      {
+        "question": "怎么把 token 数转成训练 steps？",
+        "answer": "steps = total_tokens / (global_batch_size × seq_len)，再配合学习率预热与余弦衰减。"
+      }
+    ],
+    "followUpAnswers": [
+      "只能在 100B 上多 epoch，但需配合数据重采样与早停，避免记忆化；或缩小模型以贴合数据。",
+      "steps = total_tokens / (global_batch_size × seq_len)，再配合学习率预热与余弦衰减。"
+    ],
+    "pitfalls": [
+      "把 20N 当死规则，忽视数据可得性上限",
+      "用总参数而非激活参数估算 MoE"
+    ],
+    "beginnerSummary": "模型越大越要『读书多』：参数量乘以 20 大概就是该喂的 token 数；书不够就只能反复读同一本（多 epoch）。",
+    "prerequisites": [
+      "Chinchilla 规律",
+      "FLOPs 估算",
+      "batch/step 概念"
+    ],
+    "workedExample": [
+      "13B 模型：D≈20×13e9=2.6e11（260B token）",
+      "若仅 200B 数据可用，则最多约 15 个 epoch"
+    ],
+    "lineByLine": [
+      "D_from_N = 20 * params：Chinchilla 比例粗估",
+      "if C_flops: 用算力约束再校准",
+      "return min(...)：取比例与算力两者中较小可行训练量"
+    ],
+    "diagram": "N(参数) ──×20──▶ D(最优 token)\n   │\n   └─ C=6ND ─▶ 受算力封顶"
+  },
+  {
+    "id": "train-sft-data",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "SFT 数据构造（指令/对话模板、多轮）",
+    "prompt": "构造监督微调（SFT）数据时，如何组织指令模板与多轮对话？",
+    "quickAnswer": "用模型自带 chat template 拼接 system/user/assistant 角色，多轮需保留完整对话历史，格式与 base 模型 tokenizer 一致。",
+    "approach": "按『系统提示+多轮 user/assistant 交替』组织样本，调用 tokenizer.apply_chat_template 生成带特殊 token 的文本，避免手写模板错配。",
+    "explanationFocus": "是什么：SFT 数据构造是把任务示例组织成对话格式（system/user/assistant），并用与目标模型一致的 chat template 序列化，使模型学会按指令作答。",
+    "bruteForce": "直接把『问题+答案』拼接成纯文本训练，没有角色与特殊 token，模型学不会对话边界，常忽略指令或乱接上下文。",
+    "derivation": [
+      "为什么需要：预训练是续写，SFT 要学『按角色对话』，需明确 system/用户/助手边界与多轮结构。",
+      "怎么实现：每条样本为 messages 列表，用 apply_chat_template 渲染；多轮把历史全放入，最后 assistant 段为监督目标。",
+      "有什么代价：模板错配（如 LLaMA 用 Mistral 模板）会严重掉点；多轮长上下文增加显存与 token 成本。",
+      "怎么评测：在 held-out 指令集测遵循度与格式正确率，人工核查多轮一致性。"
+    ],
+    "invariant": "模板必须与基座模型一致，多轮保留完整历史；优先用官方 chat template（建议二次核对各模型模板差异）。",
+    "walkthrough": "单轮：messages=[{role:user, '写首诗'},{role:assistant, '...'}]；多轮再加一条 user/assistant。用 tokenizer.apply_chat_template 得到含 <s>[INST] 的文本。",
+    "edgeCases": [
+      "模板与模型不匹配导致指令遵循崩溃",
+      "多轮中历史被截断，模型遗忘前文约束",
+      "system 内容与训练时不一致引发分布偏移"
+    ],
+    "code": "def build_sft_text(messages, tokenizer):\n    # 用模型自带模板渲染对话\n    return tokenizer.apply_chat_template(\n        messages, tokenize=False, add_generation_prompt=False)\n\nmsgs = [{'role':'system','content':'你是有帮助的助手'},\n        {'role':'user','content':'1+1=?'},\n        {'role':'assistant','content':'2'}]",
+    "codeNotes": [
+      "add_generation_prompt=False 表示包含 assistant 答案用于训练",
+      "多轮直接往 messages 追加，模板自动处理轮次"
+    ],
+    "complexity": "渲染为 O(对话长度)，与训练同量级。",
+    "followUps": [
+      {
+        "question": "SFT 样本多少合适？",
+        "answer": "常见 1K-100K 高质量条；质量远胜数量，几万条精心构造常胜过百万噪声条。"
+      },
+      {
+        "question": "多轮对话如何防止答案段错位？",
+        "answer": "渲染后按 assistant 段做 loss mask，仅对答案 token 算损失，见 SFT loss mask 卡。"
+      }
+    ],
+    "followUpAnswers": [
+      "常见 1K-100K 高质量条；质量远胜数量，几万条精心构造常胜过百万噪声条。",
+      "渲染后按 assistant 段做 loss mask，仅对答案 token 算损失，见 SFT loss mask 卡。"
+    ],
+    "pitfalls": [
+      "手写模板而非用官方模板，导致分布错配",
+      "多轮只放最近一轮，丢失前文约束"
+    ],
+    "beginnerSummary": "SFT 数据要把『系统设定、用户问、助手答』按模型认识的格式排好，多轮就把整段聊天都给模型看，别自己乱拼。",
+    "prerequisites": [
+      "Tokenizer 与特殊 token",
+      "Chat template 概念",
+      "SFT loss mask"
+    ],
+    "workedExample": [
+      "构造 messages：system+user('翻译')+assistant('译文')",
+      "用 apply_chat_template 得到带 <s> 等标记的序列化文本"
+    ],
+    "lineByLine": [
+      "def build_sft_text(messages, tokenizer): 定义渲染函数",
+      "apply_chat_template(..., tokenize=False): 转成可读文本而非 id",
+      "msgs 示例展示 system/user/assistant 三段结构"
+    ],
+    "diagram": "system ─┐\nuser   ─┼─▶ apply_chat_template ─▶ <s>...训练文本\nassistant─┘"
+  },
+  {
+    "id": "train-sft-loss-mask",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "SFT loss mask（只对 answer 段算 loss）",
+    "prompt": "SFT 中为什么只对 answer 段计算损失，如何实现 ignore_index=-100？",
+    "quickAnswer": "将 prompt/上下文 token 的标签设为 -100（PyTorch 忽略），只对 assistant 答案 token 计算交叉熵，避免模型被要求『续写问句』。",
+    "approach": "构造 labels 张量：答案段 copy input_ids，其余填 -100；CrossEntropy 自动忽略 -100，仅答案参与梯度。",
+    "explanationFocus": "是什么：SFT loss mask 是在计算交叉熵时把非答案 token（system、user、历史）的标签置为 -100，使损失只来自模型应生成的答案部分。",
+    "bruteForce": "对所有 token 算 loss，模型被迫模仿 user 提问与 system 提示的分布，浪费信号并可能学坏对话结构。",
+    "derivation": [
+      "为什么需要：训练目标是让模型学会『生成答案』而非『复述问题』，需屏蔽输入侧 token。",
+      "怎么实现：labels = input_ids.clone()；对非答案区间 labels[mask]=-100；nn.CrossEntropyLoss(ignore_index=-100)。",
+      "有什么代价：需精确对齐答案区间（含模板特殊 token），错位会漏训或误训；长 prompt 占比高时有效信号变少。",
+      "怎么评测：检查有效 loss 仅随答案长度变化，验证集上看答案质量而非整体困惑度。"
+    ],
+    "invariant": "答案段有标签、其余为 -100；标签与 input_ids 必须严格错位一位（建议二次核对模板 token 归属）。",
+    "walkthrough": "序列 '<s>[INST] 1+1? [/INST] 2'：前 7 个 token 标签=-100，仅 '2' 及末尾为真实 label，损失只来自答案。",
+    "edgeCases": [
+      "答案中混入模板 token 被误屏蔽导致漏训",
+      "多轮时每轮答案都要分别标 1、提问标 -100",
+      "label 与 logits 未错位一位会整体偏移"
+    ],
+    "code": "import torch\nimport torch.nn as nn\ndef masked_ce(logits, labels):\n    # labels 中非答案处为 -100\n    loss = nn.functional.cross_entropy(\n        logits.view(-1, logits.size(-1)),\n        labels.view(-1), ignore_index=-100)\n    return loss",
+    "codeNotes": [
+      "PyTorch 默认 ignore_index=-100 即跳过这些位置",
+      "labels 需在 token 级与答案区间一一对齐"
+    ],
+    "complexity": "与序列长度线性相关 O(T)，与常规 LM 训练相同。",
+    "followUps": [
+      {
+        "question": "为什么不直接截断只喂答案？",
+        "answer": "需保留上下文做注意力，截断会丢失 user 信息，故用 mask 而非删 token。"
+      },
+      {
+        "question": "多轮如何标 mask？",
+        "answer": "每轮 assistant 段标真实 label，system/user 及历史 assistant 前的 token 标 -100。"
+      }
+    ],
+    "followUpAnswers": [
+      "需保留上下文做注意力，截断会丢失 user 信息，故用 mask 而非删 token。",
+      "每轮 assistant 段标真实 label，system/user 及历史 assistant 前的 token 标 -100。"
+    ],
+    "pitfalls": [
+      "把模板特殊 token 也算进答案导致误训",
+      "忘记 label 比 logits 错位一位"
+    ],
+    "beginnerSummary": "训练时模型只因『答对了』受奖励，提问和提示不算分；我们用 -100 把不评分的 token 划掉。",
+    "prerequisites": [
+      "CrossEntropyLoss",
+      "labels 与 logits 错位",
+      "Chat template"
+    ],
+    "workedExample": [
+      "input_ids=[<s>,问,答1,答2]，labels=[-100,-100,答1,答2]",
+      "cross_entropy 仅对答1、答2 计算梯度"
+    ],
+    "lineByLine": [
+      "def masked_ce(logits, labels): 定义带 mask 的损失",
+      "logits.view(-1, V)：展平便于与 labels 对齐",
+      "ignore_index=-100：跳过非答案 token"
+    ],
+    "diagram": "token:  <s>  问   答1  答2\nlabel: -100 -100  答1  答2\n              ↑仅这些算 loss"
+  },
+  {
+    "id": "train-sft-mask-multiturn",
+    "category": "训练与微调",
+    "difficulty": "Hard",
+    "title": "SFT 中 system prompt 与多轮对话的 mask 处理",
+    "prompt": "多轮 SFT 里 system 与历史 user/assistant 该如何做 loss mask？",
+    "quickAnswer": "system 与所有 user 轮、以及历史 assistant 轮的输入侧一律 mask(-100)，仅当前及每轮 assistant 的『输出』token 参与 loss。",
+    "approach": "逐轮渲染后定位每段 assistant 生成区间，把 system/user/助手可见输入 token 标 -100，只对助手生成 token 算损失，保持轮次对齐。",
+    "explanationFocus": "是什么：多轮 SFT 的 mask 是对每条对话中 system 提示、user 输入、以及每轮 assistant 的『上文』打 -100，仅保留各轮 assistant 实际生成的回答 token 作为监督信号。",
+    "bruteForce": "忽略轮次边界对全序列算 loss，模型会试图续写 user 提问、复制历史答案，破坏多轮一致性。",
+    "derivation": [
+      "为什么需要：多轮训练要让模型在看到完整历史后学会『生成本轮答案』，而非背诵上下文。",
+      "怎么实现：用模板渲染整段，按角色切分 token 区间；对每个 assistant 段，其答案子串标真实 id，段前所有 token 标 -100。",
+      "有什么代价：区间定位依赖模板细节（如 [/INST] 后才是答案），易错位；长历史使有效监督占比低。",
+      "怎么评测：构造多轮 held-out，验证模型是否依据前文正确回答本轮，且不被 prompt 续写。"
+    ],
+    "invariant": "每轮『答案 token』有标签，其余全 -100；system 永远不参与 loss（建议二次核对模板边界 token）。",
+    "walkthrough": "3 轮对话：第1轮答A1、第2轮答A2、第3轮答A3。mask：system+U1+A1前+U2+A2前+U3 均为 -100，仅 A1/A2/A3 生成部分有标签。",
+    "edgeCases": [
+      "把 assistant 的可见前缀（如角色标记）误标为答案",
+      "模板在多轮插入额外特殊 token 打乱区间",
+      "长上下文下梯度被大量 -100 稀释"
+    ],
+    "code": "def multiturn_labels(input_ids, answer_spans):\n    labels = [-100] * len(input_ids)\n    for (s, e) in answer_spans:  # 每轮答案区间\n        for i in range(s, e):\n            labels[i] = input_ids[i]\n    return labels",
+    "codeNotes": [
+      "answer_spans 由模板解析或 chat template 输出结构得到",
+      "历史轮答案同样参与 loss，帮助学多轮依赖"
+    ],
+    "complexity": "O(序列长度)，区间标注为预处理 O(T)。",
+    "followUps": [
+      {
+        "question": "历史轮的答案也要算 loss 吗？",
+        "answer": "通常要，这样模型学到在给定前文时复现每轮回答，强化多轮一致性；但也可只训最后一轮。"
+      },
+      {
+        "question": "system 变更会影响已训模型吗？",
+        "answer": "会，system 始终在上下文，训练/推理 system 不一致会引发分布偏移，需保持一致。"
+      }
+    ],
+    "followUpAnswers": [
+      "通常要，这样模型学到在给定前文时复现每轮回答，强化多轮一致性；但也可只训最后一轮。",
+      "会，system 始终在上下文，训练/推理 system 不一致会引发分布偏移，需保持一致。"
+    ],
+    "pitfalls": [
+      "历史轮答案被整体 mask 导致多轮能力弱",
+      "答案区间含模板边界 token 被误标"
+    ],
+    "beginnerSummary": "多轮聊天里，系统设定和对方的话都不算『作业』，只有助手每轮说出的那部分才算分；逐轮标好答案区间即可。",
+    "prerequisites": [
+      "SFT loss mask",
+      "Chat template 解析",
+      "多轮对话结构"
+    ],
+    "workedExample": [
+      "解析 3 轮对话得到 answer_spans=[(12,15),(30,34),(50,55)]",
+      "labels 仅在这些区间取 input_ids，其余 -100"
+    ],
+    "lineByLine": [
+      "labels = [-100]*len(input_ids)：默认全屏蔽",
+      "for (s,e) in answer_spans: 遍历每轮答案区间",
+      "labels[i]=input_ids[i]：仅答案 token 有监督"
+    ],
+    "diagram": "sys -100 | U1 -100 | A1 ✓ | U2 -100 | A2 ✓ | U3 -100 | A3 ✓"
+  },
+  {
+    "id": "train-lora-principle",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "LoRA 原理（低秩分解 ΔW=BA）",
+    "prompt": "LoRA 如何用低秩分解实现高效微调？",
+    "quickAnswer": "冻结原权重 W，注入可训练低秩矩阵 A、B 使 ΔW=BA，仅训练 A/B，推理时可合并回 W 无额外延迟。",
+    "approach": "对目标层 W(d×k) 旁路加 B(d×r)·A(r×k)，r≪d；前向 y=Wx+BAx，仅 A/B 接收梯度，参数量从 dk 降到 r(d+k)。",
+    "explanationFocus": "是什么：LoRA（Low-Rank Adaptation）假设适配时的权重变化 ΔW 是低秩的，故用两个小矩阵 A、B 的乘积近似 ΔW=BA，冻结原权重只训 A/B，大幅减参并可在部署时合并。",
+    "bruteForce": "全量微调更新全部参数，显存需存优化器状态（Adam 的 2 倍动量）与梯度，70B 级模型单卡放不下、多任务需存整份副本。",
+    "derivation": [
+      "为什么需要：大模型全微调参数量与显存过大，且每任务存一份完整权重不经济。",
+      "怎么实现：W0 冻结 requires_grad=False；注入 A~N(0,σ)、B=0（初始 ΔW=0 模型不变）；前向叠加 BA 分支，仅 A/B 优化。",
+      "有什么代价：低秩假设不总成立，容量受 r 限制；部分任务需较大 r 或全量才达标；需选对注入层（q/v 等）。",
+      "怎么评测：在下游基准对比全微调，看可训练参数占比与精度差距，验证合并后输出一致。"
+    ],
+    "invariant": "B 初始化为 0 使训练起点=原模型；仅训练 A/B；r≪min(d,k)（建议二次核对 r 取值与注入层）。",
+    "walkthrough": "d=k=4096, r=16：全量更新 16.7M 参数，LoRA 仅训练 4096×16+16×4096=131K（约 1/128），初始输出与基座完全一致。",
+    "edgeCases": [
+      "r 过小容量不足，过大失去参数效率",
+      "B 初始化非 0 会使起点偏离基座、训练不稳",
+      "仅注入部分层可能欠适配"
+    ],
+    "code": "class LoRALinear:\n    def __init__(self, weight, r=16):\n        self.W = weight.requires_grad_(False)   # 冻结\n        self.A = torch.randn(r, weight.shape[1])\n        self.B = torch.zeros(weight.shape[0], r) # 初始 ΔW=0\n    def forward(self, x):\n        return x @ self.W.T + (x @ self.A.T) @ self.B.T",
+    "codeNotes": [
+      "B 置零保证训练第一步输出等同于原模型",
+      "实际实现常用 scaling=α/r 控制增量幅度"
+    ],
+    "complexity": "训练参数量 O(r(d+k))，前向多一次 r 维瓶颈矩阵乘，开销极小。",
+    "followUps": [
+      {
+        "question": "为什么 B 要初始化为 0？",
+        "answer": "使初始 ΔW=BA=0，模型从原基座出发稳定训练，避免随机扰动破坏已学能力。"
+      },
+      {
+        "question": "LoRA 一般注入哪些层？",
+        "answer": "常注入注意力 q_proj/v_proj，强适配可加 k_proj/o_proj 与 MLP 各投影。"
+      }
+    ],
+    "followUpAnswers": [
+      "使初始 ΔW=BA=0，模型从原基座出发稳定训练，避免随机扰动破坏已学能力。",
+      "常注入注意力 q_proj/v_proj，强适配可加 k_proj/o_proj 与 MLP 各投影。"
+    ],
+    "pitfalls": [
+      "误把 W 也设为可训，失去 LoRA 省参意义",
+      "A/B 缩放缺失导致增量幅度失控"
+    ],
+    "beginnerSummary": "LoRA 像给大模型装『小外挂』：原脑子冻住不动，只训两块小矩阵拼出『微调增量』，训完还能并回原权重，不掉速度。",
+    "prerequisites": [
+      "矩阵分解",
+      "梯度与优化器状态",
+      "Transformer 注意力层"
+    ],
+    "workedExample": [
+      "取 W0(4096×4096)，注入 A(16×4096)、B(4096×16)",
+      "前向 y=W0x+BAx，仅 A/B 约 131K 参数可训"
+    ],
+    "lineByLine": [
+      "self.W.requires_grad_(False)：冻结底座",
+      "self.B=zeros：保证初始无扰动",
+      "forward 把 BA 分支加到原输出上"
+    ],
+    "diagram": "x ─▶[W 冻结]─┐\n    └▶[A]▶[B]─┴─▶ + ─▶ y"
+  },
+  {
+    "id": "train-lora-rank-alpha",
+    "category": "训练与微调",
+    "difficulty": "Easy",
+    "title": "LoRA 秩 r 与缩放 α 的作用",
+    "prompt": "LoRA 里秩 r 和缩放因子 α 分别控制什么？",
+    "quickAnswer": "r 决定低秩增量容量（r 越大表达越强），α 通过缩放 α/r 控制增量对原模型的影响幅度，常设 α=2r。",
+    "approach": "前向增量写 y=Wx+(α/r)BAx；r 调容量、α/r 调步长，二者解耦以便独立调『学多少』与『改多狠』。",
+    "explanationFocus": "是什么：LoRA 中秩 r 是低秩矩阵的内维，决定 ΔW=BA 可表达的子空间维度（容量）；缩放 α 与 r 组成系数 α/r，控制低秩增量叠加到原权重的幅度。",
+    "bruteForce": "只调 r 不调 α，增量幅度随 r 变化而漂移，难以稳定对比实验，且大 r 时增量可能过冲破坏基座能力。",
+    "derivation": [
+      "为什么需要：需分别控制『适配容量』与『改动强度』，否则调 r 会同时改变两者，超参难调。",
+      "怎么实现：在 forward 乘 scaling=α/r；惯例 α=2r 使 scaling≈2，调 r 时幅度稳定。",
+      "有什么代价：r 过大接近全秩则失去参数效率且易过拟合；α 过大使训练不稳、过小则学不动。",
+      "怎么评测：在验证集扫描 (r,α) 网格，观察精度与过拟合拐点，选最小够用的 r。"
+    ],
+    "invariant": "常用 α=2r 使 scaling 恒定；先定 r 再微调 α（建议二次核对具体库默认值）。",
+    "walkthrough": "r=16, α=32 → scaling=2；若改 r=32 且 α=64 仍 scaling=2，容量翻倍但幅度不变，便于公平对比。",
+    "edgeCases": [
+      "r 设 1 可能容量不足（但论文称有时够用）",
+      "α/r 过大导致训练初期输出剧烈偏移",
+      "不同层用统一 r 未必最优"
+    ],
+    "code": "def lora_scale(alpha, r):\n    # LoRA 增量缩放因子\n    return alpha / r\n\nscaling = lora_scale(alpha=32, r=16)  # = 2.0",
+    "codeNotes": [
+      "scaling 直接乘在 BA 分支输出上",
+      "PEFT 库默认常 alpha=2*r"
+    ],
+    "complexity": "O(1) 超参，无额外计算。",
+    "followUps": [
+      {
+        "question": "r 越大越好吗？",
+        "answer": "不一定；r 增到接近 d 时参数效率消失且易过拟合，应在『够用最小 r』处停。"
+      },
+      {
+        "question": "为什么用 α/r 而不是直接 α？",
+        "answer": "除以 r 使增量幅度与秩解耦，调 r 改容量时不改变叠加强度，实验更可控。"
+      }
+    ],
+    "followUpAnswers": [
+      "不一定；r 增到接近 d 时参数效率消失且易过拟合，应在『够用最小 r』处停。",
+      "除以 r 使增量幅度与秩解耦，调 r 改容量时不改变叠加强度，实验更可控。"
+    ],
+    "pitfalls": [
+      "只调 r 不调 α 导致幅度漂移",
+      "盲目拉大 r 以为更准，实则过拟合"
+    ],
+    "beginnerSummary": "r 像『外挂能装多少知识』，α/r 像『外挂对原脑子的改写力度』；通常让 α=2r，调 r 时力度不变只看容量。",
+    "prerequisites": [
+      "LoRA 原理",
+      "超参数作用",
+      "学习率与步长直觉"
+    ],
+    "workedExample": [
+      "r=8, α=16 → scaling=2；r=64, α=128 → scaling=2",
+      "同样幅度下对比 r=8 vs 64 的容量差异"
+    ],
+    "lineByLine": [
+      "def lora_scale(alpha, r): 计算缩放",
+      "return alpha / r：秩归一化",
+      "示例 scaling=2.0 为常见设定"
+    ],
+    "diagram": "r: 容量(高维子空间)\nα/r: 叠加幅度\n通常 α = 2r → 幅度恒为 2"
+  },
+  {
+    "id": "train-qlora",
+    "category": "训练与微调",
+    "difficulty": "Hard",
+    "title": "QLoRA（4-bit 量化底座 + LoRA）",
+    "prompt": "QLoRA 如何在单张消费级显卡上微调大模型？",
+    "quickAnswer": "将底座量化为 4-bit NF4 冻结，仅以 fp16/bf16 训练 LoRA 适配器，配合双量化与分页优化器把显存压到单卡可训。",
+    "approach": "用 bitsandbytes 的 NF4 4-bit 加载冻结底座，前向时反量化计算；LoRA 适配器保持高精度可训；双重量化压缩 scale、分页优化器防 OOM。",
+    "explanationFocus": "是什么：QLoRA（Quantized LoRA）把底座权重用 4-bit NormalFloat(NF4) 量化并冻结，仅训练高精度 LoRA 适配器，使 65B 模型可在单张 48G 显卡、7B 在 24G 上微调且质量接近全精度。",
+    "bruteForce": "直接用 fp16 加载并全微调 65B 需约 780G 显存，远超单卡；纯 LoRA 仍需 fp16 底座 ~130G，仍要多卡。",
+    "derivation": [
+      "为什么需要：大模型底座占显存主体，量化可省 4× 内存，使消费级 GPU 也能微调。",
+      "怎么实现：BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4')；compute_dtype=bf16 前向反量化；LoRA 照常训练。",
+      "有什么代价：4-bit 有量化误差（文献称相对全精 <0.5% 质量差）；反向只更新 LoRA，能力上限受低秩约束。",
+      "怎么评测：对比 16-bit LoRA 与 QLoRA 在基准上的差距，监控显存峰值是否达单卡可训。"
+    ],
+    "invariant": "底座 4-bit 冻结、仅 LoRA 可训；NF4 针对正态权重最优（建议二次核对各卡 compute_dtype 支持）。",
+    "walkthrough": "Mistral-7B：fp16 14.5G → 4-bit NF4 3.6G；加 LoRA(~0.03G)、激活(2-4G)、优化器(0.06G)、CUDA(~1G) 共约 7-9G，可放 16G 卡。",
+    "edgeCases": [
+      "部分老 GPU 不支持 bf16 计算需退 fp16",
+      "双量化可再省 ~0.4G/1B 参数",
+      "4-bit 误差在极小模型上可能更明显"
+    ],
+    "code": "from transformers import BitsAndBytesConfig\nimport torch\nbnb = BitsAndBytesConfig(\n    load_in_4bit=True,\n    bnb_4bit_quant_type='nf4',\n    bnb_4bit_compute_dtype=torch.bfloat16,\n    bnb_4bit_use_double_quant=True)",
+    "codeNotes": [
+      "nf4 针对零均值正态权重信息最优",
+      "double_quant 进一步量化 scale 常数省显存"
+    ],
+    "complexity": "前向含反量化，计算量同原模型；显存降至约 1/4 底座。",
+    "followUps": [
+      {
+        "question": "QLoRA 与 LoRA 质量差多少？",
+        "answer": "文献报告相对 16-bit 全微调质量差 <0.5%，多数任务几乎无感。"
+      },
+      {
+        "question": "4-bit 误差从哪来？",
+        "answer": "NF4 把权重映射到 16 个非均匀电平，舍入引入微小误差，但正态权重分布使误差集中在近零处影响小。"
+      }
+    ],
+    "followUpAnswers": [
+      "文献报告相对 16-bit 全微调质量差 <0.5%，多数任务几乎无感。",
+      "NF4 把权重映射到 16 个非均匀电平，舍入引入微小误差，但正态权重分布使误差集中在近零处影响小。"
+    ],
+    "pitfalls": [
+      "误把底座也设为可训，失去 4-bit 省显存意义",
+      "compute_dtype 与硬件不匹配引发 NaN"
+    ],
+    "beginnerSummary": "QLoRA 先把大模型『压成 4-bit 缩略图』冻住，再在上面训小 LoRA 外挂，显存砍到 1/4，单张游戏显卡也能微调巨模型。",
+    "prerequisites": [
+      "LoRA 原理",
+      "量化(NF4/INT4)",
+      "bitsandbytes/PEFT"
+    ],
+    "workedExample": [
+      "配置 NF4 4-bit 加载 LLaMA-65B，显存 ~48G",
+      "注入 LoRA 训练，仅适配器占可训参数"
+    ],
+    "lineByLine": [
+      "load_in_4bit=True：4-bit 加载底座",
+      "bnb_4bit_quant_type='nf4'：正态最优量化",
+      "bnb_4bit_use_double_quant=True：量化 scale 再压缩"
+    ],
+    "diagram": "底座(fp16)──量化──▶4-bit NF4(冻结)\n                        │反量化前向\nLoRA(fp16)──训练──▶  merged 输出"
+  },
+  {
+    "id": "train-lora-merge",
+    "category": "训练与微调",
+    "difficulty": "Easy",
+    "title": "LoRA 的 merge 与推理部署",
+    "prompt": "训练好的 LoRA 适配器如何合并进原权重并部署？",
+    "quickAnswer": "部署时把 ΔW=α/r·BA 加回冻结权重 W 得到 W'=W+ΔW，合并后模型与原结构一致、零额外推理延迟。",
+    "approach": "推理前或导出时计算 merged=W+(α/r)BA 替换原层；或保留基座+适配器用库动态加载，按任务热插拔。",
+    "explanationFocus": "是什么：LoRA merge 是把训练得到的低秩增量 α/r·BA 直接加回原权重 W，得到等价全参数权重 W'，使部署模型结构不变、无需额外计算分支。",
+    "bruteForce": "部署时同时加载底座与适配器并每步做 BA 分支加法，虽可行但增加显存与少量延迟，且需框架支持。",
+    "derivation": [
+      "为什么需要：合并后可用标准推理引擎（vLLM 等）服务，避免 PEFT 依赖、降低延迟。",
+      "怎么实现：merged_weight = W + (alpha/r)·B@A；替换 Linear 权重；多适配器则分别合并或运行时切换。",
+      "有什么代价：合并后失去『一个底座多任务热插拔』的灵活性，需为每任务存一份合并权重；大 r 合并计算一次。",
+      "怎么评测：合并前后对同一输入输出数值一致（误差在浮点容差内），基准分数不变。"
+    ],
+    "invariant": "合并公式 W'=W+(α/r)BA；合并后结构与基座一致（建议二次核对 scaling 是否含 α/r）。",
+    "walkthrough": "W(4096×4096)、r=16：merged=W+(2.0)·B@A，B@A 仅 131K 参数；合并后单卡推理与基座同速。",
+    "edgeCases": [
+      "多 LoRA 想共存需分别合并或动态加载",
+      "量化底座(QLoRA)合并需先反量化",
+      "合并后无法再单独调 α"
+    ],
+    "code": "def merge_lora(W, A, B, alpha, r):\n    # 把 LoRA 增量合并回原权重\n    scaling = alpha / r\n    return W + scaling * (B @ A)",
+    "codeNotes": [
+      "B@A 形状需与 W 一致（注意转置约定）",
+      "合并是一次性 O(d·k·r) 操作"
+    ],
+    "complexity": "合并 O(d·k·r)，远小于原权重 d·k；推理零额外开销。",
+    "followUps": [
+      {
+        "question": "合并和动态加载适配器怎么选？",
+        "answer": "要热插拔多任务选动态加载；要极致部署简单与兼容选合并。"
+      },
+      {
+        "question": "QLoRA 适配器能直接合并吗？",
+        "answer": "需先把 4-bit 底座反量化为 fp16，再合并 LoRA，得到 fp16 合并权重。"
+      }
+    ],
+    "followUpAnswers": [
+      "要热插拔多任务选动态加载；要极致部署简单与兼容选合并。",
+      "需先把 4-bit 底座反量化为 fp16，再合并 LoRA，得到 fp16 合并权重。"
+    ],
+    "pitfalls": [
+      "漏乘 α/r 导致合并幅度错误",
+      "转置顺序错使 B@A 形状不匹配"
+    ],
+    "beginnerSummary": "LoRA 训完可把『外挂』焊回原模型，得到普通大模型，部署时不用任何特殊框架、速度不变；但焊死后就不好换任务了。",
+    "prerequisites": [
+      "LoRA 原理",
+      "权重矩阵运算",
+      "推理引擎部署"
+    ],
+    "workedExample": [
+      "取 W 与训练好的 A、B，alpha=32,r=16",
+      "merged = W + 2.0*(B@A) 得到可部署权重"
+    ],
+    "lineByLine": [
+      "scaling = alpha / r：还原缩放",
+      "B @ A：低秩增量矩阵",
+      "W + scaling*(B@A)：合并为新权重"
+    ],
+    "diagram": "W ─┐\n     ├─ + ─▶ W'(部署)\nα/r·BA─┘"
+  },
+  {
+    "id": "train-catastrophic-forgetting",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "灾难性遗忘（定义/成因）",
+    "prompt": "什么是灾难性遗忘，微调时为何会发生？",
+    "quickAnswer": "模型学新任务后剧烈丢失旧能力；成因是微调覆盖了对旧任务关键的权重方向，且新数据分布偏离预训练分布。",
+    "approach": "理解其为『权重被新梯度主导、旧任务表征被擦除』；用正则、回放、低秩约束等手段缓解，而非全量覆盖。",
+    "explanationFocus": "是什么：灾难性遗忘（Catastrophic Forgetting）指神经网络在学习新任务/数据后，对先前已掌握任务的能力显著下降；在 LLM 微调中表现为通用能力被指令/领域数据『冲掉』。",
+    "bruteForce": "直接在新数据上全量微调，新梯度大幅改写权重，模型迅速遗忘预训练知识，旧基准分数塌方。",
+    "derivation": [
+      "为什么需要：微调常只在窄分布上，若不加约束会破坏基座的广泛能力，需理解机理才能对症缓解。",
+      "怎么实现：成因可用『权重重要方向被覆盖』解释——新任务梯度在与旧任务重要方向正交/反向处更新，擦除旧知识。",
+      "有什么代价：完全避免遗忘需额外机制（回放/正则），会增加数据或计算；参数高效方法(LoRA)本身也部分缓解。",
+      "怎么评测：在新任务达标同时，回测预训练通用基准（如 MMLU）看下降幅度，衡量遗忘程度。"
+    ],
+    "invariant": "全量微调遗忘风险最高，参数高效+回放可显著缓解（建议二次核对具体任务遗忘量）。",
+    "walkthrough": "在医疗语料全量微调 LLaMA 后，MMLU 通用知识掉 8 分但医疗涨 15 分——典型灾难性遗忘。",
+    "edgeCases": [
+      "小学习率也未必完全避免遗忘",
+      "领域与通用分布差异越大遗忘越重",
+      "多任务顺序学习会累积遗忘"
+    ],
+    "code": "def forgetting(general_before, general_after):\n    # 通用能力退化量\n    return general_before - general_after",
+    "codeNotes": [
+      "应同时监控『新任务增益』与『旧任务损失』",
+      "负值表示反而提升（正向迁移）"
+    ],
+    "complexity": "评测为 O(基准规模)，无训练开销。",
+    "followUps": [
+      {
+        "question": "LoRA 为什么比全微调更抗遗忘？",
+        "answer": "LoRA 只改低秩增量、原权重冻结，基座知识基本保留，故遗忘远小于全量微调。"
+      },
+      {
+        "question": "如何量化遗忘？",
+        "answer": "比较微调前后在旧任务/通用基准上的分数差，或测记忆化样本保留率。"
+      }
+    ],
+    "followUpAnswers": [
+      "LoRA 只改低秩增量、原权重冻结，基座知识基本保留，故遗忘远小于全量微调。",
+      "比较微调前后在旧任务/通用基准上的分数差，或测记忆化样本保留率。"
+    ],
+    "pitfalls": [
+      "把『性能下降』全归为遗忘，忽略数据分布偏移",
+      "仅看新任务指标忽略通用能力塌方"
+    ],
+    "beginnerSummary": "灾难性遗忘像『学了新的忘了旧的』：模型死磕新领域数据后，把预训练攒的通用本事冲掉一截。",
+    "prerequisites": [
+      "过拟合与泛化",
+      "微调基础",
+      "权重重要性与梯度方向"
+    ],
+    "workedExample": [
+      "微调前 MMLU=65，微调后=57，遗忘 8 分",
+      "同时领域任务从 40 升到 55"
+    ],
+    "lineByLine": [
+      "def forgetting(...): 定义遗忘度量",
+      "general_before - general_after：通用分差",
+      "正值即发生遗忘"
+    ],
+    "diagram": "预训练能力 ──全量微调──▶ 新任务↑ 旧任务↓(遗忘)"
+  },
+  {
+    "id": "train-continual-learning",
+    "category": "训练与微调",
+    "difficulty": "Hard",
+    "title": "持续学习策略（replay / EWC / 模型编辑）",
+    "prompt": "缓解灾难性遗忘的持续学习策略有哪些？",
+    "quickAnswer": "常用回放(replay)旧数据、正则化(EWC 惩罚重要权重变动)、参数隔离/模型编辑，按场景组合使用。",
+    "approach": "replay 混旧样本重练；EWC 用 Fisher 信息给重要权重加二次惩罚；模型编辑直接定位并修改特定知识神经元。",
+    "explanationFocus": "是什么：持续学习是在不重训全部历史的前提下让模型顺序学新任务且不遗忘，主要策略有经验回放（保留并重练旧样本）、正则约束（如 EWC 保护重要参数）、以及模型编辑（精准修改特定知识）。",
+    "bruteForce": "每来新任务就从头在所有历史数据上重训，算力不可行；或只训新任务则灾难性遗忘。",
+    "derivation": [
+      "为什么需要：真实场景任务流式到来，无法永远存全量或重训，需权衡『学新』与『记旧』。",
+      "怎么实现：replay 维护样本缓冲池混合训练；EWC 损失加 λ·Σ F_i(θ_i-θ*_i)²；模型编辑用定位+局部更新（如 ROME）。",
+      "有什么代价：replay 需存数据且有隐私顾虑；EWC 近似 Fisher 有偏、超参 λ 难调；编辑只适用局部事实。",
+      "怎么评测：测『前向迁移/后向迁移』与遗忘率，看多任务序列末端各任务保持度。"
+    ],
+    "invariant": "回放最有效但需数据；EWC 轻量但有近似误差；编辑适合点状知识（建议二次核对各法适用边界）。",
+    "walkthrough": "EWC：先算旧任务参数 Fisher 对角 F，新任务损失加 λΣF_i(θ_i-θ*_i)²，重要权重变动被抑，旧任务掉分减半。",
+    "edgeCases": [
+      "回放缓冲池大小有限导致长序列仍遗忘",
+      "EWC 的 λ 过大则学不动新任务",
+      "模型编辑可能引发未预料的副作用"
+    ],
+    "code": "def ewc_loss(base_loss, theta, theta_star, fisher, lam=1000):\n    reg = sum(f * (t - ts)**2 for f, t, ts in zip(fisher, theta, theta_star))\n    return base_loss + lam * reg",
+    "codeNotes": [
+      "fisher 为旧任务参数重要性（Fisher 信息对角）",
+      "lam 控制保护强度，需验证集调"
+    ],
+    "complexity": "EWC 增加 O(参数) 正则项；replay 增加旧样本前向成本。",
+    "followUps": [
+      {
+        "question": "replay 和 EWC 哪个更好？",
+        "answer": "replay 通常效果更好但有数据存储成本，EWC 无需存数据但近似有偏；常组合使用。"
+      },
+      {
+        "question": "模型编辑适合什么场景？",
+        "answer": "适合纠正或注入少量事实性知识（如改错日期），不适合大规模能力更新。"
+      }
+    ],
+    "followUpAnswers": [
+      "replay 通常效果更好但有数据存储成本，EWC 无需存数据但近似有偏；常组合使用。",
+      "适合纠正或注入少量事实性知识（如改错日期），不适合大规模能力更新。"
+    ],
+    "pitfalls": [
+      "EWC 的 Fisher 用旧任务近似，跨任务可能失准",
+      "回放数据泄露隐私或分布偏移"
+    ],
+    "beginnerSummary": "持续学习像『边学新课边复习旧课』：replay 是重做旧题，EWC 是给重要脑细胞贴『别乱改』标签，编辑是精准改某个记错的知识点。",
+    "prerequisites": [
+      "灾难性遗忘",
+      "Fisher 信息",
+      "正则化"
+    ],
+    "workedExample": [
+      "维护 1000 条旧样本缓冲池，每新任务混 10% 回放",
+      "或用 EWC 给 Top 重要权重加惩罚，λ=1000"
+    ],
+    "lineByLine": [
+      "def ewc_loss(...): 定义带正则的损失",
+      "reg 累加各参数重要性×变动平方",
+      "base_loss + lam*reg：约束重要权重"
+    ],
+    "diagram": "新任务梯度 ─┬─ 学新\n              └─ EWC 惩罚 ─ 护旧权重"
+  },
+  {
+    "id": "train-kd",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "知识蒸馏 KD（软标签、温度 T、KL 散度）",
+    "prompt": "知识蒸馏如何用温度 T 与 KL 散度训练学生模型？",
+    "quickAnswer": "用温度 T 软化 teacher 与 student 的 softmax，再以 T²·KL(teacher_T ‖ student_T) 为损失，让学生模仿老师的概率分布。",
+    "approach": "对 logits 除以 T 得软分布 p_T；蒸馏损失 L=T²·KL(p_T^teacher ‖ p_T^student)，常与硬标签交叉熵加权结合。",
+    "explanationFocus": "是什么：知识蒸馏(KD)让小模型(学生)模仿大模型(教师)的输出分布而非仅硬标签；温度 T 软化 softmax 暴露类间相似结构（暗知识），用 KL 散度度量两分布差距并乘 T² 补偿梯度幅度。",
+    "bruteForce": "只用硬标签训学生，丢掉教师输出的类间相似性信息（如『猫≈虎』），小模型精度明显低于蒸馏版。",
+    "derivation": [
+      "为什么需要：硬标签信息量低，教师软标签含『暗知识』（各类相对概率），可大幅提升学生精度。",
+      "怎么实现：p_T(z)=softmax(z/T)；L_KD=T²·KL(p_T^t ‖ p_T^s)；总损失 α·L_CE+(1-α)·L_KD。",
+      "有什么代价：需教师在线推理或离线生成软标签，增加算力；T 与 α 需调；容量差距过大学生学不下。",
+      "怎么评测：在相同数据上比学生蒸馏 vs 硬标签训练的精度，看是否接近教师、超越从头训。"
+    ],
+    "invariant": "软损失乘 T² 补偿梯度；T 典型 2-20；KL 方向为 teacher→student（建议二次核对 KL 顺序与 T² 因子）。",
+    "walkthrough": "T=4, α=0.3：对师生 logits/4 取 softmax，L=T²·KL(teacher‖student)+0.3·CE(硬标签)，学生精度从 72% 升至 78%。",
+    "edgeCases": [
+      "T 过大分布趋均匀、信号变弱",
+      "KL 方向写反(学生‖教师)亦可但语义不同，常取 teacher 为基准",
+      "学生过小『容量差距』导致学不动"
+    ],
+    "code": "import torch.nn.functional as F\ndef kd_loss(s_logits, t_logits, labels, T=4.0, alpha=0.3):\n    hard = F.cross_entropy(s_logits, labels)\n    s = F.log_softmax(s_logits / T, dim=-1)\n    t = F.softmax(t_logits / T, dim=-1)\n    soft = F.kl_div(s, t, reduction='batchmean') * (T ** 2)\n    return alpha * hard + (1 - alpha) * soft",
+    "codeNotes": [
+      "student 用 log_softmax、teacher 用 softmax 配 kl_div",
+      "T**2 修复因除以 T 缩小的梯度"
+    ],
+    "complexity": "与一次前向+softmax 同量级，额外需教师推理。",
+    "followUps": [
+      {
+        "question": "温度 T 起什么作用？",
+        "answer": "T>1 平滑分布、凸显次优类的相对概率（暗知识）；T→∞ 趋均匀，T=1 即普通软标签。"
+      },
+      {
+        "question": "T² 因子为何必须？",
+        "answer": "softmax(z/T) 梯度约缩为 1/T²，乘 T² 使蒸馏梯度幅度与温度无关、训练稳定。"
+      }
+    ],
+    "followUpAnswers": [
+      "T>1 平滑分布、凸显次优类的相对概率（暗知识）；T→∞ 趋均匀，T=1 即普通软标签。",
+      "softmax(z/T) 梯度约缩为 1/T²，乘 T² 使蒸馏梯度幅度与温度无关、训练稳定。"
+    ],
+    "pitfalls": [
+      "KL 两分布顺序写错导致梯度方向异常",
+      "漏乘 T² 使高温时梯度过小学不动"
+    ],
+    "beginnerSummary": "蒸馏让小模型不光看『标准答案』，还学大模型的『把握分布』；温度 T 把大模型的信心调温和，KL 散度衡量学生离老师差多远。",
+    "prerequisites": [
+      "Softmax 与温度",
+      "KL 散度",
+      "交叉熵"
+    ],
+    "workedExample": [
+      "teacher_logits=[5,1,0]，T=4 得软分布≈[0.39,0.33,0.28]",
+      "student 同温度 softmax，kl_div×16 作软损失"
+    ],
+    "lineByLine": [
+      "hard = CE(s_logits, labels)：硬标签项",
+      "s/t 为温度软化分布",
+      "soft 乘 T² 补偿梯度，加权求和"
+    ],
+    "diagram": "teacher ─softmax/T─▶ 软标签\n                   │ KL×T²\nstudent─softmax/T─▶ 软预测"
+  },
+  {
+    "id": "train-kd-vs-rlhf",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "KD 与 RLHF 的区别",
+    "prompt": "知识蒸馏（KD）与 RLHF 在训练目标和方法上有何本质区别？",
+    "quickAnswer": "KD 是学生模仿教师输出分布（监督式、静态目标）；RLHF 用奖励模型做强化学习让模型符合人类偏好（探索式、动态反馈）。",
+    "approach": "KD 属监督学习（教师提供软标签），优化 KL/CE；RLHF 属强化学习（PPO/DPO），优化期望奖励，目标来自人类偏好而非某模型。",
+    "explanationFocus": "是什么：KD 是『向固定教师模仿』的监督压缩方法，目标是匹配教师分布；RLHF 是用人类偏好训练的奖励模型指导策略优化（RL），目标是最大化奖励、对齐人类价值，二者范式不同。",
+    "bruteForce": "把 RLHF 当 KD 用（直接模仿某参考答案）会失去对『开放式偏好』的建模，无法处理无唯一标准答案的对齐问题。",
+    "derivation": [
+      "为什么需要：KD 解决『大模型→小模型』压缩；RLHF 解决『模型行为符合人类偏好』对齐，目标不同。",
+      "怎么实现：KD 用教师前向产软标签+KL；RLHF 训奖励模型 RM，再用 PPO 最大化 RM（或 DPO 直接偏好对优化）。",
+      "有什么代价：KD 受限于教师质量与容量差距；RLHF 训练不稳、需奖励模型且易奖励黑客、成本高。",
+      "怎么评测：KD 看学生逼近教师程度；RLHF 看人类评估/胜率与安全性，而非单纯精度。"
+    ],
+    "invariant": "KD 是监督式静态模仿，RLHF 是偏好驱动的强化式对齐（建议二次核对 DPO 已弱化 RL 流程）。",
+    "walkthrough": "KD：用 GPT-4 生成软标签训小模型；RLHF：收集人类偏好对→训 RM→PPO 让模型输出更被偏好，二者目标与信号来源都不同。",
+    "edgeCases": [
+      "KD 教师可能本身不对齐，蒸馏不解决价值观",
+      "RLHF 奖励黑客使模型钻空子",
+      "DPO 将 RLHF 简化为偏好对比损失"
+    ],
+    "code": "def rlhf_objective(logp_policy, logp_ref, reward, beta=0.1):\n    # PPO 风格：奖励 - KL 到参考模型\n    return reward - beta * (logp_policy - logp_ref)",
+    "codeNotes": [
+      "reward 来自奖励模型或偏好",
+      "KL 项防止偏离基座过远"
+    ],
+    "complexity": "RLHF 需 RM 训练+RL 优化，远高于 KD 的单次前向。",
+    "followUps": [
+      {
+        "question": "能否用 KD 替代 RLHF？",
+        "answer": "不能全覆盖；KD 只能传教师已有分布，无法凭空获得人类偏好对齐，除非教师本身已 RLHF。"
+      },
+      {
+        "question": "DPO 属于哪类？",
+        "answer": "DPO 用偏好对比数据直接优化策略，形式上像分类损失，绕开显式 RL 但仍属对齐范式。"
+      }
+    ],
+    "followUpAnswers": [
+      "不能全覆盖；KD 只能传教师已有分布，无法凭空获得人类偏好对齐，除非教师本身已 RLHF。",
+      "DPO 用偏好对比数据直接优化策略，形式上像分类损失，绕开显式 RL 但仍属对齐范式。"
+    ],
+    "pitfalls": [
+      "混淆两者目标，用 KD 解决对齐问题",
+      "忽视 RLHF 奖励黑客与训练不稳定"
+    ],
+    "beginnerSummary": "KD 是『抄学霸答案』（监督），RLHF 是『按老师喜好评改』（强化）；一个学能力，一个学讨喜。",
+    "prerequisites": [
+      "知识蒸馏",
+      "强化学习基础",
+      "偏好对齐与奖励模型"
+    ],
+    "workedExample": [
+      "KD：学生模仿教师 100K 条软标签",
+      "RLHF：1K 偏好对训 RM，PPO 优化"
+    ],
+    "lineByLine": [
+      "def rlhf_objective(...): 定义 RLHF 目标",
+      "reward 为奖励模型打分",
+      "减 beta*KL 约束不偏离基座"
+    ],
+    "diagram": "KD: 教师→(软标签)→学生\nRLHF: 偏好→RM→(奖励)→PPO→模型"
+  },
+  {
+    "id": "train-teacher-student",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "teacher/student 设计（大模型蒸馏小模型）",
+    "prompt": "设计大模型蒸馏小模型时，teacher 与 student 应如何组织？",
+    "quickAnswer": "student 可用不同架构但需匹配输出空间；可用离线软标签、在线联合或特征/中间层对齐多种蒸馏方式。",
+    "approach": "先定 student 容量与架构，选响应级（模仿输出）或 token 级 KL 蒸馏，必要时对齐隐藏层/注意力；用教师生成数据训学生。",
+    "explanationFocus": "是什么：teacher/student 设计指选定大模型作教师、设计更小 student（可异构），通过软标签、logit、或中间表征对齐把教师能力迁移到学生；架构可不同，但输出类别空间需一致。",
+    "bruteForce": "直接拿教师输出硬标签当监督训学生，丢失暗知识；或 student 太小强行学大模型全部行为导致容量不足崩坏。",
+    "derivation": [
+      "为什么需要：部署要小模型，需在保能力前提下压缩，需系统设计师生结构。",
+      "怎么实现：响应级（SFT 于教师生成）、token 级 KL（逐 token 对齐分布）、特征级（对齐隐藏态/注意力，如 TinyBERT）。",
+      "有什么代价：容量差距过大学生吸收不了（capacity gap）；特征对齐需同结构；教师推理有成本。",
+      "怎么评测：学生精度/延迟/体积 vs 教师，看压缩比与质量保留率（如 DistilBERT 保 97%/省 40%）。"
+    ],
+    "invariant": "student 容量要足够承接教师知识；输出空间须一致；可异构（建议二次核对 capacity gap 经验值）。",
+    "walkthrough": "BERT(110M)→DistilBERT(66M)：三重损失（LM+KL软标签+隐藏态余弦），保留 97% GLUE、加速 60%。",
+    "edgeCases": [
+      "student 架构与 teacher 差异过大时特征对齐失效",
+      "容量差距超经验阈值（如 >10×）学生难学",
+      "教师错误被学生继承"
+    ],
+    "code": "def distill_step(student, teacher, batch, T=4.0):\n    with torch.no_grad():\n        t_logits = teacher(batch)\n    s_logits = student(batch)\n    return kd_loss(s_logits, t_logits, batch.labels, T)",
+    "codeNotes": [
+      "teacher 用 no_grad 仅提供目标",
+      "kd_loss 复用温度 KL 公式"
+    ],
+    "complexity": "每步需教师一次前向，成本约为学生训练的两倍。",
+    "followUps": [
+      {
+        "question": "student 必须和 teacher 同架构吗？",
+        "answer": "不必；响应级蒸馏可异构，但特征级（对齐隐藏层）需结构兼容。"
+      },
+      {
+        "question": "如何缓解容量差距？",
+        "answer": "用更强教师生成更多数据、加特征对齐、或分步蒸馏（中模型作桥）。"
+      }
+    ],
+    "followUpAnswers": [
+      "不必；响应级蒸馏可异构，但特征级（对齐隐藏层）需结构兼容。",
+      "用更强教师生成更多数据、加特征对齐、或分步蒸馏（中模型作桥）。"
+    ],
+    "pitfalls": [
+      "忽视 capacity gap 让小模型硬学大模型",
+      "教师偏差被完整继承"
+    ],
+    "beginnerSummary": "设计蒸馏像『名师带徒』：徒弟可以不同体型（架构），但考题得一样（输出空间）；可只学答案，也可连思路（中间层）一起学。",
+    "prerequisites": [
+      "知识蒸馏",
+      "模型压缩",
+      "容量与表征对齐"
+    ],
+    "workedExample": [
+      "teacher=LLaMA-70B 生成 800K 推理链",
+      "student=Qwen-14B 在这些链上 SFT（DeepSeek-R1 式蒸馏）"
+    ],
+    "lineByLine": [
+      "with torch.no_grad(): 教师不更新",
+      "t_logits 为软标签来源",
+      "kd_loss 训练学生逼近教师"
+    ],
+    "diagram": "teacher(大)──软标签──▶ student(小)\n        └─可选:中间层对齐─┘"
+  },
+  {
+    "id": "train-pretrain-ft-align",
+    "category": "训练与微调",
+    "difficulty": "Easy",
+    "title": "预训练 vs 微调 vs 对齐 三者关系",
+    "prompt": "预训练、微调和对齐三者的目标与关系是什么？",
+    "quickAnswer": "预训练学通用语言/世界知识，微调学特定任务格式，对齐(RLHF/DPO)让行为符合人类偏好；三者是能力→任务→价值的递进。",
+    "approach": "预训练在海量无标注文本上自监督得底座；微调用标注数据教任务；对齐用偏好数据调行为，层层叠加不互斥。",
+    "explanationFocus": "是什么：预训练是在大规模语料上自监督学语言与知识（底座）；微调是用任务数据调整权重以胜任具体任务（SFT）；对齐是通过偏好优化让输出安全有用符合人类价值（RLHF/DPO），三者是『通才→专才→合意』的递进。",
+    "bruteForce": "跳过预训练直接微调小数据，模型无通用能力且易过拟合；或只预训练不微调/对齐，不会按指令且可能输出不当内容。",
+    "derivation": [
+      "为什么需要：三步分别解决『知识/语言』『任务遵循』『价值对齐』，缺一不可。",
+      "怎么实现：预训练=MLM/CLM 海量语料；微调=SFT 指令数据；对齐=RM+PPO 或 DPO 偏好对。",
+      "有什么代价：预训练算力最大；微调需高质量指令；对齐需人工偏好标注且训练不稳。",
+      "怎么评测：预训练看困惑度/知识基准；微调看任务指标；对齐看人类胜率与安全性。"
+    ],
+    "invariant": "顺序通常 预训练→微调→对齐，但现代常『预训练+已含 SFT 的指令预训练』混合（建议二次核对各模型实际 pipeline）。",
+    "walkthrough": "LLaMA 先 1.4T token 预训练→再用指令数据 SFT 得对话能力→最后 RLHF 让回答更安全有用。",
+    "edgeCases": [
+      "预训练已混入指令数据则 SFT 阶段弱化",
+      "只对齐不微调可能指令遵循差",
+      "三者数据分布不一致引发偏移"
+    ],
+    "code": "def pipeline():\n    model = pretrain(corpus)      # 1. 底座\n    model = sft(model, instruct)  # 2. 任务\n    model = align(model, prefs)   # 3. 对齐\n    return model",
+    "codeNotes": [
+      "三步可迭代、可插 PEFT 省资源",
+      "现代趋势把 SFT 融入预训练末段"
+    ],
+    "complexity": "预训练 O(语料×参数) 最大；微调/对齐小 1-2 数量级。",
+    "followUps": [
+      {
+        "question": "能只做对齐不做微调吗？",
+        "answer": "不推荐；对齐依赖模型已有指令遵循能力，跳过 SFT 直接 RLHF 往往指令遵循与稳定性都差。"
+      },
+      {
+        "question": "预训练能否包含对齐？",
+        "answer": "可部分包含（如纳入安全语料），但精细偏好对齐仍需专门的 RLHF/DPO 阶段。"
+      }
+    ],
+    "followUpAnswers": [
+      "不推荐；对齐依赖模型已有指令遵循能力，跳过 SFT 直接 RLHF 往往指令遵循与稳定性都差。",
+      "可部分包含（如纳入安全语料），但精细偏好对齐仍需专门的 RLHF/DPO 阶段。"
+    ],
+    "pitfalls": [
+      "混淆微调与对齐的目标，用 KD 做对齐",
+      "顺序颠倒导致能力或指令性缺失"
+    ],
+    "beginnerSummary": "预训练像『通识教育』攒知识，微调像『职业培训』学干活，对齐像『公司文化培训』学做人；三者层层加工出一个好用的 AI。",
+    "prerequisites": [
+      "预训练目标",
+      "SFT",
+      "RLHF/DPO 对齐"
+    ],
+    "workedExample": [
+      "Step1 预训练 1.4T token 得底座",
+      "Step2 SFT 10万指令，Step3 DPO 1万偏好对"
+    ],
+    "lineByLine": [
+      "pretrain: 自监督底座",
+      "sft: 任务格式",
+      "align: 偏好对齐"
+    ],
+    "diagram": "预训练(知识) → 微调(任务) → 对齐(价值)"
+  },
+  {
+    "id": "train-quality-vs-quantity",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "数据质量 vs 数据数量（Chinchilla 启示与 data-constrained regime）",
+    "prompt": "训练数据质量和数量应如何权衡，尤其在数据受限时？",
+    "quickAnswer": "Chinchilla 假设无限高质量数据；现实进入 data-constrained regime 时，质量（去重/过滤/合成）比单纯堆量更重要，可多 epoch 但需配合课程。",
+    "approach": "在高质量数据耗尽前按 Chinchilla 比例用足；受限时优先提升质量（过滤、去重、合成增强），并谨慎多 epoch 而非无脑加量。",
+    "explanationFocus": "是什么：数据质量 vs 数量讨论在固定算力下『更干净少数据』还是『更多含噪数据』更优；Chinchilla 假定无限干净数据（质量恒定），但前沿已进入 data-constrained regime——高质量语料见底，此时质量工程（过滤/合成）成为主矛盾。",
+    "bruteForce": "不顾质量猛加原始网页并多 epoch，导致模型记住噪声、基准污染、收益递减甚至退化。",
+    "derivation": [
+      "为什么需要：高质量公开文本约 1-3T token，而 Chinchilla 最优需更多，数据成瓶颈。",
+      "怎么实现：强过滤+去重提质量；用合成数据/重写扩量；data-constrained 下可控多 epoch 并降 LR。",
+      "有什么代价：合成数据可能带入模型自身偏见（模型坍缩）；多 epoch 易过拟合需早停与重采样。",
+      "怎么评测：对比『高质量少 epoch』vs『低质量多 epoch』在基准与困惑度上的差异。"
+    ],
+    "invariant": "质量优先，数量在质量边界内扩展；多 epoch 是数据受限时的无奈之选（建议二次核对前沿模型实际 epoch 数）。",
+    "walkthrough": "Phi 系列用『教科书级合成数据』以远少于 LLaMA 的 token 达到强性能，说明高质量可弥补数量不足。",
+    "edgeCases": [
+      "纯合成数据导致模型坍缩/偏见循环",
+      "多 epoch 超过某阈值收益转负",
+      "过滤过严反而数据不足"
+    ],
+    "code": "def effective_epochs(total_tokens, unique_tokens):\n    return total_tokens / unique_tokens",
+    "codeNotes": [
+      "unique_tokens 为去重后规模",
+      "effective_epochs>1 即重复训练"
+    ],
+    "complexity": "O(1) 估算；质量过滤另计。",
+    "followUps": [
+      {
+        "question": "数据受限时该多 epoch 还是合成数据？",
+        "answer": "优先用高质量合成/重写扩量并谨慎多 epoch；纯多 epoch 易记忆，纯合成易坍缩，宜混合。"
+      },
+      {
+        "question": "Chinchilla 在 data-constrained 下还成立吗？",
+        "answer": "其比例仍为参考，但受数据上限被迫偏离，需靠质量工程逼近最优。"
+      }
+    ],
+    "followUpAnswers": [
+      "优先用高质量合成/重写扩量并谨慎多 epoch；纯多 epoch 易记忆，纯合成易坍缩，宜混合。",
+      "其比例仍为参考，但受数据上限被迫偏离，需靠质量工程逼近最优。"
+    ],
+    "pitfalls": [
+      "迷信数量忽视过滤",
+      "过度依赖合成数据引发模型坍缩"
+    ],
+    "beginnerSummary": "数据像教材：100 本烂书不如 10 本精读；Chinchilla 假设好教材无限，现实中好教材不够时，要先『编好教材』（质量）再考虑『多读几遍』（多 epoch）。",
+    "prerequisites": [
+      "Chinchilla 规律",
+      "数据去重与过滤",
+      "合成数据风险"
+    ],
+    "workedExample": [
+      "unique=1T，训练用 3T token → 有效 3 epoch",
+      "Phi 用合成教科书以 0.3T 抵 1T 网页效果"
+    ],
+    "lineByLine": [
+      "def effective_epochs(...): 算有效轮数",
+      "total/unique 即重复遍数",
+      ">1 表示数据被复用"
+    ],
+    "diagram": "质量 ↑ ──优先\n数量 ↑ ──质量边界内"
+  },
+  {
+    "id": "train-curriculum",
+    "category": "训练与微调",
+    "difficulty": "Medium",
+    "title": "课程学习 / 数据课程（curriculum）",
+    "prompt": "课程学习（按难度排布训练数据）在预训练/微调中有何作用？",
+    "quickAnswer": "按从易到难或特定顺序排布数据（课程），可加速收敛、稳定训练、提升最终泛化，常用于微调阶段课程与多阶段预训练。",
+    "approach": "定义难度度量（长度、困惑度、任务复杂度），先训简单样本再逐步加入困难样本；或按数据来源分阶段切换比例。",
+    "explanationFocus": "是什么：课程学习（Curriculum Learning）仿人类『由易到难』，将训练样本按难度/顺序排布，先学简单再学困难，帮助优化逃离差解、加速并提升泛化；数据课程也指预训练按阶段调整数据配比。",
+    "bruteForce": "完全随机混训所有难度，模型早期被困难样本梯度主导、收敛慢且易陷入局部差解，尤其小模型明显。",
+    "derivation": [
+      "为什么需要：随机顺序下困难样本噪声大，课程提供平滑学习信号、稳定早期训练。",
+      "怎么实现：按困惑度/长度分桶排序，或用多阶段（先网页后代码/书）；微调可对指令按复杂度排课。",
+      "有什么代价：难度度量本身需设计且可能不准；排课过激进可能偏科或遗忘易样本。",
+      "怎么评测：对比课程 vs 随机的最终精度与收敛步数，看是否更快达标且不掉点。"
+    ],
+    "invariant": "课程需『真正由易到难』且不过度偏置；微调常用轻量课程（建议二次核对度量有效性）。",
+    "walkthrough": "微调数学题：先训单选题再到多步证明，模型比随机混训提前 20% 步数达标且最终高 2 分。",
+    "edgeCases": [
+      "难度度量错误导致伪课程无效",
+      "课程过陡使易样本欠拟合",
+      "预训练课程若中断需续训一致"
+    ],
+    "code": "def curriculum_batches(dataset, difficulty_fn, buckets=5):\n    ds = sorted(dataset, key=difficulty_fn)  # 由易到难\n    size = len(ds) // buckets\n    return [ds[i*size:(i+1)*size] for i in range(buckets)]",
+    "codeNotes": [
+      "difficulty_fn 可为长度/困惑度/题深",
+      "分阶段喂入，逐步提升难度"
+    ],
+    "complexity": "排序 O(N log N)，训练成本同常规模型。",
+    "followUps": [
+      {
+        "question": "课程学习一定更好吗？",
+        "answer": "不一定；度量不当或排课过激可能无效甚至有害，需实验验证。"
+      },
+      {
+        "question": "预训练怎么用课程？",
+        "answer": "常用多阶段配比（先广泛语料后高质量/代码），或在衰减 LR 同时逐步换难数据。"
+      }
+    ],
+    "followUpAnswers": [
+      "不一定；度量不当或排课过激可能无效甚至有害，需实验验证。",
+      "常用多阶段配比（先广泛语料后高质量/代码），或在衰减 LR 同时逐步换难数据。"
+    ],
+    "pitfalls": [
+      "难度度量与真实学习难度脱钩",
+      "课程偏置使易样本欠拟合"
+    ],
+    "beginnerSummary": "课程学习像『先学加减再学微积分』：把简单题先喂给模型打底，再上难题，训练更稳更快。",
+    "prerequisites": [
+      "优化与收敛",
+      "数据难度度量",
+      "学习率调度"
+    ],
+    "workedExample": [
+      "按句长分 5 桶，先短后长喂入",
+      "对比随机混训，收敛步数减少"
+    ],
+    "lineByLine": [
+      "sorted(..., key=difficulty_fn)：由易到难排序",
+      "分桶便于分阶段训练",
+      "逐桶提升难度"
+    ],
+    "diagram": "易 ──▶ 中 ──▶ 难  (课程顺序喂入)"
+  },
+  {
+    "id": "train-overfit-regularization",
+    "category": "训练与微调",
+    "difficulty": "Easy",
+    "title": "微调过拟合与正则（早停、dropout、权重衰减）",
+    "prompt": "微调时如何防止过拟合，常用正则手段有哪些？",
+    "quickAnswer": "用早停（监控验证损失）、dropout、权重衰减（WD），以及参数高效方法(LoRA)本身限制容量来抗过拟合。",
+    "approach": "监控验证集早停；全微调加 dropout 与 AdamW 的权重衰减；小数据优先用 LoRA 减小可训参数，从源头降过拟合风险。",
+    "explanationFocus": "是什么：微调过拟合指模型在训练集上拟合噪声、验证/泛化下降；正则手段包括早停（验证损失回升即停）、dropout（随机置零防共适应）、权重衰减（L2 约束权重规模），以及用 LoRA 限制可训容量。",
+    "bruteForce": "小数据上全量微调多 epoch 不加任何正则，模型死记训练样本、验证损失先降后飙升，泛化崩塌。",
+    "derivation": [
+      "为什么需要：微调数据常远小于预训练，全量更新易过拟合，需约束可训空间。",
+      "怎么实现：早停用验证损失拐点；dropout p=0.05-0.1；AdamW 设 weight_decay（如 0.01）；或只用 LoRA 冻结主体。",
+      "有什么代价：正则过强欠拟合（如 dropout 太大、WD 太高学不动）；早停需可靠验证集。",
+      "怎么评测：画训练/验证损失曲线，看差距（过拟合标志）与早停点，下游实测泛化。"
+    ],
+    "invariant": "小数据首选 LoRA+轻正则；早停看验证集拐点（建议二次核对 dropout/WD 与基座兼容性）。",
+    "walkthrough": "1K 指令微调：全微调 5 epoch 验证损失在第 3 epoch 后升（过拟合），改用 LoRA(r=16)+早停第 3 epoch 后泛化最佳。",
+    "edgeCases": [
+      "验证集与训练同源导致早停误判",
+      "基座已含 dropout，重复加需注意",
+      "WD 对 LoRA 参数通常不设或很小"
+    ],
+    "code": "def should_stop(train_loss, val_loss, best, patience=3):\n    if val_loss < best:\n        return False, val_loss  # 更新最优\n    patience -= 1\n    return patience <= 0, best",
+    "codeNotes": [
+      "早停需记录最优 val_loss 与计数",
+      "patience 防止短暂波动误停"
+    ],
+    "complexity": "O(1) 判定，无训练开销。",
+    "followUps": [
+      {
+        "question": "LoRA 本身为什么抗过拟合？",
+        "answer": "可训参数极少、原权重冻结，假设空间受限，天然降低小数据过拟合。"
+      },
+      {
+        "question": "权重衰减和 L2 正则完全一样吗？",
+        "answer": "在 SGD 中等价；AdamW 把 WD 解耦出动量，效果与 naive L2 不同且更稳。"
+      }
+    ],
+    "followUpAnswers": [
+      "可训参数极少、原权重冻结，假设空间受限，天然降低小数据过拟合。",
+      "在 SGD 中等价；AdamW 把 WD 解耦出动量，效果与 naive L2 不同且更稳。"
+    ],
+    "pitfalls": [
+      "早停无干净验证集导致误判",
+      "对 LoRA 参数设过大 WD 反而抑制学习"
+    ],
+    "beginnerSummary": "微调过拟合像『背题不解题』：早停是见好就收，dropout 是随机让部分神经元『请假』防勾结，权重衰减是给参数戴紧箍咒别长太野。",
+    "prerequisites": [
+      "过拟合与泛化",
+      "Dropout",
+      "权重衰减/AdamW"
+    ],
+    "workedExample": [
+      "训练损失降到 0.2 但验证升到 1.5 → 过拟合",
+      "加 LoRA + 早停(patience=3) 后验证稳定在 0.9"
+    ],
+    "lineByLine": [
+      "def should_stop(...): 早停判定",
+      "val_loss<best 则继续并更新最优",
+      "patience 耗尽则停"
+    ],
+    "diagram": "epoch: 训练↓ 验证↓→↑(过拟合) 早停在拐点"
+  },
+  {
+    "id": "rag-001",
+    "category": "RAG",
+    "difficulty": "Easy",
+    "title": "RAG 的三段范式是什么？",
+    "prompt": "RAG（检索增强生成）的核心流程分为哪三段，各自做什么？",
+    "quickAnswer": "检索(Retrieve)→增强(Augment)→生成(Generate)：先从知识库召回相关片段，拼进提示词，再交由 LLM 生成有依据的答案。",
+    "approach": "按数据流向把 RAG 拆成离线建库与在线检索生成两条链路理解。",
+    "explanationFocus": "是什么：RAG=检索增强生成，用外部知识弥补 LLM 参数记忆的不足，降低幻觉、支持私域/实时数据。",
+    "bruteForce": "每次都把整库文档全文塞进 prompt：token 爆炸、噪声淹没答案、无法规模化。",
+    "derivation": [
+      "为什么需要：LLM 训练数据有截止日期且不含企业私域知识，直接问答易幻觉或答非所问。",
+      "怎么实现：离线把文档切块、向量化建索引；在线把用户 query 向量化，ANN 召回 top-k 拼入 prompt 再生成。",
+      "有什么代价：多了检索链路，引入召回质量、延迟、索引维护成本；检索不准会直接污染生成。",
+      "怎么评测：看 Context Recall（该召回的召回没）、Faithfulness（答案是否忠于上下文）、Answer Relevancy（是否答其所问）。"
+    ],
+    "invariant": "经验法则：检索质量决定答案上限，生成质量决定上限是否达到。",
+    "walkthrough": "用户问『公司年假规定？』，库里有 1 万篇制度文档；检索召回『休假管理办法』相关 5 段，拼进 prompt，LLM 据此作答而非凭空编。",
+    "edgeCases": [
+      "库里根本没有答案时模型仍可能编造，需加『无依据则拒答』约束",
+      "query 与文档用词差异大导致召回为空",
+      "召回片段过长撑爆上下文窗口",
+      "多片段互相矛盾时生成会摇摆"
+    ],
+    "code": "def rag_pipeline(query, index, llm, k=5):\n    q_emb = embed(query)\n    hits = index.search(q_emb, k=k)\n    context = '\\n'.join(h.text for h in hits)\n    prompt = f'依据以下资料回答：\\n{context}\\n\\n问题：{query}'\n    return llm.generate(prompt)",
+    "codeNotes": [
+      "检索与生成解耦，可分别换 embedding 模型与 LLM",
+      "命中结果建议携带元数据(id/来源)便于溯源与拒答"
+    ],
+    "complexity": "检索 O(log n) 近似或 O(n) 暴力；生成 O(输出长度)，整体受 top-k 与上下文长度影响。",
+    "followUps": [
+      {
+        "question": "Naive RAG 与 Advanced RAG 的主要区别？",
+        "answer": "Naive 固定检索→生成无校验；Advanced 加入重排、查询改写、自省/纠错循环等提升召回与忠实度。"
+      },
+      {
+        "question": "RAG 一定能消除幻觉吗？",
+        "answer": "不能。检索为空或检索到错误上下文时，模型仍可能编造；需配合拒答策略与忠实度评测。"
+      }
+    ],
+    "followUpAnswers": [
+      "Naive 固定检索→生成无校验；Advanced 加入重排、查询改写、自省/纠错循环等提升召回与忠实度。",
+      "不能。检索为空或检索到错误上下文时，模型仍可能编造；需配合拒答策略与忠实度评测。"
+    ],
+    "pitfalls": [
+      "以为加了检索就万无一失，忽视召回质量",
+      "把整库当上下文，未做切块与截断",
+      "未保留片段来源，出问题无法溯源"
+    ],
+    "beginnerSummary": "RAG 就是先去资料库翻出相关几页，再让 AI 看着这几页回答，而不是让 AI 凭记忆硬编。",
+    "prerequisites": [
+      "大语言模型(LLM)基本概念",
+      "向量与相似度检索基础"
+    ],
+    "workedExample": [
+      "用户提问，系统把问题转成向量去库里找最像的 5 段资料",
+      "把这 5 段和原问题一起交给 LLM，让它基于资料作答"
+    ],
+    "lineByLine": [
+      "embed(query) 把问题变成向量",
+      "index.search 用 ANN 找回最相近的片段",
+      "拼接 context 与 query 成 prompt 后调用 LLM 生成"
+    ],
+    "diagram": "Query -> [Embed] -> VectorDB -> top-k chunks -> [Augment] -> LLM -> Answer"
+  },
+  {
+    "id": "rag-002",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "中文 RAG 如何选 embedding 模型？",
+    "prompt": "中文场景下做 RAG，embedding 模型该怎么选，要关注哪些指标？",
+    "quickAnswer": "中文优先 BGE 系列(bge-large-zh 维度 1024、C-MTEB 榜首)，做检索时 query 加指令、向量归一化、按需选维度与显存。",
+    "approach": "以 C-MTEB/MMTEB 榜单为准，按『语言匹配+检索子任务分数+维度/显存』权衡选型。",
+    "explanationFocus": "是什么：embedding 模型把文本映射成定长稠密向量，其质量直接决定召回上限；中文需专用中文模型。",
+    "bruteForce": "直接用 OpenAI text-embedding-ada-002(维度1536)做中文：中文 MTEB 仅约 53 分，明显弱于专用中文模型且无法私有部署。",
+    "derivation": [
+      "为什么需要：不同模型语义空间差异巨大，维度与训练语料决定中英/检索表现，选错会召回稀疏。",
+      "怎么实现：参考 MTEB/C-MTEB 榜单，中文用 bge-large-zh(1024维)/bge-m3(多语言多粒度)；query 端加检索指令，encode 时 normalize_embeddings=True。",
+      "有什么代价：维度越高越占内存与存储(1024维 float32 约 4KB/条)，大模型推理慢；需平衡召回率与成本。",
+      "怎么评测：用检索子任务(NDCG@10)与 C-MTEB 平均分为客观依据，线上用 Context Recall 反推。"
+    ],
+    "invariant": "经验法则：query 与 document 必须用同一模型、同一归一化设置，否则相似度不可比。",
+    "walkthrough": "bge-large-zh 在 C-MTEB 平均 64.2、检索 71.53 居首；维度 1024。短查询检索时长文档建议加指令『为这个句子生成表示以用于检索相关文章:』。",
+    "edgeCases": [
+      "query 与 doc 用不同模型编码，点积无意义",
+      "未归一化时余弦相似度退化，阈值难定",
+      "短句相似度偏高(0.6~1 集中)，需提高阈值如 0.8+",
+      "max_seq 截断导致长文信息丢失"
+    ],
+    "code": "from sentence_transformers import SentenceTransformer\nmodel = SentenceTransformer('BAAI/bge-large-zh')\nq = model.encode(['为这个句子生成表示以用于检索相关文章:'+t for t in queries], normalize_embeddings=True)\nd = model.encode(docs, normalize_embeddings=True)\nscores = q @ d.T",
+    "codeNotes": [
+      "只给 query 加指令，document 端不加",
+      "normalize 后用点积近似余弦，省去再归一化"
+    ],
+    "complexity": "编码为 O(序列长度)，可批处理；向量库检索与维度数线性相关。",
+    "followUps": [
+      {
+        "question": "维度选 512/768/1024 怎么定？",
+        "answer": "数据量与显存受限选小维度(bge-small 512)，追求召回选大维度；同系列大模型通常更优但更慢。"
+      },
+      {
+        "question": "如何判断相似度阈值？",
+        "answer": "绝对阈值不可靠(分布集中在0.6~1)，应看相对排序；若必须卡阈值，按业务分布实测取 0.8/0.85/0.9。"
+      }
+    ],
+    "followUpAnswers": [
+      "数据量与显存受限选小维度(bge-small 512)，追求召回选大维度；同系列大模型通常更优但更慢。",
+      "绝对阈值不可靠(分布集中在0.6~1)，应看相对排序；若必须卡阈值，按业务分布实测取 0.8/0.85/0.9。"
+    ],
+    "pitfalls": [
+      "query/doc 编码设置不一致导致相似度失真",
+      "误信绝对相似度数值而非相对排序",
+      "忽视中文专用模型直接用英文模型"
+    ],
+    "beginnerSummary": "embedding 模型像『翻译官』，把句子翻成数字串；中文要用懂中文的翻译官(BGE)，且问句和文档要用同一个。",
+    "prerequisites": [
+      "文本向量化基础",
+      "余弦相似度"
+    ],
+    "workedExample": [
+      "选 bge-large-zh，维度 1024",
+      "query 加指令编码并归一化，doc 直接归一化编码，点积排序取 top-k"
+    ],
+    "lineByLine": [
+      "SentenceTransformer 加载 BGE 中文模型",
+      "对 query 拼接检索指令后编码",
+      "normalize_embeddings 保证向量单位长度",
+      "矩阵乘得到相似度分数矩阵"
+    ],
+    "diagram": "Query+instruction -> [BGE] -> q_vec(1024,|v|=1)\nDoc -> [BGE] -> d_vec(1024,|v|=1)\nscore = q_vec · d_vec"
+  },
+  {
+    "id": "rag-003",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "向量库与 ANN 检索如何选型？",
+    "prompt": "FAISS 的 HNSW 与 IVF 有什么区别，主流向量库怎么选？",
+    "quickAnswer": "HNSW 图索引高召回高内存、免训练；IVF 聚类索引省内存需训练、靠 nprobe 平衡；库按规模选 Milvus/Qdrant/Weaviate/pgvector。",
+    "approach": "先判规模与是否需训练，再按内存/召回/运维复杂度选索引与向量库。",
+    "explanationFocus": "是什么：ANN(近似最近邻)用辅助结构避免 O(n·d) 暴力比对，在召回率与延迟间权衡；FAISS 是底层工具箱，向量库在其上封装服务。",
+    "bruteForce": "对 1000 万条 768 维向量每 query 全量扫描约 7.6GB，单查询代价不可接受，必须 ANN。",
+    "derivation": [
+      "为什么需要：精确 kNN 随数据量线性变慢，RAG 在线检索要求毫秒级，必须近似。",
+      "怎么实现：HNSW 建多层小世界图，从顶层贪心下降，参数 M/efConstruction/efSearch；IVF 用 k-means 划 Voronoi 单元，查最近 nprobe 个单元，IVFPQ 再压缩。",
+      "有什么代价：HNSW 内存约 2~3 倍原向量(~35GB/千万768维)且不压缩；IVF 需训练且 PQ 有量化误差；nprobe/efSearch 越大越准越慢。",
+      "怎么评测：用带标签集测 Recall@k 与 P95 延迟，按 SLA 调参；换库看吞吐与运维成本。"
+    ],
+    "invariant": "经验法则：HNSW 求快求准上内存足；IVF+PQ 求省内存上亿级；nlist≈sqrt(n)。",
+    "walkthrough": "千万级 768 维：HNSW M=32, efSearch=128 内存~35GB；若内存紧用 IVF4096,PQ64，nprobe=64 召回换空间。nlist 经验值≈sqrt(n)。",
+    "edgeCases": [
+      "HNSW 内存翻倍撑爆 RAM",
+      "IVF 未训练直接 add 报错",
+      "nprobe 太小召回骤降",
+      "PQ 压缩在细粒度检索引入误差",
+      "FAISS 不存原文，需自建 id->doc 映射"
+    ],
+    "code": "import faiss, numpy as np\nd, nlist = 768, 4096\nquant = faiss.IndexFlatL2(d)\nindex = faiss.IndexIVFPQ(quant, d, nlist, 64, 8)\nindex.train(train_vecs)\nindex.add(vecs)\nindex.nprobe = 64\ndist, ids = index.search(q, k=10)",
+    "codeNotes": [
+      "IVF-PQ 需先 train 再 add",
+      "nprobe 控制查几个聚类，越大越准越慢",
+      "FAISS 只管向量，原文/元数据另存"
+    ],
+    "complexity": "训练 O(n·d·k·iter) 一次性；检索随 nprobe 与 efSearch 变化，HNSW 约 O(log n)，IVF 约 O(n·nprobe/nlist)。",
+    "followUps": [
+      {
+        "question": "Milvus/Weaviate/Qdrant/pgvector 怎么选？",
+        "answer": "亿级+分布式选 Milvus；云原生易用选 Weaviate；轻量高性能选 Qdrant；已有 Postgres 不想引新组件选 pgvector。"
+      },
+      {
+        "question": "HNSW 和 IVF 谁召回更高？",
+        "answer": "通常 HNSW 在中小 efSearch 下召回更稳定更高，但内存大；IVF 靠 nprobe 调，省内存但需训练。"
+      }
+    ],
+    "followUpAnswers": [
+      "亿级+分布式选 Milvus；云原生易用选 Weaviate；轻量高性能选 Qdrant；已有 Postgres 不想引新组件选 pgvector。",
+      "通常 HNSW 在中小 efSearch 下召回更稳定更高，但内存大；IVF 靠 nprobe 调，省内存但需训练。"
+    ],
+    "pitfalls": [
+      "IVF 忘记 train 直接 add",
+      "只看准确率不看内存/延迟代价",
+      "误以为 FAISS 会管理原文与元数据"
+    ],
+    "beginnerSummary": "向量库像图书馆索引卡：HNSW 是多层导览图(快但占地方)，IVF 是把书架分区(省地方但要先分好类)。",
+    "prerequisites": [
+      "向量相似度",
+      "kNN 基本概念"
+    ],
+    "workedExample": [
+      "建 IndexIVFPQ，先用代表性样本 train",
+      "add 全部向量，查询时设 nprobe=64 取 top-10"
+    ],
+    "lineByLine": [
+      "IndexFlatL2 作粗量化器",
+      "IndexIVFPQ 在 IVF 上做 PQ 压缩(64子空间,8bit)",
+      "train 跑 k-means",
+      "nprobe=64 决定查多少单元",
+      "search 返回距离与 id"
+    ],
+    "diagram": "Query -> coarse(k-means) -> nprobe cells -> PQ decode -> top-k\nHNSW: top layer -> greedy descend -> layer0 refine"
+  },
+  {
+    "id": "rag-004",
+    "category": "RAG",
+    "difficulty": "Easy",
+    "title": "RAG 文档切块(chunking)怎么做？",
+    "prompt": "RAG 中文档切块(chunking)有哪些策略，大小与重叠怎么设？",
+    "quickAnswer": "按固定 token/字符切并留重叠(如 512 token、重叠 64~128)，或用递归/按语义/层级切分，使每块语义完整且适配 embedding 与上下文。",
+    "approach": "以『单块能独立回答一个问题、且不超过模型窗口』为约束选切分粒度。",
+    "explanationFocus": "是什么：chunking 把长文档切成检索单元，粒度直接影响召回精度与上下文利用率，是 RAG 工程第一道关。",
+    "bruteForce": "整篇文档当一块：块太大稀释相似度、检索命中后噪声多、易超窗口；或不切直接喂全文，不可规模化。",
+    "derivation": [
+      "为什么需要：embedding 对长文本会『平均掉』重点，且 LLM 上下文有限，必须切成适中单元。",
+      "怎么实现：固定大小切(按 token/字符/句子)；递归切(优先段落→句→词)；语义切(按相似度断点)；层级切(父块检索、子块喂入)。重叠区保留跨块上下文。",
+      "有什么代价：块太小丢失上下文、块太大稀释相关性；重叠增加冗余与存储；语义切计算更贵。",
+      "怎么评测：用端到端 Faithfulness/Context Recall 反推，A/B 不同块大小选最优。"
+    ],
+    "invariant": "经验法则：块大小匹配 embedding 最佳长度(常 256~512 token)，重叠约 10~20% 防断句丢失。",
+    "walkthrough": "一篇 5000 字制度：按 512 token 切、重叠 64 token，得约 12 块；查询命中第 3 块及其重叠邻块即可完整回答。",
+    "edgeCases": [
+      "在句子中间切断导致语义残缺",
+      "表格/代码被切坏",
+      "重叠过大造成重复上下文",
+      "块太小使单块无法独立成义",
+      "层级切需同时维护父/子索引映射"
+    ],
+    "code": "def chunk(text, size=512, overlap=64):\n    toks = text.split()\n    step = size - overlap\n    return [' '.join(toks[i:i+size]) for i in range(0, len(toks), step)]",
+    "codeNotes": [
+      "step = size - overlap 控制滑动窗口",
+      "生产建议按 token 而非字符切，中文按字/词需留意"
+    ],
+    "complexity": "切分 O(文本长度)，与块数线性相关；语义切额外 O(块数) 相似度计算。",
+    "followUps": [
+      {
+        "question": "语义切分 vs 固定切分？",
+        "answer": "语义切按内容断点保留完整含义、召回更准但慢；固定切简单可复现，适合大多场景打底。"
+      },
+      {
+        "question": "层级(chunk)有什么用？",
+        "answer": "用大父块做检索保证上下文、用小子块喂 LLM 省 token，兼顾召回与精度。"
+      }
+    ],
+    "followUpAnswers": [
+      "语义切按内容断点保留完整含义、召回更准但慢；固定切简单可复现，适合大多场景打底。",
+      "用大父块做检索保证上下文、用小子块喂 LLM 省 token，兼顾召回与精度。"
+    ],
+    "pitfalls": [
+      "块太大稀释相关性",
+      "在句中断切损语义",
+      "忽略重叠导致边界信息丢失",
+      "未对表格代码特殊处理的切法"
+    ],
+    "beginnerSummary": "切块像把一本厚书拆成便于检索的小节：每节自成一义，相邻节留点重叠避免把一句话腰斩。",
+    "prerequisites": [
+      "token 与文本表示",
+      "embedding 输入长度限制"
+    ],
+    "workedExample": [
+      "把长文按 512 token 滑动窗口切块，重叠 64",
+      "每块独立向量化入库，查询命中后取该块及邻块"
+    ],
+    "lineByLine": [
+      "text.split() 粗略分词",
+      "step 为滑动步长",
+      "range 按 step 取窗口",
+      "拼接成块返回"
+    ],
+    "diagram": "[====block1====]\n    [====block2====]  <- overlap\n        [====block3====]"
+  },
+  {
+    "id": "rag-005",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "RAG 为什么要重排(rerank)？",
+    "prompt": "RAG 中 cross-encoder 与 bi-encoder 重排有何区别，为什么需要 rerank？",
+    "quickAnswer": "bi-encoder 各自编码快但不准，cross-encoder 把 query+doc 一起编码做全交叉注意力更准但慢；rerank 在召回 top-100 后精排到 top-10。",
+    "approach": "两阶段：bi-encoder/向量库广召回保召回率，cross-encoder 精排保精确率。",
+    "explanationFocus": "是什么：rerank 用更强的交互式模型对召回候选重新打分排序，纠正向量检索『相似但不相关』的排序错误，不引入新文档。",
+    "bruteForce": "只靠向量 top-k 直接喂 LLM：常把高相似低相关的片段排前面，答案被无关内容稀释。",
+    "derivation": [
+      "为什么需要：bi-encoder 独立编码无法捕获 query-doc 细粒度交互(如否定、条件句)，需更贵模型精排。",
+      "怎么实现：召回 top-50~200 候选，用 CrossEncoder(如 bge-reranker-base)对 (query,doc) 逐对打分，取 top-10；注意 512 token 截断。",
+      "有什么代价：cross-encoder 每对一次前向，O(候选数)，延迟随候选数线性升；大模型显存高。",
+      "怎么评测：看 NDCG@10、最终 Faithfulness；候选数做 A/B，通常 50~200 间权衡。"
+    ],
+    "invariant": "经验法则：召回要广(top-100+)，精排要准(top-10)；rerank 只重排不新增，上限由召回决定。",
+    "walkthrough": "query『该药副作用？』召回 100 篇，bge-reranker-base 重排后把『恶心头晕』段提到第 1，把『用于治疗心血管』段降到末尾。",
+    "edgeCases": [
+      "512 token 上限静默截断长块致评分失真",
+      "候选数过大延迟飙升",
+      "reranker 与 retriever 评判标准不一致",
+      "rerank 无法补救召回为空"
+    ],
+    "code": "from sentence_transformers import CrossEncoder\nrerank = CrossEncoder('BAAI/bge-reranker-base')\npairs = [[q, d] for d in docs]\nscores = rerank.predict(pairs, batch_size=32)\ntop = [docs[i] for i in sorted(range(len(docs)), key=lambda i:-scores[i])[:10]]",
+    "codeNotes": [
+      "cross-encoder 输入是(query,doc)对，输出单分数",
+      "长文档需先截断到 token 预算内再送评"
+    ],
+    "complexity": "重排 O(候选数×序列长度)，与候选数线性；可批处理但单对仍需一次前向。",
+    "followUps": [
+      {
+        "question": "开源 reranker 推荐？",
+        "answer": "默认 bge-reranker-base(快准平衡)；多语言/长文用 bge-reranker-v2-m3(8192 token)；极速用 ms-marco-MiniLM-L-6-v2。"
+      },
+      {
+        "question": "重排能提升召回吗？",
+        "answer": "不能，它只改善排序分辨率(把对的提上来)，召回上限仍由第一阶段决定。"
+      }
+    ],
+    "followUpAnswers": [
+      "默认 bge-reranker-base(快准平衡)；多语言/长文用 bge-reranker-v2-m3(8192 token)；极速用 ms-marco-MiniLM-L-6-v2。",
+      "不能，它只改善排序分辨率(把对的提上来)，召回上限仍由第一阶段决定。"
+    ],
+    "pitfalls": [
+      "误以为 rerank 能补召回",
+      "忽略 512 token 截断对长块的影响",
+      "候选数设太大拖垮延迟"
+    ],
+    "beginnerSummary": "召回是『撒大网捞一堆』，重排是『请专家逐一比对，把最相关的摆最前』。",
+    "prerequisites": [
+      "bi-encoder 与向量检索",
+      "交叉注意力概念"
+    ],
+    "workedExample": [
+      "向量检索召回 top-100",
+      "cross-encoder 对 100 对逐打分，取 top-10 进 LLM"
+    ],
+    "lineByLine": [
+      "CrossEncoder 加载重排模型",
+      "构造(query,doc)对",
+      "predict 得相关性分数",
+      "按分数降序取前 10"
+    ],
+    "diagram": "Retriever(top-100) -> CrossEncoder(score each) -> sort -> top-10 -> LLM"
+  },
+  {
+    "id": "rag-006",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "查询改写与 HyDE 怎么提升召回？",
+    "prompt": "RAG 中查询改写(query rewriting)、多路召回与 HyDE 分别怎么用？",
+    "quickAnswer": "用 LLM 把原 query 改写成更利于检索的多种形式(多查询/回退/澄清)，HyDE 则先生成假设答案再以其向量检索，缓解用词错位。",
+    "approach": "针对『短 query 与文档用词不一致』与『意图模糊』，在检索前做查询端增强。",
+    "explanationFocus": "是什么：查询端增强是在检索前改写或扩充 query，使语义空间与文档更对齐，从而提升召回率与相关性。",
+    "bruteForce": "直接用用户原句(可能很短、口语化、用词偏)去向量检索：词汇鸿沟导致召回稀疏或偏题。",
+    "derivation": [
+      "为什么需要：用户 query 短且术语与文档不一致，直接检索召回差；复杂问题需多角度覆盖。",
+      "怎么实现：Multi-Query 让 LLM 生成多个改写并行检索后融合(RRF)；Step-back 生成更笼统问题；HyDE 让 LLM 写假设答案，用其嵌入去搜真实文档。",
+      "有什么代价：每次改写都要一次 LLM 调用，增加延迟与成本；HyDE 假设答案可能带错事实但语义有用。",
+      "怎么评测：对比改写前后 Context Recall 与最终答案准确率。"
+    ],
+    "invariant": "经验法则：query 与文档用词差越大，越该做查询改写或 HyDE；多路结果用 RRF 融合比简单合并更稳。",
+    "walkthrough": "query『Python 内存泄漏咋整？』→ 改写『Python 内存泄漏排查方法/对象未释放/GC 调优』三路检索；HyDE 先生成一段假答案再搜相似文档。",
+    "edgeCases": [
+      "改写引入无关语义跑偏",
+      "HyDE 假设答案含错误信息污染检索",
+      "多路结果重复需去重",
+      "过度改写增加延迟与成本"
+    ],
+    "code": "def hyde(query, llm, embed, index, k=5):\n    hypo = llm.generate(f'写一个可能回答该问题的段落：{query}')\n    return index.search(embed(hypo), k=k)\n\ndef multi_query(query, llm, index, embed, k=5):\n    qs = llm.generate(f'生成3个改写：{query}').split('\\n')\n    hits = [index.search(embed(q), k) for q in qs]\n    return rrf_merge(hits)",
+    "codeNotes": [
+      "HyDE 用假设答案的向量而非原问题向量",
+      "多路用 RRF(倒数排名融合)合并去重更稳"
+    ],
+    "complexity": "额外 O(改写次数) 次 LLM 调用 + 多次检索；融合 O(候选数 log 候选数)。",
+    "followUps": [
+      {
+        "question": "HyDE 会不会被错误假设带偏？",
+        "answer": "假设答案可能含事实错误，但其语义指向通常有用；检索仍按向量相似取真实文档，影响有限，可配合 rerank 兜底。"
+      },
+      {
+        "question": "RRF 是什么？",
+        "answer": "Reciprocal Rank Fusion，按各路排名的倒数求和融合多路结果，对分数量纲不敏感，比直接加相似度更稳。"
+      }
+    ],
+    "followUpAnswers": [
+      "假设答案可能含事实错误，但其语义指向通常有用；检索仍按向量相似取真实文档，影响有限，可配合 rerank 兜底。",
+      "Reciprocal Rank Fusion，按各路排名的倒数求和融合多路结果，对分数量纲不敏感，比直接加相似度更稳。"
+    ],
+    "pitfalls": [
+      "改写过度跑题",
+      "忽视多路结果去重",
+      "为每问都改写导致延迟高",
+      "误信 HyDE 假设答案内容"
+    ],
+    "beginnerSummary": "查询改写像『把大白话换成图书馆检索词』；HyDE 是先脑补一段答案再去搜相似的书。",
+    "prerequisites": [
+      "向量检索",
+      "LLM 提示工程"
+    ],
+    "workedExample": [
+      "LLM 把原问题扩写成 3 个改写",
+      "分别检索后用 RRF 融合去重取 top-k"
+    ],
+    "lineByLine": [
+      "hyde: LLM 生成假设答案段落",
+      "用假设答案向量去检索",
+      "multi_query: 生成多改写",
+      "各路检索后 rrf_merge 融合"
+    ],
+    "diagram": "Query ->[LLM rewrite]-> Q1,Q2,Q3 -> retrieve x3 -> RRF -> top-k\nQuery ->[LLM HyDE]-> hypothetical doc -> embed -> retrieve"
+  },
+  {
+    "id": "rag-007",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "RAG 系统怎么评测？",
+    "prompt": "RAG 的核心评测指标 Faithfulness / Answer Relevancy / Context Recall / Context Precision 各自衡量什么？",
+    "quickAnswer": "Faithfulness 答案是否忠于上下文；Answer Relevancy 答案是否切题；Context Recall 该召回的是否召回；Context Precision 召回中相关的是否靠前。",
+    "approach": "用 RAGAS 等框架，以 LLM-as-judge 对检索与生成两阶段分别打分。",
+    "explanationFocus": "是什么：RAG 评测分检索侧(Context Recall/Precision)与生成侧(Faithfulness/Answer Relevancy)，分别卡住『找得全/排得准』与『答得忠/答得切』。",
+    "bruteForce": "只看最终答案像不像：无法区分是检索错还是生成错，且人工评测不可规模化。",
+    "derivation": [
+      "为什么需要：RAG 有检索与生成两条失败链路，需分别量化定位瓶颈。",
+      "怎么实现：Context Recall=标注相关片段被召回比例；Context Precision=召回片段中相关者排名质量；Faithfulness=答案可被上下文蕴含的比例；Answer Relevancy=答案与问题相关度。多用 LLM 裁判按 Rubric 打分。",
+      "有什么代价：需标注或强 LLM 裁判，成本与波动存在；指标间可能此消彼长。",
+      "怎么评测：固定测试集定期跑 RAGAS，监控四项趋势与回归。"
+    ],
+    "invariant": "经验法则：召回类治『没找全』，精确/忠实类治『找错/编错』；先保 Context Recall 再提 Precision。",
+    "walkthrough": "100 题测试集：Context Recall 0.82(应召回的 82% 已进入上下文)，Faithfulness 0.91(答案 91% 有依据)，Answer Relevancy 0.88。",
+    "edgeCases": [
+      "无标准答案时只能靠 LLM 裁判带主观性",
+      "Context Recall 依赖高质量标注",
+      "Faithfulness 高但 Answer Relevancy 低(答非所问)",
+      "指标互相掣肘需综合看"
+    ],
+    "code": "from ragas import evaluate\nfrom ragas.metrics import faithfulness, answer_relevancy, context_recall, context_precision\nscore = evaluate(dataset, metrics=[faithfulness, answer_relevancy, context_recall, context_precision])",
+    "codeNotes": [
+      "RAGAS 以 LLM 为裁判自动打分",
+      "需提供 question/answer/contexts/reference 字段"
+    ],
+    "complexity": "每样本多次 LLM 调用，评测成本随样本与指标数线性增长。",
+    "followUps": [
+      {
+        "question": "四项指标哪个优先？",
+        "answer": "先保 Context Recall(找不全后面白搭)，再提 Context Precision 与 Faithfulness，最后看 Answer Relevancy。"
+      },
+      {
+        "question": "没有标注能评测吗？",
+        "answer": "可用 LLM-as-judge 做无参考评估(如 faithfulness 只比答案与上下文)，但 Context Recall 仍建议少量标注。"
+      }
+    ],
+    "followUpAnswers": [
+      "先保 Context Recall(找不全后面白搭)，再提 Context Precision 与 Faithfulness，最后看 Answer Relevancy。",
+      "可用 LLM-as-judge 做无参考评估(如 faithfulness 只比答案与上下文)，但 Context Recall 仍建议少量标注。"
+    ],
+    "pitfalls": [
+      "只看最终答案忽略分段定位",
+      "误信单一指标",
+      "LLM 裁判波动未做多次取平均",
+      "Context Recall 无标注导致失真"
+    ],
+    "beginnerSummary": "评测就像考试：Context Recall 考『资料找全没』，Precision 考『找对没排前没』，Faithfulness 考『照资料答没』，Relevancy 考『答到点没』。",
+    "prerequisites": [
+      "RAG  pipeline",
+      "LLM-as-judge 思路"
+    ],
+    "workedExample": [
+      "准备 question/contexts/answer/reference 数据集",
+      "RAGAS 对四项指标分别打分看趋势"
+    ],
+    "lineByLine": [
+      "import ragas 与四项指标",
+      "evaluate 接收数据集",
+      "LLM 裁判按 rubric 打分",
+      "返回各指标均值"
+    ],
+    "diagram": "Retrieve -> Context Recall / Context Precision\nGenerate -> Faithfulness / Answer Relevancy"
+  },
+  {
+    "id": "rag-008",
+    "category": "RAG",
+    "difficulty": "Easy",
+    "title": "何时用 RAG，何时用微调？",
+    "prompt": "RAG 与微调(fine-tuning)该怎么取舍，分别适合什么场景？",
+    "quickAnswer": "要接入私有/实时外部知识、要可溯源用 RAG；要固化风格/格式/特定能力、数据稳定用微调；二者常组合。",
+    "approach": "按『知识是否频繁变化、是否需要溯源、是否改模型行为』三问决策。",
+    "explanationFocus": "是什么：RAG 在推理时外挂知识(不改权重、易更新、可引用)，微调是把知识/能力烧进模型参数(改行为、低延迟但更新贵)。",
+    "bruteForce": "把全部私域文档直接微调进模型：知识更新需重训、易遗忘、不可溯源、成本高。",
+    "derivation": [
+      "为什么需要：知识型问答与能力型定制诉求不同，单靠一种会顾此失彼。",
+      "怎么实现：动态/海量知识→RAG(向量库+检索)；固定风格、特定任务格式、小样本能力→SFT/LoRA；生产常见『微调定风格+RAG 供知识』。",
+      "有什么代价：RAG 增加检索延迟与链路复杂度、依赖检索质量；微调训练成本高、更新慢、可能过拟合或灾难性遗忘。",
+      "怎么评测：RAG 看前述四项指标；微调看下游任务准确率与泛化，做保留集评估。"
+    ],
+    "invariant": "经验法则：知识常变且要溯源→RAG；要改模型『怎么说话/怎么做』且数据稳→微调。",
+    "walkthrough": "客服机器人：产品手册每周更新→用 RAG 实时检索；要求固定礼貌话术与工单格式→用 LoRA 微调风格。二者结合效果最佳。",
+    "edgeCases": [
+      "知识频繁变却选微调导致过期",
+      "要强溯源却只靠微调无法引用",
+      "RAG 检索质量差时不如微调稳",
+      "组合方案增加系统复杂度"
+    ],
+    "code": "def decide(knowledge_drift, need_citation, change_behavior):\n    if knowledge_drift or need_citation: return 'RAG'\n    if change_behavior: return 'FineTune'\n    return 'RAG+FineTune'",
+    "codeNotes": [
+      "决策可用简单规则表落地",
+      "组合方案注意两阶段解耦与版本管理"
+    ],
+    "complexity": "RAG 推理多一次检索；微调为一次性训练 O(样本×轮次)，推理不变。",
+    "followUps": [
+      {
+        "question": "两者能一起用吗？",
+        "answer": "能且常见：微调定风格/格式，RAG 供最新知识，互不冲突。"
+      },
+      {
+        "question": "小团队资源有限优先哪个？",
+        "answer": "优先 RAG，无需训练、改知识只更新索引，性价比最高；确需改行为再上轻量 LoRA。"
+      }
+    ],
+    "followUpAnswers": [
+      "能且常见：微调定风格/格式，RAG 供最新知识，互不冲突。",
+      "优先 RAG，无需训练、改知识只更新索引，性价比最高；确需改行为再上轻量 LoRA。"
+    ],
+    "pitfalls": [
+      "用微调解决本应 RAG 的动态知识",
+      "忽视 RAG 的溯源优势",
+      "组合方案过度工程"
+    ],
+    "beginnerSummary": "RAG 像『开卷考试随时翻资料』，微调像『把知识背进脑子』；常变且要标出处就开卷，要改说话方式就背下来。",
+    "prerequisites": [
+      "RAG 基础",
+      "微调(SFT/LoRA)概念"
+    ],
+    "workedExample": [
+      "判断知识是否常变且需引用→选 RAG",
+      "判断是否需要改输出风格→选微调，必要时二者结合"
+    ],
+    "lineByLine": [
+      "knowledge_drift/need_citation 触发 RAG",
+      "change_behavior 触发微调",
+      "都不满足则组合"
+    ],
+    "diagram": "RAG: 外部知识(实时,可溯源)\nFT : 内部参数(风格,能力)\nCombo: FT定风格 + RAG供知识"
+  },
+  {
+    "id": "rag-009",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "RAG 中上下文压缩怎么做？",
+    "prompt": "RAG 检索内容过多时，如何进行上下文压缩(context compression)？",
+    "quickAnswer": "用 LLM 或重排器对召回块抽取与问题相关的句子/子句，或生成摘要，再喂 LLM，降低噪声与 token 成本。",
+    "approach": "在检索与生成间插入『压缩层』：抽取式(取相关句)或生成式(摘要)，保留信号去掉冗余。",
+    "explanationFocus": "是什么：上下文压缩是对检索到的长片段做精简，只保留回答问题所需内容，缓解『lost in the middle』与 token 浪费。",
+    "bruteForce": "把检索到的 10 个整块原样塞进 prompt：噪声多、关键信息被埋中间、token 贵且易超窗。",
+    "derivation": [
+      "为什么需要：召回块常含大量无关句子，既占窗口又稀释注意力，尤其长上下文『中间遗忘』明显。",
+      "怎么实现：抽取式用 LLM 标出相关句(compressive retrieval)；生成式用小型 LLM 把多块压成摘要；或与 rerank 配合只取高分句。",
+      "有什么代价：压缩本身多一次 LLM 调用(延迟/成本)；抽取过狠可能丢关键信息。",
+      "怎么评测：对比压缩前后 Faithfulness 与 Answer Relevancy，确认未丢要点。"
+    ],
+    "invariant": "经验法则：压缩保『相关信号』弃『冗余噪声』，压缩后 Faithfulness 不应下降。",
+    "walkthrough": "召回 5 段共 4000 token，压缩层抽取与『年假天数』相关 6 句约 600 token，LLM 据此作答，token 省 85% 且答案更聚焦。",
+    "edgeCases": [
+      "压缩过度删除关键句致漏答",
+      "生成式摘要引入幻觉",
+      "多块矛盾信息被压掉一方",
+      "压缩延迟抵消检索收益"
+    ],
+    "code": "def compress(query, chunks, llm):\n    sys = '只提取与问题相关的句子，不要改写或补充。'\n    kept = []\n    for c in chunks:\n        kept.append(llm.generate(sys + f'\\n问题:{query}\\n文本:{c}'))\n    return '\\n'.join(kept)",
+    "codeNotes": [
+      "抽取式要求『只取原句』降低幻觉",
+      "也可先 rerank 再仅压缩 top 片段省成本"
+    ],
+    "complexity": "压缩 O(块数) 次 LLM 调用；生成式输出长度远小于原输入。",
+    "followUps": [
+      {
+        "question": "抽取式与生成式压缩怎么选？",
+        "answer": "要保原意可溯源选抽取式；要高度浓缩且可接受改写选生成式，但需警惕摘要幻觉。"
+      },
+      {
+        "question": "压缩和 rerank 冲突吗？",
+        "answer": "不冲突，常先 rerank 取 top 再压缩，既排得准又压得狠。"
+      }
+    ],
+    "followUpAnswers": [
+      "要保原意可溯源选抽取式；要高度浓缩且可接受改写选生成式，但需警惕摘要幻觉。",
+      "不冲突，常先 rerank 取 top 再压缩，既排得准又压得狠。"
+    ],
+    "pitfalls": [
+      "压缩丢关键句",
+      "生成式摘要编内容",
+      "为压缩多一次调用却拖慢",
+      "未先 rerank 导致压缩对象过多"
+    ],
+    "beginnerSummary": "上下文压缩像『高亮重点』：把一大段里和问题有关的句子划出来，删掉废话再给 AI 看。",
+    "prerequisites": [
+      "rerank 概念",
+      "LLM 抽取/摘要能力"
+    ],
+    "workedExample": [
+      "召回多块长文本",
+      "LLM 抽取每块的『相关句』拼接后喂生成模型"
+    ],
+    "lineByLine": [
+      "定义只提取不改写的系统提示",
+      "逐块让 LLM 抽取相关句",
+      "拼接保留句作为精简上下文"
+    ],
+    "diagram": "chunks -> [Compress: keep relevant sentences] -> short context -> LLM"
+  },
+  {
+    "id": "rag-010",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "混合检索(BM25+向量)如何做？",
+    "prompt": "RAG 中混合检索(稀疏 BM25 + 稠密向量)怎么融合，为什么有效？",
+    "quickAnswer": "并行跑 BM25 关键词检索与向量语义检索，用 RRF 或加权求和融合结果，兼顾精确关键词匹配与语义泛化。",
+    "approach": "两路召回互补：BM25 抓字面命中，向量抓语义近义，融合去重取 top-k。",
+    "explanationFocus": "是什么：混合检索同时用稀疏(词频/倒排，如 BM25)与稠密(embedding)两种信号召回，再用融合策略合并，提升鲁棒性。",
+    "bruteForce": "只用向量检索：对专名、编号、精确术语等字面强信号易漏；只用 BM25：对同义改写无能为力。",
+    "derivation": [
+      "为什么需要：纯向量对罕见词/专有名词召回弱，纯关键词对语义改写弱，二者互补。",
+      "怎么实现：BM25 建倒排索引做词面召回；向量做语义召回；融合用 Reciprocal Rank Fusion(RRF)或线性加权(score 归一后加权和)。",
+      "有什么代价：多维护一套索引与召回链路，融合参数需调；存储与延迟略增。",
+      "怎么评测：对比混合 vs 单路的 Context Recall/NDCG@10，看是否全面占优。"
+    ],
+    "invariant": "经验法则：关键词强信号(编号/术语)靠 BM25，语义泛化靠向量，RRF 融合最稳。",
+    "walkthrough": "query『错误码 ERR-409 怎么办』：BM25 精准命中含 ERR-409 的文档，向量补召回『冲突/409 处理』语义相近段，RRF 融合后相关段居前。",
+    "edgeCases": [
+      "BM25 对中文需先分词",
+      "两路分数量纲不同不能直接加，须归一或 RRF",
+      "融合权重需按场景调",
+      "索引双写增加维护成本"
+    ],
+    "code": "def rrf_merge(rankings, k=60):\n    score = {}\n    for ranks in rankings:\n        for i, doc_id in enumerate(ranks):\n            score[doc_id] = score.get(doc_id, 0) + 1/(k + i + 1)\n    return sorted(score, key=score.get, reverse=True)",
+    "codeNotes": [
+      "RRF 只用排名不依赖原始分数",
+      "k=60 为经验常数，可调"
+    ],
+    "complexity": "两路检索并行 O(log n)；融合 O(总候选数 log 候选数)。",
+    "followUps": [
+      {
+        "question": "为什么常用 RRF 而非加权求和？",
+        "answer": "RRF 只依赖排名、对两路分数量纲不敏感，免去归一化，融合更稳健。"
+      },
+      {
+        "question": "稀疏检索只有 BM25 吗？",
+        "answer": "还有 SPLADE、BGE-M3 的稀疏向量等神经稀疏表示，兼顾词面与语义。"
+      }
+    ],
+    "followUpAnswers": [
+      "RRF 只依赖排名、对两路分数量纲不敏感，免去归一化，融合更稳健。",
+      "还有 SPLADE、BGE-M3 的稀疏向量等神经稀疏表示，兼顾词面与语义。"
+    ],
+    "pitfalls": [
+      "两路分数直接相加(量纲不同)",
+      "忽略中文分词预处理",
+      "融合权重拍脑袋不验证",
+      "只维护单索引放弃互补"
+    ],
+    "beginnerSummary": "混合检索像『既按书名关键词找，又按内容意思找』，两路结果合并，漏网之鱼更少。",
+    "prerequisites": [
+      "BM25/倒排索引",
+      "向量检索",
+      "RRF 融合"
+    ],
+    "workedExample": [
+      "并行 BM25 与向量检索各取排名",
+      "RRF 按排名倒数求和融合去重取 top-k"
+    ],
+    "lineByLine": [
+      "rankings 为多路排名列表",
+      "对每路每文档按 1/(k+排名) 累加",
+      "按总分降序返回融合结果"
+    ],
+    "diagram": "Query -> BM25(top) --\\n                > RRF -> top-k\nQuery -> Vector(top) --/"
+  },
+  {
+    "id": "rag-011",
+    "category": "RAG",
+    "difficulty": "Hard",
+    "title": "RAG 有哪些典型失败模式与缓解？",
+    "prompt": "RAG 生产中的典型失败模式有哪些，如何缓解？",
+    "quickAnswer": "检索不准、上下文污染/噪声、lost-in-the-middle、知识库缺失仍编造、时效性错乱；缓解靠查询改写、重排、压缩、自省拒答与元数据过滤。",
+    "approach": "按『检索侧—上下文侧—生成侧』三段梳理失败点并对应加防护。",
+    "explanationFocus": "是什么：RAG 失败分布在检索(找错/找不全)、上下文(噪声/错位)、生成(不忠/编造)三层，需分段对症治理。",
+    "bruteForce": "naive 检索→生成一条龙无校验：任一层出错都直接污染答案且难定位。",
+    "derivation": [
+      "为什么需要：各环节都有独立失败概率，单点优化不够，要系统性列清单并设护栏。",
+      "怎么实现：检索层用混合检索+查询改写+重排；上下文层用压缩与策略性排序(相关放首尾)；生成层加忠实度校验、无依据拒答、引用强制。",
+      "有什么代价：每加一层都增延迟与复杂度，需按幻觉风险等级选择性启用。",
+      "怎么评测：用 RAGAS 四项 + 红队测试(故意缺失/矛盾)验证护栏有效。"
+    ],
+    "invariant": "经验法则：检索质量是第一杠杆，自省/拒答是最后防线；先治检索再治生成。",
+    "walkthrough": "query 知识库无答案：naive RAG 仍编造；加『上下文无相关片段则输出未知』+ Faithfulness 校验后，改为拒答或提示补充。",
+    "edgeCases": [
+      "检索到相似但不相关(高相似低相关)",
+      "多片段互相矛盾",
+      "答案在中间被忽略(lost-in-middle)",
+      "旧片段被当最新",
+      "库无答案仍编造"
+    ],
+    "code": "def guarded_generate(query, ctxs, llm):\n    if not any(c.relevant for c in ctxs):\n        return '依据现有资料无法回答该问题。'\n    ans = llm.generate(build_prompt(query, ctxs))\n    return ans if faithfulness_ok(ans, ctxs) else '答案未获资料支撑，请核实。'",
+    "codeNotes": [
+      "先判上下文是否相关再生成",
+      "faithfulness 校验作为生成后护栏"
+    ],
+    "complexity": "额外 O(校验次数) 次 LLM 调用；整体仍受检索与生成主导。",
+    "followUps": [
+      {
+        "question": "lost-in-the-middle 怎么缓解？",
+        "answer": "把最相关片段放首尾、次相关放中间，或先压缩再喂，必要时重排保证相关段靠前。"
+      },
+      {
+        "question": "知识库缺失为何还会编造？",
+        "answer": "LLM 有参数化先验与『必须作答』倾向，需显式拒答约束与忠实度护栏拦截。"
+      }
+    ],
+    "followUpAnswers": [
+      "把最相关片段放首尾、次相关放中间，或先压缩再喂，必要时重排保证相关段靠前。",
+      "LLM 有参数化先验与『必须作答』倾向，需显式拒答约束与忠实度护栏拦截。"
+    ],
+    "pitfalls": [
+      "忽视检索质量只调生成",
+      "不加拒答导致无依据硬编",
+      "上下文顺序不当致关键信息被忽略",
+      "过度堆叠护栏拖慢系统"
+    ],
+    "beginnerSummary": "RAG 像接力赛，任何一棒掉链子答案就翻车：找错资料、资料太杂、AI 没看进去、资料没有还硬编，都要分别设防。",
+    "prerequisites": [
+      "RAG pipeline",
+      "重排/压缩/评测指标"
+    ],
+    "workedExample": [
+      "列出检索/上下文/生成三层失败点",
+      "分别加混合检索、压缩、拒答护栏并评测"
+    ],
+    "lineByLine": [
+      "检查上下文相关性，全不相关则拒答",
+      "相关则构建 prompt 生成",
+      "faithfulness_ok 校验答案是否忠于上下文",
+      "不忠则返回警示"
+    ],
+    "diagram": "Retrieve(错/漏) -> Context(噪/错位) -> Generate(不忠/编造)\n  改写+重排      压缩+排序        拒答+校验"
+  },
+  {
+    "id": "rag-012",
+    "category": "RAG",
+    "difficulty": "Medium",
+    "title": "元数据过滤如何与向量检索结合？",
+    "prompt": "RAG 中元数据过滤(metadata filter)如何与向量检索结合使用？",
+    "quickAnswer": "先按结构化元数据(时间/部门/权限)过滤候选集，再在其中做向量 ANN 检索，或向量召回后用元数据二次过滤，缩小且约束搜索空间。",
+    "approach": "用元数据做『硬约束』缩小范围，向量做『软语义』排序，二者组合即 hybrid filter。",
+    "explanationFocus": "是什么：元数据过滤用文档的结构化属性(日期、来源、标签、权限)做精确筛选，与向量语义检索互补，提升相关性与安全性。",
+    "bruteForce": "只做向量检索不限定部门/时间：召回跨域无关片段，甚至返回无权限文档，既不准又不安全。",
+    "derivation": [
+      "为什么需要：很多查询隐含结构化约束(『本月』『某部门』)，纯语义检索无法表达，且需做权限隔离。",
+      "怎么实现：pre-filter(先 SQL/标签过滤再向量搜)或 post-filter(向量召回后按元数据筛)；向量库多支持 filter 表达式与向量联合查询。",
+      "有什么代价：pre-filter 可能使候选过少致召回下降；post-filter 可能截掉 top-k；需保证过滤后仍够 k 个。",
+      "怎么评测：看过滤正确性(无越权/无越期)与 Context Recall 是否达标。"
+    ],
+    "invariant": "经验法则：权限/时间等硬约束优先用元数据过滤，语义相关用向量；pre-filter 注意候选数兜底。",
+    "walkthrough": "query『本月销售部财报』：先过滤 department=sales 且 date∈本月，再在结果内向量检索『财报』，返回既相关又合规的片段。",
+    "edgeCases": [
+      "pre-filter 过严导致召回为空",
+      "post-filter 把 top-k 砍到不足",
+      "权限元数据缺失致越权",
+      "时间字段时区/格式不一致"
+    ],
+    "code": "def search(q_emb, meta_filter, index, k=5):\n    cand = index.filter(meta_filter)          # 元数据硬过滤\n    hits = index.search(cand, q_emb, k=k)    # 在候选内向量检索\n    return hits",
+    "codeNotes": [
+      "优先用库自带 filter+vector 联合查询",
+      "pre-filter 后需检查候选数是否 >= k"
+    ],
+    "complexity": "过滤 O(候选集) 或索引加速；向量检索在缩小后的集合上进行，整体更快更准。",
+    "followUps": [
+      {
+        "question": "pre-filter 与 post-filter 怎么选？",
+        "answer": "约束严格且候选充足用 pre-filter 保合规；担心过滤掉相关项用 post-filter，但需保证剩余够 k。"
+      },
+      {
+        "question": "元数据过滤能替代向量检索吗？",
+        "answer": "不能，元数据只做精确筛选，语义匹配仍靠向量；二者是『与』关系互补。"
+      }
+    ],
+    "followUpAnswers": [
+      "约束严格且候选充足用 pre-filter 保合规；担心过滤掉相关项用 post-filter，但需保证剩余够 k。",
+      "不能，元数据只做精确筛选，语义匹配仍靠向量；二者是『与』关系互补。"
+    ],
+    "pitfalls": [
+      "只用向量忽略权限过滤致越权",
+      "pre-filter 过严召回为空",
+      "post-filter 截掉相关 top-k",
+      "元数据质量差使过滤失效"
+    ],
+    "beginnerSummary": "元数据过滤像『先按部门/日期筛出合格文件，再在其中按意思找』，既准又不会翻到无权看的资料。",
+    "prerequisites": [
+      "向量检索",
+      "结构化过滤/索引"
+    ],
+    "workedExample": [
+      "先用 meta_filter 筛出合规候选",
+      "在候选集内做向量 ANN 取 top-k"
+    ],
+    "lineByLine": [
+      "index.filter 按元数据硬筛",
+      "缩小后的集合做向量检索",
+      "返回既相关又合规的结果"
+    ],
+    "diagram": "Query+Filter -> [Meta Filter] -> subset -> [Vector ANN] -> top-k"
+  },
+  {
+    "id": "rag-013",
+    "category": "RAG",
+    "difficulty": "Hard",
+    "title": "Self-RAG 与 CRAG 怎么实现自省纠错？",
+    "prompt": "Self-RAG 与 CRAG 如何通过反思/纠错循环提升 RAG 可靠性？",
+    "quickAnswer": "CRAG 加检索评价器把结果分 Correct/Ambiguous/Incorrect，错误时触发网络搜索兜底；Self-RAG 用反思令牌决定何时检索、片段是否相关、答案是否被支撑。",
+    "approach": "在检索与生成间/外引入『评判+循环』：质量不达标则重写、补搜或拒答。",
+    "explanationFocus": "是什么：Self-RAG 与 CRAG 是纠正式(agentic)RAG，通过轻量评价器或反思令牌对检索/生成做自检，质量差时触发重写查询、外部补搜或拒答。",
+    "bruteForce": "naive RAG 盲信 top-k：检索偏题也照生成，产生『引用了但答非/答错』的幻觉。",
+    "derivation": [
+      "为什么需要：检索可能相似但不相关、或库根本没答案，固定管道无纠错会直接幻觉。",
+      "怎么实现：CRAG 用 T5 类评价器给每文档打 Correct/Ambiguous/Incorrect，Incorrect 触发 Web 搜索兜底、Ambiguous 混合；Self-RAG 微调模型输出 [Retrieve]/[ISREL]/[ISSUP]/[ISUSE] 反思令牌驱动检索与自检。",
+      "有什么代价：多轮 LLM/检索调用，延迟与成本上升；Self-RAG 需微调，CRAG 需训练评价器；有循环失控风险需设最大步数。",
+      "怎么评测：对比 naive RAG，看事实性(Faithfulness)提升与幻觉率下降，监控额外延迟。"
+    ],
+    "invariant": "经验法则：自省是第二道防线而非第一道，先保检索质量再上纠错循环，并设最大重试上限。",
+    "walkthrough": "query『Stripe 创始人？』：Self-RAG 输出 [Retrieve] 检索，[ISREL=relevant][ISSUP=fully]，生成答案；若 ISREL=irrelevant 则重写查询再检索。",
+    "edgeCases": [
+      "评价器误判导致无效补搜",
+      "循环无上限拖垮延迟",
+      "Self-RAG 需微调数据成本高",
+      "Web 兜底返回不可靠来源",
+      "Ambiguous 混合策略权重难定"
+    ],
+    "code": "class CorrectiveRAG:\n    def process(self, query, retriever, evaluator, generator, web):\n        docs = retriever.retrieve(query, k=10)\n        grades = [evaluator.grade(query, d) for d in docs]\n        if all(g == 'incorrect' for g in grades):\n            return generator.generate(web.search(query))\n        correct = [d for d, g in zip(docs, grades) if g != 'incorrect']\n        return generator.generate(correct)",
+    "codeNotes": [
+      "CRAG 核心是评价器三分类",
+      "全 incorrect 才整体兜底到 Web 搜索",
+      "需设最大循环步数防失控"
+    ],
+    "complexity": "最坏 O(最大循环步数) 次检索+生成；单轮与 naive RAG 相当，纠错时成倍。",
+    "followUps": [
+      {
+        "question": "Self-RAG 与 CRAG 主要区别？",
+        "answer": "CRAG 用独立轻量评价器做三分类并触发 Web 兜底；Self-RAG 微调模型用反思令牌自决检索与自评，更内聚但需训练。"
+      },
+      {
+        "question": "纠错循环会不会无限循环？",
+        "answer": "会，必须设最大重试/检索步数与超时，超界则降级为拒答或返回当前最佳。"
+      }
+    ],
+    "followUpAnswers": [
+      "CRAG 用独立轻量评价器做三分类并触发 Web 兜底；Self-RAG 微调模型用反思令牌自决检索与自评，更内聚但需训练。",
+      "会，必须设最大重试/检索步数与超时，超界则降级为拒答或返回当前最佳。"
+    ],
+    "pitfalls": [
+      "无循环上限导致延迟爆炸",
+      "评价器误判引发无效补搜",
+      "忽视检索质量只靠纠错兜底",
+      "Self-RAG 微调成本高估错收益"
+    ],
+    "beginnerSummary": "纠正式 RAG 像『写完答案自己复查』：发现参考资料不对就重查或去网上补找，不对劲就坦白说不知道。",
+    "prerequisites": [
+      "RAG pipeline",
+      "重排/评测",
+      "反思与 agent 循环概念"
+    ],
+    "workedExample": [
+      "检索后评价器判 Correct/Ambiguous/Incorrect",
+      "Incorrect 触发 Web 兜底，Ambiguous 混合，Self-RAG 用反思令牌自决"
+    ],
+    "lineByLine": [
+      "retriever 取候选",
+      "evaluator 逐文档三分类",
+      "全 incorrect 则 web 兜底",
+      "否则用非 incorrect 文档生成"
+    ],
+    "diagram": "Query -> Retrieve -> [Evaluator: C/A/I]\n I -> Web Search -> Generate\n C/A -> Refine -> Generate\nSelf-RAG: [Retrieve][ISREL][ISSUP][ISUSE] tokens drive loop"
+  },
+  {
+    "id": "ctx-001",
+    "category": "长上下文与位置编码",
+    "difficulty": "Easy",
+    "title": "长度外推 extrapolation 与位置插值 interpolation 的区别",
+    "prompt": "长度外推（extrapolation）与位置插值（interpolation）在扩展上下文时有什么本质区别？",
+    "quickAnswer": "外推让模型去拟合训练时从未见过的更大位置/角度（直接超纲），插值则把新位置压缩回训练分布区间内（换汤不换药），前者易崩、后者需少量微调。",
+    "approach": "把 RoPE 的角度区间想成一把尺子：外推是越过尺子末端，插值是把长尺内容挤进原尺范围。",
+    "explanationFocus": "是什么：长度外推指推理时位置/旋转角度超出训练所见范围（模型面对 OOD 坐标），位置插值指通过缩放把超长序列的位置重新映射回训练时见过的坐标区间，用插值替代外推。",
+    "bruteForce": "朴素做法是直接把序列拉长、位置索引照原样增大（naive extrapolation）。问题在于 RoPE 在超出训练长度的角度上旋转模式完全没被训练过，注意力分布崩坏、PPL 暴涨、输出乱码。",
+    "derivation": [
+      "为什么需要：模型只在最大训练长度 L_train 内见过位置编码，推理遇到更长序列时坐标越界，性能骤降，必须有一种办法把长序列『塞回』已训练的分布。",
+      "怎么实现：插值方案把位置索引 m 缩放为 m·s（s=L_train/L_target<1）或等价调整频率，使所有角度落回 [0, L_train] 对应区间；外推则不做缩放，直接使用更大角度。",
+      "有什么代价：外推零成本但几乎必然崩；插值几乎不崩但压缩了相邻 token 的角度差，破坏局部分辨率，通常需要数百到千步微调让模型适应更密的网格。",
+      "怎么评测：在目标长度上测 PPL、长文检索（needle-in-a-haystack）与短上下文基准，看是否既能用长上下文又不掉短任务能力。"
+    ],
+    "invariant": "经验法则：能插值就别外推；硬外推只在相对位置本身线性可分（如 ALiBi 的距离偏置）时才稳。",
+    "walkthrough": "例：训练长度 2048，目标 8192，插值缩放 s=2048/8192=0.25，位置 8191 映射到 2047.75，仍在训练区间内；若不缩放，8191 的角度模型从未见过。",
+    "edgeCases": [
+      "缩放因子 s 过小（如 32x）时局部角度分辨率被压得过低，近邻 token 难以区分。",
+      "插值后仍需微调，纯 zero-shot 下 PPL 会变差，不能当免费午餐。",
+      "超出目标长度 L_target 再用仍是外推，缩放只保证到 L_target 为止。"
+    ],
+    "code": "def scale_positions(positions, L_train, L_target):\n    # interpolation: 把位置压缩回训练区间\n    s = L_train / L_target\n    return [m * s for m in positions]",
+    "codeNotes": [
+      "s = L_train / L_target，永远 <1 才是『压缩』插值。",
+      "这只是位置层面的示意；RoPE 实际等价地改 inv_freq 或位置索引。"
+    ],
+    "complexity": "缩放为 O(1) 的逐位置映射，不增加计算；代价在微调训练（数百步）与质量损失评估。",
+    "followUps": [
+      {
+        "question": "为什么不干脆把训练长度拉到很大？",
+        "answer": "长序列带来平方级注意力开销，预训练成本剧增；且数据难凑，故更划算的是先训短再扩。"
+      },
+      {
+        "question": "插值会不会影响短上下文表现？",
+        "answer": "适度微调下短任务基本不降；但若缩放过大或微调不足，局部分辨率受损会拖累短文本。"
+      }
+    ],
+    "followUpAnswers": [
+      "长序列带来平方级注意力开销，预训练成本剧增；且数据难凑，故更划算的是先训短再扩。",
+      "适度微调下短任务基本不降；但若缩放过大或微调不足，局部分辨率受损会拖累短文本。"
+    ],
+    "pitfalls": [
+      "把 extrapolation 和 interpolation 混为一谈，以为『拉长就能用』。",
+      "以为插值零成本，实际仍需微调且缩放过大会损局部分辨率。"
+    ],
+    "beginnerSummary": "模型只在『学过的长度』内认得位置。想让它读更长文章，要么让它去猜没见过的远处坐标（外推，容易翻车），要么把长文章的坐标压缩进它熟悉的区间（插值，稳但需稍作适应）。",
+    "prerequisites": [
+      "Transformer 自注意力",
+      "RoPE 旋转位置编码基础"
+    ],
+    "workedExample": [
+      "训练长度 L_train=2048，目标 L_target=8192。",
+      "取缩放 s=2048/8192=0.25，把每个位置乘 0.25 后喂给 RoPE，所有角度回到训练区间。"
+    ],
+    "lineByLine": [
+      "def scale_positions(...)：定义位置缩放函数。",
+      "s = L_train / L_target：计算压缩因子，恒小于 1。",
+      "return [m * s ...]：逐位置压缩，完成插值映射。"
+    ],
+    "diagram": "训练区间 [0,2048]  ────────────\n长序列   [0............8192]\n插值后   [0...2047.75...]  (压回原区间)"
+  },
+  {
+    "id": "ctx-002",
+    "category": "长上下文与位置编码",
+    "difficulty": "Medium",
+    "title": "Position Interpolation (PI) 的位置索引缩放",
+    "prompt": "Position Interpolation (PI) 如何用缩放因子 s=L_train/L_target 扩展 RoPE 上下文？",
+    "quickAnswer": "PI 在套用 RoPE 前把每个位置索引 m 乘以 s=L_train/L_target（或等价把 inv_freq 除以 s），让所有旋转角度落回训练区间，再用约 1000 步微调适配。",
+    "approach": "线性压缩位置：m → m·s，s<1，把超长序列『挤』回训练时见过的角度范围。",
+    "explanationFocus": "是什么：Position Interpolation（Chen et al., 2023, arXiv:2306.15595）是最简单的 RoPE 扩窗法，它不做外推，而是把位置索引整体线性缩放，使新序列的每个角度都落在训练分布内。",
+    "bruteForce": "不加处理地直接把序列拉到 L_target，位置角度远超训练范围，模型输出立刻乱码（PPL 爆炸）。PI 用线性插值替代这种 OOD 外推。",
+    "derivation": [
+      "为什么需要：RoPE 在训练长度外的角度从未被学习，直接外推必崩，需要一个把新坐标『翻译』回熟悉区间的办法。",
+      "怎么实现：设 s = L_train / L_target，将位置 m 改为 m·s 后再算 RoPE（等价于 inv_freq /= s）。4x 扩展时 s=0.25，四个真实 token 挤进一个『虚拟位置』。",
+      "有什么代价：所有维度被统一压缩，高频维度（编码近邻顺序）分辨率也被压，2–4x 后局部区分力下降；通常需 ~1000 步微调把 PPL 拉回基线，更大倍数无法靠微调救回。",
+      "怎么评测：在 L_target 上测 PPL 与 retrieval，并对比短上下文基准确认未退化；与 NTK/YaRN 同条件下比 PPL 曲线。"
+    ],
+    "invariant": "PI 的缩放是『全局均匀』的：高频与低频维度被一视同仁地压缩，这是它局部失真的根源。",
+    "walkthrough": "例：LLaMA-2 7B 训于 4096，目标 16384（4x）。位置 5000 经 PI 变为 5000×0.25=1250，落回训练区间；但相邻 token 的角度差只剩 1/4，需微调适应。",
+    "edgeCases": [
+      "4x 以上扩展时高频维度分辨率不足，近邻 token 难以区分（红曲线失效）。",
+      "纯 zero-shot 用 PI，PPL 会变差，必须微调。",
+      "部分实现用 inv_freq/=scale（scale=L_target/L_train>1）等价实现，注意别把 scale 与 s 搞反。"
+    ],
+    "code": "def precompute_rope_cache_pi(seq_len, dim, base=10000.0, scale=1.0):\n    # PI 关键: inv_freq 除以 scale (scale = L_target/L_train)\n    half = dim // 2\n    inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))\n    inv_freq = inv_freq / scale\n    pos = torch.arange(seq_len).float()\n    freqs = torch.outer(pos, inv_freq)\n    return freqs.cos(), freqs.sin()",
+    "codeNotes": [
+      "scale = L_target/L_train（>1）；等效于位置乘 s=1/scale。",
+      "此实现直接改 inv_freq，避免改位置索引，数值等价。"
+    ],
+    "complexity": "预计算 O(seq_len·dim)，推理无额外开销；成本在约 1000 步长上下文微调。",
+    "followUps": [
+      {
+        "question": "PI 的 scale 和 ctx-001 里的 s 是什么关系？",
+        "answer": "互为倒数：s=L_train/L_target，scale=L_target/L_train，一个压位置一个压频率，数学等价。"
+      },
+      {
+        "question": "PI 最大能扩多少倍？",
+        "answer": "经验上约 4x 靠微调可达近基线；更大倍数信息被压没，质量不可逆下降。"
+      }
+    ],
+    "followUpAnswers": [
+      "互为倒数：s=L_train/L_target，scale=L_target/L_train，一个压位置一个压频率，数学等价。",
+      "经验上约 4x 靠微调可达近基线；更大倍数信息被压没，质量不可逆下降。"
+    ],
+    "pitfalls": [
+      "把 scale（>1）和 s（<1）混淆，导致方向反了。",
+      "以为 PI 免训练，其实 zero-shot 下 PPL 明显变差。"
+    ],
+    "beginnerSummary": "PI 是『把长尺子上的刻度整体压扁』：原本 0~8192 的位置被乘 0.25 压成 0~2048，模型看到的全是它熟悉的刻度，只是变密了，需要稍微重新适应一下。",
+    "prerequisites": [
+      "RoPE 旋转位置编码",
+      "长度外推与插值概念"
+    ],
+    "workedExample": [
+      "L_train=2048, L_target=8192, s=0.25。",
+      "位置 8191 → 8191×0.25=2047.75，角度回到训练末端；1000 步微调后 PPL 接近基线。"
+    ],
+    "lineByLine": [
+      "inv_freq = 1/(base**(...))：标准 RoPE 逆频率。",
+      "inv_freq = inv_freq / scale：PI 核心，整体压低频率即整体压缩位置。",
+      "torch.outer(pos, inv_freq)：生成各位置旋转角，角度范围被压回训练区间。"
+    ],
+    "diagram": "位置: 0 ... 8191\nPI:  0 ... 2047.75   (×0.25)\n角度全部落在训练 [0,2048] 区间 ✓"
+  },
+  {
+    "id": "ctx-003",
+    "category": "长上下文与位置编码",
+    "difficulty": "Medium",
+    "title": "NTK-aware 插值：调整基频而非线性缩放位置",
+    "prompt": "NTK-aware 插值与 PI 有何不同，为什么改的是 RoPE 的基频 b 而不是位置索引？",
+    "quickAnswer": "NTK-aware 通过抬高基频 b'=b·s^(d/(d-2))（s=L_target/L_train）来拉伸频率，使高频维度几乎不动、低频维度多插值，从而保住局部分辨率，比 PI 退化更平缓（源自 bloc97 的 Reddit，后被 YaRN 形式化）。",
+    "approach": "缩放基频而非位置：高频保真、低频插值，把『失真』集中到对局部最不敏感的维度。",
+    "explanationFocus": "是什么：NTK-aware Scaled RoPE（bloc97, 2023，非论文，reddit 帖）是一种 RoPE 扩窗法：它不改位置索引，而是抬高 RoPE 的基频 base，使高维（高频、短波长）几乎不变，低维（低频、长波长）被充分插值。",
+    "bruteForce": "PI 把所有维度统一压缩，高频维度（负责近邻区分）也被压，局部顺序感丧失。NTK-aware 针对此改进：按维度频率有差别地缩放。",
+    "derivation": [
+      "为什么需要：PI 均匀压缩毁掉高频维度的局部分辨率；NTK 理论指出高频成分被挤压后最难泛化，应少动高频、多动低频。",
+      "怎么实现：把基频由 b=10000 改为 b' = b · s^(d/(d−2))，s=L_target/L_train，d 为 head_dim。等价于每维 inv_freq 用新基频计算；高频维（大指数）几乎不变，低频维（小指数）被明显拉伸。",
+      "有什么代价：相比 PI 退得更优雅、可 zero-shot 用一阵，但中频维度仍可能轻度 OOD；超大倍数仍需微调，且实际扩展比常要设得比目标更高。",
+      "怎么评测：与 PI 在相同 s 下比 PPL/检索曲线；看『lost in middle』与短任务保留度；dynamic NTK 可在免微调下随长度自适应。"
+    ],
+    "invariant": "NTK-aware 的不变式：最高频维度缩放≈1（保局部），最低频维度缩放≈s（全插值），中间平滑过渡。",
+    "walkthrough": "例：head_dim=128, s=4，b'=10000·4^(128/126)≈40970；高频维波长不变保局部，低频维被拉到覆盖 32K。",
+    "edgeCases": [
+      "基频公式指数 d/(d−2) 对 d 敏感，换 head_dim 要重算。",
+      "仍属『部分维度外推』，超大 s 时中频维会轻微 OOD。",
+      "Dynamic NTK 按当前长度 l' 设 s=max(1,l'/L_train)，需推理时动态改。"
+    ],
+    "code": "def ntk_aware_base(base, scale, dim):\n    # scale = L_target / L_train (>1)\n    return base * (scale ** (dim / (dim - 2)))\n\ndef ntk_freqs(dim, scale, base=10000.0):\n    new_base = ntk_aware_base(base, scale, dim)\n    i = torch.arange(0, dim, 2).float()\n    return 1.0 / (new_base ** (i / dim))",
+    "codeNotes": [
+      "关键在于换 base 而非除 inv_freq，频率被『拉伸』而非『平移』。",
+      "scale>1；dim/(dim−2) 接近 1，使高频几乎不动。"
+    ],
+    "complexity": "仅改 base 的 O(dim) 预计算，零推理开销；可免微调（质量次优）或短微调。",
+    "followUps": [
+      {
+        "question": "NTK-aware 为什么比 PI 更能 zero-shot？",
+        "answer": "因为它保住了高频维度的局部分辨率，只有低频被插值，模型在未见长度上衰减更平滑。"
+      },
+      {
+        "question": "b'=b·s^(d/(d−2)) 这指数为什么长这样？",
+        "answer": "由『最高频维缩放为 1、最低频维缩放为 s』两个边界条件反解得出，保证两端行为受控。"
+      }
+    ],
+    "followUpAnswers": [
+      "因为它保住了高频维度的局部分辨率，只有低频被插值，模型在未见长度上衰减更平滑。",
+      "由『最高频维缩放为 1、最低频维缩放为 s』两个边界条件反解得出，保证两端行为受控。"
+    ],
+    "pitfalls": [
+      "误以为 NTK 完全免微调就能到目标长度（实际大倍数仍需微调）。",
+      "把 s 的方向搞反（这里 scale=L_target/L_train>1）。"
+    ],
+    "beginnerSummary": "PI 像把所有刻度一样压扁，近邻也糊了；NTK-aware 则聪明地只拉伸『大尺度』那部分频率、保留『小尺度』高频的清晰，所以局部顺序仍分得清。",
+    "prerequisites": [
+      "RoPE 逆频率与波长概念",
+      "PI 位置插值"
+    ],
+    "workedExample": [
+      "d=128, s=4, base=10000。",
+      "b'=10000·4^(128/126)≈40970；高频维波长不变，低频维被拉到覆盖 32K，局部不糊。"
+    ],
+    "lineByLine": [
+      "def ntk_aware_base：按 d/(d−2) 抬高基频。",
+      "new_base = base * scale**(dim/(dim-2))：核心缩放，scale>1。",
+      "1.0/(new_base**(i/dim))：用新基频算逆频率，高频几乎不变、低频明显拉伸。"
+    ],
+    "diagram": "维 i: 高(局部) ──── 低(全局)\nPI:   全压 ×1/s\nNTK:  几乎不动 ──── 拉 ×s"
+  },
+  {
+    "id": "ctx-004",
+    "category": "长上下文与位置编码",
+    "difficulty": "Medium",
+    "title": "ALiBi：用线性距离偏置替代位置编码",
+    "prompt": "ALiBi 如何在不加任何位置嵌入的情况下实现长度外推？",
+    "quickAnswer": "ALiBi 完全不往词向量加位置嵌入，而是给每个注意力分数减去 m·|i−j|（m 为每头固定斜率），用距离线性惩罚表达位置；因偏置对任意距离都有定义，天然支持训练长度外的外推（Press et al., 2021, arXiv:2108.12409）。",
+    "approach": "位置信息只进注意力分数：score = q·k/√d − m·|i−j|，距离越远罚得越重。",
+    "explanationFocus": "是什么：ALiBi（Attention with Linear Biases，Press et al., ICLR 2022）是一种无位置嵌入的位置表示方法：它不给输入加任何位置向量，而是给注意力 logits 加一个与 query-key 距离成正比的负偏置，使模型偏向近邻、且对任意长度距离都有定义。",
+    "bruteForce": "正弦/可学习绝对位置嵌入在超出训练长度时（表外或 OOD 角度）失效；RoPE 也需插值才能扩窗。ALiBi 的偏置矩阵只依赖距离，天然可外推。",
+    "derivation": [
+      "为什么需要：传统位置编码把位置加在输入层，经多层后被稀释且超界即崩；位置信息真正被『消费』的地方是注意力分数。",
+      "怎么实现：每头一个固定斜率 m_h（非学习），causal 下 bias = −m_h·(i−j)（j≤i）。多头斜率按几何序列 2^(−8h/H) 分配，使各头覆盖不同距离范围；偏置矩阵可预计算复用。",
+      "有什么代价：表达力弱于 RoPE（仅单调距离衰减，无法学复杂位置-内容耦合）；外推能力强但短上下文上通常略逊于精心调的 RoPE；不兼容需显式位置的一些机制。",
+      "怎么评测：训 1024 直接测 2048/4096 的 PPL（应只温和退化）；看 BLOOM/MPT 等长上下文模型表现；对比 RoPE+插值的扩窗成本。"
+    ],
+    "invariant": "ALiBi 的不变式：偏置只取决于相对距离 i−j，与绝对位置无关，因此对任意长度都定义良好——这是免训练外推的根本。",
+    "walkthrough": "例：8 头斜率 [1/2,1/4,…,1/256]；头1（m=0.5）强烈惩罚远处只盯近邻，头8（m≈0.004）几乎不罚可看全局；训练 1024 推理 4096 距离仍按同一公式算。",
+    "edgeCases": [
+      "斜率表对 2 的幂头数用 2^(−8h/H)；非 2 的幂需插值（论文给出最近 2 的幂 + 插值法）。",
+      "ALiBi 无显式位置嵌入，某些依赖绝对位置的任务（如精确定位）表达力受限。",
+      "外推虽稳但非免费午餐，极长下 PPL 仍会缓慢上升。"
+    ],
+    "code": "def get_alibi_slopes(num_heads):\n    import math\n    def pow2(n):\n        start = 2 ** (-(2 ** -(math.log2(n) - 3)))\n        ratio = start\n        return [start * (ratio ** i) for i in range(n)]\n    if math.log2(num_heads).is_integer():\n        return pow2(num_heads)\n    n = 2 ** math.floor(math.log2(num_heads))\n    return pow2(n) + pow2(2 * n)[0::2][:num_heads - n]\n\ndef alibi_bias(seq_len, num_heads):\n    m = torch.tensor(get_alibi_slopes(num_heads))\n    pos = torch.arange(seq_len)\n    dist = torch.clamp(pos.unsqueeze(0) - pos.unsqueeze(1), min=0)\n    return -m.view(-1,1,1) * dist.unsqueeze(0)",
+    "codeNotes": [
+      "斜率固定非学习，m_h=2^(−8h/H) 经验值。",
+      "bias 直接加在 softmax 前的注意力分数上，任意长度距离都有定义。"
+    ],
+    "complexity": "偏置矩阵 O(H·L²) 可预计算并缓存，推理零额外参数；外推无需微调。",
+    "followUps": [
+      {
+        "question": "为什么 ALiBi 能免训练外推而 RoPE 不能直接外推？",
+        "answer": "ALiBi 偏置是距离的函数，对任意距离都定义良好且平滑；RoPE 角度超出训练范围即 OOD，必须插值。"
+      },
+      {
+        "question": "ALiBi 的缺点是什么？",
+        "answer": "只有单调距离衰减的归纳偏置，位置-内容耦合表达力弱于 RoPE，短上下文通常略逊，且不支持需要显式位置的操作。"
+      }
+    ],
+    "followUpAnswers": [
+      "ALiBi 偏置是距离的函数，对任意距离都定义良好且平滑；RoPE 角度超出训练范围即 OOD，必须插值。",
+      "只有单调距离衰减的归纳偏置，位置-内容耦合表达力弱于 RoPE，短上下文通常略逊，且不支持需要显式位置的操作。"
+    ],
+    "pitfalls": [
+      "以为 ALiBi 加了位置嵌入（其实完全没有，只加注意力偏置）。",
+      "非 2 的幂头数斜率表算错，需按论文插值法。"
+    ],
+    "beginnerSummary": "普通方法把『第几个词』写进词向量；ALiBi 不写，而是在算注意力时直接说『离得越远扣分越多』。因为『距离』这个东西不管多长都能算，所以文章再长它也不慌。",
+    "prerequisites": [
+      "自注意力分数计算",
+      "位置编码的两种思路（绝对/相对）"
+    ],
+    "workedExample": [
+      "8 头，斜率 [0.5,0.25,…,0.004]。",
+      "训练长度 1024，推理 4096；距离 3000 的偏置 = −m·3000，公式照常成立，无需微调。"
+    ],
+    "lineByLine": [
+      "get_alibi_slopes：按几何序列生成每头固定斜率。",
+      "dist = clamp(i−j,min=0)：因果下只算过去距离。",
+      "return −m*dist：把距离惩罚作为偏置加回注意力分数。"
+    ],
+    "diagram": "Q@K^T/√d  ── + (−m·|i−j|) ──> softmax\n近邻扣分少 | 远距扣分多\n任意长度距离都可算 → 免训练外推"
+  },
+  {
+    "id": "ctx-005",
+    "category": "长上下文与位置编码",
+    "difficulty": "Hard",
+    "title": "YaRN：NTK-by-parts + 注意力温度缩放的综合方案",
+    "prompt": "YaRN 由哪三个核心组件构成，为什么比 PI/NTK 更高效？",
+    "quickAnswer": "YaRN（Peng et al., 2023, arXiv:2309.00071）= NTK-by-parts 分频段插值 + 注意力温度缩放（1/√t=0.1·ln s+1，折叠进 RoPE）+ Dynamic Scaling；分频段保局部、温度修 softmax 熵，仅需 PI 约 1/10 训练 token 与 1/2.5 步数即可扩到 128K。",
+    "approach": "按波长把维度分三段处理（高频不动/中频斜坡/低频插值），再用温度把注意力熵调回训练态。",
+    "explanationFocus": "是什么：YaRN（Yet another RoPE extensioN）是当前开源扩窗主流方案，它把 RoPE 各维度按波长相对训练长度分段：高频（波长<<L）不插值、低频（波长>>L）全插值、中频用斜坡函数过渡，并额外在注意力 logits 乘温度 t 修正长上下文下 softmax 熵升高。",
+    "bruteForce": "PI 均匀压、NTK-aware 全局换基都有局部失真或中频 OOD；YaRN 用分段 + 温度两步补上这两个漏洞。",
+    "derivation": [
+      "为什么需要：PI/NTK 要么毁高频、要么中频轻度 OOD，且长上下文下注意力 logits 被摊薄、softmax 过平导致『平均而非检索』。",
+      "怎么实现：①NTK-by-parts：按 r=L/λ_d 分三段，阈值 α=1,β=32（LLaMA 最优），ramp γ(r)=(r−α)/(β−α)，频率 h(θ)=(1−γ)θ/s+γθ；②温度：1/√t=0.1·ln(s)+1，通过把 q,k 乘 √(1/t) 折叠进 RoPE，零开销；③Dynamic Scaling：s=max(1,l'/L_train) 随当前长度自适应。",
+      "有什么代价：需少量微调（约 400 步、0.1% 数据，远少于 PI），但比纯 NTK 略需调 α/β/t；实现稍复杂但兼容 FlashAttention2。",
+      "怎么评测：Passkey retrieval（YaRN 7B s=32 在 128K 达 99.4%）、PPL 沿长度滑动窗、短上下文基准几乎不掉点。"
+    ],
+    "invariant": "YaRN 的不变式：高频维绝不插值（保局部）、注意力温度保证 softmax 熵与训练时一致，因此『扩窗不丢短任务能力』。",
+    "walkthrough": "例：s=16，1/√t=0.1·ln16+1≈1.277→t≈0.613；高频维（λ<<L）γ=0 原样保留，低频维（λ>>L）γ=1 全插值，中频平滑过渡。",
+    "edgeCases": [
+      "α/β 是经验值（LLaMA 用 1/32），换模型族需重调。",
+      "温度公式 1/√t=0.1·ln(s)+1 是 LLaMA 拟合值，其他模型 a,b 略有不同（如 Mistral 128K 用 a=0.07,b=1.0）。",
+      "Dynamic Scaling 在长度<L_train 时 s=1，避免短文本性能下降。"
+    ],
+    "code": "def yarn_freqs(dim, scale, base=10000.0, alpha=1.0, beta=32.0, L_train=4096):\n    i = torch.arange(0, dim, 2).float()\n    freqs = 1.0 / (base ** (i / dim))\n    wl = 2 * math.pi / freqs            # 各维波长\n    r = L_train / wl                    # 波长-上下文比\n    gamma = torch.clamp((r - alpha) / (beta - alpha), 0, 1)\n    ntk_base = base * (scale ** (dim / (dim - 2)))\n    ntk_freqs = 1.0 / (ntk_base ** (i / dim))\n    return (1 - gamma) * (freqs / scale) + gamma * ntk_freqs\n\ndef yarn_attn_scale(scale):\n    return 0.1 * math.log(scale) + 1.0   # 即 1/sqrt(t)",
+    "codeNotes": [
+      "γ=0→高频用 NTK 原频(几乎不动)；γ=1→低频用 PI(全插值)。",
+      "注意力温度折叠进 q,k 缩放 √(1/t)，推理零额外开销。"
+    ],
+    "complexity": "预计算 O(dim)，注意力温度零开销；微调约 400 步/0.1% 数据，效率为 PI 的 10× token、2.5× 步数。",
+    "followUps": [
+      {
+        "question": "YaRN 的温度缩放为什么能零开销？",
+        "answer": "把 1/√t 乘进 q,k 向量等价于在 logits 除以 t，无需改 softmax，故推理零额外成本且兼容 FlashAttention2。"
+      },
+      {
+        "question": "NTK-by-parts 和原始 NTK-aware 差在哪？",
+        "answer": "NTK-aware 全局换一个基频；by-parts 按波长分段，高频不插值、中频斜坡、低频全插值，避免中频 OOD。"
+      }
+    ],
+    "followUpAnswers": [
+      "把 1/√t 乘进 q,k 向量等价于在 logits 除以 t，无需改 softmax，故推理零额外成本且兼容 FlashAttention2。",
+      "NTK-aware 全局换一个基频；by-parts 按波长分段，高频不插值、中频斜坡、低频全插值，避免中频 OOD。"
+    ],
+    "pitfalls": [
+      "把 YaRN 当成单纯『换基频』，漏掉温度缩放这一关键组件。",
+      "直接套用 LLaMA 的 α/β/t 到其他模型族而不重调。"
+    ],
+    "beginnerSummary": "YaRN 是『三件套』：先把频率按波长分段（近邻的高频别动、超长的低频才插值、中间平滑过渡），再把注意力『聚焦度』调回训练时的温度，所以既能读超长文又不犯糊涂。",
+    "prerequisites": [
+      "NTK-aware 插值",
+      "softmax 温度与注意力熵",
+      "RoPE 波长概念"
+    ],
+    "workedExample": [
+      "s=16, L_train=4096, α=1, β=32。",
+      "高频维 λ<<L → γ=0 保留局部；低频维 λ>>L → γ=1 全插值；温度 1/√t=0.1·ln16+1≈1.277 修正 softmax。"
+    ],
+    "lineByLine": [
+      "r = L_train/wl：按波长判断该维属于哪一段。",
+      "gamma = clamp((r-α)/(β-α),0,1)：分段斜坡，避免突变。",
+      "yarn_attn_scale：返回 1/√t，用于缩放 q,k 修正注意力熵。"
+    ],
+    "diagram": "波长 λ: 短(局部)──中──长(全局)\n处理:  不动 │斜坡γ│ 全插值(PI)\n+ 注意力温度 t 修正 softmax 熵"
+  },
+  {
+    "id": "ctx-006",
+    "category": "长上下文与位置编码",
+    "difficulty": "Hard",
+    "title": "RoPE 外推方案对比：PI / NTK / YaRN 优劣",
+    "prompt": "PI、NTK-aware、YaRN 三种 RoPE 扩窗方案各有什么优劣，该如何选型？",
+    "quickAnswer": "PI 最简单但>4x 局部失真且需千步微调；NTK-aware 保高频、可 zero-shot 但中频 OOD；YaRN 分段+温度最稳且微调最省（1/10 token），是开源默认；免训练外推则选 ALiBi 类。",
+    "approach": "按『是否保高频 / 是否需微调 / 扩展倍数 / 实现成本』四维对比三方案。",
+    "explanationFocus": "是什么：这是一道横向对比题——PI、NTK-aware、YaRN 都是 RoPE 模型的上下文扩窗法，差别在于『如何分配插值压力』与『是否修正注意力熵』，直接决定局部保真度、微调成本与最大可扩倍数。",
+    "bruteForce": "逐个方案试错成本高；更优是先按维度理解各自失配点：PI 毁高频、NTK 中频 OOD、YaRN 补两者加温度。",
+    "derivation": [
+      "为什么需要：不同业务对『扩展倍数/微调预算/短任务保真』要求不同，必须能按约束选型而非盲选。",
+      "怎么实现：PI 用位置×s 全局均匀压缩；NTK-aware 抬高基频 b'=b·s^(d/(d−2)) 保高频；YaRN 在 NTK-by-parts 上加温度与 dynamic scaling；三者都可叠加 Dynamic 变体。",
+      "有什么代价：PI 简单但局部失真且≈1000 步微调；NTK 可 zero-shot 但中频仍 OOD、大倍数需微调；YaRN 最稳最省微调，但参数(α,β,t)需按模型族调。",
+      "怎么评测：同 s 下比 PPL 曲线、Passkey/needle 准确率、短上下文基准掉点；看『lost in middle』与最大可用长度。"
+    ],
+    "invariant": "选型不变式：扩展倍数小(≤4x)且想省事→PI；想免/少微调→NTK/dynamic；追求最大长度与短任务保真→YaRN；完全免训练外推→ALiBi。",
+    "walkthrough": "例：目标 32K、仅数百步预算→YaRN（s=8，400 步达 128K 级）；纯推理不改权重→dynamic NTK；训短测长硬外推→ALiBi。",
+    "edgeCases": [
+      "PI 在 >4x 时质量不可逆下降，不要硬撑。",
+      "NTK 实际扩展比要设得比目标更高（部分维外推）。",
+      "YaRN 的 α/β/t 是模型族相关经验值，迁移需重调。"
+    ],
+    "code": "def compare_methods(s, dim=128, base=10000.0):\n    pi_base = base                      # PI: 位置×1/s\n    ntk_base = base * (s ** (dim/(dim-2)))\n    return {'PI_scale': 1/s, 'NTK_base': ntk_base,\n            'YaRN': 'NTK-by-parts + temp'}\n\n# 选型提示(建议二次核对各模型族最优超参)\nRECOMMEND = {'<=4x+省事': 'PI', '免/少微调': 'NTK/dynamic',\n             '最大长度+保真': 'YaRN', '免训练外推': 'ALiBi'}",
+    "codeNotes": [
+      "三方案核心区别仅在『如何改频率/位置』，其余 RoPE 计算不变。",
+      "RECOMMEND 为经验选型，具体超参建议二次核对论文/模型卡。"
+    ],
+    "complexity": "三者预计算均 O(dim)，推理零额外开销；主要差异在微调步数与可扩上限，而非算力。",
+    "followUps": [
+      {
+        "question": "为什么 YaRN 微调比 PI 省那么多？",
+        "answer": "分段插值保住了高频与局部结构、温度修正了注意力分布，模型只需少量适应即可，约 1/10 token、1/2.5 步数。"
+      },
+      {
+        "question": "三者能组合或叠加吗？",
+        "answer": "可以且常叠加 Dynamic Scaling（按当前长度调 s），YaRN 本身即 NTK-by-parts 的升级；ALiBi 是另一路线不混用。"
+      }
+    ],
+    "followUpAnswers": [
+      "分段插值保住了高频与局部结构、温度修正了注意力分布，模型只需少量适应即可，约 1/10 token、1/2.5 步数。",
+      "可以且常叠加 Dynamic Scaling（按当前长度调 s），YaRN 本身即 NTK-by-parts 的升级；ALiBi 是另一路线不混用。"
+    ],
+    "pitfalls": [
+      "以为『扩窗方法越强越该无脑用 YaRN』而忽略超参调优成本。",
+      "混淆各方案缩放方向（PI 压位置、NTK/YaRN 改频率）。"
+    ],
+    "beginnerSummary": "PI 像整把尺子压扁（近邻也糊），NTK 只拉大尺度保近邻，YaRN 再补一刀把注意力聚焦度调回来——一个比一个稳，但也一个比一个稍复杂。",
+    "prerequisites": [
+      "PI 位置插值",
+      "NTK-aware 插值",
+      "YaRN 三件套"
+    ],
+    "workedExample": [
+      "目标 32K，预算 400 步：选 YaRN（s=8）。",
+      "纯推理不改权重：选 dynamic NTK；硬外推：选 ALiBi。"
+    ],
+    "lineByLine": [
+      "compare_methods：对比三种方案的基频/缩放。",
+      "RECOMMEND：按约束（倍数/微调/外推）给出经验选型。",
+      "注释提醒超参需二次核对，避免盲用。"
+    ],
+    "diagram": "方案   局部保真  免微调  最大倍数  实现\nPI      ✗        ✗       ~4x     易\nNTK     ✓        △      中       中\nYaRN    ✓        △      大       中+\nALiBi   短任务弱  ✓      大       易"
+  },
+  {
+    "id": "ctx-007",
+    "category": "长上下文与位置编码",
+    "difficulty": "Hard",
+    "title": "长上下文训练的序列并行与上下文并行",
+    "prompt": "训练超长序列时，序列并行 / 上下文并行如何切分注意力以突破单卡显存？",
+    "quickAnswer": "上下文并行（CP）沿序列维把长序列切成段分到多卡，各卡算自己段的 Q 并与全量 K/V 交互（常以 Ring/All-to-All 实现因果注意力的块间通信）；序列并行（SP） further 把 LayerNorm/dropout 的序列维也切分以省激活显存，常与 TP 配合。",
+    "approach": "把『长』这个维度从单卡拆到多卡：CP 解决注意力序列长度，SP 解决层内序列激活。",
+    "explanationFocus": "是什么：序列并行（Sequence Parallelism, SP）与上下文并行（Context Parallelism, CP）是一类把序列长度维度拆分到多设备上的并行策略，用于训练/推理超出单卡显存与算力极限的超长序列，核心难点在因果自注意力需跨段交换 K/V。",
+    "bruteForce": "单卡直接算全长注意力：显存 O(L·d) 激活 + O(L²) 注意力矩阵，L 到几十万时单卡 OOM；朴素重算也救不了注意力平方开销。",
+    "derivation": [
+      "为什么需要：长上下文训练 L 可达 32K–1M，单卡显存与注意力算力都不够，必须把序列维切分。",
+      "怎么实现：CP 把序列分段，每段在一卡算 Q，通过 ring/All-to-All 与所有段的 K/V 做分块注意力（因果下需处理块间掩码与通信顺序）；SP（如 Megatron SP）把 LayerNorm、Dropout 等本来 TP 复制的序列维也切分，配合 TP 减少冗余激活。",
+      "有什么代价：跨卡通信开销（K/V 传递、梯度同步）；因果注意力需仔细处理块边界掩码避免信息泄漏；实现复杂度高，需与 TP/PP/FlashAttention 协同。",
+      "怎么评测：在固定模型下测『可训练最大 L』、吞吐量(tokens/sec/GPU)、显存峰值；对比 CP 度与通信占比，验证长文本任务指标不降。"
+    ],
+    "invariant": "CP/SP 的不变式：数学结果须等价于单卡全序列计算（仅通信与切分方式不同），因果掩码边界不能泄漏未来信息。",
+    "walkthrough": "例：L=32K 用 8 卡 CP，每卡持 4K 序列算 Q，通过 8 步 ring 与各卡 K/V 分块做注意力，总激活显存降约 8×。",
+    "edgeCases": [
+      "因果注意力块边界必须正确加掩码，否则后段『看到』前段未来 token。",
+      "CP 度不是越大越好，通信成为瓶颈时需与 TP/PP 平衡。",
+      "Ring 注意力需处理首尾块，避免死锁或重复计算。"
+    ],
+    "code": "def context_parallel_attn(q_shard, kv_all, cp_rank, cp_size):\n    # q_shard: 本卡 Q [L/cp_size, d]; kv_all: 各卡 K/V 列表\n    out = []\n    for step in range(cp_size):\n        k, v = kv_all[(cp_rank + step) % cp_size]\n        # 因果掩码: 仅允许 attend 到不晚于当前块的 key\n        scores = q_shard @ k.T / math.sqrt(d)\n        scores = causal_mask(scores, cp_rank, step)\n        out.append(softmax(scores) @ v)\n    return sum(out)  # 跨步累加(示意)",
+    "codeNotes": [
+      "真实实现用 Ring/All-to-All + FlashAttention 分块，避免物化全 L²。",
+      "causal_mask 必须按 (cp_rank, step) 判断当前块能看哪些 key，防泄漏。"
+    ],
+    "complexity": "算力随卡数近似线性加速；通信 O(L·d·cp_size) 量级，瓶颈在 K/V 跨卡传递与边界同步。",
+    "followUps": [
+      {
+        "question": "CP 和 SP 到底区别在哪？",
+        "answer": "CP 主要切分注意力的序列长度维并跨卡交换 K/V；SP 进一步把 LayerNorm/Dropout 等层内序列维也切分以省激活，通常叠在 TP 之上。"
+      },
+      {
+        "question": "为什么不能直接用数据并行训长序列？",
+        "answer": "数据并行每张卡仍要持完整序列，L 超显存照样 OOM；CP/SP 才是把『序列长度』本身拆开。"
+      }
+    ],
+    "followUpAnswers": [
+      "CP 主要切分注意力的序列长度维并跨卡交换 K/V；SP 进一步把 LayerNorm/Dropout 等层内序列维也切分以省激活，通常叠在 TP 之上。",
+      "数据并行每张卡仍要持完整序列，L 超显存照样 OOM；CP/SP 才是把『序列长度』本身拆开。"
+    ],
+    "pitfalls": [
+      "实现因果注意力时块边界掩码错误，导致未来信息泄漏。",
+      "盲目加大 CP 度使通信压过计算收益。"
+    ],
+    "beginnerSummary": "长文章太长，一张显卡放不下。上下文并行就是把文章切成几段分给几张卡，每段算自己的『提问』，再互相问问别的段里有什么，最后拼起来——前提是绝不能让前面的段偷看后面的内容。",
+    "prerequisites": [
+      "Transformer 注意力与因果掩码",
+      "模型并行（TP/PP/DP）基础"
+    ],
+    "workedExample": [
+      "L=32K, 8 卡 CP，每卡 4K 序列。",
+      "每卡用 ring 与各卡 K/V 分块做注意力，因果掩码防泄漏，显存约降 8×。"
+    ],
+    "lineByLine": [
+      "q_shard：本卡持有的 Q 分片。",
+      "for step：沿 ring 依次与各卡 K/V 做分块注意力。",
+      "causal_mask + sum：保证因果且累加各步结果，等价于全序列注意力。"
+    ],
+    "diagram": "卡0[blk0]──┐\n卡1[blk1]──┼─ Ring 交换 K/V ─> 每块看允许的历史\n卡2[blk2]──┤\n卡3[blk3]──┘  因果掩码防泄漏未来"
+  },
+  {
+    "id": "ctx-008",
+    "category": "长上下文与位置编码",
+    "difficulty": "Medium",
+    "title": "长文档切分与跨块位置编号",
+    "prompt": "处理超长文档时，如何切分并编号位置才能不丢失跨块的相对位置信息？",
+    "quickAnswer": "常用『连续全局位置编号 + 块内 RoPE 缩放』或『保留块边界的全局位置』：切分时让各块仍使用文档级连续位置索引（而非每块从 0 重置），必要时配合 PI/NTK 缩放，使跨块相对距离在位置编码中依然正确。",
+    "approach": "切分只切计算、不切断位置：各块复用文档全局位置，必要时做扩窗缩放。",
+    "explanationFocus": "是什么：长文档切分指把超长文本切成若干块分别送入模型；关键在于位置编号策略——若每块都从位置 0 重新开始，模型会误以为块间无距离，丢失跨块顺序与长距离依赖，因此需保留全局连续位置或显式编码块偏移。",
+    "bruteForce": "最简单是逐块独立编码（每块位置 0..B−1）。问题：块 2 与块 1 的相对距离被错算为 0，跨块指代、时序、因果全部失效；检索/摘要质量崩。",
+    "derivation": [
+      "为什么需要：单卡上下文有限，必须切块；但语言理解依赖全局顺序，位置编号错则语义错。",
+      "怎么实现：方案A——全局连续编号，块 k 的位置从 k·B 起算，RoPE 直接用全局位置（若超训练长度再叠加 PI/NTK 缩放）；方案B——块内位置 + 可学习的块偏移/段 ID；方案C——用 ALiBi 类距离偏置天然支持任意长度。",
+      "有什么代价：全局连续编号在总长远超训练长度时需扩窗（PI/NTK/YaRN）；块边界处注意力本就被分块切断，需在拼接/检索阶段补偿（如重叠窗口、attention sink）。",
+      "怎么评测：在长文档 QA/摘要上对比『每块重置位置』vs『全局位置』的指标差；needle 放在块边界处测跨块召回。"
+    ],
+    "invariant": "位置编号不变式：任意两 token 的相对位置差必须等于它们在原文中的真实距离，否则位置编码即失真。",
+    "walkthrough": "例：块大小 B=2048，块2 起始位置应为 4096 而非 0；若模型训练长度仅 2048，则全局位置 4096 需经 PI(s=0.5) 缩回 2048 内。",
+    "edgeCases": [
+      "块边界 token 的相对距离若用块内编号会被算错，必须用全局位置。",
+      "重叠切分（sliding window）可缓解边界信息丢失，但带来冗余与去重成本。",
+      "全局位置超训练长度时必须配合扩窗缩放，否则又回到外推崩溃。"
+    ],
+    "code": "def block_positions(block_idx, block_size, method='global', scale=1.0):\n    base = block_idx * block_size\n    pos = [base + i for i in range(block_size)]\n    if method == 'reset':\n        pos = list(range(block_size))      # 错误示范: 跨块距离失真\n    if scale != 1.0:\n        pos = [p / scale for p in pos]     # 扩窗缩放(PI)\n    return pos",
+    "codeNotes": [
+      "默认用全局连续编号，跨块相对距离才正确。",
+      "scale>1 即 PI 的位置压缩，防止超训练长度外推。"
+    ],
+    "complexity": "编号 O(块数·块大小) 可忽略；成本在扩窗缩放与边界补偿策略的设计与推理。",
+    "followUps": [
+      {
+        "question": "为什么不能每块都从位置 0 开始？",
+        "answer": "那会让模型认为块间距离为 0，破坏跨块时序/指代/因果，长文档理解整体失效。"
+      },
+      {
+        "question": "滑动窗口切分能解决跨块问题吗？",
+        "answer": "重叠窗口能缓解边界丢失，但增加冗余与去重成本，且极长距离依赖仍需全局位置或检索补偿。"
+      }
+    ],
+    "followUpAnswers": [
+      "那会让模型认为块间距离为 0，破坏跨块时序/指代/因果，长文档理解整体失效。",
+      "重叠窗口能缓解边界丢失，但增加冗余与去重成本，且极长距离依赖仍需全局位置或检索补偿。"
+    ],
+    "pitfalls": [
+      "切块时每块重置位置索引，导致跨块相对距离归零。",
+      "全局位置超训练长度却忘了做扩窗缩放，重新触发外推崩溃。"
+    ],
+    "beginnerSummary": "把长文切成几段读，位置编号绝不能每段都从『第 1 个字』开始，否则模型以为段与段之间没有先后。正确做法是各段沿用全文的连续编号，超长时再配合扩窗缩放。",
+    "prerequisites": [
+      "位置编码与相对距离",
+      "PI/NTK 扩窗基础"
+    ],
+    "workedExample": [
+      "B=2048，块2 应用全局位置 4096..6143。",
+      "若训练长度仅 2048，则全局位置经 PI(s=0.5) 缩回 [0,2048] 内。"
+    ],
+    "lineByLine": [
+      "base = block_idx*block_size：每块偏移量。",
+      "method=='reset'：错误示范，跨块距离归零。",
+      "pos=[p/scale]：PI 扩窗缩放，防超训练长度。"
+    ],
+    "diagram": "文档: [块0......][块1......][块2......]\n正确: 0..2047   2048..4095  4096..6143  (全局)\n错误: 0..2047   0..2047     0..2047     (重置, 跨块失真)"
+  },
+  {
+    "id": "ctx-009",
+    "category": "长上下文与位置编码",
+    "difficulty": "Medium",
+    "title": "长度外推评测：Passkey 与 Needle-in-a-Haystack",
+    "prompt": "如何用 Passkey Retrieval 和 Needle-in-a-Haystack 评测模型的长度外推能力？",
+    "quickAnswer": "两者都在长『干草堆』文本中埋入一个关键信息（密码/事实），要求模型在任意长度与深度下召回。NIAH 扫『上下文长度×插入深度』成热力图，暴露『lost in the middle』；Passkey 测精确数字召回。二者都是长上下文可靠性的地板测试。",
+    "approach": "埋针于草堆：在无关长文本中插入唯一答案，扫不同长度与深度看能否被找回。",
+    "explanationFocus": "是什么：Needle-in-a-Haystack（NIAH）与 Passkey Retrieval 是评测长上下文『能否真正用到远处信息』的基准：在大量无关文本（haystack）中埋入一个唯一关键事实（needle/passkey），要求模型在指定上下文长度与插入深度下准确复述。",
+    "bruteForce": "只报『支持 128K』或只看 PPL。问题：PPL 对长程检索不敏感，厂商标称长度常是『天花板』而非可用范围，需实测召回。",
+    "derivation": [
+      "为什么需要：标称上下文窗口 ≠ 实际可用；模型常在中段（lost in the middle）或极长处召回骤降，必须量化。",
+      "怎么实现：构造 haystack（如重复无关句填到目标 token 数），在深度 d∈{10%,50%,90%…} 插入 needle；在多个总长度 L 上跑模型问 needle 内容；记录通过率绘成 长度×深度 热力图。Passkey 用随机数字串测精确召回。",
+      "有什么代价：只测字面召回，不测多跳推理/聚合/对抗干扰；需大量重复 trial 得稳定通过率；长长度下推理成本高。",
+      "怎么评测：报告各 (L, depth) 通过率与 U 型曲线；对比扩窗方法（YaRN 7B s=32 在 128K 达 99.4%，Code Llama NTK 约 94.3%）——数字建议二次核对。"
+    ],
+    "invariant": "评测不变式：needle 必须是『只有从它自身才能回答』的唯一事实，且深度/长度要系统扫描，否则结论有偏。",
+    "walkthrough": "例：在 100K token 填充文本的第 50% 处插入『密码是 938271』，问『密码是多少？』；若答错即该 (100K, mid) 格失败，热力图中间暗即 lost-in-the-middle。",
+    "edgeCases": [
+      "只测首尾深度会漏掉中段失效（U 型曲线）。",
+      "NIAH 通过≠真实推理强，需配合 LongBench/MRCR 等。",
+      "深度与长度的格需多次 trial，单次有随机性。"
+    ],
+    "code": "def needle_eval(haystack_len, depth, needle, question, model):\n    insert_at = int(haystack_len * depth)\n    text = fill_haystack(haystack_len, insert_at, needle)\n    ans = model.generate(text + '\\n' + question)\n    return needle in ans   # 精确召回判通过\n\n# 扫描 长度 × 深度 得到热力图(建议多次 trial 取通过率)",
+    "codeNotes": [
+      "depth 应覆盖 10%~95%，尤其包含 50% 中段。",
+      "判分宜用精确/关键词匹配，多次 trial 取通过率更稳。"
+    ],
+    "complexity": "评测成本随最大长度与 trial 数线性增长；瓶颈在长序列推理而非构造。",
+    "followUps": [
+      {
+        "question": "NIAH 通过就代表长上下文靠谱吗？",
+        "answer": "不够。NIAH 只测字面召回，不测多跳推理、跨段聚合与对抗干扰，需配合 LongBench/MRCR 等。"
+      },
+      {
+        "question": "Passkey 和 NIAH 区别？",
+        "answer": "本质同类；Passkey 多用随机数字串测精确召回，NIAH 多用一句事实句，二者都扫长度×深度。"
+      }
+    ],
+    "followUpAnswers": [
+      "不够。NIAH 只测字面召回，不测多跳推理、跨段聚合与对抗干扰，需配合 LongBench/MRCR 等。",
+      "本质同类；Passkey 多用随机数字串测精确召回，NIAH 多用一句事实句，二者都扫长度×深度。"
+    ],
+    "pitfalls": [
+      "只测首尾深度，误以为长上下文全好（漏掉中段失效）。",
+      "把 NIAH 通过率当成综合长文本推理能力。"
+    ],
+    "beginnerSummary": "就像在稻草堆里藏一根针，看模型能不能在任意长度和任意位置都把它找出来。扫一遍『多长 × 藏在哪』画成热力图，中间发暗就是模型『读到中间就忘了』。",
+    "prerequisites": [
+      "长上下文与扩窗方法",
+      "困惑度 PPL 的局限"
+    ],
+    "workedExample": [
+      "100K 填充文本，50% 处插入『密码 938271』。",
+      "问『密码是多少』，答错则该格失败；多长度多深度扫出 U 型热力图。"
+    ],
+    "lineByLine": [
+      "insert_at = len*depth：按深度定位插入点。",
+      "fill_haystack：用无关文本填到目标长度并埋 needle。",
+      "needle in ans：精确召回判通过，扫网格得热力图。"
+    ],
+    "diagram": "长度\\深度  首  中  尾\n 8K       ✓   ✓   ✓\n 32K      ✓   △   ✓\n 128K     ✓   ✗   ✓   ← lost in middle"
   }
 ];

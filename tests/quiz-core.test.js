@@ -26,7 +26,7 @@ const beginnerFixture = {
 };
 
 test('现有 60 道题均通过基础内容校验', () => {
-  assert.equal(questions.length, 281);
+  assert.equal(questions.length, 343);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -406,6 +406,43 @@ test('子Agent模块【Agent Workflow】全部题卡通过初学者契约', () =
   const ids = new Set(["agent-what-is-agent","agent-react","agent-tool-calling","agent-planning","agent-memory","agent-reflection","agent-multi-agent","agent-orchestration","agent-state-machine","agent-error-retry","agent-context-mgmt","agent-prompt-eng","agent-rag-in-agent","agent-eval","agent-cost","agent-streaming","agent-security","agent-observability","agent-cot","agent-prod-deploy","agent-autonomous-vs-constrained","agent-planning-algo","agent-human-in-loop","agent-failure-modes","agent-rag-vs-finetune"]);
   const matched = questions.filter((q) => ids.has(q.id));
   assert.equal(matched.length, 25, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+// ---- 大模型八股新增模块 (auto-generated) ----
+test('子Agent模块【Transformer 架构】全部题卡通过初学者契约', () => {
+  const ids = new Set(["arch-rope","arch-rope-vs-abs-rel","arch-swiglu","arch-preln-postln","arch-rmsnorm-layernorm","arch-flash-attention","arch-flash-vs-std","arch-mha-mqa-gqa-deep","arch-gqa-tradeoff","arch-rope-extrapolation","arch-pos-evolution","arch-kqv-projection","arch-causal-mask","arch-ffn-swiglu-relation","arch-preln-rmsnorm-combo","arch-attn-complexity","arch-relpos-other","arch-rope-multidim","arch-attn-vs-conv","arch-norm-placement"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 20, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【训练与微调】全部题卡通过初学者契约', () => {
+  const ids = new Set(["train-scaling-laws-chinchilla","train-data-mixture","train-dedup","train-token-estimate","train-sft-data","train-sft-loss-mask","train-sft-mask-multiturn","train-lora-principle","train-lora-rank-alpha","train-qlora","train-lora-merge","train-catastrophic-forgetting","train-continual-learning","train-kd","train-kd-vs-rlhf","train-teacher-student","train-pretrain-ft-align","train-quality-vs-quantity","train-curriculum","train-overfit-regularization"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 20, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【RAG】全部题卡通过初学者契约', () => {
+  const ids = new Set(["rag-001","rag-002","rag-003","rag-004","rag-005","rag-006","rag-007","rag-008","rag-009","rag-010","rag-011","rag-012","rag-013"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 13, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【长上下文与位置编码】全部题卡通过初学者契约', () => {
+  const ids = new Set(["ctx-001","ctx-002","ctx-003","ctx-004","ctx-005","ctx-006","ctx-007","ctx-008","ctx-009"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 9, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
   }
