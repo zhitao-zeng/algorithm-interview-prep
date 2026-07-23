@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 
 const beginnerFixture = {
   id: 'fixture',
+  kind: 'code',
   title: '样例',
   prompt: '样例题',
   quickAnswer: '答案',
@@ -55,6 +56,38 @@ test('默认校验仍接受旧版字符串追问', () => {
   };
 
   assert.equal(validateQuestionCard(legacyFixture).valid, true);
+});
+
+test('每张题卡都有合法 kind 且通过自身 kind 校验', () => {
+  for (const q of questions) {
+    assert.ok(q.kind === 'code' || q.kind === 'concept', `kind 非法: ${q.id} = ${q.kind}`);
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, `${q.id} (${q.kind}) 应仍满足初学者契约`);
+  }
+});
+
+test('kind 分布与分类映射一致', () => {
+  const codeCats = new Set(['链表', '二叉树', '数组/窗口', '二分/TopK', '搜索/图', '动态规划', '模型手写', 'ASR 专项']);
+  for (const q of questions) {
+    const expect = codeCats.has(q.category) ? 'code' : 'concept';
+    assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
+  }
+  assert.equal(questions.filter((q) => q.kind === 'code').length, 60, '代码题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 283, '概念题数量');
+});
+
+test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
+  const codeCard = questions.find((q) => q.kind === 'code');
+  const conceptCard = questions.find((q) => q.kind === 'concept');
+  const codeQuickKeys = detailSections(codeCard, 'quick').map((s) => s.key);
+  const codeDeepKeys = detailSections(codeCard, 'deep').map((s) => s.key);
+  const conceptQuickKeys = detailSections(conceptCard, 'quick').map((s) => s.key);
+  const conceptDeepKeys = detailSections(conceptCard, 'deep').map((s) => s.key);
+  assert.ok(codeQuickKeys.includes('bruteForce'), '代码题 quick 应含 朴素做法');
+  assert.ok(codeDeepKeys.includes('invariant'), '代码题 deep 应含 循环不变量');
+  assert.ok(codeDeepKeys.includes('walkthrough'), '代码题 deep 应含 执行追踪');
+  assert.ok(conceptQuickKeys.includes('explanationFocus'), '概念题 quick 应含 是什么');
+  assert.ok(conceptQuickKeys.includes('approach'), '概念题 quick 应含 核心思路');
+  assert.ok(!conceptDeepKeys.includes('invariant'), '概念题 deep 不应含 循环不变量');
 });
 
 test('链表与二叉树第一批题卡满足完整初学者学习契约', () => {
@@ -137,7 +170,7 @@ test('搜索图与动态规划第三批题卡满足完整初学者学习契约',
 test('快速详情按初学者学习顺序展示', () => {
   assert.deepEqual(
     detailSections(beginnerFixture, 'quick').map((section) => section.key),
-    ['beginnerSummary', 'diagram', 'code', 'complexity', 'followUps', 'pitfalls'],
+    ['beginnerSummary', 'diagram', 'code', 'bruteForce', 'complexity', 'followUps', 'pitfalls'],
   );
 });
 
@@ -145,11 +178,11 @@ test('深入详情按分步学习顺序返回全部渲染类型', () => {
   const sections = detailSections(beginnerFixture, 'deep');
   assert.deepEqual(
     sections.map((section) => section.type),
-    ['text', 'diagram', 'concepts', 'steps', 'steps', 'code', 'lineNotes', 'text', 'cards', 'qa', 'list'],
+    ['text', 'diagram', 'concepts', 'text', 'steps', 'steps', 'code', 'lineNotes', 'text', 'text', 'cards', 'qa', 'list'],
   );
   assert.deepEqual(
     sections.map((section) => Array.isArray(section.value)),
-    [false, false, true, true, true, false, true, false, true, true, true],
+    [false, false, true, false, true, true, false, true, false, false, true, true, true],
   );
   // 复习模式应默认展开完整初学者内容；该断言在实现前应先失败。
   const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
@@ -159,8 +192,8 @@ test('深入详情按分步学习顺序返回全部渲染类型', () => {
 test('模拟模式切题入口统一重置揭晓进度', () => {
   const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   assert.match(appSource, /function selectQuestion\(id\)/);
-  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, category, state\.query\)\[0\]\?\.id\)/);
-  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, state\.category, state\.query\)\[0\]\?\.id\)/);
+  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, category, state\.query(?:, state\.kind)?\)\[0\]\?\.id\)/);
+  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, state\.category, state\.query(?:, state\.kind)?\)\[0\]\?\.id\)/);
   assert.match(appSource, /state\.revealIndex = 0/);
 });
 

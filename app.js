@@ -4,14 +4,14 @@ import { detailSections, filterQuestions, formatRemaining, getEmptyState, sample
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
 const state = {
-  mode: 'review', category: '全部', query: '', selectedId: questions[0].id,
+  mode: 'review', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   mockQuestions: [], revealIndex: 0, detailLevel: 'deep', masteredIds: loadMastered(),
   remaining: 2700, timerId: null,
 };
 
 function loadMastered() { try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); } catch { return new Set(); } }
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
-function activeQuestions() { return state.mode === 'mock' ? state.mockQuestions : filterQuestions(questions, state.category, state.query); }
+function activeQuestions() { return state.mode === 'mock' ? state.mockQuestions : filterQuestions(questions, state.category, state.query, state.kind); }
 function selectedQuestion() { return activeQuestions().find((q) => q.id === state.selectedId) || activeQuestions()[0]; }
 function selectQuestion(id) {
   state.selectedId = id;
@@ -29,11 +29,23 @@ function renderCategories() {
     const button = document.createElement('button');
     button.className = `category ${state.category === category ? 'active' : ''}`;
     button.textContent = category;
-    button.addEventListener('click', () => { state.category = category; selectQuestion(filterQuestions(questions, category, state.query)[0]?.id); render(); });
+    button.addEventListener('click', () => { state.category = category; selectQuestion(filterQuestions(questions, category, state.query, state.kind)[0]?.id); render(); });
     return button;
   }));
 }
 function renderProgress() { const n = state.masteredIds.size; el('progress-count').textContent = `${n} / ${questions.length}`; el('progress-bar').style.width = `${Math.min(100, n / questions.length * 100)}%`; }
+function renderKindSwitch() {
+  const host = el('kind-list');
+  if (!host) return;
+  const options = [['全部', '全部'], ['code', '代码题'], ['concept', '概念题']];
+  host.replaceChildren(...options.map(([value, label]) => {
+    const button = document.createElement('button');
+    button.className = `detail-level-button ${state.kind === value ? 'active' : ''}`;
+    button.textContent = label;
+    button.addEventListener('click', () => { state.kind = value; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
+    return button;
+  }));
+}
 function renderList() {
   const items = activeQuestions(), empty = getEmptyState(items);
   el('question-list').hidden = empty.visible; el('empty-state').hidden = !empty.visible;
@@ -42,8 +54,9 @@ function renderList() {
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
     const meta = document.createElement('div'); meta.className = 'card-meta';
+    const kindBadge = document.createElement('span'); kindBadge.className = 'badge'; kindBadge.textContent = q.kind === 'code' ? '代码' : '概念';
     const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = q.category;
-    const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(badge, metaText);
+    const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, metaText);
     const title = document.createElement('h3'); title.textContent = q.title;
     const prompt = document.createElement('p'); prompt.textContent = q.prompt;
     card.append(meta, title, prompt);
@@ -88,7 +101,34 @@ function qaSection(title, entries) {
   });
   return block;
 }
+function compareSection(title, items) {
+  if (!Array.isArray(items) || items.length === 0) return document.createDocumentFragment();
+  const block = document.createElement('section'); block.className = 'detail-section';
+  const h = document.createElement('h3'); h.textContent = title; block.append(h);
+  const list = document.createElement('ul'); list.className = 'detail-list';
+  items.forEach((row) => {
+    const li = document.createElement('li');
+    li.textContent = typeof row === 'string' ? row : `${row?.a ?? ''} vs ${row?.b ?? ''}：${row?.note ?? ''}`;
+    list.append(li);
+  });
+  block.append(list); return block;
+}
+function refsSection(title, items) {
+  if (!Array.isArray(items) || items.length === 0) return document.createDocumentFragment();
+  const block = document.createElement('section'); block.className = 'detail-section';
+  const h = document.createElement('h3'); h.textContent = title; block.append(h);
+  const list = document.createElement('ul'); list.className = 'detail-list';
+  items.forEach((reference) => {
+    const li = document.createElement('li');
+    const anchor = document.createElement('a');
+    if (typeof reference === 'string') { anchor.textContent = reference; anchor.href = '#'; }
+    else { anchor.textContent = reference.title; anchor.href = reference.url || '#'; anchor.target = '_blank'; anchor.rel = 'noopener'; }
+    li.append(anchor); list.append(li);
+  });
+  block.append(list); return block;
+}
 function renderSection(section) {
+  if (section.value == null) return document.createDocumentFragment();
   if (section.type === 'diagram') return diagramSection(section.title, section.value);
   if (section.type === 'code') return codeSection(section.title, section.value);
   if (section.type === 'lineNotes') return lineNotesSection(section.title, section.value);
@@ -97,6 +137,8 @@ function renderSection(section) {
   if (section.type === 'list') return listSection(section.title, section.value);
   if (section.type === 'steps') return listSection(section.title, section.value, 'derivation-list');
   if (section.type === 'cards') return listSection(section.title, section.value, 'edge-case-list');
+  if (section.type === 'compare') return compareSection(section.title, section.value);
+  if (section.type === 'refs') return refsSection(section.title, section.value);
   return textSection(section.title, section.value);
 }
 function renderDetailLevelSwitch() {
@@ -113,7 +155,7 @@ function renderDetail() {
   if (!q) { pane.textContent = '请选择一道题目'; return; }
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
-  [[q.category, 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
+  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [q.category, 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
   const title = document.createElement('h2'); title.textContent = q.title;
   const prompt = document.createElement('p'); prompt.textContent = q.prompt;
   head.append(tags, title, prompt); pane.append(head);
@@ -136,9 +178,9 @@ function renderDetail() {
 }
 function renderMode() { const mock = state.mode === 'mock'; el('mode-label').textContent = mock ? 'MOCK INTERVIEW' : 'REVIEW MODE'; el('timer').hidden = !mock; el('start-mock').hidden = mock; el('return-review').hidden = !mock; el('mock-note').hidden = !mock; el('mock-note').textContent = mock ? `本轮共 ${state.mockQuestions.length} 题。答案默认隐藏；请先口述方案再揭晓。` : ''; }
 function tick() { state.remaining = Math.max(0, state.remaining - 1); el('timer').textContent = formatRemaining(state.remaining); if (!state.remaining) { clearInterval(state.timerId); state.timerId = null; el('mock-note').textContent = '时间到。本轮结束，复盘每道题的边界、复杂度和追问。'; } }
-function render() { renderMode(); renderCategories(); renderProgress(); renderList(); renderDetail(); el('timer').textContent = formatRemaining(state.remaining); }
+function render() { renderMode(); renderCategories(); renderKindSwitch(); renderProgress(); renderList(); renderDetail(); el('timer').textContent = formatRemaining(state.remaining); }
 function startMock() { state.mode = 'mock'; state.mockQuestions = sampleQuestions(questions, 5); state.selectedId = state.mockQuestions[0]?.id; state.revealIndex = 0; state.detailLevel = 'deep'; state.remaining = 2700; clearInterval(state.timerId); state.timerId = setInterval(tick, 1000); render(); }
 function returnReview() { state.mode = 'review'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
-el('search-input').addEventListener('input', (event) => { state.query = event.target.value; selectQuestion(filterQuestions(questions, state.category, state.query)[0]?.id); render(); });
-el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; el('search-input').value = ''; selectQuestion(questions[0].id); render(); });
+el('search-input').addEventListener('input', (event) => { state.query = event.target.value; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
+el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; state.kind = '全部'; el('search-input').value = ''; selectQuestion(filterQuestions(questions, '全部', '', '全部')[0]?.id); render(); });
 el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview); render();
