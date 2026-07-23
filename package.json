@@ -1,4 +1,8 @@
 {
   "type": "module",
-  "scripts": { "test": "node --test" }
+  "scripts": {
+    "gen": "node scripts/gen-cards.mjs",
+    "pretest": "node scripts/gen-cards.mjs",
+    "test": "node --test"
+  }
 }
