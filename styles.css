@@ -9,3 +9,74 @@
   .detail-pane { order: 1; min-width: 0; overflow: visible; }
   .question-pane { order: 2; min-width: 0; }
 }
+
+/* ===== 知识脉络视图 ===== */
+.nav-lead { font-weight: 800; color: var(--navy); background: #eef2f6; border: 1px solid var(--line); margin-bottom: 2px; }
+.nav-lead.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+.nav-lead + .nav-lead { margin-top: 2px; }
+
+.map-view { padding: 4px 2px 40px; }
+.map-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 22px; }
+.map-tab { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 16px; cursor: pointer; font: inherit; font-weight: 700; color: var(--muted); }
+.map-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+.map-intro { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+
+/* 主题域卡片 */
+.domain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.domain-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 16px; box-shadow: 0 1px 2px rgba(20,43,69,.04); }
+.domain-card.heavy { border-color: #ffd0b0; box-shadow: 0 2px 10px rgba(255,138,76,.12); }
+.domain-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.domain-badge { flex: none; width: 30px; height: 30px; border-radius: 8px; background: var(--navy); color: var(--mint); font-weight: 800; display: grid; place-items: center; font-size: 15px; }
+.domain-card.heavy .domain-badge { background: var(--orange); color: #fff; }
+.domain-head h3 { margin: 0; font-size: 17px; color: var(--ink); }
+.domain-why { margin: 6px 0 12px; color: var(--muted); font-size: 13px; }
+.cat-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.cat-chip { border: 1px solid var(--line); background: #f3f7fb; color: var(--blue); border-radius: 7px; padding: 6px 11px; cursor: pointer; font: inherit; font-size: 13px; font-weight: 600; transition: background .12s, border-color .12s; }
+.cat-chip:hover { background: #e8f0fe; border-color: var(--blue); }
+
+/* 学习路径表 */
+.map-table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.map-table th, .map-table td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 14px; vertical-align: top; }
+.map-table th { background: #eef2f6; color: var(--navy); font-size: 13px; }
+.map-table tr:last-child td { border-bottom: 0; }
+
+/* 跨域交叉线 */
+.cross-list { display: grid; gap: 12px; }
+.cross-item { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--blue); border-radius: 8px; padding: 12px 16px; }
+.cross-item h4 { margin: 0 0 6px; color: var(--navy); }
+.cross-line { margin: 0; font: 14px/1.6 ui-monospace, Consolas, monospace; color: var(--ink); }
+
+/* 岗优先级 */
+.priority-list { display: grid; gap: 12px; }
+.priority-item { background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 12px 16px; }
+.priority-item h4 { margin: 0 0 6px; }
+.priority-item.tier-1 { border-left: 4px solid var(--orange); }
+.priority-item.tier-1 h4 { color: #c8541a; }
+.priority-item.tier-2 { border-left: 4px solid var(--blue); }
+.priority-item.tier-2 h4 { color: var(--blue); }
+.priority-item.tier-3 { border-left: 4px solid var(--line); }
+.priority-item.tier-3 h4 { color: var(--muted); }
+.priority-item p { margin: 0; color: var(--ink); font-size: 14px; }
+
+/* 本类主线横幅（list 视图顶部） */
+.thread-banner { background: linear-gradient(180deg,#fbfdff,#f4f8ff); border: 1px solid #c9dcf8; border-radius: 12px; padding: 14px 18px; margin: 0 0 16px; }
+.thread-banner.heavy { border-color: #ffd0b0; background: linear-gradient(180deg,#fffaf5,#fff2e9); }
+.thread-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.thread-tag { background: var(--blue); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: .5px; }
+.thread-banner.heavy .thread-tag { background: var(--orange); }
+.thread-head h3 { margin: 0; font-size: 18px; color: var(--navy); }
+.thread-oneliner { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.thread-steps { margin: 0; padding-left: 22px; display: grid; gap: 5px; }
+.thread-steps li { color: var(--ink); font-size: 14px; font-weight: 600; }
+.thread-hint { margin: 10px 0 0; color: var(--muted); font-size: 12px; font-style: italic; }
+
+/* 脉络视图右侧引导 */
+.map-detail-tip { padding: 8px 4px; }
+.map-detail-tip h2 { margin: 0 0 12px; color: var(--navy); }
+.map-detail-tip p { color: var(--muted); font-size: 14px; line-height: 1.7; margin: 0 0 12px; }
+
+@media (max-width: 920px) {
+  .domain-grid { grid-template-columns: 1fr; }
+  .map-table { display: block; overflow-x: auto; }
+}

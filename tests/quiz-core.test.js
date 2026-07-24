@@ -27,7 +27,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 380);
+  assert.equal(questions.length, 382);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -72,7 +72,7 @@ test('kind 分布与分类映射一致', () => {
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 60, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 320, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 322, '概念题数量');
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
@@ -427,9 +427,9 @@ test('子Agent模块【多模态模型】全部题卡通过初学者契约', () 
 });
 
 test('子Agent模块【搜索推荐】全部题卡通过初学者契约', () => {
-  const ids = new Set(["rec-system-arch","rec-recall","rec-pre-ranking","rec-ranking","rec-twotower","rec-ann","rec-multichannel","rec-feature","rec-din-deepfm","rec-seq","rec-ctr","rec-coldstart","rec-multiobjective","rec-rerank","rec-llm-rec","rec-realtime","rec-metrics","rec-recall-eval","rec-bias","rec-feature-store"]);
+  const ids = new Set(["rec-system-arch","rec-recall","rec-pre-ranking","rec-ranking","rec-twotower","rec-ann","rec-multichannel","rec-feature","rec-din-deepfm","rec-seq","rec-ctr","rec-coldstart","rec-multiobjective","rec-rerank","rec-llm-rec","rec-realtime","rec-metrics","rec-recall-eval","rec-bias","rec-feature-store","rec-music-generation"]);
   const matched = questions.filter((q) => ids.has(q.id));
-  assert.equal(matched.length, 20, 'matched count');
+  assert.equal(matched.length, 21, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
   }
@@ -533,9 +533,10 @@ test('子Agent模块【系统设计】全部题卡通过初学者契约', () => 
   const ids = new Set([
     "sys-recsys-arch","sys-content-understanding","sys-inference-serving","sys-ab-platform",
     "sys-feature-pipeline","sys-vector-retrieval","sys-multimodal-serving","sys-streaming-etl","sys-capacity-limit",
+    "sys-content-safety-compliance",
   ]);
   const matched = questions.filter((q) => ids.has(q.id));
-  assert.equal(matched.length, 9, 'matched count');
+  assert.equal(matched.length, 10, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
     assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
