@@ -15,6 +15,7 @@ export const categories = [
   "语音大模型",
   "RL 后训练",
   "大模型推理原理",
+  "流式推理工程",
   "KV Cache",
   "Continuous Batching",
   "PagedAttention",
@@ -24,10 +25,12 @@ export const categories = [
   "服务性能评测",
   "多模态模型",
   "搜索推荐",
+  "系统设计",
   "Agent Workflow",
   "计算机系统基础",
   "Transformer 架构",
   "训练与微调",
+  "分布式训练",
   "RAG",
   "长上下文与位置编码"
 ];
@@ -10941,6 +10944,462 @@ export const questions = [
     ]
   },
   {
+    "id": "dt-flash-attn-bwd",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "FlashAttention 前向与反向",
+    "difficulty": "Hard",
+    "prompt": "请讲讲 FlashAttention 的前向与反向是如何做到 IO-aware 的，tiling、在线 softmax、反向的似然重算如何把显存从 O(N²) 降到 O(N)？",
+    "quickAnswer": "FlashAttention 把 Q、K、V 分块(tiling)装入 SRAM，在块内增量计算 softmax 与注意力，避免把 N×N 的注意力矩阵写回 HBM，从而显存从 O(N²) 降到 O(N)。前向用在线 softmax（running max/sum）合并各块的局部统计量；反向时因前向未存大矩阵，需重算每块似然并复用 SRAM 内中间量求 dQ/dK/dV。整体减少 HBM 读写是提速主因。",
+    "beginnerSummary": "普通注意力要把巨大的“谁看谁”矩阵存到慢速显存里，又占空间又慢。FlashAttention 把数据切成小块在高速缓存里算，边算边合并，不存那个大矩阵，所以又快又省。",
+    "explanationFocus": "是什么：FlashAttention 是一种 IO-aware 的精确注意力算法，通过 tiling 把 Q/K/V 分块放入快速 SRAM 计算，并借助在线 softmax 在块间增量归约，避免 materialize 完整的 N×N 注意力矩阵，将显存从 O(N²) 降到 O(N)，同时因 HBM 访问大幅减少而显著加速。",
+    "approach": "前向：把 Q、K、V 沿序列维切块，外层遍历 K/V 块、内层遍历 Q 块，在 SRAM 内算局部 softmax 并用 running m（最大值）和 l（指数和）在线更新全局统计量，逐步累加输出。反向：因未存 N² 矩阵，按相同 tiling 重算每块 softmax 似然，结合保存的 O(N) 统计量在 SRAM 内求 dQ/dK/dV。",
+    "code": "import torch\nfrom flash_attn import flash_attn_func\n\ndef attn(q, k, v):\n    # q,k,v: [b, s, h, d]; 内部自动 tiling + 在线 softmax\n    out = flash_attn_func(q, k, v, causal=True)\n    return out",
+    "complexity": "计算 O(N²) FLOPs 但 HBM 访问 O(N²/M)（M 为 SRAM 块大小）；显存 O(N)",
+    "derivation": [
+      "为什么需要：标准注意力需把 N×N 分值矩阵与 softmax 中间结果写入 HBM，显存 O(N²)、带宽成为瓶颈，长序列下不可行。",
+      "怎么实现：tiling 把矩阵切块进 SRAM；在线 softmax 用 m、l 两个统计量增量合并分块结果；反向重算局部似然。",
+      "有什么代价：实现复杂（需手写 CUDA 核、处理因果掩码与不同 head 布局）；反向重算增加少量计算但远小于省下的 IO。",
+      "怎么评测：对比标准 attention 的显存峰值与 step 时间，随序列长度 N 看是否呈线性而非平方增长。"
+    ],
+    "edgeCases": [
+      "变长序列/padding 需配合 cu_seqlens 与 varlen 接口，否则跨样本注意力泄漏。",
+      "因果掩码下，最后一块 Q 只能看到部分 K，在线 softmax 需正确截断累积。",
+      "head 维度 d 不是 2 的幂或对齐不佳时，tiling 效率下降，需 padding。"
+    ],
+    "pitfalls": [
+      "误以为 FlashAttention 减少了 FLOPs——它 FLOPs 不变，加速来自减少 HBM 读写，不是更少计算。",
+      "反向未实现重算而直接依赖前向存大矩阵，会破坏 O(N) 显存优势。"
+    ],
+    "prerequisites": [
+      "注意力公式与 softmax 归一化",
+      "GPU 内存层级（SRAM/HBM 带宽差异）与 tiling 思想"
+    ],
+    "workedExample": [
+      "例：N=8192，标准注意力需 8192²≈67M 元素矩阵 ×fp16≈134MB 仅单 head，多层多头下迅速爆显存；FlashAttention 只存 O(N) 的中间统计量。",
+      "例：在线 softmax 合并两块：第一块得 m1,l1,acc1；第二块得 m2,l2，更新 m=max(m1,m2)，l=l1*e^(m1-m)+l2*e^(m2-m)，acc 按系数 rescale 后累加。"
+    ],
+    "lineByLine": [
+      "`from flash_attn import flash_attn_func`：引入融合注意力核。",
+      "`def attn(q, k, v)`：输入为 [b, s, h, d] 的四维张量。",
+      "`flash_attn_func(q, k, v, causal=True)`：内部做 tiling、在线 softmax，不写出 N² 矩阵。",
+      "`return out`：输出 O(N) 显存，反向在 SRAM 内重算似然求梯度。"
+    ],
+    "followUps": [
+      {
+        "question": "FlashAttention 真把计算量降下来了吗？",
+        "answer": "没有，注意力数学上的 FLOPs 仍是 O(N²)，它降的是 HBM 访问次数（IO），因 SRAM 比 HBM 快一个数量级，减少搬数据才是提速关键；显存从 O(N²) 降到 O(N) 是附带收益。"
+      },
+      {
+        "question": "反向为什么必须重算而不是存前向结果？",
+        "answer": "若存完整 softmax 概率矩阵，显存回到 O(N²)，违背初衷；而重算每块似然只需 O(N) 统计量，在 SRAM 内代价很小，所以反向选择重算以保住线性显存。"
+      }
+    ],
+    "followUpAnswers": [
+      "没有，注意力数学上的 FLOPs 仍是 O(N²)，它降的是 HBM 访问次数（IO），因 SRAM 比 HBM 快一个数量级，减少搬数据才是提速关键；显存从 O(N²) 降到 O(N) 是附带收益。",
+      "若存完整 softmax 概率矩阵，显存回到 O(N²)，违背初衷；而重算每块似然只需 O(N) 统计量，在 SRAM 内代价很小，所以反向选择重算以保住线性显存。"
+    ]
+  },
+  {
+    "id": "dt-grad-checkpoint",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "Gradient Checkpointing",
+    "difficulty": "Medium",
+    "prompt": "请讲讲 Gradient Checkpointing / Activation Recomputation 是怎么以时间换显存的，checkpoint 该如何选择，对吞吐有什么影响？",
+    "quickAnswer": "Gradient Checkpointing 不在前向保存全部中间激活，只对少数“检查点”层存激活，反向时从这些点重新前向计算得到缺失激活，从而把激活显存从 O(层数) 降到 O(√层数) 甚至更小。代价是多一次前向重算，吞吐约降 20–40%。选择上应在显存瓶颈处对冗余激活做分块 checkpoint，而非全量。",
+    "beginnerSummary": "训练时要存下中间结果用于反传，太多会爆显存。检查点技术只记“关键节点”，反传需要时再临时重算一遍，用多花一点时间换显存空间。",
+    "explanationFocus": "是什么：Gradient Checkpointing（又称 Activation Recomputation）是以额外计算换取显存的技术：前向只保留部分层的输出（检查点），其余中间激活丢弃；反向传播时从最近的检查点重新执行前向以重建激活，再正常求梯度。",
+    "approach": "把网络按段划分，每段入口设为 checkpoint，只存段输入。反向时对每个段：先重算该段前向得到激活，再算该段梯度，递归向上。选择性 checkpoint（如只对 transformer block 级而非每算子）在显存与重算成本间取平衡。分布式下常与序列并行/PP 配合进一步省激活。",
+    "code": "import torch\nfrom torch.utils.checkpoint import checkpoint\n\ndef block_forward(block, x):\n    # 只对 block 入口做检查点，内部激活不保存\n    return checkpoint(block, x, use_reentrant=False)",
+    "complexity": "显存 O(√L)（全量重算）至 O(L/S)；时间多 1 次前向（约 +33% 计算）",
+    "derivation": [
+      "为什么需要：大模型前向产生的中间激活（尤其长序列/大 batch）常比权重更占显存，成为单卡容量瓶颈。",
+      "怎么实现：用 checkpoint 包裹子模块，前向不建计算图只存输入；反向触发重算并建图求梯度。",
+      "有什么代价：每个 checkpoint 段在反向需重算一次前向，总 FLOPs 增加约 1/3，吞吐下降。",
+      "怎么评测：对比开/关 checkpoint 的峰值显存与 step 时间；目标是显存够放下更大 batch，整体吞吐反升。"
+    ],
+    "edgeCases": [
+      "RNG 相关层（dropout）重算时必须复用前向相同的随机种子，否则梯度错误（需 seed 保存/恢复）。",
+      "use_reentrant=True 旧实现不兼容某些含 inplace 的算子，易报错或静默错误。",
+      "与 DDP/FSDP 混用时，重算发生在哪一层、是否跨分片需对齐，否则显存统计失真。"
+    ],
+    "pitfalls": [
+      "对所有算子都 checkpoint 导致重算过多、吞吐暴跌，应只 checkpoint 显存大头（如 attention/FFN 块）。",
+      "误以为 checkpoint 免费，在显存本就充裕时开启反而单纯变慢。"
+    ],
+    "prerequisites": [
+      "反向传播的计算图与激活存储机制",
+      "显存峰值与 activation 占用的关系"
+    ],
+    "workedExample": [
+      "例：Transformer 有 24 层，每层激活 2GB，全存需 48GB；每 4 层设一个 checkpoint，仅存 6 个入口激活约 12GB，反向重算被丢弃的段。",
+      "例：开启 checkpoint 后峰值显存从 80GB 降到 32GB，得以把 micro-batch 翻倍，虽然 step 时间 +30%，但有效吞吐因更大 batch 提升。"
+    ],
+    "lineByLine": [
+      "`from torch.utils.checkpoint import checkpoint`：引入检查点函数。",
+      "`def block_forward(block, x)`：包裹单个 block 的前向。",
+      "`checkpoint(block, x, use_reentrant=False)`：前向不保存 block 内部激活，仅记录输入 x。",
+      "`return ...`：反向时框架自动从 x 重算 block 内部并求梯度（非重入式更安全）。"
+    ],
+    "followUps": [
+      {
+        "question": "全量重算和选择性重算怎么选？",
+        "answer": "全量（每段都 checkpoint）显存最省但重算最多；选择性（只 checkpoint 大激活块）在二者间折中。经验上按 transformer block 级 checkpoint 即可，不必到算子级。"
+      },
+      {
+        "question": "为什么重算不影响梯度正确性？",
+        "answer": "重算用的是确定性的前向（固定输入和权重），重建的激活与原前向数学上一致，因此反向链式法则得到的梯度与“本该保存”的完全等价，只是多花了一次前向。"
+      }
+    ],
+    "followUpAnswers": [
+      "全量（每段都 checkpoint）显存最省但重算最多；选择性（只 checkpoint 大激活块）在二者间折中。经验上按 transformer block 级 checkpoint 即可，不必到算子级。",
+      "重算用的是确定性的前向（固定输入和权重），重建的激活与原前向数学上一致，因此反向链式法则得到的梯度与“本该保存”的完全等价，只是多花了一次前向。"
+    ]
+  },
+  {
+    "id": "dt-megatron-3d",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "Megatron 3D 并行",
+    "difficulty": "Hard",
+    "prompt": "请讲讲 Megatron 的 3D 并行（TP/PP/EP + DP）是如何组合的，TP 的 all-reduce 如何切分，PP 的 micro-batch 与 bubble 怎么处理，EP 的 expert 分片是什么？",
+    "quickAnswer": "3D 并行 = 张量并行(TP)切矩阵维度、流水线并行(PP)切层、专家并行(EP)切 MoE 专家，再叠加数据并行(DP)。TP 在层内把权重按行/列拆分，用一次 all-reduce 替代整矩阵乘法；PP 把模型按层分段，配合 micro-batch 和 1F1B 调度隐藏通信，但存在 pipeline bubble 空闲；EP 把不同 expert 放到不同卡，token 经 all-to-all 路由。三者正交组合可在数千卡上训超大模型。",
+    "beginnerSummary": "一张卡放不下大模型，就把模型“横切竖切”。TP 把一层矩阵拆到多卡一起算，PP 把不同层放到不同卡像工厂流水线，EP 专门处理混合专家里的大量专家，DP 则是多份数据同时跑。把它们拼起来就是 3D 并行。",
+    "explanationFocus": "是什么：Megatron-LM 提出的 3D 并行是张量并行(TP)、流水线并行(PP)、专家并行(EP) 与数据并行(DP) 的正交组合。TP 在单层内沿隐藏维切分矩阵乘法，PP 沿层维切分把模型变流水线，EP 沿 expert 维切分 MoE 专家，DP 在最外层复制并分数据。",
+    "approach": "TP 用 Megatron 的行列切分：列并行把权重 W 按输出维分块各自做 GEMM 再拼接，行并行把输入 X 分块各自乘再 all-reduce 求和，从而把激活/权重的显存与计算均摊。PP 把网络切成若干 stage，每个 micro-batch 依次流过，用 1F1B 调度让后向与前向重叠以降低 bubble。EP 把 expert 分散到不同 rank，router 用 all-to-all 把 token 送到对应 expert 再送回。",
+    "code": "import torch\nfrom megatron.core.tensor_parallel import ColumnParallelLinear\n\n# 列并行：把输出维切成 tp_size 份，各卡算一份再拼接\ndef build_tp_layer(hidden, ffn):\n    fc = ColumnParallelLinear(hidden, ffn, bias=False)\n    return fc  # 前向自动做 gather/reduce",
+    "complexity": "通信 O(tokens * hidden) per TP层；bubble 占比约 (pp-1)/(m+pp-1)，m 为 micro-batch 数",
+    "derivation": [
+      "为什么需要：单卡显存/算力无法容纳百亿级以上模型，单一并行维度都有瓶颈（TP 受限于单节点带宽，PP 有 bubble，DP 冗余显存）。",
+      "怎么实现：TP 用矩阵行列拆分+层内 all-reduce；PP 用 stage 切层+activation 重算/1F1B；EP 用 all-to-all 路由 token；DP 在最外层对 replica 做梯度同步。",
+      "有什么代价：TP 引入高频 all-reduce（需高带宽 NVLink）；PP 有 pipeline bubble 浪费算力；EP 引入 all-to-all 通信且易负载不均。",
+      "怎么评测：看 MFU（模型算力利用率）、bubble 比例、通信时间占比；调 pp/tp/ep/dp 网格使计算和通信均衡。"
+    ],
+    "edgeCases": [
+      "TP 只能在节点内高效（依赖 NVLink），跨节点 TP 会因 IB 带宽不足而崩性能。",
+      "PP 的 micro-batch 数 m 太小会让 bubble 占比飙升，需 m ≥ pp-1 才有合理重叠。",
+      "EP 中某些 expert 被过度路由（负载倾斜）时，需 aux loss 或 drop 机制，否则长尾卡成为瓶颈。"
+    ],
+    "pitfalls": [
+      "把 TP 设得过大却跨节点，all-reduce 走慢速 IB 反而比 DP+PP 更慢。",
+      "忽略 PP 的 activation 重算代价，误以为切层零成本，导致吞吐不升反降。"
+    ],
+    "prerequisites": [
+      "矩阵乘法与 GEMM 的维度关系",
+      "数据并行 DDP 与 all-reduce 基础"
+    ],
+    "workedExample": [
+      "例：64 卡训练 175B，可设 tp=8（节点内）、pp=4、dp=2，总并行度 8*4*2=64；每层 TP 算完一次 all-reduce，4 个 stage 以 micro-batch 流水。",
+      "例：PP bubble 计算：pp=4, m=8 时 bubble 占比 (4-1)/(8+4-1)=3/11≈27%；若 m=2 则 3/5=60%，说明 micro-batch 必须足够多。"
+    ],
+    "lineByLine": [
+      "`from megatron.core.tensor_parallel import ColumnParallelLinear`：引入列并行线性层。",
+      "`def build_tp_layer(hidden, ffn)`：定义按隐藏维到 ffn 维的 TP 层构造。",
+      "`fc = ColumnParallelLinear(hidden, ffn, bias=False)`：权重按输出维切成 tp_size 份，每卡持一份。",
+      "`return fc`：前向时各卡独立算分块 GEMM，框架自动做必要的 all-gather/reduce。"
+    ],
+    "followUps": [
+      {
+        "question": "TP 的列并行和行并行为什么要配对使用？",
+        "answer": "列并行把 Y=XA 中 A 按列切，输出需拼接；若下一层接行并行把 A 按行切，则前一个列并行的 all-gather 可与后一个的行并行输入分块抵消，中间只需一次 all-reduce，避免两次额外通信。"
+      },
+      {
+        "question": "1F1B 如何减小 PP bubble？",
+        "answer": "朴素满流水要先跑完所有前向再后向，bubble 大；1F1B 在积攒够 warmup 后每完成一个前向立即安排一个后向，使后向与前向在不同 stage 重叠，把空闲降到 (pp-1)/(m+pp-1)。"
+      }
+    ],
+    "followUpAnswers": [
+      "列并行把 Y=XA 中 A 按列切，输出需拼接；若下一层接行并行把 A 按行切，则前一个列并行的 all-gather 可与后一个的行并行输入分块抵消，中间只需一次 all-reduce，避免两次额外通信。",
+      "朴素满流水要先跑完所有前向再后向，bubble 大；1F1B 在积攒够 warmup 后每完成一个前向立即安排一个后向，使后向与前向在不同 stage 重叠，把空闲降到 (pp-1)/(m+pp-1)。"
+    ]
+  },
+  {
+    "id": "dt-mixed-precision",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "混合精度训练",
+    "difficulty": "Medium",
+    "prompt": "请讲讲混合精度训练中 bf16 与 fp16 如何选，fp8 训练（如 H100）怎么做，loss scaling、master weights 与数值稳定性有哪些坑？",
+    "quickAnswer": "混合精度用 fp16/bf16 存激活与梯度、用 fp32 存主权重与某些归约以保稳定。bf16 指数位多、动态范围大，几乎不需 loss scaling；fp16 动态范围小，梯度易下溢需 dynamic loss scaling。H100 的 fp8(E4M3/E5M2) 进一步提速，但需仔细做缩放与累积到 fp32。master weights 保留 fp32 副本避免更新时的舍入误差。坑包括：softmax/exp 溢出、小梯度消失、归约精度不足。",
+    "beginnerSummary": "数字在计算机里有不同精度的表示。用更省空间、更快的低精度（如半精度）来算大部分东西，但关键步骤（如累加梯度）仍用高精度，这样既快又不容易算错。bf16 比 fp16 更“稳”，fp8 更新但更娇气。",
+    "explanationFocus": "是什么：混合精度训练是在保证收敛的前提下，用低精度（fp16/bf16/fp8）存储和 computes 大部分张量以提速省显存，同时保留 fp32 主权重（master weights）和关键归约来防止数值发散的工程方法。",
+    "approach": "前向/反向用 fp16 或 bf16 计算激活与梯度；优化器维护 fp32 主权重，每步把梯度 cast 到 fp32 更新主权重，再 cast 回低精度供下一轮。fp16 需 dynamic loss scaling（先放大损失再回缩放梯度）防下溢；bf16 因指数位宽与 fp32 相同通常免 scaling。fp8 训练需对输入/权重做 tensor scaling 并让累加在 fp32 完成。",
+    "code": "import torch\nfrom torch.cuda.amp import GradScaler\n\ndef train_step(model, x, y):\n    with torch.autocast('cuda', dtype=torch.bfloat16):\n        loss = model(x, y)\n    loss.backward()  # bf16 通常无需 scaler\n    return loss",
+    "complexity": "算力约 2x（fp16 vs fp32 吞吐）；显存省约一半（激活/梯度半精度）",
+    "derivation": [
+      "为什么需要：fp32 训练慢且占显存，现代 Tensor Core 对 fp16/bf16/fp8 有数倍吞吐，混合精度可在几乎不损精度下大幅加速。",
+      "怎么实现：autocast 自动选层精度；fp16 配 GradScaler 做 loss scaling；bf16 直接算；fp8 由 TransformerEngine 做 per-tensor scaling 并在 fp32 累加。",
+      "有什么代价：低精度动态范围小，易出现梯度下溢(fp16)/溢出(bf16大值)、累加误差，需要 master weights 与精心 scaling。",
+      "怎么评测：对比 fp32 baseline 的 loss 曲线、最终精度；监控梯度直方图是否出现 NaN/Inf，测吞吐提升倍数。"
+    ],
+    "edgeCases": [
+      "fp16 下 loss 很小（如 1e-4）时梯度下溢为 0，必须靠 loss scaling 或改用 bf16。",
+      "bf16 表示大 logits 时仍可能溢出 softmax，需在 softmax 前做减最大值稳定化。",
+      "fp8 训练中 attention 的求和项若直接在 fp8 累加会严重丢精度，须强制 fp32 累加。"
+    ],
+    "pitfalls": [
+      "盲目对 fp16 不做 loss scaling，导致梯度全 0、参数不更新。",
+      "把所有算子都设为低精度（如 layernorm/softmax 也 fp16），引发数值不稳，应保留关键算子高精度。"
+    ],
+    "prerequisites": [
+      "浮点表示（指数位/尾数位、动态范围、舍入误差）",
+      "反向传播与梯度累加的基本流程"
+    ],
+    "workedExample": [
+      "例：ResNet 用 fp16+GradScaler，初始 scale=2^16，连续 2000 步无 Inf 则翻倍、出现 Inf 则跳过并更新。bf16 训练 LLM 则可去掉 scaler，直接 autocast。",
+      "例：H100 用 fp8，对 Linear 的激活(X)和权重(W)分别设 scaling factor，输出在 fp32 累加后再量化回 fp8，整体 matmul 吞吐约 2x fp16。"
+    ],
+    "lineByLine": [
+      "`from torch.cuda.amp import GradScaler`：引入梯度缩放器（fp16 用）。",
+      "`with torch.autocast('cuda', dtype=torch.bfloat16)`：该上下文内自动把合适算子降到 bf16。",
+      "`loss = model(x, y)`：前向以 bf16 计算，省显存且走 Tensor Core。",
+      "`loss.backward()`：bf16 梯度直接回传，通常无需 scaler；若是 fp16 需先 loss*scale 再 backward 并 unscaled。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么 bf16 通常不需要 loss scaling 而 fp16 需要？",
+        "answer": "bf16 有 8 位指数位，与 fp32 相同的动态范围，小梯度不会下溢；fp16 仅 5 位指数，最小正规数约 6e-5，许多梯度会下溢为 0，故需先放大损失再缩回。"
+      },
+      {
+        "question": "master weights 解决了什么问题？",
+        "answer": "若直接用 fp16 权重做更新，小学习率×梯度可能小于 fp16 可表示的最小步长，更新被舍入吞掉；保留 fp32 主权重可正确累积微小更新，再量化回低精度。"
+      }
+    ],
+    "followUpAnswers": [
+      "bf16 有 8 位指数位，与 fp32 相同的动态范围，小梯度不会下溢；fp16 仅 5 位指数，最小正规数约 6e-5，许多梯度会下溢为 0，故需先放大损失再缩回。",
+      "若直接用 fp16 权重做更新，小学习率×梯度可能小于 fp16 可表示的最小步长，更新被舍入吞掉；保留 fp32 主权重可正确累积微小更新，再量化回低精度。"
+    ]
+  },
+  {
+    "id": "dt-moe-train",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "MoE 训练",
+    "difficulty": "Hard",
+    "prompt": "请讲讲 MoE 训练中的 expert parallelism、负载均衡（aux loss / router z-loss）、token dropping 与 fine-grained MoE 分别是什么？",
+    "quickAnswer": "MoE 用多个专家 FFN 加 router 选 top-k，每个 token 只激活少数专家，算力近稠密但参数量大。Expert parallelism 把不同 expert 放到不同设备，token 经 all-to-all 路由。负载失衡会让部分专家过载，用 aux loss（鼓励均匀路由）与 router z-loss（抑制过大 logit）缓解。token dropping 在容量超限时丢弃溢出 token。fine-grained MoE 用更多更小专家提升粒度与利用率。",
+    "beginnerSummary": "普通模型每层一个前馈网络，MoE 每层放多个“专家”，由一个路由器挑几个最适合当前词的专家来算。这样模型很大却每次只动用一小部分，省算力。难点是别让某些专家太忙、某些太闲。",
+    "explanationFocus": "是什么：MoE（Mixture-of-Experts）在 Transformer 的 FFN 层用 N 个并行专家加一个 router，每个 token 只被路由到 top-k 个专家计算，从而在参数量大幅扩张的同时保持每 token 计算量近似不变。训练需解决专家分布、负载均衡与并行放置。",
+    "approach": "每个 MoE 层有 router(W_r) 产出 logits，取 top-k 专家并归一权重；expert parallelism 把专家分布到不同 rank，token 通过 all-to-all 送到目标专家再送回。为防止倾斜，加 aux loss（使路由概率与专家利用率一致）和 z-loss（惩罚大 logit 防止 softmax 塌缩）。容量超限的 token 被 drop 或 overflow 处理。fine-grained 增加专家数、减小每专家尺寸提升选择粒度。",
+    "code": "import torch\nimport torch.nn as nn\n\nclass Expert(nn.Module):\n    def __init__(self, d):\n        super().__init__(); self.fc = nn.Linear(d, d)\n    def forward(self, x):\n        return self.fc(x)  # 各专家分布在不同 rank",
+    "complexity": "每 token 计算 O(k*d)（k 专家）；通信 all-to-all O(tokens)；参数量 O(N*d)",
+    "derivation": [
+      "为什么需要：稠密模型扩参必扩算力，MoE 解耦“参数量”与“每 token 计算”，用稀疏激活在固定算力下放大模型容量。",
+      "怎么实现：router 选 top-k；expert parallelism 跨设备放专家；all-to-all 路由 token；aux/z-loss 保均衡；容量+drop 控显存。",
+      "有什么代价：all-to-all 通信密集且易成瓶颈；负载不均导致设备利用率低；router 不优会塌缩到少数专家。",
+      "怎么评测：看 expert 利用率方差、路由熵、被 drop 的 token 比例，以及同算力下的下游精度。"
+    ],
+    "edgeCases": [
+      "某些专家长期不被选中（死专家），浪费参数且降低容量，需要 aux loss 或随机路由缓解。",
+      "top-k 中 k 个专家恰在不同 rank 时，单 token 触发多次跨设备通信，小 batch 下延迟高。",
+      "容量因子设太小导致大量 token 被 drop，训练信号丢失；太大则显存浪费。"
+    ],
+    "pitfalls": [
+      "只加 aux loss 而系数过大，会牺牲模型质量换取均衡，需调参。",
+      "把 MoE 当普通层做 TP 而未做 expert parallelism，导致 all-to-all 退化、负载无法分散。"
+    ],
+    "prerequisites": [
+      "Transformer FFN 层与 top-k 选择",
+      "All-to-all 集合通信与 expert parallelism"
+    ],
+    "workedExample": [
+      "例：每层 64 专家，top-2，每 token 仅算 2/64 的专家，参数量扩 32 倍但算力仅约 2 倍；专家分布到 8 卡，all-to-all 按目标 rank 分发。",
+      "例：某步路由 30% token 都选 expert 0，超过容量（如 1.25×平均），多出的 5% token 被 drop，用 aux loss 拉平分布后 drop 降到 <1%。"
+    ],
+    "lineByLine": [
+      "`class Expert(nn.Module)`：定义一个专家（这里为简化，实际每专家在不同 rank）。",
+      "`self.fc = nn.Linear(d, d)`：专家本质是一个 FFN 子层。",
+      "`def forward(self, x)`：接收被路由到本专家的 token 子集。",
+      "`return self.fc(x)`：在本地（本 rank）完成该专家计算，结果再经 all-to-all 送回原设备。"
+    ],
+    "followUps": [
+      {
+        "question": "aux loss 和 z-loss 各自解决什么问题？",
+        "answer": "aux loss 鼓励每个专家被选中的总体概率与其实际处理 token 占比一致，缓解负载不均；z-loss 对 router logit 的平方做惩罚，防止个别 logit 过大使 softmax 塌缩到单一专家，二者互补。"
+      },
+      {
+        "question": "fine-grained MoE 为什么更优？",
+        "answer": "把大专家拆成更多小专家（如 64 个一半尺寸的专家配合 top-2/4），提升每 token 可选粒度与组合多样性，在相近算力下提高专家利用率与模型表达，且更易均衡。"
+      }
+    ],
+    "followUpAnswers": [
+      "aux loss 鼓励每个专家被选中的总体概率与其实际处理 token 占比一致，缓解负载不均；z-loss 对 router logit 的平方做惩罚，防止个别 logit 过大使 softmax 塌缩到单一专家，二者互补。",
+      "把大专家拆成更多小专家（如 64 个一半尺寸的专家配合 top-2/4），提升每 token 可选粒度与组合多样性，在相近算力下提高专家利用率与模型表达，且更易均衡。"
+    ]
+  },
+  {
+    "id": "dt-overlap-bubble",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "通信计算重叠与 Pipeline Bubble 优化",
+    "difficulty": "Hard",
+    "prompt": "请讲讲分布式训练中通信计算重叠与 pipeline bubble 优化：1F1B、interleaved schedule、comm/compute overlap 如何减小 bubble 比例？",
+    "quickAnswer": "Pipeline 并行中，各 stage 等待前 stage 数据会产生 bubble（空闲）。朴素 GPipe 先全前向再全后向，bubble 大；1F1B 在 warmup 后每完成一次前向立即排一次后向，使后向与前向在不同 stage 重叠，bubble 降到 (pp-1)/(m+pp-1)。interleaved 1F1B 让每设备持有多段不连续层，进一步把等效 pp 减小。comm/compute overlap 用异步通信（如 FSDP 的 all-gather 与 forward 重叠）隐藏通信延迟。",
+    "beginnerSummary": "流水线训练像工厂流水线，某些工位等料时会空转（bubble）。优化办法是让“算完一部分立刻回头算梯度”以及“在等数据的空隙里偷偷做通信”，把空转时间压到最小。",
+    "explanationFocus": "是什么：Pipeline bubble 指流水线并行中部分 stage 因等待前序 stage 的输出而空闲的时间比例。通信计算重叠是指在前反向计算的同时异步执行集合通信（如梯度同步、参数 all-gather），把通信延迟隐藏在计算背后，从而提升设备利用率。",
+    "approach": "用 1F1B 调度：先 warmup 若干 micro-batch 的前向，之后每完成一个前向就安排一个后向，使下游后向与上游前向重叠，bubble 仅出现在两端。interleaved schedule 让每个设备切分为多段（如 1F1B-int）并交错排布，缩短关键路径。comm/compute overlap 借助非阻塞 NCCL 调用，把 FSDP/TP 的 all-gather/reduce-scatter 与矩阵计算并发。",
+    "code": "import torch\nfrom torch.distributed.pipeline.sync import Pipe\n\ndef build_pipe(layers, chunks):\n    # 把模型按 stage 切分并以 micro-batch=chunks 流水\n    model = Pipe(nn.Sequential(*layers), chunks=chunks)\n    return model",
+    "complexity": "bubble 占比 ≈ (pp-1)/(m+pp-1)；interleaved 等效 pp 减半则 bubble 近减半",
+    "derivation": [
+      "为什么需要：PP 必然有 stage 间依赖，朴素全前向再全后向导致大量设备空等，MFU 低。",
+      "怎么实现：1F1B 交错前反向；interleaved 让每设备多段层交错流水；异步通信 overlap 隐藏 all-reduce/gather。",
+      "有什么代价：1F1B 需保存更多在途 micro-batch 的激活（显存随 m 增）；interleaved 实现复杂、调度开销上升。",
+      "怎么评测：测 bubble 时间占比、MFU、以及 overlap 后通信是否在 timeline 上被隐藏。"
+    ],
+    "edgeCases": [
+      "micro-batch 数 m < pp-1 时 1F1B 无法填满流水线，bubble 接近理论最大。",
+      "warmup 阶段需缓存激活，m 过大导致显存峰值上升，需与 activation checkpoint 配合。",
+      "异步通信若与计算争用同一 NVLink/IB 带宽，overlap 收益下降甚至反噬。"
+    ],
+    "pitfalls": [
+      "只切 PP 却不调 micro-batch 数，bubble 仍高，误以为 PP 无效。",
+      "把通信和计算强行绑在同一流未用独立 stream，导致本可重叠的通信串行化。"
+    ],
+    "prerequisites": [
+      "Pipeline 并行 stage 切分与 micro-batch 概念",
+      "异步集合通信（非阻塞 NCCL）与 CUDA stream"
+    ],
+    "workedExample": [
+      "例：pp=8, m=8，朴素 GPipe bubble 约 (8-1)/8≈88%；1F1B 降到 (8-1)/(8+8-1)=7/15≈47%；interleaved 等效 pp≈4 则约 3/11≈27%。",
+      "例：FSDP 中把下一层参数的 all-gather 与当前层 forward 计算重叠，timeline 上通信被计算完全掩盖，step 时间接近纯计算。"
+    ],
+    "lineByLine": [
+      "`from torch.distributed.pipeline.sync import Pipe`：引入同步流水线封装。",
+      "`def build_pipe(layers, chunks)`：layers 为已按 stage 划分的层列表。",
+      "`Pipe(nn.Sequential(*layers), chunks=chunks)`：以 chunks 个 micro-batch 做流水调度（默认类 1F1B）。",
+      "`return model`：返回的模型在前向时按 micro-batch 切分并流水线执行，减小 bubble。"
+    ],
+    "followUps": [
+      {
+        "question": "1F1B 和 interleaved 1F1B 的关键区别？",
+        "answer": "1F1B 每个设备持一段连续层，bubble 取决于 pp；interleaved 让每设备持多段不连续的薄层并交错调度，使等效流水线深度变小、关键路径更短，bubble 进一步下降，但实现与激活管理更复杂。"
+      },
+      {
+        "question": "comm/compute overlap 真的零成本吗？",
+        "answer": "不是零成本：异步通信仍占用网络带宽与部分计算资源，若通信量超过空闲带宽或同 stream 竞争，重叠会失效；需把通信放到独立 CUDA stream 并留足空闲带宽才算真正隐藏。"
+      }
+    ],
+    "followUpAnswers": [
+      "1F1B 每个设备持一段连续层，bubble 取决于 pp；interleaved 让每设备持多段不连续的薄层并交错调度，使等效流水线深度变小、关键路径更短，bubble 进一步下降，但实现与激活管理更复杂。",
+      "不是零成本：异步通信仍占用网络带宽与部分计算资源，若通信量超过空闲带宽或同 stream 竞争，重叠会失效；需把通信放到独立 CUDA stream 并留足空闲带宽才算真正隐藏。"
+    ]
+  },
+  {
+    "id": "dt-ring-attention",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "Ring Attention 与序列并行",
+    "difficulty": "Hard",
+    "prompt": "请讲讲 Ring Attention / 序列并行是如何把序列维度切到多卡的，blockwise 注意力加环形 all-gather/reduce-scatter 如何突破单卡序列长度上限？",
+    "quickAnswer": "Ring Attention 把长序列沿长度维切成块分布到不同设备，每块只持有一部分 Q/K/V。计算注意力时用环形通信：按块 all-gather K/V 依次传入邻居，并在本地做 blockwise 注意力（在线 softmax 跨块合并），同时 reduce-scatter 输出，使任意设备的单卡显存只与本地序列块成正比，从而突破单卡序列上限且近线性扩展。",
+    "beginnerSummary": "序列太长单卡放不下时，把序列切成几段分到不同卡上，卡与卡像接力赛一样传递 Key/Value 块，边传边算注意力，这样整体能处理超长文本而每张卡只存一小段。",
+    "explanationFocus": "是什么：Ring Attention（序列并行的一种）把序列维度沿长度切分到多张设备，每张卡只保存本地 Q/K/V 块；通过环形拓扑在各卡间依次传递 K/V 块并做 blockwise 注意力，使单卡显存与本地块长成正比，从而能训练远超单卡容量的超长序列。",
+    "approach": "把序列切成 S/P 块分布到 P 张卡。以环形传递：每轮每张卡把当前 K/V 块发给下家、从上家收一块，本地对所有见过的 K/V 与本地 Q 做注意力并更新在线 softmax 统计量；输出经 reduce-scatter 汇总。P 轮后每个 Q 块都见到了全部 K/V，且仅需 O(S/P) 显存。",
+    "code": "import torch\nfrom ring_attention_pytorch import RingAttention\n\ndef long_attn(q, k, v, ring_size):\n    # q/k/v 已沿序列维切块分布到各卡\n    out = RingAttention(dim=64, inner_ring_parallel=True)(q, k, v)\n    return out",
+    "complexity": "通信 O(S/P * P)=O(S) 总量；显存 O(S/P)，可扩展至任意长序列",
+    "derivation": [
+      "为什么需要：即使 FlashAttention 把显存降到 O(N)，单卡 N 仍受限于显存上限，百万级 token 序列必须跨卡切序列。",
+      "怎么实现：序列切块 + 环形 all-gather(K/V) + 本地 blockwise 注意力(在线 softmax) + reduce-scatter(输出)。",
+      "有什么代价：每轮一次点对点通信，总通信量 O(S) 且延迟随环长增加；需与 FlashAttention 块内实现结合才有收益。",
+      "怎么评测：固定总序列长，测不同 P 下的单卡显存（应随 P 线性下降）与端到端吞吐。"
+    ],
+    "edgeCases": [
+      "非 2 的幂的设备数或非均匀切块需处理边界块长度不一致。",
+      "因果注意力下环形传递需保证 K/V 传递顺序与掩码一致，否则看到未来 token。",
+      "与 TP 叠加时，序列并行通信与 TP all-reduce 需错开以免带宽争用。"
+    ],
+    "pitfalls": [
+      "误以为 Ring Attention 减少总计算——总 FLOPs 仍是 O(S²) 全局，只是把显存分布开，提速靠通信/计算重叠。",
+      "环形通信未与计算重叠（先全收再算），会退化成纯通信等待，bubble 巨大。"
+    ],
+    "prerequisites": [
+      "FlashAttention 的 tiling 与在线 softmax",
+      "Ring/All-gather/Reduce-scatter 集合通信"
+    ],
+    "workedExample": [
+      "例：序列 1M token 分到 8 卡，每卡仅 125K token 的 Q/K/V，单卡显存不再随总长平方增长，可训超长文档。",
+      "例：环上第 i 卡初始持 K_i/V_i，第 1 轮发给 i+1 并接收 i-1 的块，本地计算 Q_i 与新到 K/V 的注意力，累计统计量；P 轮后覆盖全部。"
+    ],
+    "lineByLine": [
+      "`from ring_attention_pytorch import RingAttention`：引入环形注意力实现。",
+      "`def long_attn(q, k, v, ring_size)`：q/k/v 已沿序列维分布到各 ring 设备。",
+      "`RingAttention(dim=64, inner_ring_parallel=True)`：开启环内序列并行，内部做块传递。",
+      "`(q, k, v)`：在 ring 上逐块 all-gather K/V、本地算注意力并 reduce-scatter 输出。"
+    ],
+    "followUps": [
+      {
+        "question": "Ring Attention 和单纯把 batch 切到多卡有什么区别？",
+        "answer": "切 batch 是数据并行，单卡仍须容纳整条序列；Ring Attention 切的是序列维度本身，单卡只放序列的一个分块，因此能突破单卡序列长度上限，而不是仅增加样本数。"
+      },
+      {
+        "question": "它和 Megatron 的序列并行是一回事吗？",
+        "answer": "思想一致：都是沿序列维切分。Megatron 的 SP 常配合 TP 在层内把激活按序列切，Ring Attention 用环形通信做跨设备注意力；二者可叠加，Ring 更侧重超长序列的注意力扩展。"
+      }
+    ],
+    "followUpAnswers": [
+      "切 batch 是数据并行，单卡仍须容纳整条序列；Ring Attention 切的是序列维度本身，单卡只放序列的一个分块，因此能突破单卡序列长度上限，而不是仅增加样本数。",
+      "思想一致：都是沿序列维切分。Megatron 的 SP 常配合 TP 在层内把激活按序列切，Ring Attention 用环形通信做跨设备注意力；二者可叠加，Ring 更侧重超长序列的注意力扩展。"
+    ]
+  },
+  {
+    "id": "dt-zero-fsdp",
+    "kind": "concept",
+    "category": "分布式训练",
+    "title": "ZeRO 与 FSDP 显存分片",
+    "difficulty": "Hard",
+    "prompt": "请讲讲 ZeRO 的三种分片策略（ZeRO-1/2/3）分别分片了什么，FSDP 是如何实现 ZeRO-3 的，以及 CPU offload 和通信量对比？",
+    "quickAnswer": "ZeRO 把训练状态（优化器状态、梯度、参数）做分片以消除数据并行中的冗余显存。ZeRO-1 只分片优化器状态，ZeRO-2 再分片梯度，ZeRO-3（即 ZeRO-DP 全分片）进一步分片模型参数。FSDP 是 PyTorch 对 ZeRO-3 的工程实现，用 all-gather 在用时拼回完整参数、用 reduce-scatter 汇总梯度。CPU offload 把优化器状态/梯度卸载到内存换显存，代价是 host-device 传输开销；ZeRO-3 通信量比 DDP 约高 1.5 倍。",
+    "beginnerSummary": "训练大模型时，每张 GPU 都存一份完整的模型、梯度和优化器状态，非常浪费。ZeRO 的思路是让不同的卡各自只保存其中一份，需要的时候再临时拼起来用，从而大幅省显存。FSDP 是 PyTorch 里开箱即用的实现。",
+    "explanationFocus": "是什么：ZeRO（Zero Redundancy Optimizer）是微软提出的显存优化数据并行策略，核心思想是把原本每张卡都完整冗余保存的“训练状态”（优化器状态、梯度、模型参数）沿数据并行维度分片，使每张卡的显存占用从 O(full) 降到接近 O(full/N)。FSDP（Fully Sharded Data Parallel）是 PyTorch 原生对 ZeRO-3 的实现，让分片对用户基本透明。",
+    "approach": "先按“分片粒度”由浅入深：ZeRO-1 仅分片优化器状态（Adam 的 m/v 和 fp32 主权重最占显存）；ZeRO-2 在 1 的基础上再分片梯度；ZeRO-3 进一步把参数也分片。FSDP 在 forward/backward 前用 all-gather 把本层 shard 拼成完整参数，用完后立即释放；backward 中用 reduce-scatter 把梯度按行求和并分散到对应 owner。CPU offload 通过把优化器步进放到 CPU 并异步搬运来换显存。",
+    "code": "import torch\nfrom torch.distributed.fsdp import FullyShardedDataParallel as FSDP\n\n# 把每个子模块包装成分片单位\ndef wrap(model):\n    for name, child in model.named_children():\n        if name == 'decoder':\n            setattr(model, name, FSDP(child, cpu_offload=True))\n        else:\n            setattr(model, name, child)\n    return FSDP(model)",
+    "complexity": "显存 O(model_size / gpu_count)，通信量 ZeRO-3 比 DDP 约高 1.5x（多一次参数 all-gather）",
+    "derivation": [
+      "为什么需要：标准 DDP 每张卡都存完整优化器状态（fp32 主权重+动量≈12字节/参数）+梯度+参数，7B 模型仅优化器状态就约 84GB，远超单卡显存，且大量冗余。",
+      "怎么实现：ZeRO-1 沿 DP 维分片优化器状态，每卡只更新自己那 1/N；ZeRO-2 再分片梯度，backward 中用 reduce-scatter 代替 all-reduce；ZeRO-3 分片参数，forward 前 all-gather 拼回、用完释放。",
+      "有什么代价：分片越细，通信越多——ZeRO-3 比 DDP 多一次参数 all-gather（约 1.5x 通信）；CPU offload 引入 PCIe/NVLink 搬运延迟并增加 step 时间。",
+      "怎么评测：在固定 batch/模型下对比峰值显存、吞吐 tokens/s、通信占比；用 torch 显存快照看碎片与峰值，用 NCCL 计时看 bubble。"
+    ],
+    "edgeCases": [
+      "参数量很小（如 <100M）时，ZeRO-3 的分片开销与通信可能让吞吐反低于 DDP。",
+      "嵌套与共享权重（tied embedding）在分片参数时会出现多 owner，需要 wrap 策略或 flatten 处理。",
+      "CPU offload 与梯度累积配合时，若累积步数过多，offload 缓冲区会堆积导致显存/内存峰值异常。"
+    ],
+    "pitfalls": [
+      "误以为 ZeRO-3 一定比 ZeRO-2 省显存却忽视通信上涨，节点间带宽不足时反而变慢。",
+      "FSDP wrap 粒度太细（逐层）会爆增 all-gather 次数，应按 transformer block 为单位 wrap。"
+    ],
+    "prerequisites": [
+      "数据并行 DDP 与 all-reduce/reduce-scatter 的基本概念",
+      "优化器状态组成（fp32 主权重、一阶/二阶动量）与 Adam 显存占用"
+    ],
+    "workedExample": [
+      "例：7B 模型用 fp16 参数(14GB)+fp32 主权重+Adam 动量(84GB)。DDP 每卡需约 98GB；ZeRO-1 把优化器状态 84GB 分到 8 卡，每卡约 24.5GB；ZeRO-3 再把参数与梯度分摊，每卡约 2GB 级。",
+      "例：8 卡 A100-80G 训 13B，ZeRO-3+CPU-offload 可放下；forward 时 FSDP 逐 block all-gather 参数，backward 后 reduce-scatter 梯度，optimizer.step 在 CPU 完成。"
+    ],
+    "lineByLine": [
+      "`import torch` / `from torch.distributed.fsdp import ...`：引入 FSDP 包装器。",
+      "`for name, child in model.named_children()`：按子模块遍历，决定分片单位。",
+      "`if name == 'decoder': setattr(..., FSDP(child, cpu_offload=True))`：对重模块启用分片并 offload 优化器状态到 CPU。",
+      "`return FSDP(model)`：最外层再包一层，使根模块参数也参与分片。"
+    ],
+    "followUps": [
+      {
+        "question": "ZeRO-3 的 all-gather 和 DDP 的 all-reduce 在通信量上到底差多少？",
+        "answer": "DDP 每步对梯度做一次 all-reduce（2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做 N-1 次 all-gather（≈2ψ），总通信约 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。"
+      },
+      {
+        "question": "为什么 CPU offload 不完全免费？",
+        "answer": "offload 把 optimizer.step 放到 CPU，需把梯度从 GPU 拷到 CPU、更新后再拷回，引入 PCIe 带宽瓶颈且 step 串行化；只在 GPU 显存真正不够、且 CPU 内存与带宽富余时划算。"
+      }
+    ],
+    "followUpAnswers": [
+      "DDP 每步对梯度做一次 all-reduce（2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做 N-1 次 all-gather（≈2ψ），总通信约 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。",
+      "offload 把 optimizer.step 放到 CPU，需把梯度从 GPU 拷到 CPU、更新后再拷回，引入 PCIe 带宽瓶颈且 step 串行化；只在 GPU 显存真正不够、且 CPU 内存与带宽富余时划算。"
+    ]
+  },
+  {
     "kind": "code",
     "id": "1143",
     "category": "动态规划",
@@ -19968,6 +20427,977 @@ export const questions = [
       "softmax 后按概率采样一个 token。"
     ],
     "diagram": "logits=[5,1,3,2]\nsoftmax → p=[.84,.02,.12,.02]\n取前 K=2: {5:.84, 3:.12}\n重归一化 → 按新分布采样\n(过滤低概率长尾, 提升多样性)"
+  },
+  {
+    "id": "stream-backpressure-cancel",
+    "kind": "concept",
+    "category": "流式推理工程",
+    "difficulty": "Medium",
+    "title": "流式输出背压与取消",
+    "prompt": "流式生成服务里，客户端中途断开(取消请求)或消费速度跟不上时，服务端如何处理 partial token、避免资源泄漏与背压堆积？",
+    "quickAnswer": "流式生成中客户端断开或消费慢时，服务端必须在发送循环里感知 socket 关闭/取消信号，立即中断生成并释放 KV 与连接资源，否则会白烧算力且泄漏显存/连接。对消费慢用背压：写缓冲超阈值就暂停生成等 drain，防止内存堆积。关键工程点是让取消信号贯穿到推理内核支持可中断、并在断开后确定性清理。",
+    "approach": "核心思路是“生成循环可中断 + 资源确定性回收”：把 cancel/backpressure 作为一等信号贯穿请求生命周期，每吐一个 token 前先问“还该继续吗”,不该继续就 break 并走统一的 cleanup(释放 KV、移出批、关连接)。背压则反向控制生成速度,使服务端不快于下游。",
+    "explanationFocus": "是什么：流式输出背压与取消，指当服务端以 SSE/流式方式持续吐 token 时，下游(客户端/代理)消费慢或提前断开，服务端必须感知并停止无谓生成、释放 KV 与连接资源，防止“服务端还在拼命生成、客户端早已走人”造成的算力浪费与连接/显存泄漏。背压是上下游速率不匹配时的反压信号，取消是客户端显式 disconnect 事件。",
+    "bruteForce": "最朴素实现：开一个 while 生成循环，每步 write(token) 不管客户端死活，跑完才结束。客户端断开后 write 抛 EPIPE 被吞掉或崩溃，GPU 仍跑完整序列，KV 占着不释放,连接挂起——典型资源泄漏与算力浪费。",
+    "invariant": "不变量：任意时刻若检测到取消/不可写，生成循环必在有限步内退出且此前已发出的 partial token 要么被标记为不完整、要么在 cleanup 中丢弃，绝不能出现“已向客户端声明完成却仍在后台生成”或“KV 已释放但生成还在写”的矛盾状态。",
+    "walkthrough": "假设服务端以 40ms/token 生成，客户端在第 10 个 token 后断开。朴素实现：服务端继续生成到第 N 个(如 200)，白做 190×40ms≈7.6s GPU 与占 KV。正确实现：第 11 次循环 write 前检测 res.writableEnded/close 事件已触发 → break，立即 free KV 槽、从 running batch 移除该序列；总浪费仅 <40ms。背压例子：客户端渲染慢,发送缓冲累计>64KB,服务端 await socket.drain 暂停生成约 200ms 再继续,缓冲不爆,但单请求总时长略增。",
+    "code": "async def stream_with_cancel(generate, sink, signal):\n    buf = []\n    for token in generate():                 # 可中断的生成迭代器\n        if signal.cancelled:                 # 客户端取消\n            break\n        buf.append(token)\n        try:\n            await sink.write(token)\n        except ClosedError:                  # socket 已关\n            break\n        if sink.buffer_size > 65536:         # 背压：缓冲超阈值\n            await sink.drain()               # 等下游消费\n    cleanup(signal, buf)                     # 确定性回收 KV/连接\n    return buf",
+    "complexity": "时间：每 token 增加 O(1) 的取消/背压检查，几乎无开销；中断使剩余生成提前停止,省下 O(剩余 token) 算力。空间：背压把发送缓冲限制在阈值内(如 64KB),否则会随生成无限增长。资源上每请求占用的 KV 在取消后 O(1) 释放,防止泄漏。",
+    "beginnerSummary": "就像打印店老板不停地打印你已不想要的文件，你走人了他还打，纸墨白费。正确做法是：你一走(取消)老板立刻停手并把机器让给别人；你若看得慢(背压)，老板就先暂停打印等你消化，不让纸堆满屋。关键是“随时能喊停”和“停了就收拾干净”。",
+    "diagram": "生成循环 ──► write(token)\n   ▲           │\n   │      socket 关闭? ──是──► break ──► cleanup(KV释放/移出批/关连接)\n   │           │否\n   └──── 背压: 缓冲>阈值 ── await drain ──┘",
+    "derivation": [
+      "为什么需要: 流式生成是“边算边发”，若客户端断网/点停止，服务端若不知情会继续跑完整个序列，白烧 GPU 与占着 KV 显存，还可能把 token 写向已关闭的 socket 报错。高并发下大量“孤儿生成”会拖垮整体吞吐。同时客户端慢(如前端渲染卡)会导致服务端发送缓冲堆积，需背压让生成节奏跟上下游。",
+      "怎么实现: ① 在发送 token 的循环里检测底层 socket 是否可写/是否已关闭(如 Node 的 res.on(“close”)、gRPC cancelled)，一旦断开立即 break 生成循环并触发清理。② 取消信号(AbortSignal / context cancellation)贯穿到模型推理层，让 prefill/decode 步骤可中断。③ 背压：当写缓冲超过阈值(如 64KB)时，await drain 或暂停生成，等可写再继续，避免内存无限增长。④ 清理：释放该请求占用的 KV 缓存槽、从批中移除、关闭定时器。",
+      "有什么代价: 取消检测与可中断推理增加代码复杂度，推理内核要支持提前退出(否则最小中断粒度是一个 step)。背压暂停生成会让该请求 TTFT/总时长变长(但省了系统资源)。过早清理若误判(如瞬时网络抖动)会丢弃本可完成的生成，需要去抖/重试策略。",
+      "怎么评测: 评测“孤儿生成率”(客户端取消后服务端仍跑完的比例,目标≈0)、取消后资源释放时延(从 disconnect 到 KV 释放的 ms)、发送缓冲峰值内存、以及断流重连后的状态恢复(是否续生成/是否重复)。压测下模拟随机断开看 GPU 利用率是否回落、显存是否泄漏。"
+    ],
+    "edgeCases": [
+      "瞬时网络抖动造成误断：需去抖/短重试,避免把本可完成的生成丢掉。",
+      "取消发生在 prefill 阶段：要能中断 prefill 本身(不仅是 decode),否则仍白算整段输入。",
+      "背压与取消同时发生：应优先响应取消,避免“还在等 drain 却已断开”的死等。",
+      "多路复用连接(如单连接多流)：取消单流不能关整个连接,需按 stream id 清理。"
+    ],
+    "pitfalls": [
+      "生成循环不检查取消,造成孤儿生成与 GPU 浪费,这是最常见的资源泄漏源。",
+      "清理不彻底:只关连接却没释放 KV 槽,显存随时间泄漏最终 OOM。",
+      "背压缺失导致发送缓冲无限增长,弱网下内存爆炸。",
+      "cleanup 非幂等,重连/重试时 double-free 或重复释放引发崩溃。"
+    ],
+    "prerequisites": [
+      "流式 HTTP(SSE)/gRPC 的客户端断开与取消语义",
+      "异步 I/O 中背压(backpressure)与 drain 机制",
+      "推理服务中 KV 缓存槽的分配与释放"
+    ],
+    "workedExample": [
+      "场景：翻译接口,用户点“停止”。朴素实现继续生成完 300 token,浪费 12s GPU 且 KV 占 12s;正确实现在下一个 token 生成前检测到 AbortSignal,break 并 free KV,浪费 <40ms,GPU 立刻服务他人。监控显示孤儿生成率从 8% 降到 0.1%。",
+      "场景：弱网手机客户端,每 token 渲染需 80ms 但生成仅 40ms,发送缓冲持续堆积至数百 KB 触发 OOM 风险。加背压后缓冲>64KB 即 await drain,服务端生成节奏被拉到与客户端 ~80ms 对齐,内存恒定,单请求变慢但系统稳定。"
+    ],
+    "lineByLine": [
+      "async def stream_with_cancel: 用异步函数把生成与发送解耦,支持 await 检测与暂停。",
+      "for token in generate(): 生成迭代器每步产一个 token,是可中断点。",
+      "if signal.cancelled: break 每步先查取消信号,客户端断开即停,避免白生成。",
+      "except ClosedError: break write 抛错说明 socket 已关,同样停止。",
+      "if sink.buffer_size > 65536: await sink.drain() 背压:缓冲超阈值暂停,等下游消费再继续,防内存爆。",
+      "cleanup(signal, buf) 统一回收 KV 槽、移出批、关连接,保证无泄漏。"
+    ],
+    "codeNotes": [
+      "取消检查粒度=生成步,最小中断单位是一个 token step,无法在单步内更细;",
+      "drain 是把背压“反向传导”到生成速度的关键,缺失则缓冲无限涨;",
+      "cleanup 必须幂等,防止网络抖动重复触发释放导致 double-free。"
+    ],
+    "followUps": [
+      {
+        "question": "取消信号如何真正中断底层 GPU 推理,而不只是停止发送？",
+        "answer": "需要在推理内核层面支持可中断:把 cancel flag 作为参数传入 prefill/decode step,在每层或每 step 开头检查;若用批推理,则把该序列从 running batch 中移除并释放其 KV 槽,后续 step 不再为其计算。纯靠“停止 write”只省了带宽,算力仍烧,必须贯穿到 batch 调度层。"
+      },
+      {
+        "question": "断流后客户端重连,服务端应该续生成还是重来？",
+        "answer": "取决于是否保留状态。若服务端在取消时已释放 KV 且未持久化前缀,重连只能重做 prefill 从头生成(可借 prefix cache 加速)。若业务要求续传,需把已生成前缀与 KV 暂存一段时间(带 TTL),重连后复用并继续 decode,但要处理“客户端已收到部分 token”的重复发送去重。"
+      },
+      {
+        "question": "背压会不会反而让 TTFT 变长或吞吐下降？",
+        "answer": "背压暂停的是“发送节奏”而非 prefill,所以首字 TTFT 基本不受影响;但单请求总时长会因等待 drain 而变长。系统层面吞吐反而更健康,因为避免了缓冲堆积导致的 OOM 与全局卡死。权衡点是背压阈值:设太小频繁 drain 增加上下文切换,设太大缓冲峰值高。"
+      }
+    ],
+    "followUpAnswers": [
+      "需要在推理内核层面支持可中断:把 cancel flag 作为参数传入 prefill/decode step,在每层或每 step 开头检查;若用批推理,则把该序列从 running batch 中移除并释放其 KV 槽,后续 step 不再为其计算。纯靠“停止 write”只省了带宽,算力仍烧,必须贯穿到 batch 调度层。",
+      "取决于是否保留状态。若服务端在取消时已释放 KV 且未持久化前缀,重连只能重做 prefill 从头生成(可借 prefix cache 加速)。若业务要求续传,需把已生成前缀与 KV 暂存一段时间(带 TTL),重连后复用并继续 decode,但要处理“客户端已收到部分 token”的重复发送去重。",
+      "背压暂停的是“发送节奏”而非 prefill,所以首字 TTFT 基本不受影响;但单请求总时长会因等待 drain 而变长。系统层面吞吐反而更健康,因为避免了缓冲堆积导致的 OOM 与全局卡死。权衡点是背压阈值:设太小频繁 drain 增加上下文切换,设太大缓冲峰值高。"
+    ]
+  },
+  {
+    "id": "stream-medusa-eagle",
+    "kind": "concept",
+    "category": "流式推理工程",
+    "difficulty": "Hard",
+    "title": "Medusa / EAGLE / Lookahead 多头多 token 预测",
+    "prompt": "Medusa、EAGLE、Lookahead 这类“多头/树状草稿”方法，相比经典投机解码在草稿生成与验证方式上做了哪些关键改造？",
+    "quickAnswer": "Medusa/EAGLE 不在外部挂独立小模型，而是给目标模型加预测头或轻量自回归头来产草稿。Medusa 用多个头并行预测“未来第 k 位”形成多头候选，EAGLE 用自回归头基于隐藏态构造草稿树，验证时把树展开成批一次前向覆盖所有分支。相比经典投机解码，草稿更准更宽、接受率更高，但代价是需要改造并训练目标模型、树验证显存更大。",
+    "approach": "核心思路是“就地产草稿”：利用目标模型已经算出的隐藏态来推测未来 token，避免再跑一个完整小模型。把线性候选升级为多头/树状候选，验证阶段用树形接受-拒绝(对每个分支独立判断一致路径)一次性并行确认，从而在同样大模型前向次数下拿到更多被接受的 token。",
+    "explanationFocus": "是什么：Medusa/EAGLE 是一类“免独立草稿模型”的投机加速方案，它们不额外训练一个小模型，而是在目标模型上挂载额外的预测头(Medusa head)或基于目标隐藏态自回归地构造草稿树(EAGLE)，一次性给出一个 token 的多个候选分支(多头)乃至多步树，再由目标模型并行验证整棵树，从而提升每轮接受 token 数。",
+    "bruteForce": "朴素基线仍是目标模型纯自回归逐 token 生成，每步一次前向只产 1 个 token。Medusa/EAGLE 的“对照”就是在这一基线上叠加多头/树草稿，所以评测加速比时都以纯自回归为基准。",
+    "invariant": "树形接受-拒绝的不变量：被保留的任意一条从根到叶的路径，其每个位置上 token 与目标模型在该前缀下的边际分布采样结果同分布；因此无论树多宽多深，最终沿所选路径输出的序列仍等于目标模型自回归分布(无偏)。",
+    "walkthrough": "以 Medusa 为例，挂 4 个 head(K=4)预测未来 4 位，再对每位取 top-2 形成 2^4=16 条候选路径。假设目标单次批前向(16 分支)约 70ms；若平均每条路径接受 4 个 token 中的 3.2 个(因多头更准)，则 ~70ms 换得约 3.2 个新 token，每 token≈22ms，而纯目标 40ms/token，加速约 1.8×；经典线性投机同 K 下接受率仅 0.8→3 个，约 60ms/3=20ms 看似更优，但 Medusa 在难样本上接受率衰减更慢。可见树/多头在长候选时更稳。",
+    "code": "def eagle_draft(target, eagle_head, prefix_hidden, K, branch=2):\n    # 基于目标隐藏态递归构造草稿树\n    drafts = [[]]\n    h = prefix_hidden\n    for k in range(K):\n        logits, h_next = eagle_head.step(h)   # 轻量头预测下一隐藏态+token\n        toks = topk(logits, branch)            # 每步取 branch 个分支\n        new_drafts = []\n        for d in drafts:\n            for t in toks:\n                new_drafts.append(d + [t])\n        drafts = new_drafts\n        h = h_next\n    return drafts   # 返回草稿树的所有路径\n\ndef verify_tree(target, prefix, drafts):\n    flat = [prefix + d for d in drafts]\n    logits = target.forward_batch(flat)        # 一次批前向覆盖全树\n    # 树形接受-拒绝：保留与目标一致的最长公共前缀路径\n    ...",
+    "complexity": "时间：每轮一次目标批前向(批大小=分支数^K 或受剪枝限制)换得多条路径合计的接受 token；理想接受数高于线性投机。空间：需缓存树所有分支的 KV，显存随 branch^K 增长，实际会用树剪枝把分支数控制在常数倍。训练上需额外训练 head，但参数量远小于一个独立小模型。",
+    "beginnerSummary": "经典投机像让小同学先写一整行、你再核对；Medusa/EAGLE 则像你自己在稿纸边缘同时写出“下一句可能是 A 或 B”“再下一句可能是 C 或 D”几个备选，然后一次性把这几条可能都念一遍确认哪条对。因为你用的是自己脑子里的信息(隐藏态)，猜得比小同学准，备选又多，所以一次确认能定下更多字。",
+    "diagram": "目标模型隐藏态\n   │\n   ├─ Medusa head1 → 位+1 候选{a,b}\n   ├─ Medusa head2 → 位+2 候选{c,d}\n   ├─ Medusa head3 → 位+3 候选{e,f}\n   └─ Medusa head4 → 位+4 候选{g,h}\n        │\n        展开 16 条路径 → 目标一次批前向 → 树形接受-拒绝",
+    "derivation": [
+      "为什么需要: 经典投机解码依赖一个独立小草稿模型，其草稿质量上限受限于小模型能力，且要额外显存与算力；同时它每轮只产出一条线性候选链，接受率随长度衰减快。Medusa/EAGLE 想在不增加独立模型的前提下，用目标模型自身信息产出更准、更宽的草稿(多头/树)。",
+      "怎么实现: Medusa 在目标模型最后一层后接若干个独立“Medusa head”，每个 head 预测“在当前 token 之后再第 k 个位置”的 token，组合成多条候选；EAGLE 则用一层轻量自回归头，基于目标模型的隐藏态递归预测下一个隐藏态并产出草稿树；Lookahead 利用 n-gram 等轻量方式构造候选。验证时把树展开成束(batch)，一次目标前向覆盖所有分支，按树形接受-拒绝保留一致路径。",
+      "有什么代价: 需要改造/微调目标模型(Medusa head 要训练、EAGLE 头要训练)，训练与部署复杂度高于“直接挂个小模型”。树状验证要把分支展开成更大的批，单次前向显存与算力随分支数增长；分支若过多而接受率低，验证成本会反超收益。还要处理树形接受的一致性与落盘 KV 缓存管理。",
+      "怎么评测: 同样看 acceptance rate(每轮平均接受 token 数)与端到端加速比，但额外关注“树宽/树深”对接受率的边际收益；对比基线含经典投机解码。还需验证分布一致性(仍应为目标分布的无偏采样)以及训练开销、部署显存占用。"
+    ],
+    "edgeCases": [
+      "分支爆炸：branch^K 过大导致批前向显存溢出，必须以树剪枝或最大分支数封顶。",
+      "head 未充分训练：草稿质量差，树越宽越浪费验证算力，应回退更小的树或关掉。",
+      "不同 head 间 token 分布不一致(如训练数据偏移)：验证接受率骤降，需重训 head 或校准。",
+      "EOS 出现在某分支中途：该分支提前终止，其余分支照常验证，最终选最长一致路径。"
+    ],
+    "pitfalls": [
+      "以为 Medusa/EAGLE 完全不需要额外训练——head 仍需在目标任务上训练/微调，否则草稿头预测的是错误分布。",
+      "盲目扩大树宽：验证成本随分支数线性上升，接受率增益却边际递减，需实测“每分支边际收益”。",
+      "树形验证的 KV 缓存管理复杂，分支多时显存峰值是纯自回归的数倍，容易 OOM。"
+    ],
+    "prerequisites": [
+      "经典投机解码的接受-拒绝机制",
+      "Transformer 隐藏态与最后一层 logits 的关系",
+      "批(batch)前向与树形 beam 展开的实现"
+    ],
+    "workedExample": [
+      "场景：13B 目标模型部署对话服务，纯自回归 35ms/token。挂 Medusa-4 head、每头 top-2，构造 16 路径树，目标批前向 60ms。在代码生成难样本上实测平均接受 3.5 token/轮，则 60ms/3.5≈17ms/token，加速约 2×；而同样 K=4 的经典线性投机在该难样本接受率仅 0.6→2.4 token，60ms/2.4=25ms。说明树/多头在难样本上更抗衰减。",
+      "场景：把 branch 从 2 提到 4，路径数变 256，批前向涨到 140ms，但接受 token 仅从 3.5 升到 3.8，每 token≈37ms 反慢于纯自回归。教训：分支数要与接受率增益匹配，过大验证开销反超。"
+    ],
+    "lineByLine": [
+      "def eagle_draft(...): 用轻量 eagle_head 基于目标隐藏态递归构造草稿树，避免独立小模型。",
+      "for k in range(K): logits, h_next = eagle_head.step(h) 每一步用头预测“下一隐藏态+该位 logits”，这是 EAGLE 自回归产草稿的核心。",
+      "toks = topk(logits, branch) 每步取 branch 个最可能 token，形成多分支。",
+      "new_drafts 把当前所有路径分别接上各分支，路径数指数增长到 branch^K(实际会剪枝)。",
+      "def verify_tree: target.forward_batch(flat) 把整棵树展平成批，一次目标前向覆盖全部分支，是并行验证关键。",
+      "树形接受-拒绝保留与目标一致的最长前缀路径，保证最终输出分布无偏。"
+    ],
+    "codeNotes": [
+      "eagle_head 参数量小，训练成本远低于独立草稿模型；",
+      "branch^K 会爆炸，生产必须用树剪枝/受限扩张控制规模；",
+      "forward_batch 把树变批，KV 缓存要按分支管理，否则显存失控。"
+    ],
+    "followUps": [
+      {
+        "question": "Medusa 和 EAGLE 在实现思路上的主要差异？",
+        "answer": "Medusa 在目标模型最后一层后挂多个独立 head，每个 head 直接预测“未来第 k 位”的 token，各 head 相互独立、并行产出多头候选；EAGLE 则用一层自回归 head，基于目标隐藏态递归预测“下一个隐藏态”再出 token，草稿是沿着隐藏态链条构造的树，因此更能利用目标模型已编码的上下文，草稿置信度通常更高，但需要递归步骤。"
+      },
+      {
+        "question": "树状草稿相比线性草稿，为什么接受率衰减更慢？",
+        "answer": "线性草稿每一步都依赖前一步猜对，错一位后面全废，接受数近似几何衰减；树状/多头在每个位置提供多个候选分支，只要其中一个分支命中即可保留该位置，相当于把“必须全对”放宽为“有一个对”，因此更长候选下整体接受 token 数衰减更慢。"
+      },
+      {
+        "question": "这些方法能否与量化、张量并行等其它加速叠加？",
+        "answer": "可以且通常叠加。Medusa/EAGLE 只改草稿生成与验证调度，不影响目标模型本身的量化/并行；但树验证的批大小变大会放大显存与通信开销，需在并行策略下重新测加速比与显存峰值。"
+      }
+    ],
+    "followUpAnswers": [
+      "Medusa 在目标模型最后一层后挂多个独立 head，每个 head 直接预测“未来第 k 位”的 token，各 head 相互独立、并行产出多头候选；EAGLE 则用一层自回归 head，基于目标隐藏态递归预测“下一个隐藏态”再出 token，草稿是沿着隐藏态链条构造的树，因此更能利用目标模型已编码的上下文，草稿置信度通常更高，但需要递归步骤。",
+      "线性草稿每一步都依赖前一步猜对，错一位后面全废，接受数近似几何衰减；树状/多头在每个位置提供多个候选分支，只要其中一个分支命中即可保留该位置，相当于把“必须全对”放宽为“有一个对”，因此更长候选下整体接受 token 数衰减更慢。",
+      "可以且通常叠加。Medusa/EAGLE 只改草稿生成与验证调度，不影响目标模型本身的量化/并行；但树验证的批大小变大会放大显存与通信开销，需在并行策略下重新测加速比与显存峰值。"
+    ]
+  },
+  {
+    "id": "stream-speculative-decoding",
+    "kind": "concept",
+    "category": "流式推理工程",
+    "difficulty": "Hard",
+    "title": "投机解码 Speculative Decoding",
+    "prompt": "大模型自回归逐 token 生成很慢，投机解码(Speculative Decoding)是如何在保持输出分布完全不变(lossless)的前提下实现加速的？",
+    "quickAnswer": "投机解码用一个小的草稿模型先预测 K 个候选 token，再用大模型并行一次性验证，把 K 次串行前向压缩成约 1 次验证，从而实现加速。被接受的数量由 acceptance rate 决定，未通过的位置从分歧点按大模型分布重采样，因此输出分布与原始自回归严格一致(lossless)。代价是额外维护草稿模型与 K 的选择，收益在接受率高时显著。",
+    "approach": "核心思路是“用小模型猜、大模型验”：草稿模型自回归产出候选块，目标模型单次并行前向给出整块的分布，再从左到右贪心对齐；首个不一致处截断并以大模型分布重采样。关键在于保证统计一致性——验证步骤本质上是在做 “blockwise” 的接受-拒绝采样。",
+    "explanationFocus": "是什么：投机解码是一种 lossless 的推理加速方法，用一个小的草稿模型(draft model)一次性预测未来若干个 token，再由大的目标模型(target model)并行地一次性校验(verify)这批 token 是否符合其自身分布，从而把多次串行自回归步压缩成一次并行验证。",
+    "bruteForce": "朴素做法就是直接用目标大模型做标准自回归：每步只生成一个 token，生成下一个 token 前必须等上一步完成，L 个 token 就串行 L 次前向。没有任何并行或猜测，实现简单但严重受限于大模型单步延迟。",
+    "invariant": "循环不变量：在每一轮投机-验证中，被接受前缀 + 分歧点处目标重采样出的 token 始终与目标模型对该前缀的边际分布采样结果同分布，因此任意多轮叠加后整体序列分布等于原始自回归分布(证明见 Leviathan et al. 2023 的接受-拒绝采样引理)。",
+    "walkthrough": "假设目标模型 M 每步前向固定 50ms，草稿模型 m 每步 5ms。取 K=4：m 串行跑 4 步 = 20ms 产出 4 个候选；M 一次性验证 4 个 token 约 55ms(批大小 4 略增)。若该轮接受率 0.75，平均接受 3 个，则“3 个新 token”花费 ~75ms；而纯 M 自回归需 3×50=150ms，这一轮提速约 2×。若接受率掉到 0.25(只接受 1 个)，则 ~75ms 只换 1 个 token，不如纯自回归。这说明加速比 ≈ (K×单步M延迟) / (K×单步m延迟 + 单次M批延迟) × 接受率 的折中。",
+    "code": "def speculative_decode(draft, target, prefix, K):\n    # 草稿模型串行猜 K 个\n    candidates = []\n    ctx = prefix\n    for _ in range(K):\n        tok = draft.sample(ctx)        # 小模型便宜\n        candidates.append(tok)\n        ctx = ctx + [tok]\n    # 大模型一次性并行验证整块\n    logits = target.forward(prefix + candidates)   # 单批次前向\n    # 从左到右接受-拒绝\n    n_accept = 0\n    for i, c in enumerate(candidates):\n        if target.sample_from(logits[i]) == c:\n            n_accept += 1\n        else:\n            break\n    new_prefix = prefix + candidates[:n_accept]\n    if n_accept < K:\n        new_prefix += [target.sample_from(logits[n_accept])]  # 分歧点重采样\n    return new_prefix, n_accept",
+    "complexity": "时间上，每轮用 K 次小模型前向 + 1 次大模型批前向换得 (接受数+1) 个 token；理想加速 ≈ (K·t_M)/(K·t_m + t_M_batch)。空间上需为 K 个候选缓存 logits 与 KV，开销 O(K)。大模型单次批前向随 K 略增但远小于 K 次独立前向。",
+    "beginnerSummary": "想象你写作业时，让一个写字快但常出错的小同学先替你写一整段，然后你(大同学)拿着红笔一次性核对：对的留着，第一个错的地方你亲自改并续写。因为错的地方一定按你的意思来，最后整段和你自己写的一字不差，但因为你一次核对了一整段，省下了反复等小同学、再等自己逐字写的时间。",
+    "diagram": "草稿模型 m          目标模型 M\n  │                   │\n  ├─ t1,t2,t3,t4 ───► │  并行 verify\n  │   (候选 K 个)     │\n  │                   ▼\n  │            接受 t1,t2,t3 | 分歧于 t4\n  └────────── 从 t4' 按 M 重采样续写",
+    "derivation": [
+      "为什么需要: 自回归大模型每生成一个 token 都需要一次完整的模型前向(尤其大模型前向受限于内存带宽，单步算力利用率低)，生成长度 L 时总延迟与 L 成正比。小模型前向更便宜，若能借助小模型“猜”出接下来几个 token，再让大模型“一次性确认”，就能在多步串行里省下大模型的前向次数。",
+      "怎么实现: 草稿模型基于当前上下文自回归地采样/贪心出 K 个候选 token；把这些 token 拼成序列喂给目标模型做一次并行前向，目标模型同时输出每个位置的真实分布；按从左到右逐个位置比较草稿 token 与目标采样结果，遇到第一个不一致的位置即停止接受(后续按目标分布重采样)。未被接受的部分从分歧点重采样续写。",
+      "有什么代价: 需要额外加载并运行一个草稿模型，增加显存与一部分算力开销；加速收益取决于 acceptance rate(接受率)，若草稿模型与目标模型差异大、接受率低，则额外开销打水漂甚至变慢。草稿长度 K 也是超参，K 太大接受率下降、K 太小加速有限。",
+      "怎么评测: 核心指标是 acceptance rate(每步平均被接受的 token 数)与端到端加速比(wall-clock 对比基线自回归)。还要验证输出分布与原始自回归严格一致(lossless)，常用困惑度/下游任务指标复现、以及每步验证 FLOPs 与串行基线的对比来量化收益。"
+    ],
+    "edgeCases": [
+      "接受率为 0 时(草稿完全不准)：每轮只得到 1 个 target token，等价于纯自回归外加 K 次小模型浪费，应回退到不用草稿。",
+      "草稿长度 K 大于剩余需生成长度：最后一圈候选越界，应截断 K 到剩余预算，避免无谓计算。",
+      "温度/采样参数导致 draft 与 target 分布差异：贪心 draft + 采样 target 的接受率与纯采样目标分布一致性需按带温度的接受-拒绝公式修正。",
+      "EOS 出现在候选中间：接受到 EOS 即应提前结束整段生成，后续候选作废。"
+    ],
+    "pitfalls": [
+      "误以为投机解码会改变输出分布——只要验证用正确的接受-拒绝准则，它就是严格 lossless 的，但实现里若用 argmax 而非按分布采样验证就会引入偏差。",
+      "盲目增大 K：接受率随 K 衰减，K 过大时额外小模型成本 + 批前向增长会抵消收益，需按经验选 K 并监控实时接受率。",
+      "草稿模型与目标模型 tokenizer/词表必须对齐，否则候选 token 无法在 target 词空间里验证。"
+    ],
+    "prerequisites": [
+      "自回归生成与 teacher forcing 的基本流程",
+      "大模型推理的单步延迟瓶颈(内存带宽受限)",
+      "接受-拒绝采样(rejection sampling)的基本思想"
+    ],
+    "workedExample": [
+      "场景：7B 目标模型 + 120M 草稿模型，生成 128 token 的代码补全。草稿每步 3ms，目标每步 40ms。取 K=5，measured 平均接受率 0.8，则每轮平均产出 5×0.8+1≈5 个 token，耗时≈5×3+45=60ms，纯目标需 5×40=200ms，单轮约 3.3×。整段 128 token 约 25 轮，端到端从 ~5.1s 降到 ~1.5s。",
+      "反例：换一个与目标任务分布差异很大的草稿模型，接受率掉到 0.2。每轮平均仅产出 5×0.2+1=2 个 token，耗时仍 60ms，相当于每 token 30ms，比纯目标 40ms 略好但远未达预期；且额外显存常驻 120M 模型，此时应减小 K 或换草稿。"
+    ],
+    "lineByLine": [
+      "def speculative_decode(draft, target, prefix, K): 定义主函数，draft 为小草稿模型、target 为大目标模型、prefix 为已确认上下文、K 为每轮猜测长度。",
+      "for _ in range(K): tok = draft.sample(ctx) 让便宜的小模型自回归地连续猜出 K 个候选 token，这 K 次是小模型串行前向。",
+      "logits = target.forward(prefix + candidates) 把整段候选一次性喂给大模型做单批次并行前向，得到每个位置的真实分布——这是加速的核心(一次换 K)。",
+      "for i, c in enumerate(candidates): if target.sample_from(logits[i]) == c: n_accept += 1 else: break 从左到右逐位比较：草稿 token 与大模型在该位采样一致则接受，第一个不一致即停止(保证分布一致性的关键)。",
+      "new_prefix += [target.sample_from(logits[n_accept])] 分歧点用大模型自己的分布重采样一个 token 续写，被拒绝的后续草稿全部丢弃。"
+    ],
+    "codeNotes": [
+      "for 循环里 draft.sample 是小模型串行猜测，K 次累加的是小模型成本；",
+      "target.forward 一次批前向替代了 K 次独立大模型前向，是加速来源；",
+      "从左到右的接受-拒绝顺序不可打乱，否则破坏 lossless 证明。"
+    ],
+    "followUps": [
+      {
+        "question": "投机解码和 Medusa/EAGLE 这类方法的核心区别是什么？",
+        "answer": "经典投机解码用独立的小草稿模型串行猜 token，再交给目标模型验证；Medusa/EAGLE 不再额外训练一个完整小模型，而是在目标模型上加“多头/自回归头”直接从目标模型的隐藏态预测未来若干 token(草稿树)，验证阶段也更结构化。前者训练成本低、可插拔，后者草稿质量更高、接受率更好但需改造目标模型结构。"
+      },
+      {
+        "question": "如何估算某场景下是否值得用投机解码？",
+        "answer": "看两个量：草稿单步延迟 t_m 与目标单步延迟 t_M 的比值，以及平均接受率 α。每轮用 K·t_m + t_M_batch 换 (K·α + 1) 个 token；当 t_M 远大于 t_m 且 α 较高时收益明显。实操上先离线测 α(K)，若 α<0.3 基本不划算，应减小 K 或换更好的草稿。"
+      },
+      {
+        "question": "投机解码在 beam search 或约束解码下还能用吗？",
+        "answer": "可以但需要额外处理。beam 场景下要按每条 beam 分别做草稿与验证；约束解码(如 JSON schema)要保证草稿 token 也满足约束，否则接受率骤降。本质上接受-拒绝准则要在约束分布下重新推导，保证仍是约束后的真实分布采样。"
+      }
+    ],
+    "followUpAnswers": [
+      "经典投机解码用独立的小草稿模型串行猜 token，再交给目标模型验证；Medusa/EAGLE 不再额外训练一个完整小模型，而是在目标模型上加“多头/自回归头”直接从目标模型的隐藏态预测未来若干 token(草稿树)，验证阶段也更结构化。前者训练成本低、可插拔，后者草稿质量更高、接受率更好但需改造目标模型结构。",
+      "看两个量：草稿单步延迟 t_m 与目标单步延迟 t_M 的比值，以及平均接受率 α。每轮用 K·t_m + t_M_batch 换 (K·α + 1) 个 token；当 t_M 远大于 t_m 且 α 较高时收益明显。实操上先离线测 α(K)，若 α<0.3 基本不划算，应减小 K 或换更好的草稿。",
+      "可以但需要额外处理。beam 场景下要按每条 beam 分别做草稿与验证；约束解码(如 JSON schema)要保证草稿 token 也满足约束，否则接受率骤降。本质上接受-拒绝准则要在约束分布下重新推导，保证仍是约束后的真实分布采样。"
+    ]
+  },
+  {
+    "id": "stream-stop-criteria",
+    "kind": "concept",
+    "category": "流式推理工程",
+    "difficulty": "Easy",
+    "title": "流式停止判定与截断",
+    "prompt": "流式生成时,服务端应该在什么条件下停止吐 token,有哪些停止判定策略及其在流式场景下的坑？",
+    "quickAnswer": "流式停止判定主要有四类:EOS 结束符命中(需吞掉不推送)、用户 stop sequences 匹配(在累积文本上检测,注意可能跨 token 边界被拆开)、max_tokens 硬上限(防失控但可能截断)、以及流式 early stop(结构闭合即停)。坑在于 stop sequence 跨边界漏判、EOS 被当成文本推给用户、以及 early stop 判定过严/松。实现要在累积文本而非单 token 上做匹配。",
+    "approach": "核心思路是“每 token 后在累积文本上统一判定,而不是孤立看当前 token”:维护已发文本缓冲,新 token 追加后用滑动窗口检测 EOS 与所有 stop sequences,命中即截断停止;同时用计数器守 max_tokens;把停止原因结构化返回,且绝不把停止标记本身发给用户。",
+    "explanationFocus": "是什么：流式停止判定指在服务端逐 token 流式输出过程中,决定“何时停止生成并结束流”的规则集合,通常包括命中 EOS(结束符)、匹配 stop sequences(用户指定的停止串,如 “###”、“</tool>”)、达到 max_tokens 上限、以及基于流式特性的 early stop(如检测到完整 JSON/代码结构、或客户端取消)。它既要正确终止,又要避免把停止标记本身泄漏给用户或提前截断。",
+    "bruteForce": "最朴素:只靠模型自己输出 EOS 来停,不设 max_tokens 也不处理 stop sequences。结果:遇到模型不输出 EOS 会一直生成到上下文满;用户指定的 “###” 之类的停止串会被原样吐给用户且不停;长对话偶发失控生成,浪费算力。",
+    "invariant": "不变量:一旦判定停止,该请求此后不再产生任何新 token,且已推送给用户的文本中不包含 EOS 与任何完整 stop sequence(它们只作为“停止信号”消费掉,不出现在用户可见内容里)。即“停止标记对用户不可见”。",
+    "walkthrough": "设 stop sequence 为 “</tool>”(6 字符),模型分两 token 输出 “</” 与 “tool>”。朴素单 token 判定:收到 “</” 时不匹配、收到 “tool>” 时若只看当前 token 也不匹配(它是前缀无关的子串),导致漏停、把 “</tool>” 推给用户。正确做法:累积文本 = 之前 + “</” + “tool>” = “…</tool>”,在累积文本上检测后缀匹配 “</tool>” 命中 → 截断到其前并停止,用户看不到该串。另例 max_tokens=100,第 100 个 token 后强制停,即使未遇 EOS,需标记 truncated=True 让前端知晓。",
+    "code": "def should_stop(new_token, text, stop_seqs, max_tokens, count):\n    if new_token == EOS_ID:\n        return True, \"eos\", text          # 吞掉 EOS,不推送\n    text = text + decode(new_token)\n    for s in stop_seqs:\n        if text.endswith(s):               # 在累积文本上后缀匹配\n            return True, \"stop\", text[:-len(s)]\n    if count + 1 >= max_tokens:\n        return True, \"max\", text\n    return False, None, text\n\ndef generate_loop(prompt, stop_seqs, max_tokens):\n    text, count = \"\", 0\n    while True:\n        tok = model.step()\n        stop, reason, text = should_stop(tok, text, stop_seqs, max_tokens, count)\n        if stop:\n            yield text, reason             # 已不含停止标记\n            break\n        yield text, None                   # 推送(增量)\n        count += 1",
+    "complexity": "时间：每 token 一次后缀匹配,共 |stop_seqs| 个串、各 O(最长串长),整体 O(|stop_seqs|·L_stop) 每步,可忽略;计数 O(1)。空间：维护累积文本(或仅末 max(L_stop) 字符的滑动窗口),O(L_stop) 即可,不必存全量。max_tokens 为硬上限 O(1) 判定。",
+    "beginnerSummary": "就像写文章时你定了“写到这里停”:遇到句号(EOS)停、看到“全文完”三个字(stop sequence)停、字数到上限(max_tokens)停。麻烦在于“全文完”可能被拆成“全文”和“完”两次说出,你得多等一下拼起来才知道该停,不能只看当前半句就判断。还有,这个“停”的信号本身不能写进文章里给用户看到。",
+    "diagram": "新token ─► 追加累积文本\n              │\n   ├─ == EOS? ──是──► 停止,不推送EOS\n   ├─ 后缀匹配 stop seq? ──是──► 截断到其前,停止\n   ├─ 计数≥max_tokens? ──是──► 停止(truncated)\n   └─ early stop(结构闭合)? ──是──► 停止\n   否则 ─► 推送 token,继续",
+    "derivation": [
+      "为什么需要: 不停止会无限生成烧算力;停止错了(漏停/早停/把停止符推给用户)会影响正确性与体验。流式下还有特殊坑:stop sequence 可能跨 token 边界被拆开(如 “</” 与 “tool>” 分两次到达),若只看单 token 就漏判;EOS 出现后要吞掉不发给用户;max_tokens 是硬上限防失控。需要一套稳健判定。",
+      "怎么实现: 在生成循环每个新 token 后做判定：① 若 token==EOS 则停止且不输出该 token;② 把新 token 追加到已发文本,检测是否以任一 stop sequence 结尾,命中则截断到该序列之前并停止;③ 计数 token 数,达到 max_tokens 强制停止(可能截断);④ 流式 early stop:如结构化输出校验器判定已闭合(括号/JSON 完整)可提前停。判定要在“累积文本”上做而非单 token,以处理跨边界 stop sequence。",
+      "有什么代价: stop sequence 匹配需维护累积文本或滑动窗口,有少量 O(匹配串长度) 开销;max_tokens 截断可能产生不完整输出需标记;early stop 的判定器(如 JSON 校验)若过严会早停丢内容、过松则不停。跨边界匹配若实现成“只看最后 N 个 token”需保证窗口 ≥ 最长 stop sequence。",
+      "怎么评测: 评测停止正确率(应停尽停、不该停不停)、EOS 是否被泄漏给用户(应为 0)、stop sequence 跨边界命中率(构造被拆分的用例验证)、截断率与 max_tokens 触发占比、以及平均多生成的“废 token”数(早停/漏停的浪费)。端到端用一批含特殊停止串的 prompt 回归。"
+    ],
+    "edgeCases": [
+      "stop sequence 跨多个 token 被拆开:必须用累积文本/滑动窗口匹配,单 token 判定必漏。",
+      "EOS 与 stop sequence 同时出现:优先按业务规则(通常 EOS 优先或 stop 优先需明确),避免重复停止逻辑冲突。",
+      "max_tokens 截断导致 JSON/代码不完整:需向上层返回 truncated 标志,前端决定续写。",
+      "stop sequence 是另一 stop sequence 的子串:匹配顺序与最长优先要避免误截(如 “##” vs “###” 应匹配更长的)。"
+    ],
+    "pitfalls": [
+      "只在当前 token 上判断 stop sequence,导致跨边界停止串漏判、被原样输出给用户。",
+      "把 EOS 当成普通 token 推给用户,前端多出 “” 或乱码。",
+      "max_tokens 设过小造成频繁截断,或设过大失去防失控意义,需按场景调。",
+      "多个 stop sequence 含子串关系时匹配顺序错误,短串先命中导致过早截断。"
+    ],
+    "prerequisites": [
+      "EOS/特殊 token 在生成中的语义",
+      "字符串后缀匹配与滑动窗口",
+      "流式输出循环与增量发送的基本结构"
+    ],
+    "workedExample": [
+      "场景:函数调用要求模型输出到 “</tool>” 停止。模型把该串拆成 “</” + “tool>” 两个 token。仅在单 token 上匹配的朴素实现漏判,把 “</tool>” 原样推给用户且继续生成;累积文本后缀匹配实现则在拼成 “</tool>” 那一刻命中并截断,用户只看到前面的有效内容。",
+      "场景:max_tokens=512 限制下,模型对开放问题本可写 800 token,到第 512 个被强制停止,返回 truncated=True。前端据此提示“内容已截断,可继续”,避免无限生成同时明确告知用户,而非默默丢内容。"
+    ],
+    "lineByLine": [
+      "def should_stop: if new_token == EOS_ID: return True,\"eos\",text EOS 命中直接停且吞掉该 token,不推送。",
+      "text = text + decode(new_token) 把新 token 解码后追加到累积文本,为跨边界匹配做准备。",
+      "for s in stop_seqs: if text.endswith(s): 在累积文本上做后缀匹配,能识别被拆成多 token 的停止串。",
+      "return True,\"stop\",text[:-len(s)] 命中则截断到停止串之前再停止,用户看不到停止标记。",
+      "if count+1 >= max_tokens: 硬上限判定,防失控生成,返回 truncated 信号。",
+      "generate_loop 中 yield text,reason 已剔除停止标记,正常 token 才推送。"
+    ],
+    "codeNotes": [
+      "匹配必须在“累积文本”而非“当前 token”上做,否则跨边界 stop sequence 漏判;",
+      "EOS 与 stop sequence 命中后都绝不能把标记本身推给用户;",
+      "维护滑动窗口(末 max(L_stop) 字符)即可,不必缓存全量文本以省内存。"
+    ],
+    "followUps": [
+      {
+        "question": "stop sequences 和 EOS 在流式处理上有什么不同优先级考虑？",
+        "answer": "EOS 是模型内生的“我真写完了”信号,语义上最权威;stop sequences 是用户/业务外挂的“写到这就行”。通常两者任一命中都停,但若同时出现需明确优先级(多数实现 EOS 优先并吞掉,stop 也吞掉)。关键共性:二者命中后都绝不能把标记本身推给用户,且都应在累积文本上判定。"
+      },
+      {
+        "question": "如何在流式 JSON 输出里做 early stop 而不破坏结构？",
+        "answer": "用一个增量 JSON 解析器/结构校验器,每追加一个 token 就尝试判断当前结构是否已闭合(括号/引号配对完成、根对象结束)。一旦判定闭合即可 early stop,省掉模型继续“补废话”。风险是过严(未真正闭合就停→截断)或过松(漏判→不停),需用容错解析并在不确定时继续生成而非强行停。"
+      },
+      {
+        "question": "max_tokens 触发截断后,如何支持“继续生成”？",
+        "answer": "把截断点之前的前缀(含已生成 token 与 KV)作为新请求的上下文续跑,并复用 prefix cache 跳过重复 prefill;返回里带 truncated=True 与续跑游标,前端可发“continue”请求。注意续跑时要重新套用同样的 stop sequences 与 max_tokens 预算,避免重复输出已发内容(去重)。"
+      }
+    ],
+    "followUpAnswers": [
+      "EOS 是模型内生的“我真写完了”信号,语义上最权威;stop sequences 是用户/业务外挂的“写到这就行”。通常两者任一命中都停,但若同时出现需明确优先级(多数实现 EOS 优先并吞掉,stop 也吞掉)。关键共性:二者命中后都绝不能把标记本身推给用户,且都应在累积文本上判定。",
+      "用一个增量 JSON 解析器/结构校验器,每追加一个 token 就尝试判断当前结构是否已闭合(括号/引号配对完成、根对象结束)。一旦判定闭合即可 early stop,省掉模型继续“补废话”。风险是过严(未真正闭合就停→截断)或过松(漏判→不停),需用容错解析并在不确定时继续生成而非强行停。",
+      "把截断点之前的前缀(含已生成 token 与 KV)作为新请求的上下文续跑,并复用 prefix cache 跳过重复 prefill;返回里带 truncated=True 与续跑游标,前端可发“continue”请求。注意续跑时要重新套用同样的 stop sequences 与 max_tokens 预算,避免重复输出已发内容(去重)。"
+    ]
+  },
+  {
+    "id": "stream-tokenizer-streaming",
+    "kind": "concept",
+    "category": "流式推理工程",
+    "difficulty": "Medium",
+    "title": "流式 tokenizer / detokenizer 增量对齐",
+    "prompt": "在大模型流式输出(SSE/逐 token 返回)中，为什么经常看到“半个词”或乱码闪烁，tokenizer 与 detokenizer 的增量对齐要怎么处理？",
+    "quickAnswer": "流式输出里“半个词”源于子词切分单位小于自然词：一个字/词被拆成多个 token，单拿中间 token 无法独立解码成完整字符。处理办法是维护 pending 缓冲，每个 token 到达后尝试增量 detokenize 并判断前缀一致性，能成完整片段才 flush、否则暂存等下一个 token，必要时 fallback。代价是少量状态内存与每 token 判定开销，但能消除前端乱码闪烁。",
+    "approach": "核心思路是“延迟 flush + 前缀一致”：不盲目把每个 token 直转文本，而是用增量解码接口保证 decode(prefix+tok) 前缀等于 decode(prefix)，把无法独立成形的尾部留在缓冲里。对多字节字符、BPE 合并边界、特殊 token 分别处理，保证最终拼接与一次性 decode 完全一致。",
+    "explanationFocus": "是什么：流式 tokenizer/detokenizer 是指在逐 token 生成时，把模型输出的子词 token id 增量地、实时地转回文本片段并推送给前端的过程。难点在于子词切分(BPE/WordPiece)的边界常常不在自然词边界上，一个汉字/单词可能被拆成多个 token，单次只拿到中间 token 时无法直接拼成完整字符，需要缓存未完成片段、做延迟 flush 与 fallback，避免把“半个字”推给用户。",
+    "bruteForce": "最朴素做法是每来一个 token 就 tokens_to_text([tok]) 单独转并直接推前端。这样在 BPE/中文多 token 场景下会反复出现“半截字”、重复前缀或乱码，体验差且有时信息错误，仅适用于 token≈词且不含多字节的场景。",
+    "invariant": "不变量：任意时刻已 flush 出去的文本，等于对“已确认前缀 token 序列”做一次完整 detokenize 得到的前缀；即增量 flush 的累积结果与整段一次性 decode 的前缀严格相等，绝不出现已推送文本与最终文本冲突。",
+    "walkthrough": "以中文“机器学习”为例，假设被切成 token [“机器”,“学”,“习”] 三块(或某 tokenizer 把“习”拆成两半)。流式时：第1个 token “机器”可完整解码→flush “机器”；第2个 token “学”完整→flush “学”；第3个 token “习”完整→flush “习”。若某 tokenizer 把“习”拆成 [“习”,“_tail”]，则收到“习”时若“_tail”未到，增量解码只能得到“?”，此时不 flush、缓冲“习”相关字节，等“_tail”到达拼成完整“习”再 flush。最终拼接与一次性 decode(全序列)一致，且过程中无半字推给用户。",
+    "code": "class IncrementalDetokenizer:\n    def __init__(self, tokenizer):\n        self.tok = tokenizer\n        self.pending = []          # 尚未 flush 的 token id\n\n    def push(self, token_id):\n        self.pending.append(token_id)\n        text = self.tok.decode(self.pending, skip_special_tokens=True)\n        # 前缀一致性：若当前累积能成完整片段则 flush\n        if self._is_complete(text):\n            self.pending = []\n            return text             # 推给前端\n        return \"\"                   # 暂存，等更多 token\n\n    def _is_complete(self, text):\n        # 判断是否构成合法完整 UTF-8 结尾(无截断多字节字符)\n        return not text.endswith(('�',)) and self._ends_clean(text)",
+    "complexity": "时间：每 token 一次增量 decode + 前缀/UTF-8 完整性判定，O(len(pending)) 且 pending 通常很短，单次微秒级；整体与 token 数线性。空间：仅缓存未完成 token 与少量字节状态，O(平均片段长度)，可忽略。主要成本是 tokenizer.decode 本身，可用缓存上一次前缀加速。",
+    "beginnerSummary": "就像快递员送拼图，模型一次只递给你一小块(子词)，有时候一块里只含“半个字”的笔画。你不能在拿到半块时就显示，得先把已经能拼成完整字的块贴墙上(flush)，拼不成的先放桌角(pending)等下一块来。保证最后贴出来的墙和一次性拿全拼图贴出来的一模一样，过程中用户就不会看到“半个字”乱跳。",
+    "diagram": "token流: [机器] [学] [习½] [习½尾]\n                │      │      │\n   flush 机器    flush学   缓冲(半字)\n                         │\n                    收到尾 → flush 习",
+    "derivation": [
+      "为什么需要: 大模型输出的是 token id 序列，前端要的是可读文本，必须 detokenize。流式场景下不能等整句生成完再转(延迟太高)，所以要在每个 token 到达时尽量快地吐出可读片段；但子词单位常小于自然词(如“un”+“believable”、中文一个字两 token)，逐个 token 直转会出现半个词、重复前缀或乱码。",
+      "怎么实现: 维护一个待定缓冲区(pending bytes / pending tokens)：每来一个 token，尝试把它接在前一个未完成片段后做“前缀可解码性”判断——若当前累积字节能构成完整合法 UTF-8 字符/词片则 flush 出去，否则暂存。提供 decode(token, skip_special=True) 的增量接口，并保证前缀一致性：decode(prefix+tok) 的前缀部分与之前 decode(prefix) 完全一致。对实在无法对齐的尾部用 fallback(如直接按字节映射或等下一个 token)。",
+      "有什么代价: 增量 detokenize 要保存未完成片段状态，增加少量内存与每 token 的判定的 CPU 开销；为保前缀一致性，某些 tokenizer(如 SentencePiece 带空格标记)需要特殊前缀处理，处理不当会引入空格漂移或首 token 重复。fallback 等待下一个 token 会引入极小额外延迟。",
+      "怎么评测: 评测对齐正确性：用固定文本 tokenize 后再流式 detokenize，比较拼接结果是否与原文本逐字符一致(round-trip 一致率)；评测延迟：每 token 的 detokenize 耗时与 flush 时机；评测前端体验：乱码/闪烁次数(半个字出现频次)应为 0。还要测多语言/emoji(多字节)与特殊 token(如 <｜end｜>)的跳过。"
+    ],
+    "edgeCases": [
+      "多字节字符/emoji 被拆成多个 token：必须缓冲到完整字节再 flush，否则出现 “�”。",
+      "SentencePiece 带 “▁”(空格)标记的首 token：单独解码会多/少一个空格，需统一前缀处理避免空格漂移。",
+      "特殊 token(EOS/工具调用标记)混入流：必须 skip 且不 flush，避免把控制符暴露给用户。",
+      "末尾残留 pending：生成结束时若缓冲里还有未 flush 片段，必须强制 flush，否则丢字。"
+    ],
+    "pitfalls": [
+      "用 token 单独 decode 再拼接，而不是缓冲整体 decode，导致前缀重复/空格漂移/半个字——这是最常见的错。",
+      "忽略 UTF-8 多字节截断，把 “�” 推给前端形成豆腐块乱码。",
+      "忘记在流结束时 flush 残留 pending，造成最后几个字丢失。",
+      "把特殊 token 当普通文本 flush，前端显示 <｜end｜> 之类控制符。"
+    ],
+    "prerequisites": [
+      "BPE/WordPiece/SentencePiece 子词切分的基本原理",
+      "UTF-8 多字节字符编码与“截断字符”概念",
+      "大模型 token id → 文本 的 detokenize 接口"
+    ],
+    "workedExample": [
+      "场景：英文 “unbelievable” 在 BPE 下被切成 [“un”,“believable”] 两个 token。流式时收到 “un” 单独 decode 会得到 “un” 这个看起来像独立词的片段，若直接 flush 用户会先看到 “un” 再看到 “unbelievable” 造成重复前缀闪烁。正确做法：把 “un” 留在 pending，等 “believable” 到达拼成 “unbelievable” 再一次性 flush，避免前缀重复。",
+      "场景：emoji “😀”(4 字节 UTF-8)被 tokenizer 拆成两个 token。第一个 token 单独解码得到无效截断字节 “�”，绝不能 flush；缓冲等到第二个 token 补齐全 4 字节后再 flush 出 “😀”，否则前端显示豆腐块。"
+    ],
+    "lineByLine": [
+      "class IncrementalDetokenizer: 维护一个 pending 缓冲，承载尚未能完整 flush 的 token id。",
+      "def push(self, token_id): self.pending.append(token_id) 每来一个 token 先入缓冲，不直接推前端。",
+      "text = self.tok.decode(self.pending, skip_special_tokens=True) 对当前缓冲整体解码，利用 tokenizer 的前缀一致性。",
+      "if self._is_complete(text): 判断当前累积是否已是无截断的完整片段(末尾非 �、且自然结束)。",
+      "return text 完整则清空 pending 并 flush 给前端；否则 return ‘’ 继续缓冲，等下一 token。"
+    ],
+    "codeNotes": [
+      "decode 必须用“缓冲整体解码”而非逐 token 单独解码，才能保证前缀一致；",
+      "skip_special_tokens=True 避免把 <｜end｜> 等控制 token 推给用户；",
+      "_is_complete 要识别 UTF-8 截断与 BPE 半合并，是防止半字的关键。"
+    ],
+    "followUps": [
+      {
+        "question": "如何保证增量 detokenize 的结果和一次性 decode 完全一致？",
+        "answer": "依靠 tokenizer 的“前缀一致性”：decode(ids[0:i]+[ids[i]]) 的输出前缀必须等于 decode(ids[0:i]) 的输出。实现上始终对 pending 整体 decode 而非逐 token 拼接，并只在能成完整片段时 flush；只要 flush 时刻的 pending 是最终前缀的子集，累积结果在流结束时必然与整段 decode 一致。SentencePiece 还需统一首 token 的前缀空格处理。"
+      },
+      {
+        "question": "流式场景下 tokenizer 和 detokenizer 能否复用同一套？",
+        "answer": "逻辑上复用同一 tokenizer 的 encode/decode 即可，但流式只用到 decode 的增量形式。关键在于 decode 要支持“部分序列→可读前缀”且前缀稳定；有些老旧 tokenizer 的 decode 在部分序列上会加额外空格或合并异常，需要包一层增量缓冲与完整性判定，不能直接裸用。"
+      },
+      {
+        "question": "前端 SSE 收到的 chunk 和 token 是一一对应的吗？",
+        "answer": "通常不是。一个 SSE chunk 可能含 0/1/多个 token 的文本片段：服务端为了等完整字会缓冲，所以 flush 时机由 detokenizer 决定，chunk 边界与 token 边界解耦。前端按 chunk 拼接即可，不应假设每 chunk 恰一个 token。"
+      }
+    ],
+    "followUpAnswers": [
+      "依靠 tokenizer 的“前缀一致性”：decode(ids[0:i]+[ids[i]]) 的输出前缀必须等于 decode(ids[0:i]) 的输出。实现上始终对 pending 整体 decode 而非逐 token 拼接，并只在能成完整片段时 flush；只要 flush 时刻的 pending 是最终前缀的子集，累积结果在流结束时必然与整段 decode 一致。SentencePiece 还需统一首 token 的前缀空格处理。",
+      "逻辑上复用同一 tokenizer 的 encode/decode 即可，但流式只用到 decode 的增量形式。关键在于 decode 要支持“部分序列→可读前缀”且前缀稳定；有些老旧 tokenizer 的 decode 在部分序列上会加额外空格或合并异常，需要包一层增量缓冲与完整性判定，不能直接裸用。",
+      "通常不是。一个 SSE chunk 可能含 0/1/多个 token 的文本片段：服务端为了等完整字会缓冲，所以 flush 时机由 detokenizer 决定，chunk 边界与 token 边界解耦。前端按 chunk 拼接即可，不应假设每 chunk 恰一个 token。"
+    ]
+  },
+  {
+    "id": "stream-ttft-optimize",
+    "kind": "concept",
+    "category": "流式推理工程",
+    "difficulty": "Medium",
+    "title": "首字延迟 TTFT 工程优化",
+    "prompt": "首字延迟(TTFT, Time To First Token)在流式对话服务里为什么重要，工程上有哪些可落地的优化手段？",
+    "quickAnswer": "TTFT 是用户从发请求到看到第一个生成 token 的等待，主要由 prefill 阶段(一次性处理整段输入并建 KV)决定，而非逐 token 的 decode。工程优化集中在：prefix cache 复用系统提示词等公共前缀跳过重复 prefill、请求优先级与队列管理避免长尾、分块 prefill 与 decode 交错减少阻塞、以及对常用前缀做 KV 预热。代价是缓存显存与失效管理、调度复杂度，目标常把 P90 压到数百毫秒。",
+    "approach": "核心思路是“把 prefill 做得更短、更不被阻塞”：用缓存把可复用的前缀计算提前/复用掉，用调度让宝贵算力优先给能快速出首字的请求，用分块把长 prefill 拆开避免拖垮整批。把 TTFT 从“一次重 prefill”变成“查缓存 + 一小段计算”。",
+    "explanationFocus": "是什么：TTFT(Time To First Token)指用户提交请求到服务端返回第一个生成 token 所经历的时间，主要由“prefill(处理整段输入并算 KV 缓存)”阶段决定，而非 decode 阶段。它衡量“用户等多久才开始看到回应”，对对话/搜索类交互体验影响极大；优化重点是压缩 prefill 耗时、减少排队与调度开销、提升缓存命中。",
+    "bruteForce": "最朴素部署：来一个请求就单独做一次完整 prefill 再开始 decode，所有请求 FIFO 排队、无缓存无优先级。长 prompt 一来就占满 GPU 数十秒，后面请求 TTFT 直接叠加排队，体验极差。",
+    "invariant": "不变量：被复用的 prefix cache 所对应的 KV 必须与该前缀在目标模型当前权重/参数下独立计算得到的 KV 逐层逐位数值一致(或误差可忽略)，否则复用会污染后续生成、改变输出分布。即“缓存命中 ≡ 重新计算”这一等价性必须成立。",
+    "walkthrough": "假设模型 prefill 速度为每 1k token 约 40ms。场景 A：无缓存，system prompt 200 token + 用户输入 800 token = 1000 token prefill，约 40ms 算力，但队列前还有 3 个各 2k token 请求，排队 240ms，TTFT≈280ms。场景 B：开启 prefix cache，system prompt 200 token 的 KV 已预热命中，prefill 只剩 800 token≈32ms 且因无排队(优先级+分块)，TTFT≈从 280ms 降到 60ms，约 4.6× 改进。可见命中公共前缀 + 调度对 TTFT 影响巨大。",
+    "code": "def get_kv_with_cache(model, prefix_ids, cache):\n    key = hash(prefix_ids)                 # 前缀哈希\n    if key in cache:\n        return cache[key], True            # 命中：直接复用 KV\n    kv = model.prefill(prefix_ids)         # 未命中：计算\n    cache[key] = kv\n    return kv, False\n\ndef schedule(requests):\n    # 优先级：短输入/高优优先，限制 prefill 批大小\n    requests.sort(key=lambda r: (r.priority, len(r.prompt)))\n    return chunked_prefill(requests, max_prefill_tokens=2048)",
+    "complexity": "时间：prefix cache 命中把 O(输入长度) 的 prefill 降到 O(未命中部分)，理想接近 O(新增 token)；分块 prefill 不减少总算力但平滑排队延迟。空间：prefix cache 常驻显存与命中前缀长度成正比，需设容量上限与 LRU 淘汰。调度为 O(N log N) 每批。",
+    "beginnerSummary": "TTFT 就像你问问题后，对方“愣神多久才开始开口”。对方开口前其实在脑子里快速过一遍你写的整段话(这叫 prefill)，这段话越长他愣得越久。工程上就像：把常用的“开场白”提前背好(缓存)，让简短急迫的问题插队先答(优先级)，或者边听边想别卡住别人(分块)。目的是让他尽快“嗯”一声开始回应。",
+    "diagram": "请求 ─► [队列] ─► prefill(全输入) ─► 首 token\n             │\n   优化: prefix cache 命中 ──跳过重复 prefill\n        分块 prefill ──与 decode 交错\n        优先级 ──短/高优插队",
+    "derivation": [
+      "为什么需要: 流式体验里用户最先感知的就是“多久出第一个字”。即便后续 decode 很快，若 TTFT 高达数秒，用户会以为卡死而流失。TTFT 与输入长度强相关(prefill 是 O(输入长度) 的一次前向)，长 prompt、并发排队、冷启动都会把它拉高，因此必须单独作为 SLO 优化。",
+      "怎么实现: 工程手段包括：① 请求调度优先级与队列管理，短 prompt/高优请求插队、限制最大并发 prefill 批大小以防长尾；② prefix cache(KV 缓存复用系统提示词/历史前缀)，命中后跳过重复 prefill；③ 预计算/预热常用前缀(如 system prompt)的 KV；④ 分块 prefill(chunked prefill)把长输入拆批与 decode 交错，避免一次 prefill 阻塞其他请求；⑤ 模型层面用更短上下文或量化降低单步 prefill 算力。",
+      "有什么代价: prefix cache 需额外显存常驻 KV，且要处理前缀哈希与失效(上下文变化即失效)；分块 prefill 增加调度复杂度，并与正在进行的 decode 争抢算力，若配比不当会抬升其他请求延迟；优先级调度可能饿死长请求。量化/蒸馏换来 TTFT 下降但可能损质量。",
+      "怎么评测: 直接测 P50/P90/P99 的 TTFT(从请求进入到首个 token 离开服务端)，按输入长度分桶看随长度增长曲线；监控 prefix cache 命中率、prefill 队列等待时长、GPU 利用率。目标通常是 P90 TTFT 在数百毫秒级(取决于模型与硬件)。"
+    ],
+    "edgeCases": [
+      "前缀部分变化(如用户历史只改了最后一句)：哈希不同导致整段失效，命中率骤降，需用“最长公共前缀”细粒度缓存而非整段哈希。",
+      "权重热更新/量化切换：旧 KV 缓存立即全部失效，需清理避免复用错误 KV。",
+      "超长输入超过显存：prefill 阶段 OOM，需截断或分层 offload，否则 TTFT 直接失败。",
+      "并发突发：优先级调度可能饿死低优长请求，需设公平权重上限。"
+    ],
+    "pitfalls": [
+      "把 TTFT 和 TPOT(每 token 延迟)混为一谈——TTFT 看首字、由 prefill 主导，优化手段不同，不能只压 decode。",
+      "prefix cache 未处理失效(权重/前缀变化)就复用，导致生成内容基于错误 KV、分布漂移甚至乱答。",
+      "分块 prefill 配比不当，prefill 块太大仍阻塞 decode、太小增加调度开销,需实测调参。",
+      "只优化均值忽略 P99，长尾请求 TTFT 爆炸仍会触发用户流失。"
+    ],
+    "prerequisites": [
+      "Transformer prefill 与 decode 两阶段的区别",
+      "KV 缓存(Key/Value cache)的作用与生命周期",
+      "请求调度与队列/优先级基本概念"
+    ],
+    "workedExample": [
+      "场景：客服机器人每个会话都带 1500 token 的固定知识库 system prompt。无缓存时每轮都要重算这 1500 token 的 KV，TTFT≈60ms 纯算力仍叠加队列。开启 prefix cache 后首轮算一次常驻，后续每轮省掉 1500 token prefill，TTFT 从 ~300ms(含排队)降到 ~80ms，且并发 50 路时 GPU 显存多占约 50×1500×layers×2×hidden×2bytes，需控容量。",
+      "场景：突发涌入 100 个长 4k token 请求，FIFO 下第 100 个 TTFT 可达 100×160ms=16s。引入分块 prefill(max 2k/步)并与 decode 交错 + 优先级，最长 TTFT 降到 ~2s 量级，长尾大幅收敛。"
+    ],
+    "lineByLine": [
+      "def get_kv_with_cache: key = hash(prefix_ids) 用输入前缀算哈希作为缓存键，前提是该前缀确定唯一对应一段 KV。",
+      "if key in cache: return cache[key], True 命中则直接返回已算好的 KV，跳过 prefill——这是 TTFT 下降的主来源。",
+      "kv = model.prefill(prefix_ids) 未命中才做完整 prefill 计算并写入缓存。",
+      "def schedule: requests.sort(key=(priority, len(prompt)) 按优先级与输入长度排序，短/高优先跑，缩短其 TTFT 同时避免长请求长期占队。",
+      "chunked_prefill(..., max_prefill_tokens=2048) 把长 prefill 拆成 ≤2048 token 的块与 decode 交错，防止单请求阻塞整批。"
+    ],
+    "codeNotes": [
+      "前缀哈希必须覆盖会改 KV 的所有因素(权重版本、精度、前缀内容)，否则缓存污染；",
+      "缓存命中省的是 prefill 算力，对 decode 阶段无直接影响；",
+      "分块 prefill 要与 decode 争抢算力，max_prefill_tokens 是平衡 TTFT 与他人 decode 延迟的旋钮。"
+    ],
+    "followUps": [
+      {
+        "question": "TTFT 和 TPOT(Time Per Output Token)分别该用什么指标监控？",
+        "answer": "TTFT 关注“首字前”体验，用 P50/P90/P99 从请求进入到首个 token 的延迟，按输入长度分桶；TPOT 关注“生成流畅度”，用生成阶段相邻 token 间隔的均值与 P99。两者 SLO 不同：对话类 TTFT 通常要求数百毫秒内，TPOT 要求 <50ms 级别保证不卡顿。监控要分开设告警。"
+      },
+      {
+        "question": "prefix cache 命中率上不去怎么办？",
+        "answer": "先确认前缀是否真的公共：把 system prompt、few-shot、固定知识库放到最前面形成稳定最长公共前缀；用细粒度“前缀树”缓存而非整段哈希以容忍尾部变化；检查是否因权重/精度频繁变动导致整池失效。若业务前缀高度个性化(如每人不同历史)，命中率天然低，应考虑其他手段(分块 prefill、量化)。"
+      },
+      {
+        "question": "分块 prefill 会不会拖慢正在进行的 decode？",
+        "answer": "会，因为同一批算力既要算 prefill 块又要算 decode step，存在竞争。缓解靠限制每步 prefill token 数(max_prefill_tokens)、给 decode 预留算力配额、以及在调度上让 prefill 与 decode 分批错峰。配比不当确实会抬升 TPOT，所以要在 TTFT 与 TPOT 之间权衡调参。"
+      }
+    ],
+    "followUpAnswers": [
+      "TTFT 关注“首字前”体验，用 P50/P90/P99 从请求进入到首个 token 的延迟，按输入长度分桶；TPOT 关注“生成流畅度”，用生成阶段相邻 token 间隔的均值与 P99。两者 SLO 不同：对话类 TTFT 通常要求数百毫秒内，TPOT 要求 <50ms 级别保证不卡顿。监控要分开设告警。",
+      "先确认前缀是否真的公共：把 system prompt、few-shot、固定知识库放到最前面形成稳定最长公共前缀；用细粒度“前缀树”缓存而非整段哈希以容忍尾部变化；检查是否因权重/精度频繁变动导致整池失效。若业务前缀高度个性化(如每人不同历史)，命中率天然低，应考虑其他手段(分块 prefill、量化)。",
+      "会，因为同一批算力既要算 prefill 块又要算 decode step，存在竞争。缓解靠限制每步 prefill token 数(max_prefill_tokens)、给 decode 预留算力配额、以及在调度上让 prefill 与 decode 分批错峰。配比不当确实会抬升 TPOT，所以要在 TTFT 与 TPOT 之间权衡调参。"
+    ]
+  },
+  {
+    "id": "sys-ab-platform",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "A/B 实验平台设计",
+    "difficulty": "Medium",
+    "prompt": "如何设计一个可靠的 A/B 实验平台来保证策略迭代可科学评估？",
+    "quickAnswer": "A/B 平台通过稳定分流(哈希/分层)把用户随机分到实验组与对照组，定义核心指标与守卫指标，用显著性检验判断是否生效，并通过 SRM 校验排查分流异常。分层实验让多实验可正交复用流量。",
+    "explanationFocus": "是什么：A/B 实验平台是一套对用户随机分流、采集指标并做统计推断的系统，用来科学判断新策略是否真的有效且不伤害体验。",
+    "approach": "用稳定哈希(如 user_id 加盐)做分流保证同一用户始终在同一组；采用分层/正交实验复用流量；定义核心指标(目标)与守卫指标(防止负向)；实验后做显著性检验与置信区间；上线前用 SRM(Sample Ratio Mismatch) 校验分流比是否异常。",
+    "code": "def assign_group(user_id, exp_id, salt='ab'):\n    # 稳定分流：同一用户始终同一组\n    h = hash(f'{exp_id}:{salt}:{user_id}')\n    return 'treatment' if h % 100 < 50 else 'control'\n\ndef srm_check(n_t, n_c, p=0.5):\n    # 样本比校验，卡方检验\n    return chi_square([n_t, n_c], [p, 1 - p])",
+    "complexity": "O(1) 分流 / O(n) 统计检验",
+    "beginnerSummary": "想改推荐策略又怕改坏，就把用户随机分成两组：一组用旧方案，一组用新方案，看哪组指标更好。关键是随机要公平，并用统计方法确认差异不是碰巧。",
+    "derivation": [
+      "为什么需要：主观判断策略好坏不可靠，需随机对照实验用数据决策并防止负向上线。",
+      "怎么实现：哈希稳定分流、分层正交复用流量、定义核心与守卫指标、显著性检验与 SRM 校验。",
+      "有什么代价：实验需足够样本与周期，分层复杂易出错，长期实验有新奇效应干扰。",
+      "怎么评测：用 SRM 通过率、指标提升显著性与守卫指标不劣化共同判断实验可信度。"
+    ],
+    "edgeCases": [
+      "分流不均(SRM)，如埋点丢失导致两组样本比偏离 50:50。",
+      "新奇效应：初期指标虚高，需足够周期观测。",
+      "多重实验叠加互相干扰，需分层正交隔离。"
+    ],
+    "pitfalls": [
+      "只看核心指标提升却忽视守卫指标(如时长涨但留存跌)的负向。",
+      "样本不足就提前看数下结论，犯第一类错误(假阳性)。"
+    ],
+    "prerequisites": [
+      "假设检验与 p 值、置信区间",
+      "哈希分流与一致性",
+      "指标埋点与数据管道"
+    ],
+    "workedExample": [
+      "场景：上线新重排策略，预期提升 CTR。",
+      "按 user_id 哈希 50:50 分流，核心指标 CTR，守卫指标人均时长与留存。",
+      "跑 14 天，CTR +1.2% 显著(p<0.05)，守卫不劣化，判定可全量；SRM 校验通过。"
+    ],
+    "lineByLine": [
+      "def assign_group(...)：用 exp_id+盐+user_id 的稳定哈希决定分组，保证同一用户跨请求始终同一组。",
+      "def srm_check(...)：用卡方检验比较实际样本比与预期(50:50)，异常则说明分流或埋点出错。"
+    ],
+    "followUps": [
+      {
+        "question": "什么是 SRM，为什么要查它？",
+        "answer": "SRM 是样本比失衡，预期 50:50 实际显著偏离，通常意味着分流逻辑或埋点有 bug，会导致整个实验结论不可信，所以实验前必须先过 SRM 校验。"
+      },
+      {
+        "question": "分层实验如何做到流量复用？",
+        "answer": "不同层用不同随机盐做独立正交分流，用户在每层随机且层间独立，从而多个实验可同时跑在同一批用户上而不互相污染。"
+      }
+    ],
+    "followUpAnswers": [
+      "SRM 是样本比失衡，预期 50:50 实际显著偏离，通常意味着分流逻辑或埋点有 bug，会导致整个实验结论不可信，所以实验前必须先过 SRM 校验。",
+      "不同层用不同随机盐做独立正交分流，用户在每层随机且层间独立，从而多个实验可同时跑在同一批用户上而不互相污染。"
+    ]
+  },
+  {
+    "id": "sys-capacity-limit",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "容量规划与限流降级设计",
+    "difficulty": "Medium",
+    "prompt": "如何做系统容量规划，并设计限流、熔断与弹性伸缩保护系统？",
+    "quickAnswer": "容量规划基于峰值流量与单机容量估算所需副本数并留余量；限流用令牌桶/漏桶拦住超额请求，熔断在依赖故障时快速失败，弹性伸缩(HPA)按指标自动扩缩，多级降级保证核心链路可用。",
+    "explanationFocus": "是什么：容量规划与限流是一套保障系统在高负载或依赖异常时不雪崩的工程体系，包含流量预估、限流、熔断、降级与弹性伸缩。",
+    "approach": "先用压测得单机容量，按峰值×余量算副本；入口用令牌桶/漏桶限流；对慢依赖做熔断(错误率/延迟阈值)；基于 CPU/QPS 指标用 HPA 弹性伸缩；定义核心与非核心链路，过载时逐级降级非核心。定期容量评估与演练。",
+    "code": "def token_bucket(rate, capacity):\n    # 令牌桶限流\n    tokens = capacity\n    def allow(now):\n        nonlocal tokens\n        tokens = min(capacity, tokens + rate * (now - last))\n        if tokens >= 1:\n            tokens -= 1; return True\n        return False\n    return allow\n\ndef circuit_breaker(err_rate, thr=0.5):\n    return 'OPEN' if err_rate > thr else 'CLOSED'",
+    "complexity": "O(1) 限流判断 / O(副本) 扩容",
+    "beginnerSummary": "系统像一家餐厅，座位有限。容量规划是算要摆多少桌；限流是门口发号限流别让人挤爆；熔断是厨房起火时先停接单；弹性伸缩是忙时加桌闲时收桌；降级是先砍掉小菜保主菜。",
+    "derivation": [
+      "为什么需要：流量不可预测，依赖可能故障，需主动保护核心链路避免全局雪崩。",
+      "怎么实现：压测定容量、令牌桶/漏桶限流、熔断、HPA 弹性伸缩、分级降级。",
+      "有什么代价：限流会拒绝部分请求，熔断降级牺牲部分功能，过量余量抬高成本。",
+      "怎么评测：限流准确率、熔断恢复时间、容量余量、过载下核心指标可用性。"
+    ],
+    "edgeCases": [
+      "突发流量瞬间打满，令牌桶需支持突发容量。",
+      "熔断后依赖恢复但半开探测失败，需合理重试。",
+      "多租户互相挤占，需按优先级限流。"
+    ],
+    "pitfalls": [
+      "限流阈值拍脑袋设死，正常高峰也误杀。",
+      "只限入口不限依赖调用，下游仍被拖垮。"
+    ],
+    "prerequisites": [
+      "限流算法令牌桶/漏桶",
+      "熔断与降级原理",
+      "弹性伸缩(HPA)与指标监控"
+    ],
+    "workedExample": [
+      "场景：推荐服务单机 2000 QPS，峰值 4 万，余量 1.5 倍。",
+      "需副本 = 40000×1.5/2000 = 30，网关令牌桶限 4.2 万防超。",
+      "依赖超时率>50% 触发熔断返回缓存，HPA 按 CPU 自动 20~40 伸缩。"
+    ],
+    "lineByLine": [
+      "def token_bucket(...)：按速率补充令牌，请求需取到令牌才放行，支持突发容量。",
+      "def circuit_breaker(...)：错误率超阈值则熔断打开，快速失败避免级联故障。"
+    ],
+    "followUps": [
+      {
+        "question": "令牌桶和漏桶有什么区别？",
+        "answer": "令牌桶允许一定突发(令牌累积)，更适互联网流量；漏桶强制恒定速率出队平滑但抑制突发；按是否需容忍突发来选。"
+      },
+      {
+        "question": "熔断和限流有什么不同？",
+        "answer": "限流是基于容量的主动流量控制，防止系统过载；熔断是依赖异常时的故障隔离，快速失败避免级联雪崩，二者互补。"
+      }
+    ],
+    "followUpAnswers": [
+      "令牌桶允许一定突发(令牌累积)，更适互联网流量；漏桶强制恒定速率出队平滑但抑制突发；按是否需容忍突发来选。",
+      "限流是基于容量的主动流量控制，防止系统过载；熔断是依赖异常时的故障隔离，快速失败避免级联雪崩，二者互补。"
+    ]
+  },
+  {
+    "id": "sys-content-understanding",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "内容理解 Pipeline 设计",
+    "difficulty": "Medium",
+    "prompt": "如何设计一套多模态内容理解 pipeline，把图文/视频转成可被召回与排序使用的特征？",
+    "quickAnswer": "内容理解 pipeline 将原始多模态素材经离线/近线/在线三层抽取成结构化标签与向量。离线做重模型批处理建库，近线做增量更新，在线做轻量实时补全。产出统一特征服务供召回与排序复用。",
+    "explanationFocus": "是什么：内容理解 pipeline 是一套把原始图文/视频转成结构化标签、 embedding 与质量分的特征生产链路，让推荐系统的召回与排序能“读懂”物料。",
+    "approach": "分层处理：离线用重多模态模型批量抽取全量物料特征入特征库；近线消费素材变更事件做增量更新；在线对极新物料用轻模型实时补特征。统一特征服务(Feature Store)对外提供低延迟读取，并保证训练与推理特征口径一致。",
+    "code": "def extract_features(item, model, mode='offline'):\n    # 多模态特征抽取：文本/图像/视频融合\n    vec = model.encode(item.text, item.image)\n    tags = model.classify(item)\n    return {'vec': vec, 'tags': tags, 'ts': now()}\n\ndef serve(item_id):\n    # 在线读取统一特征\n    return feature_store.get(item_id)",
+    "complexity": "O(物料规模) 离线 / O(1) 在线读取",
+    "beginnerSummary": "系统需要先“看懂”每个视频或图文讲了什么。我们用模型把素材变成一组标签和向量(类似给它贴关键词和坐标)，再存进一个公共仓库，召回和排序都能来查。",
+    "derivation": [
+      "为什么需要：推荐要匹配用户兴趣与物料内容，必须先把非结构化的多模态素材变成可计算的特征。",
+      "怎么实现：分层抽取——离线重模型全量建库、近线增量更新、在线轻模型补新，统一经 Feature Store 对外服务。",
+      "有什么代价：重模型算力昂贵、链路长带来特征新鲜度延迟，多模态对齐与版本管理复杂。",
+      "怎么评测：用特征覆盖度、标签准确率、下游召回/排序增益与特征新鲜度(P95 更新延迟) 衡量。"
+    ],
+    "edgeCases": [
+      "刚发布的极新物料尚未来得及离线建特征，需在线轻模型兜底避免无特征可用。",
+      "视频长时长抽取成本高，需关键帧采样与分段聚合降成本。",
+      "多语言/低质量素材识别不准，需质量分过滤与人工校验回流。"
+    ],
+    "pitfalls": [
+      "训练用离线重特征、服务用在线轻特征，导致训练-服务特征不一致(特征穿越)。",
+      "把所有计算堆在在线链路，拖垮推荐主路径延迟。"
+    ],
+    "prerequisites": [
+      "多模态表示学习(图文/视频 embedding)",
+      "Feature Store 与特征一致性概念",
+      "流式消息队列(Kafka)基础"
+    ],
+    "workedExample": [
+      "场景：短视频平台每日新增 1000 万条，需为每条产出内容向量与标签。",
+      "离线 Spark 批跑多模态大模型，产出向量写入特征库(小时级)；近线消费上传事件做分钟级增量。",
+      "新视频上线 30 秒内由在线轻模型补特征，召回即可命中。"
+    ],
+    "lineByLine": [
+      "def extract_features(...)：对单条物料调用多模态模型，融合文本与图像编码得到向量并打标签，附带时间戳。",
+      "def serve(...)：在线直接按 item_id 从 Feature Store 读取已计算好的特征，做到 O(1) 低延迟。"
+    ],
+    "followUps": [
+      {
+        "question": "离线特征和在线特征不一致会带来什么问题？",
+        "answer": "会造成训练-服务偏差(特征穿越)，离线评测指标好但线上效果差，是推荐系统最隐蔽的坑之一，需用统一 Feature Store 与 Same-Code 抽取规避。"
+      },
+      {
+        "question": "为什么需要近线层而不只靠离线？",
+        "answer": "纯离线有小时级延迟，新物料无法及时被推荐；近线消费变更事件做分钟级增量更新，兼顾成本与新鲜度。"
+      }
+    ],
+    "followUpAnswers": [
+      "会造成训练-服务偏差(特征穿越)，离线评测指标好但线上效果差，是推荐系统最隐蔽的坑之一，需用统一 Feature Store 与 Same-Code 抽取规避。",
+      "纯离线有小时级延迟，新物料无法及时被推荐；近线消费变更事件做分钟级增量更新，兼顾成本与新鲜度。"
+    ]
+  },
+  {
+    "id": "sys-feature-pipeline",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "特征工程 Pipeline 与特征一致性",
+    "difficulty": "Hard",
+    "prompt": "如何设计实时与离线特征 pipeline，并保证训练与线上服务特征一致？",
+    "quickAnswer": "特征 pipeline 区分离线特征(批计算入仓)与实时特征(流计算低延迟产出)，统一经 Feature Store 管理。训练-服务一致性的关键是同一份特征定义代码(Same-Code)与统一存储，避免线上线下双套逻辑导致特征穿越。",
+    "explanationFocus": "是什么：特征工程 pipeline 是把原始数据加工成模型可用特征的生产链路，涵盖离线批处理、实时流计算与统一特征存储，并要解决训练与服务的一致性难题。",
+    "approach": "离线条用 Spark/Flink 批算历史特征入仓，实时条用 Flink 消费日志算近线特征；统一 Feature Store 提供点查与批量读取；强制训练与推理调用同一特征 SDK(Same-Code)与同版本数据，定期做特征一致性对账。",
+    "code": "def get_feature(entity_id, cfg):\n    # 线上线下同一份逻辑，避免穿越\n    if cfg.online:\n        return feature_store.point_read(entity_id)\n    return feature_store.batch_read([entity_id])\n\ndef realtime_feature(stream):\n    # 实时特征：窗口统计\n    return stream.window('5m').agg('count')",
+    "complexity": "O(实体数) 离线 / O(1) 在线",
+    "beginnerSummary": "模型吃饭靠“特征”这盘菜。有些菜可以提前做好放冰箱(离线特征)，有些要现炒(实时特征)。最重要的是：训练和上线时用同一套菜谱，否则模型线上会“水土不服”。",
+    "derivation": [
+      "为什么需要：模型效果依赖高质量特征，且实时信号能显著提升效果，但线上线下若各写一套会出偏差。",
+      "怎么实现：离线批算+实时流算双链路，统一 Feature Store，Same-Code 抽取与版本管理。",
+      "有什么代价：双链路维护成本高，实时特征有延迟与乱序问题，一致性对账增加复杂度。",
+      "怎么评测：特征一致性对账差异率、特征新鲜度与下游模型离线/在线增益 gap。"
+    ],
+    "edgeCases": [
+      "实时特征因乱序/延迟到达导致窗口统计偏差。",
+      "离线重算与在线口径因代码分支不同出现不一致。",
+      "特征缺失时模型需有默认值或兜底策略。"
+    ],
+    "pitfalls": [
+      "训练用未来信息(标签泄漏/特征穿越)导致离线虚高线上崩。",
+      "线上线下两套实现，长期漂移却无人对账。"
+    ],
+    "prerequisites": [
+      "批处理(Spark)与流处理(Flink)基础",
+      "Feature Store 与特征版本管理",
+      "训练-服务一致性(特征穿越)概念"
+    ],
+    "workedExample": [
+      "场景：用户近 5 分钟点击数作为实时特征。",
+      "Flink 消费点击流做 5 分钟窗口聚合写入 Feature Store，线上低延迟点查。",
+      "训练时复用同一聚合逻辑回填历史，对账差异 < 0.1%。"
+    ],
+    "lineByLine": [
+      "def get_feature(...)：训练与推理共用同一函数，仅在线/离线读取方式不同，保证特征口径一致。",
+      "def realtime_feature(...)：对实时流做 5 分钟滑动窗口聚合，产出低延迟实时特征。"
+    ],
+    "followUps": [
+      {
+        "question": "训练-服务特征不一致最典型的后果是什么？",
+        "answer": "即特征穿越，离线指标漂亮但线上失效，因为训练时偷偷用到了服务时拿不到或不同的信息，是推荐效果不达预期的首要嫌疑。"
+      },
+      {
+        "question": "离线特征和实时特征如何取舍？",
+        "answer": "离线特征稳定低成本覆盖全量历史，实时特征捕捉近期信号但成本高易出错；通常关键近期行为用实时，长周期统计用离线，二者在 Feature Store 统一。"
+      }
+    ],
+    "followUpAnswers": [
+      "即特征穿越，离线指标漂亮但线上失效，因为训练时偷偷用到了服务时拿不到或不同的信息，是推荐效果不达预期的首要嫌疑。",
+      "离线特征稳定低成本覆盖全量历史，实时特征捕捉近期信号但成本高易出错；通常关键近期行为用实时，长周期统计用离线，二者在 Feature Store 统一。"
+    ]
+  },
+  {
+    "id": "sys-inference-serving",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "在线推理服务架构",
+    "difficulty": "Hard",
+    "prompt": "如何设计高吞吐低延迟的在线模型推理服务架构？",
+    "quickAnswer": "在线推理服务通过 dynamic batching 把并发请求聚合成批提升 GPU 利用率，配合多副本与智能路由、超时降级与队列管理来平衡吞吐与延迟。核心是让重模型在严格 SLA 内稳定服务。",
+    "explanationFocus": "是什么：在线推理服务架构是把训练好的模型以低延迟、高吞吐方式对外提供预测能力的一整套系统，包含批处理、路由、扩缩容与降级机制。",
+    "approach": "前置 dynamic batching 聚合请求；模型多副本部署并接负载均衡/一致性哈希路由；设超时与降级(返回兜底或缓存结果)；用队列背压防止雪崩，GPU 侧做算子融合与量化提升利用率。监控 P99 与 GPU 利用率闭环调优。",
+    "code": "def dynamic_batch(req_queue, max_wait=10):\n    # 聚合请求成批，提升 GPU 利用率\n    batch = [req_queue.pop() for _ in range(max_wait) if req_queue]\n    return model.infer(batch)\n\ndef route(req, replicas):\n    # 一致性哈希路由到副本\n    return replicas[hash(req.user) % len(replicas)]",
+    "complexity": "O(batch) 吞吐 / 单次 O(model)",
+    "beginnerSummary": "模型上线后要同时服务很多用户。把一个一个请求单独算很浪费，于是把短时间内的请求攒成一批一起算(批处理)，再分配到多台机器上，卡时间超了就降级返回，保证又快又稳。",
+    "derivation": [
+      "为什么需要：单请求独立推理 GPU 利用率低且延迟高，需批处理与水平扩展才能扛住线上流量。",
+      "怎么实现：dynamic batching 聚批、多副本+路由、超时降级、队列背压与算子优化。",
+      "有什么代价：批处理增加尾延迟，副本增多抬升成本，降级会牺牲精度换可用性。",
+      "怎么评测：P99 延迟、吞吐(QPS)、GPU 利用率、降级率与 SLA 达标率。"
+    ],
+    "edgeCases": [
+      "长尾大 batch 撑爆显存，需上限保护与动态拆分。",
+      "某副本故障，路由需快速摘除并切流。",
+      "突发流量导致队列积压，需背压与限流防止雪崩。"
+    ],
+    "pitfalls": [
+      "为提吞吐无限制攒批，反而把 P99 尾延迟拖爆。",
+      "忽略预处理(解码/resize)耗时，瓶颈不在 GPU 而在 CPU 侧。"
+    ],
+    "prerequisites": [
+      "GPU 推理与批处理基本原理",
+      "负载均衡与一致性哈希",
+      "服务降级与限流策略"
+    ],
+    "workedExample": [
+      "场景：排序模型服务，目标 P99<30ms，峰值 2 万 QPS。",
+      "dynamic batching 设 max_wait=5ms、batch≤64，GPU 利用率从 25% 提到 70%。",
+      "副本扩到 8 个，超 30ms 的请求走缓存兜底，SLA 达标 99.9%。"
+    ],
+    "lineByLine": [
+      "def dynamic_batch(...)：在 max_wait 时间窗口内从请求队列聚合成批，一次推理提升 GPU 利用率。",
+      "def route(...)：按 user 一致性哈希把请求稳定路由到固定副本，兼顾负载均衡与缓存局部性。"
+    ],
+    "followUps": [
+      {
+        "question": "dynamic batching 会不会损害延迟？如何权衡？",
+        "answer": "会，攒批增加等待时间。需设最大等待时间与最大 batch 上限，在吞吐与 P99 间做 Pareto 调优，通常取尾延迟可接受的最小窗口。"
+      },
+      {
+        "question": "GPU 利用率低常见原因有哪些？",
+        "answer": "请求未聚批、batch 太小、预处理在 CPU 成瓶颈、显存碎片或算子未融合；先定位瓶颈再针对性优化而非盲目加卡。"
+      }
+    ],
+    "followUpAnswers": [
+      "会，攒批增加等待时间。需设最大等待时间与最大 batch 上限，在吞吐与 P99 间做 Pareto 调优，通常取尾延迟可接受的最小窗口。",
+      "请求未聚批、batch 太小、预处理在 CPU 成瓶颈、显存碎片或算子未融合；先定位瓶颈再针对性优化而非盲目加卡。"
+    ]
+  },
+  {
+    "id": "sys-multimodal-serving",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "多模态模型服务架构",
+    "difficulty": "Hard",
+    "prompt": "如何设计支撑图文/视频的多模态模型在线服务架构？",
+    "quickAnswer": "多模态服务把预处理(解码/resize/OCR/抽帧)与模型推理解耦成流水线，用队列削峰与动态批处理提升吞吐，结合结果缓存与分级降级保障稳定性。视频需抽帧与异步处理控制成本。",
+    "explanationFocus": "是什么：多模态模型服务架构是把图像/文本/视频联合模型以流水线方式在线提供预测的系统，重点解决预处理重、算力贵与流量突发下的稳定服务。",
+    "approach": "把解码、抽帧、resize、文本分词等预处理前置成独立服务；主模型做 dynamic batching；用消息队列做异步与削峰；对重复请求做结果缓存；超时或过载时分级降级(跳过视频帧/返回缓存)。监控吞吐、队列深度与 GPU 利用率。",
+    "code": "def preprocess(item):\n    # 多模态预处理流水线\n    frames = sample_frames(item.video, n=8) if item.video else []\n    return encode_text(item.text), resize(item.image), frames\n\ndef serve(req, cache):\n    key = hash(req.item)\n    return cache.get(key) or model.infer(preprocess(req.item))",
+    "complexity": "O(帧数×模型) 视频 / O(batch) 吞吐",
+    "beginnerSummary": "多模态模型既要看图又要读文，处理前得先把图解码、视频抽几帧、文字分词，这些准备很费时。于是把准备工作和模型分开排成流水线，攒批一起算，并加缓存和降级保证不卡死。",
+    "derivation": [
+      "为什么需要：多模态输入预处理重且异构，直接耦合推理会拖垮延迟与吞吐。",
+      "怎么实现：预处理独立化、dynamic batching、队列异步削峰、结果缓存与分级降级。",
+      "有什么代价：流水线拉长尾延迟，抽帧增加算力，缓存有一致性与命中率挑战。",
+      "怎么评测：吞吐(QPS)、P99 延迟、GPU 利用率、缓存命中率与降级率。"
+    ],
+    "edgeCases": [
+      "超长视频抽帧过多撑爆显存，需按长度自适应抽帧数。",
+      "重复热门素材反复计算，靠结果缓存命中降本。",
+      "预处理节点故障导致主模型饿死，需背压与隔离。"
+    ],
+    "pitfalls": [
+      "把重预处理放在推理主路径，导致 GPU 长期等待数据。",
+      "降级策略过激直接跳过多模态信号，效果断崖。"
+    ],
+    "prerequisites": [
+      "多模态模型推理流程",
+      "dynamic batching 与队列削峰",
+      "缓存与降级设计"
+    ],
+    "workedExample": [
+      "场景：图文短视频理解服务，峰值 8000 QPS。",
+      "预处理服务抽 8 帧+分词，主模型 batch=32 动态聚合，GPU 利用率 75%。",
+      "热门素材缓存命中率 40%，过载时跳过视频帧降级，P99 守在 50ms。"
+    ],
+    "lineByLine": [
+      "def preprocess(...)：对视频抽帧、图像 resize、文本编码，统一成模型输入张量。",
+      "def serve(...)：先按 item 哈希查缓存，未命中才走预处理+推理，降低重复计算。"
+    ],
+    "followUps": [
+      {
+        "question": "视频多模态服务如何控制成本？",
+        "answer": "用关键帧采样而非全帧、动态抽帧数随视频长度调整、结果缓存命中热门，以及 dynamic batching 提升 GPU 利用率，多重手段压低成本。"
+      },
+      {
+        "question": "多模态服务的降级怎么做才不影响体验？",
+        "answer": "分级降级：先跳过视频帧只用图文，再退回纯文本或缓存结果，保证可用性的同时尽量保留信号，避免直接失败。"
+      }
+    ],
+    "followUpAnswers": [
+      "用关键帧采样而非全帧、动态抽帧数随视频长度调整、结果缓存命中热门，以及 dynamic batching 提升 GPU 利用率，多重手段压低成本。",
+      "分级降级：先跳过视频帧只用图文，再退回纯文本或缓存结果，保证可用性的同时尽量保留信号，避免直接失败。"
+    ]
+  },
+  {
+    "id": "sys-recsys-arch",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "高并发推荐系统架构设计",
+    "difficulty": "Hard",
+    "prompt": "如何设计一个支撑千万级 QPS 的高并发推荐系统架构？",
+    "quickAnswer": "推荐系统通常采用召回→排序→重排的三层漏斗架构，将百万级候选逐级缩减到百级再展现。高并发下依赖多级缓存、热点打散与异步化降级来扛住峰值流量。整体目标是用可控算力在毫秒级延迟内给出个性化结果。",
+    "explanationFocus": "是什么：推荐系统架构是一套把“海量候选物料”在极短时间内筛出“少量最相关结果”的分层流水线，核心是用计算复杂度逐级下降的漏斗换取在线低延迟。",
+    "approach": "采用召回/排序/重排三层解耦：召回用向量检索或倒排快速从全量筛到千级；排序用重模型精排到百级；重排注入多样性与业务规则。配合多级缓存(本地+分布式)、热点Key打散、超时降级与限流，保证高并发稳定。",
+    "code": "def recall(user_feat, item_index, top_k=200):\n    # 召回层：从百万候选快速筛出千级\n    return item_index.mips(user_feat, top_k)\n\ndef rank(candidates, model):\n    # 排序层：多目标精排\n    return sorted(candidates, key=model.predict, reverse=True)\n\ndef rerank(ranked, rules):\n    # 重排层：多样性打散与业务规则\n    return apply_rules(ranked, rules)",
+    "complexity": "O(QPS) / 召回 O(log N) ANN",
+    "beginnerSummary": "想象你要在百万本书里挑出最适合你的几本。如果逐本细读太慢，于是先用标签快速粗筛(召回)，再对剩下的精读打分(排序)，最后按主题打散摆放(重排)。系统在高并发下还要靠缓存和降级来稳住速度。",
+    "derivation": [
+      "为什么需要：全量物料达百万~亿级，无法在毫秒级用重模型逐条计算，必须把计算量拆成逐级缩小的漏斗以降低每层的复杂度。",
+      "怎么实现：召回层用 ANN/倒排从全量取千级；排序层用多目标模型精排到百级；重排层加多样性与业务约束；各层独立扩缩容。",
+      "有什么代价：多层引入级联误差与额外网络跳数，缓存带来一致性问题，热点Item会集中打爆单节点。",
+      "怎么评测：离线用 AUC/GAUC 与召回命中率；在线用 QPS、P99 延迟、缓存命中率与业务指标(时长/CTR) 联合观测。"
+    ],
+    "edgeCases": [
+      "冷启动用户/新物料无行为特征，召回稀疏需靠热度与内容召回兜底。",
+      "热点 Item(如爆款)被大量请求命中，单 Key 缓存击穿需本地缓存+互斥重建。",
+      "大促峰值流量是日常数十倍，需提前弹性扩容与预案降级。"
+    ],
+    "pitfalls": [
+      "把重模型直接放在召回层，导致在线延迟与算力失控。",
+      "级联漏斗各层独立优化却忽略整体收益，出现召回没排出来的好物料白算。"
+    ],
+    "prerequisites": [
+      "向量检索与 ANN 索引基础(HNSW/IVF)",
+      "缓存与多级缓存一致性原理",
+      "多目标排序模型基本认知"
+    ],
+    "workedExample": [
+      "场景：首页信息流，候选 1000 万，目标延迟 < 100ms，QPS 5 万。",
+      "第一步召回用双塔向量取 top200(约 5ms)，第二步精排 CTR+CVR 取 top50(约 20ms)，第三步重排做打散(约 2ms)。",
+      "热点视频走本地缓存命中，P99 控制在 80ms 内。"
+    ],
+    "lineByLine": [
+      "def recall(...)：召回层从全量候选通过向量检索(MIPS)快速筛出 top_k 千级，控制后续计算规模。",
+      "def rank(...)：排序层对召回候选用重模型逐条打分并降序，得到精排结果百级。",
+      "def rerank(...)：重排层注入多样性打散与业务规则，避免头部聚集并满足合规。"
+    ],
+    "followUps": [
+      {
+        "question": "召回与排序之间为什么要加重排层？",
+        "answer": "重排层在精排分数之上注入多样性、打散、业务与合规约束，纠正精排只看单点分数的局部最优，提升整体体验与生态健康。"
+      },
+      {
+        "question": "多级缓存如何避免缓存与物料特征不一致？",
+        "answer": "采用版本号/时间戳对齐，写时双写特征存储与缓存并设 TTL，读时校验版本，必要时回源，保证训练与服务特征一致。"
+      }
+    ],
+    "followUpAnswers": [
+      "重排层在精排分数之上注入多样性、打散、业务与合规约束，纠正精排只看单点分数的局部最优，提升整体体验与生态健康。",
+      "采用版本号/时间戳对齐，写时双写特征存储与缓存并设 TTL，读时校验版本，必要时回源，保证训练与服务特征一致。"
+    ]
+  },
+  {
+    "id": "sys-streaming-etl",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "实时流处理与 ETL 设计",
+    "difficulty": "Medium",
+    "prompt": "如何基于 Kafka/Flink 设计一套 exactly-once 的实时流处理 ETL？",
+    "quickAnswer": "实时 ETL 用 Kafka 做高吞吐消息总线、Flink 做有状态计算，通过 checkpoint+两阶段提交实现 exactly-once，并用 watermark 与窗口处理乱序数据。核心是在不丢不重的前提下产出准确实时特征与指标。",
+    "explanationFocus": "是什么：实时流处理 ETL 是持续消费消息流、做清洗/聚合/落库的一整套管道，强调低延迟、不丢不重(exactly-once)与对乱序数据的正确处理。",
+    "approach": "Kafka 分区分流保证有序与并行；Flink 用 checkpoint 周期快照状态，配合支持事务的 sink 做两阶段提交达成端到端 exactly-once；watermark 推进事件时间并触发窗口，允许有限乱序；迟到数据走侧输出或更新。",
+    "code": "def aggregate(stream):\n    # Flink 风格：事件时间窗口聚合\n    w = stream.assign_watermark('10m') \\\n              .window(tumbling='5m')\n    return w.agg(count=count(), sum='amount')\n\ndef sink_exactly_once(result, txn_sink):\n    # 两阶段提交落库\n    txn_sink.commit(result)",
+    "complexity": "O(事件速率) 流式 / O(窗口状态)",
+    "beginnerSummary": "数据像水流一样不停产生，我们需要边流边算(比如实时统计点击)。难点是数据可能迟到或重复，系统要保证“既不漏算也不重复算”，并正确处理先后顺序。",
+    "derivation": [
+      "为什么需要：业务要秒级实时特征与指标，批处理太慢，且流数据天然乱序重复。",
+      "怎么实现：Kafka 传输、Flink 状态计算、checkpoint+事务 sink 实现 exactly-once、watermark 处理乱序。",
+      "有什么代价：exactly-once 增加延迟与协调开销，状态后端存储成本高，watermark 设错丢数据。",
+      "怎么评测：端到端延迟、数据准确率(与离线对齐)、吞吐与状态恢复时间。"
+    ],
+    "edgeCases": [
+      "数据严重乱序超过 watermark 宽容度，被判定迟到丢弃。",
+      "checkpoint 间隔过大导致故障恢复重算多。",
+      "sink 不支持事务则无法严格 exactly-once。"
+    ],
+    "pitfalls": [
+      "watermark 设太松拖慢产出、太紧丢乱序数据。",
+      "把处理时间当事件时间，导致窗口划分错误。"
+    ],
+    "prerequisites": [
+      "Kafka 分区与消费语义",
+      "Flink 状态管理与 checkpoint",
+      "事件时间、watermark 与窗口"
+    ],
+    "workedExample": [
+      "场景：实时统计每 5 分钟用户消费金额。",
+      "Kafka 按 user 分区，Flink 事件时间滚动窗口，watermark 容忍 10 分钟乱序。",
+      "sink 用支持事务的 OLAP，checkpoint 30s，端到端 exactly-once，延迟 < 1 分钟。"
+    ],
+    "lineByLine": [
+      "def aggregate(...)：给流打 watermark 容忍乱序，再做 5 分钟滚动窗口聚合计数与求和。",
+      "def sink_exactly_once(...)：通过事务化 sink 的提交，保证结果只落库一次。"
+    ],
+    "followUps": [
+      {
+        "question": "exactly-once 是怎么实现的？",
+        "answer": "Flink 周期性 checkpoint 快照状态与位点，sink 支持两阶段提交(预写+在 checkpoint 完成时真正提交)，故障从 checkpoint 恢复，做到端到端不丢不重。"
+      },
+      {
+        "question": "watermark 是什么，为什么重要？",
+        "answer": "watermark 是事件时间的进度钟，用来判断窗口何时可触发并容忍一定乱序；设错会导致数据丢失或产出延迟，是流处理正确性的核心。"
+      }
+    ],
+    "followUpAnswers": [
+      "Flink 周期性 checkpoint 快照状态与位点，sink 支持两阶段提交(预写+在 checkpoint 完成时真正提交)，故障从 checkpoint 恢复，做到端到端不丢不重。",
+      "watermark 是事件时间的进度钟，用来判断窗口何时可触发并容忍一定乱序；设错会导致数据丢失或产出延迟，是流处理正确性的核心。"
+    ]
+  },
+  {
+    "id": "sys-vector-retrieval",
+    "kind": "concept",
+    "category": "系统设计",
+    "title": "向量检索系统设计",
+    "difficulty": "Hard",
+    "prompt": "如何设计一个支持亿级向量的高性能向量检索系统？",
+    "quickAnswer": "向量检索系统用 ANN 索引(如 HNSW、FAISS-IVF)在近似精度下把检索从暴力 O(N) 降到亚线性，通过召回率与延迟的权衡、量化压缩与分片来满足亿级规模与低延迟要求。冷启动靠内容向量兜底。",
+    "explanationFocus": "是什么：向量检索系统是把高维 embedding 建索引并支持按相似度(如内积/余弦)快速找出最近邻的一套系统，是语义召回的底层引擎。",
+    "approach": "选 ANN 算法：HNSW 图检索高召回低延迟但内存大，IVF+PQ 用倒排与量化省内存；做分片与副本水平扩展；以 recall@k 与 QPS/P99 权衡参数；新物料用内容向量即时入索引解决冷启动。",
+    "code": "def build_index(vectors, type='hnsw'):\n    # 构建 ANN 索引\n    if type == 'hnsw':\n        return HNSW(vectors, m=32)\n    return IVF(vectors, nlist=4096)\n\ndef search(index, q, top_k=100):\n    # 近似最近邻查询\n    return index.query(q, top_k)",
+    "complexity": "暴力 O(N) / ANN O(log N)~O(sqrt N)",
+    "beginnerSummary": "把所有物料变成坐标点，用户兴趣也是一个点，我们要找离它最近的一批点。一个个量距离太慢，于是建一张“快捷地图”(索引)近似找最近邻，牺牲一点点准确度换极快速度。",
+    "derivation": [
+      "为什么需要：亿级向量暴力比对不可行，需近似检索在精度与速度间取舍。",
+      "怎么实现：HNSW 构图检索、IVF 聚类倒排+PQ 量化压缩，分片部署与参数调优。",
+      "有什么代价：近似带来召回损失，HNSW 内存占用高，索引构建与更新有开销。",
+      "怎么评测：recall@k、QPS、P99 延迟与内存占用联合评估。"
+    ],
+    "edgeCases": [
+      "新物料未入索引无法被召回，需实时插入或内容向量兜底(冷启动)。",
+      "高维灾难与分布漂移使索引退化，需定期重建。",
+      "批量大查询与单查询延迟差异大，需隔离。"
+    ],
+    "pitfalls": [
+      "盲目追求高召回把参数调到接近暴力，延迟与内存失控。",
+      "忽略向量归一化，内积与余弦语义不一致。"
+    ],
+    "prerequisites": [
+      "向量相似度(内积/余弦)基础",
+      "ANN 索引 HNSW/IVF/PQ 原理",
+      "召回率与延迟权衡概念"
+    ],
+    "workedExample": [
+      "场景：1 亿短视频向量，要求 recall@100>0.95，P99<20ms。",
+      "用 HNSW(m=32) 内存建索引，单分片 2000 万，10 分片+副本。",
+      "新视频实时插入图索引，冷启动即可召回，离线 recall 实测 0.96。"
+    ],
+    "lineByLine": [
+      "def build_index(...)：按类型构建 ANN 索引，HNSW 适合低延迟高召回，IVF 适合省内存大规模。",
+      "def search(...)：对查询向量在索引上做近似最近邻查询返回 top_k 候选。"
+    ],
+    "followUps": [
+      {
+        "question": "HNSW 和 IVF 怎么选？",
+        "answer": "HNSW 召回高、延迟低但内存占用大，适合内存充足的在线召回；IVF+PQ 用量化大幅省内存适合超大规模，但召回与精度略低，按资源与精度要求取舍。"
+      },
+      {
+        "question": "向量检索的冷启动如何解决？",
+        "answer": "新物料用内容多模态模型实时产出 embedding 并插入索引或用内容召回兜底，避免无行为数据导致的无法召回。"
+      }
+    ],
+    "followUpAnswers": [
+      "HNSW 召回高、延迟低但内存占用大，适合内存充足的在线召回；IVF+PQ 用量化大幅省内存适合超大规模，但召回与精度略低，按资源与精度要求取舍。",
+      "新物料用内容多模态模型实时产出 embedding 并插入索引或用内容召回兜底，避免无行为数据导致的无法召回。"
+    ]
   },
   {
     "kind": "concept",
