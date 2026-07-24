@@ -34,6 +34,73 @@ export const categories = [
 
 export const questions = [
   {
+    "id": "agent-a2a",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "Agent 间互操作(A2A)：多智能体如何协作",
+    "prompt": "什么是 A2A 协议，多智能体之间如何通过标准接口发现彼此并协作完成复杂任务？",
+    "quickAnswer": "A2A（Agent-to-Agent）是一套让不同厂商/框架的 Agent 互相发现、委派与交换结果的开放协议，核心是统一的 Task、Artifact、Message 数据模型与能力发现机制。一个 Agent 通过 Agent Card 公布自己能做什么，另一个 Agent 据此发起 Task、流式收 Message、最终拿到 Artifact 结果，从而把“端到端编排”交给多智能体协作。它与 MCP 互补：MCP 解决“Agent 怎么接工具/数据”，A2A 解决“Agent 怎么接另一个 Agent”。",
+    "approach": "核心思路是把“调用另一个智能体”标准化成一次有状态的任务交互：客户端 Agent 先读取对方 Agent Card（能力清单），创建 Task 并附带输入，服务端以 Message 流式回报进度、以 Artifact 交付产出；双方用统一 schema 通信，无需关心对方内部实现，从而实现跨组织、跨框架的多智能体编排。",
+    "explanationFocus": "是什么：A2A（Agent-to-Agent）协议是面向“智能体对智能体”的互操作标准，定义了 Agent 如何自描述能力（Agent Card）、如何发起与跟踪任务（Task）、如何交换过程消息（Message）与最终产物（Artifact），让异构 Agent 像微服务一样彼此调用与编排。",
+    "bruteForce": "朴素做法——两个 Agent 之间用私有的 HTTP + 自定义 JSON 直接硬编码对接，或干脆把对方逻辑复制进自己进程里串行调用；优点是上手最快、调试直观，缺点是每对组合都要写适配层、无法动态发现，扩到 N 个 Agent 时集成成本呈 O(N²) 爆炸。",
+    "invariant": "不变量——每次跨 Agent 调用都必须通过显式的 Task 生命周期（创建→进行→完成/失败）来追踪，不能把对方的产出当作无状态函数返回值来隐式假设；只要任务未完成，客户端就必须能查询状态，而不能凭本地缓存判断对方已结束。",
+    "walkthrough": "以“旅行规划”为例（涉及 3 个 Agent：航班、酒店、行程编排）：(1) 编排 Agent 读取航班/酒店 Agent 的 Agent Card，得知前者接受 (出发地,目的地,日期) 返回报价、后者接受 (城市,日期,预算) 返回房源；(2) 编排 Agent 创建 Task 给航班 Agent，拿到 Artifact（3 个航班选项）；(3) 并行创建 Task 给酒店 Agent，拿到 Artifact（5 个房源）；(4) 编排 Agent 综合两者产出生成行程。若航班 Agent 超时，编排方依据 Task 状态做降级（用缓存报价或改派其他 Agent），而不是卡死。",
+    "code": "def discover(card_url):\n    # GET 对方 Agent Card 并解析能力清单, 零代码对接前先\"看清对方能干什么\"\n    return http.get(card_url).json()\n\ndef create_task(agent, input):\n    # 按协议 POST 一个 Task 并返回 task_id, 建立可追踪状态\n    resp = http.post(agent.endpoint + \"/tasks\", json={\"input\": input})\n    return resp.json()[\"task_id\"]\n\ndef poll(task_id):\n    # 查询 Task 当前状态与已到 Message, 支持流式/异步结果, 避免阻塞等待\n    return http.get(f\"/tasks/{task_id}\").json()\n\ndef get_artifact(task_id):\n    # 取回最终 Artifact 产出, 供上层继续编排\n    return http.get(f\"/tasks/{task_id}/artifact\").json()",
+    "complexity": "说明——发现与单次调用为 O(1)（读 Card + 一次 Task），但端到端编排随参与 Agent 数 A 与依赖深度 D 增长为 O(A × D) 次交互；瓶颈在网络往返与对方推理延迟，而非本地计算，因此重试、超时与并行扇出是主要优化点。",
+    "beginnerSummary": "大白话——A2A 就像给每个 AI 助手发一张“名片”，上面写清楚它能干啥、怎么联系。当主 AI 遇到自己不会的活儿，就照着名片把任务派给对应的专家 AI，专家干完把成果回传；大家不用知道彼此内部怎么想，只要按统一格式交接就行，像公司里不同部门按流程协作。",
+    "diagram": " Agent A(编排方)\n    │\n    │ Task\n    ▼\n Agent B ──Artifact(结果)──► A\n    │\n    │ (发现 registry: 读 Card)\n    ▼\n Agent C ──Message(进度)──► A",
+    "derivation": [
+      "为什么需要：单个 Agent 能力与知识有限，复杂任务需多专家协作；但各 Agent 由不同团队用不同框架构建，若每对都私有对接，集成成本随数量平方爆炸，亟需统一“Agent 怎么找彼此、怎么交任务”的标准。",
+      "怎么实现：定义 Agent Card（能力自描述）、Task（有状态任务）、Message（过程消息）、Artifact（最终产物）四件套；客户端读 Card 发现能力，建 Task 派活，服务端以 Message 流式回报、以 Artifact 交付，全程用 JSON/HTTP 或流式传输。",
+      "有什么代价：引入协议层后增加序列化、鉴权、状态跟踪开销；跨组织调用带来网络延迟与可用性问题；需要治理 Agent 的身份、权限与信任边界，否则易被滥用或形成环路调用放大成本。",
+      "怎么评测：看任务完成率、端到端时延、跨 Agent 调用成功率与降级率；并发压测下关注扇出吞吐与故障传播范围，验证协议在真实多智能体拓扑下的鲁棒性。"
+    ],
+    "edgeCases": [
+      "Agent Card 过期/不可达：发现阶段需缓存失效与重试，否则编排方拿着旧能力清单派活会失败。",
+      "长任务流式中断：网络抖动导致 Message 丢失，需断点续传或任务状态查询而非从头重来。",
+      "循环委派（A 调 B、B 又调 A）：需调用深度上限或环路检测，防止无限递归与成本失控。",
+      "Artifact 格式不一致：双方对“产物”schema 理解不同，需显式 schema 协商或结果校验。"
+    ],
+    "pitfalls": [
+      "把 A2A 当无状态函数调用：忽略 Task 生命周期与失败状态，导致客户端误以为成功而继续下游。",
+      "与 MCP 混淆使用场景：用 A2A 去接一个数据库工具（应走 MCP），或用 MCP 去做 Agent 间编排（应走 A2A），职责错位。",
+      "不做鉴权与速率限制：开放 Agent 易被刷任务、形成放大攻击，需在协议边缘加网关防护。"
+    ],
+    "prerequisites": [
+      "Agent 基础与工具调用：理解单个 Agent 的规划-执行循环。",
+      "HTTP/JSON 与 RPC 基础：理解请求-响应与流式通信。",
+      "微服务/分布式编排概念：理解服务发现、扇出与降级。"
+    ],
+    "workedExample": [
+      "场景一（跨团队客服）：客服 Agent 接到“查物流”请求，读物流 Agent 的 Card 后建 Task 传入订单号，物流 Agent 回 Artifact（轨迹），客服 Agent 汇总成话术；两个 Agent 分属不同团队却零定制对接。",
+      "场景二（旅行规划）：编排方并行派 Task 给航班/酒店两个 Agent，各返回 Artifact（3 个航班/5 个房源），再综合；航班超时时依据 Task 状态降级用缓存，体现有状态任务与容错。"
+    ],
+    "lineByLine": [
+      "def discover(card_url): GET 对方 Agent Card 并解析能力清单；作用是零代码对接前先“看清对方能干什么”，避免盲调。",
+      "def create_task(agent, input): 按协议 POST 一个 Task 并返回 task_id；这是跨 Agent 调用的起点，建立可追踪的状态机。",
+      "def poll(task_id): 查询 Task 当前状态与已到 Message；为什么：支持流式/异步结果，避免客户端阻塞等待慢任务。",
+      "def get_artifact(task_id): 取回最终 Artifact 产出；闭合一次 A2A 协作，供上层继续编排或返回用户。"
+    ],
+    "codeNotes": [
+      "真实 A2A 还需鉴权头、超时与退避重试、以及环路深度限制；Agent Card 最好带版本号以便灰度与向后兼容。"
+    ],
+    "followUps": [
+      {
+        "question": "A2A 和 MCP 到底怎么分工，会不会重叠？",
+        "answer": "不重叠、互补：MCP（Model Context Protocol）解决“Agent 如何接入工具、数据源、外部系统”，是 Agent 对资源的接口；A2A 解决“Agent 如何对接另一个 Agent”，是 Agent 对 Agent 的编排接口。简单说 MCP 接工具、A2A 接同事，一个 Agent 可以既用 MCP 接数据库、又用 A2A 调别的 Agent。"
+      },
+      {
+        "question": "Agent Card 里一般要写哪些关键信息？",
+        "answer": "至少包含 Agent 名称与描述、可提供的能力/技能列表、每个 Task 的输入输出 schema、通信端点与支持的传输方式（如 HTTP/SSE）、鉴权要求与版本号；消费方据此决定是否调用以及如何构造合法 Task。"
+      }
+    ],
+    "followUpAnswers": [
+      "不重叠、互补：MCP（Model Context Protocol）解决“Agent 如何接入工具、数据源、外部系统”，是 Agent 对资源的接口；A2A 解决“Agent 如何对接另一个 Agent”，是 Agent 对 Agent 的编排接口。简单说 MCP 接工具、A2A 接同事，一个 Agent 可以既用 MCP 接数据库、又用 A2A 调别的 Agent。",
+      "至少包含 Agent 名称与描述、可提供的能力/技能列表、每个 Task 的输入输出 schema、通信端点与支持的传输方式（如 HTTP/SSE）、鉴权要求与版本号；消费方据此决定是否调用以及如何构造合法 Task。"
+    ]
+  },
+  {
     "kind": "concept",
     "id": "agent-autonomous-vs-constrained",
     "category": "Agent Workflow",
@@ -98,6 +165,426 @@ export const questions = [
       "高危动作始终需授权。"
     ],
     "diagram": "Auto: goal -> run freely\nConstrained: goal -> step -> confirm -> step"
+  },
+  {
+    "id": "agent-code-agent-service",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Hard",
+    "title": "最小可上线 Agent 服务骨架",
+    "prompt": "如何手写一个最小可上线的 Agent 服务骨架：提供 /chat 接口、维护 session 状态、对请求做简单鉴权，并把 Agent 循环结果流式返回？",
+    "quickAnswer": "用 FastAPI 起服务：check_auth 从 Authorization 头取 api_key 做占位校验；/chat 按 session_id 在 SESSIONS 字典里取或建 ConversationBuffer；把用户消息写入记忆后调用 agent_loop 跑 ReAct，结果用 StreamingResponse 流式回传，并回写助手消息。",
+    "explanationFocus": "是什么：最小可上线 Agent 服务是把前面所有组件（路由、记忆、ReAct 循环、流式）封装成一个有状态 HTTP 服务的骨架。它具备鉴权、会话隔离、记忆持久（进程内）与流式响应，足以作为生产原型的起点。",
+    "approach": "核心思路：全局 SESSIONS 字典按 session_id 隔离对话记忆；每个 /chat 请求先鉴权，再取/建会话 buffer 并 add 用户消息，调 agent_loop 得到答案后 add 助手消息并流式返回；鉴权用 api_key 集合占位便于后续接真实网关。",
+    "bruteForce": "朴素做法：把所有用户塞进同一个全局对话、不做鉴权、用普通 JSON 响应等 agent 跑完再回——既串台又无安全边界，且体感差，无法支撑多用户并发。",
+    "invariant": "循环不变量：任意 session_id 在 SESSIONS 中对应唯一 ConversationBuffer；鉴权失败一定抛 401 且不进入 agent 逻辑；每个请求处理后 buffer 同时含有本轮 user 与 assistant 消息，保证后续轮次上下文完整。",
+    "walkthrough": "请求 POST /chat，头 Authorization: Bearer sk-demo，体 {session_id:\"u1\", message:\"北京温度？\"}。check_auth 通过；SESSIONS 无 \"u1\" 则新建 buffer；add 用户消息→agent_loop 调 get_weather 得 \"25℃\"→add 助手消息→流式返回 \"25℃\"。第二次同 session 请求能带上前文。",
+    "code": "from fastapi import FastAPI, Request, HTTPException\nfrom fastapi.responses import StreamingResponse\n\napp = FastAPI()\nSESSIONS = {}  # session_id -> ConversationBuffer（进程内状态）\nVALID_KEYS = {\"sk-demo\"}  # 占位：真实应查 DB/网关\n\ndef check_auth(request: Request):\n    key = request.headers.get(\"Authorization\", \"\").replace(\"Bearer \", \"\")\n    if key not in VALID_KEYS:  # 鉴权占位\n        raise HTTPException(status_code=401, detail=\"invalid api_key\")\n\n@app.post(\"/chat\")\nasync def chat(request: Request):\n    check_auth(request)  # 先鉴权，失败直接 401\n    body = await request.json()\n    sid = body.get(\"session_id\", \"default\")\n    if sid not in SESSIONS:  # 首次建会话\n        SESSIONS[sid] = ConversationBuffer(summary_model)\n    buf = SESSIONS[sid]\n    buf.add(\"user\", body[\"message\"])  # 写入用户消息\n    async def gen():\n        answer = agent_loop(llm, tools, buf.context())  # 复用 ReAct 循环\n        buf.add(\"assistant\", answer)  # 回写助手消息，维持上下文\n        yield answer\n    return StreamingResponse(gen(), media_type=\"text/event-stream\")",
+    "complexity": "时间复杂度：单次 /chat 为 O(agent_loop 步数 × (LLM+工具))，与对话历史长度相关（受记忆窗口约束）。空间复杂度：O(活跃会话数 × 单会话 token)，SESSIONS 常驻内存，需配淘汰策略防泄漏。",
+    "beginnerSummary": "这就像开一家\"AI 前台\"小店：进门先查工牌（鉴权），每人发一个专属文件夹（session）记着聊过什么；你说话它写进文件夹，跑去查完资料再把答案边说边写回文件夹，下次你来它还记得上次的事。",
+    "diagram": "HTTP POST /chat\n   | Authorization: Bearer sk-xxx\n   v\n[check_auth] --401?--> 拒绝\n   | 通过\n   v\n[SESSIONS 字典] --sid--> 取/建 ConversationBuffer\n   |\n   v\nbuf.add(user) --> [agent_loop(ReAct)] --> buf.add(assistant)\n                                        |\n                                        v\n                                StreamingResponse(answer)",
+    "derivation": [
+      "为什么需要：单脚本 Demo 无法服务多用户，需要 HTTP 入口、会话隔离与基本安全边界，才能从笔记本走向可部署原型。",
+      "怎么实现：FastAPI 提供路由；SESSIONS 字典按 session_id 存缓冲实现隔离；check_auth 用 api_key 集合占位；/chat 内组合记忆与 agent_loop，并以流式返回。",
+      "有什么代价：进程内 SESSIONS 不跨实例、重启即丢，需换 Redis 等外部存储；api_key 占位不安全，需接真实鉴权；缺少限流/超时会被滥用。",
+      "怎么评测：用并发多 session 压测验证隔离正确性与无串台；鉴权用例验证 401；记忆连续性用例验证多轮上下文不丢。"
+    ],
+    "edgeCases": [
+      "缺 Authorization 头或 key 错误：check_auth 抛 401，绝不进入 agent 逻辑，避免未授权调用产生成本。",
+      "session_id 不存在：自动新建 ConversationBuffer，首次对话也能正常工作。",
+      "body 缺 message 字段：body[\"message\"] 抛 KeyError，应改为 .get 并校验非空，这里作为骨架留给接入层处理。"
+    ],
+    "pitfalls": [
+      "把状态存在进程内存（SESSIONS），多副本部署会串台/丢失，生产必须外置到 Redis 等共享存储。",
+      "api_key 硬编码在代码里且无轮换，泄露即失守；应读环境变量或接鉴权网关。",
+      "agent_loop 无总超时，恶意长会话会占满资源；应加请求级 timeout 与并发限制。"
+    ],
+    "prerequisites": [
+      "了解 HTTP 请求/响应与 REST 接口基本概念。",
+      "掌握前几张卡：agent_loop、ConversationBuffer、流式响应。"
+    ],
+    "workedExample": [
+      "POST /chat，headers={Authorization:\"Bearer sk-demo\"}，json={session_id:\"u1\", message:\"北京温度？\"}。check_auth 通过；SESSIONS 无 \"u1\" 新建 buffer；agent_loop 调 get_weather 得 \"25℃\"，流式返回该串并写入助手消息。",
+      "同一 session 再发 {session_id:\"u1\", message:\"那上海呢？\"}：buf 已含上文，agent_loop 基于完整上下文调用 get_weather(上海)，返回 \"上海当前30℃\"，验证记忆连续性与会话隔离。"
+    ],
+    "lineByLine": [
+      "from fastapi import ... HTTPException / StreamingResponse：引入路由、异常与流式响应依赖。",
+      "SESSIONS = {} 与 VALID_KEYS = {\"sk-demo\"}：进程内会话状态与占位合法密钥集合。",
+      "def check_auth(request)：从 Authorization 头剥离 \"Bearer \" 取 key，不在白名单则抛 401。",
+      "@app.post(\"/chat\") async def chat(request)：定义聊天端点，先 await 取请求对象。",
+      "check_auth(request)：入口即鉴权，失败直接 401，防止未授权消耗 LLM。",
+      "body = await request.json() 与 sid = body.get(\"session_id\",\"default\")：解析体并取会话 ID，缺省 \"default\"。",
+      "if sid not in SESSIONS: SESSIONS[sid] = ConversationBuffer(...)：按会话取或建记忆缓冲，实现隔离。",
+      "buf.add(\"user\", body[\"message\"])：把本轮用户消息写入记忆，供 agent_loop 看见历史。",
+      "async def gen()：流式生成器，内部跑 agent_loop 并把答案 add 为助手消息后 yield。",
+      "return StreamingResponse(gen(), media_type=\"text/event-stream\")：以 SSE 流式把答案推回前端。"
+    ],
+    "codeNotes": [
+      "SESSIONS 应替换为 Redis 等外部存储以支持多实例；check_auth 应接真实网关/JWT 校验而非硬编码集合。"
+    ],
+    "followUps": [
+      {
+        "question": "进程内 SESSIONS 有哪些生产隐患，怎么改？",
+        "answer": "隐患：重启丢失、多副本不共享、内存无限增长。应改用 Redis 等外部 KV 存会话，设 TTL 自动淘汰；多实例下 agent_loop 保持无状态、状态全在存储层，便于水平扩容。"
+      },
+      {
+        "question": "如何给这个骨架加请求级超时与限流？",
+        "answer": "在 /chat 包一层 asyncio.wait_for(agent_loop(...), timeout=N) 防长占；用中间件（如 slowapi）按 api_key 做令牌桶限流，并对并发会话数设上限，避免资源被单用户打满。"
+      }
+    ],
+    "followUpAnswers": [
+      "隐患：重启丢失、多副本不共享、内存无限增长。应改用 Redis 等外部 KV 存会话，设 TTL 自动淘汰；多实例下 agent_loop 保持无状态、状态全在存储层，便于水平扩容。",
+      "在 /chat 包一层 asyncio.wait_for(agent_loop(...), timeout=N) 防长占；用中间件（如 slowapi）按 api_key 做令牌桶限流，并对并发会话数设上限，避免资源被单用户打满。"
+    ]
+  },
+  {
+    "id": "agent-code-memory-buffer",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Easy",
+    "title": "手写带压缩的对话记忆 buffer",
+    "prompt": "如何手写一个对话记忆 buffer，在超出 token 窗口时对旧轮次做摘要压缩，同时保留最近若干轮完整上下文？",
+    "quickAnswer": "用一个列表存每轮对话并记录 token 数；每次 add 后若总 token 超阈值，就从最旧的一轮开始弹出，用 summary_model 生成摘要并插回头部，直到总量降到窗口内或仅剩最近 keep_recent 轮。这样老信息被压缩、新信息保真。",
+    "explanationFocus": "是什么：带压缩的对话记忆 buffer 是一种\"滑动窗口 + 摘要\"的短期记忆。它完整保留最近几轮对话，把更早的轮次逐步压缩成摘要，既控制 token 成本又尽量不丢长期背景。",
+    "approach": "核心思路：每轮 add 时记录 role/content/tokens；_compress_if_needed 循环检查总 token，超过 max_tokens 就 pop 最旧轮次、用模型摘要后作为 system 摘要插回头部，循环直到达标或只剩 keep_recent 轮。",
+    "bruteForce": "朴素做法：ConversationBufferWindowMemory 只保留最近 k 轮、直接丢掉更早内容；或更暴力地每次都把全部历史重发给 LLM，超窗口就直接截断，导致早期承诺/偏好被遗忘。",
+    "invariant": "循环不变量：压缩后总 token 不超过 max_tokens，或已无法再压（仅剩 keep_recent 轮）；最近 keep_recent 轮始终保持完整未被摘要。",
+    "walkthrough": "设 max_tokens=2000、keep_recent=4，已存 10 轮各约 400 token（共 4000）。add 后触发压缩：pop 第1轮→摘要成约 100 token 插回，总量变 3700；继续 pop 直到剩 4 整轮 + 若干摘要，总量 < 2000 停止。",
+    "code": "class ConversationBuffer:\n    def __init__(self, summary_model, max_tokens=2000, keep_recent=4):\n        self.summary_model = summary_model  # 用于生成摘要的模型\n        self.max_tokens = max_tokens  # 上下文 token 上限\n        self.keep_recent = keep_recent  # 最少保留的完整轮数\n        self.turns = []  # 每轮: {role, content, tokens}\n\n    def _count(self, text):\n        return max(1, len(text) // 4)  # 约 4 字符算 1 token 的粗略估计\n\n    def add(self, role, content):\n        self.turns.append({\"role\": role, \"content\": content,\n                           \"tokens\": self._count(content)})\n        self._compress_if_needed()  # 写入后立即检查是否超窗\n\n    def _compress_if_needed(self):\n        total = sum(t[\"tokens\"] for t in self.turns)\n        while total > self.max_tokens and len(self.turns) > self.keep_recent:\n            old = self.turns.pop(0)  # 弹出最旧的一轮\n            summary = self.summary_model(f\"Summarize: {old['content']}\")  # 模型摘要\n            self.turns.insert(0, {\"role\": \"system\",\n                                  \"content\": f\"[摘要]{summary}\",\n                                  \"tokens\": self._count(summary)})\n            total = sum(t[\"tokens\"] for t in self.turns)  # 重新统计\n\n    def context(self):\n        return \"\\n\".join(f\"{t['role']}: {t['content']}\" for t in self.turns)",
+    "complexity": "时间复杂度：add 为 O(n)（n 为轮数，压缩时每轮一次模型调用最坏 O(n×模型延迟)）；context 为 O(n)。空间复杂度：O(total_tokens)，被 max_tokens 上限约束。",
+    "beginnerSummary": "就像你记笔记：最新的几页完整保留，太早的页面太多时，你把前面几页\"总结成一句话\"贴在封面，这样本子不会太厚，又能记住大致来龙去脉。",
+    "diagram": "turns: [t1][t2][t3]...[t10]   max_tokens 超限\n   |\n   v pop 最旧\n[摘要模型] -> [SYS:摘要t1] 插回头部\n   |\n   v 再检查 total > max_tokens ?\n  yes -> 继续压缩\n  no  -> 停止，保留 keep_recent 整轮",
+    "derivation": [
+      "为什么需要：LLM 有上下文窗口上限，长对话全量发送既贵又易淹没重点；但直接丢旧信息会丢失用户偏好与早期约定。",
+      "怎么实现：以轮为单位维护 token 计数，超出阈值就从队首取最旧轮做模型摘要替换，循环压缩直到达标或仅剩 keep_recent 轮完整保留。",
+      "有什么代价：摘要本身消耗一次 LLM 调用与延迟；摘要可能丢细节或引入幻觉，需标注\"[摘要]\"以便模型区分原始与压缩内容。",
+      "怎么评测：对比\"全量窗口\"与\"压缩窗口\"在长对话任务上的回答质量，关注关键信息保留率与 token 成本下降比例。"
+    ],
+    "edgeCases": [
+      "单轮对话就超过 max_tokens：while 条件 len(turns) > keep_recent 不满足（只有1轮），不会无限压缩，保留该长轮原样。",
+      "summary_model 返回空串：_count 用 max(1,...) 保证至少 1 token，避免除零或无限循环；同时可对空摘要做重试。",
+      "keep_recent 设得比总轮数还大：压缩循环不触发，退化为完整窗口记忆。"
+    ],
+    "pitfalls": [
+      "用字符数粗略估算 token 与真实 tokenizer 偏差大，中文尤其明显，生产应接真实 tokenizer 或 tiktoken。",
+      "摘要未标注来源，模型可能把\"摘要\"当成用户原话，应在 content 前加 \"[摘要]\" 等显式标记。",
+      "每次 add 都触发多次模型摘要会显著增延迟，可对压缩做批处理或异步化。"
+    ],
+    "prerequisites": [
+      "理解 LLM 上下文窗口与 token 计费概念。",
+      "掌握 Python class、列表 pop/insert 与生成器表达式。"
+    ],
+    "workedExample": [
+      "buf = ConversationBuffer(summary_model, max_tokens=2000, keep_recent=4)；连续 add(\"user\", \"我偏好Python\")、add(\"assistant\", \"好的\") 共 10 轮，每轮约 400 token。",
+      "第10次 add 后 total=4000>2000，压缩弹出最旧轮生成\"[摘要]用户偏好Python...\"（约100 token）插回，反复直到保留 4 整轮 + 若干摘要，total<2000。context() 返回可发送的多行文本。"
+    ],
+    "lineByLine": [
+      "class ConversationBuffer：定义记忆缓冲类，封装窗口上限、保留轮数与压缩逻辑。",
+      "__init__ 保存 summary_model/max_tokens/keep_recent，并初始化 self.turns=[] 存储每轮对话。",
+      "def _count(text)：用 len(text)//4 粗略估算 token，max(1,...) 防止空串计 0。",
+      "def add(role, content)：把新轮（含 token 计数）追加进 turns，并立即调用压缩检查。",
+      "def _compress_if_needed：计算 total，当超窗且轮数大于 keep_recent 时进入压缩循环。",
+      "old = self.turns.pop(0)：弹出最旧一轮，准备用摘要替代它。",
+      "summary = self.summary_model(f\"Summarize: ...\")：调用模型把旧轮压缩成短文本。",
+      "self.turns.insert(0, {role:\"system\", content:f\"[摘要]{summary}\", ...})：把摘要作为系统消息插回头部，保留位置顺序。",
+      "def context()：用换行把各轮拼成可发送的上下文串，供 LLM 调用使用。"
+    ],
+    "codeNotes": [
+      "_count 的 //4 仅为草图估算，真实实现应替换为 tokenizer（如 tiktoken）以匹配模型实际计费。"
+    ],
+    "followUps": [
+      {
+        "question": "摘要丢失细节怎么办，有没有更好的压缩策略？",
+        "answer": "可分层：对旧轮做分层摘要、保留关键实体与用户偏好清单；或用向量检索只召回相关历史（RAG 记忆）。也可让模型在摘要时显式保留\"待办/约束\"清单以降低信息损失。"
+      },
+      {
+        "question": "为什么只压最旧轮而不是按重要性压？",
+        "answer": "按最旧压是 O(1) 简单且符合时间局部性（近期更可能相关）；按重要性需额外打分（如用 LLM 评估各轮重要性），更准但更贵，适合长程任务。"
+      }
+    ],
+    "followUpAnswers": [
+      "可分层：对旧轮做分层摘要、保留关键实体与用户偏好清单；或用向量检索只召回相关历史（RAG 记忆）。也可让模型在摘要时显式保留\"待办/约束\"清单以降低信息损失。",
+      "按最旧压是 O(1) 简单且符合时间局部性（近期更可能相关）；按重要性需额外打分（如用 LLM 评估各轮重要性），更准但更贵，适合长程任务。"
+    ]
+  },
+  {
+    "id": "agent-code-react-loop",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "手写 ReAct 循环",
+    "prompt": "如何手写一个 ReAct（推理+行动）循环，让大模型在思考、调工具、观察之间往复，并自主决定何时终止？",
+    "quickAnswer": "ReAct 把 LLM 的\"下一步\"显式拆成 Thought（推理）、Action（选工具）、Action Input（参数）三段，通过解析模型输出驱动工具调用。循环把每次的观察 Observation 拼回上下文，直到模型输出 Finish 或到达 max_steps。核心是\"提示构造 + 输出解析 + 上下文回灌\"三段式，使模型能在多步中自我纠正。",
+    "explanationFocus": "是什么：ReAct（Reason + Act）是一种让大模型交替进行\"语言推理\"和\"外部动作\"的 Agent 范式。它在一次回答里同时产出思考链（Thought）和可执行动作（Action），并根据工具返回的观察（Observation）决定下一步，直到得出最终答案。",
+    "approach": "核心思路：用一个 for 循环限制最大步数；每步把\"问题 + 历史\"喂给 LLM，解析出 Thought/Action/Action Input；若 Action 是 Finish 就返回答案，否则调用对应工具并把 Observation 追加回历史；循环靠\"历史回灌\"让模型看到前面所有推理与结果。",
+    "bruteForce": "朴素做法：直接让 LLM 一次性生成最终答案，或每轮只问\"下一步做什么\"但不把观察回灌，导致模型看不到工具结果、无法多跳推理。更原始的方式是为每个任务写死 if-else 调工具，完全失去自主性。",
+    "invariant": "循环不变量：history 始终包含截至当前步所有 Thought/Action/Observation，且任一时刻若 action==Finish 则立即返回答案；循环退出后 history 一定完整记录了推理轨迹。",
+    "walkthrough": "以 max_steps=5 为例：第1步 LLM 输出 Action=get_weather{city:北京}，得到 Observation=25℃；第2步 LLM 看到历史后输出 Action=Finish{北京当前25℃}。实际只用了 2 步（< 5）即终止。若工具一直报错或模型不输出 Finish，则第5步后兜底返回提示。",
+    "code": "def agent_loop(llm, tools, question, max_steps=5):\n    # tools: dict[str, callable]，工具名 -> 可执行函数\n    history = []  # 累积的全部 Thought/Action/Observation 文本\n    for step in range(max_steps):  # 步数护栏，防止模型永不终止\n        prompt = build_prompt(question, history)  # 拼装带 few-shot 的 ReAct 提示\n        raw = llm(prompt)  # 调 LLM，返回含 Thought/Action/Action Input 的文本\n        thought, action, action_input = parse_react(raw)  # 解析出三段\n        history.append(f\"Thought: {thought}\")\n        if action == \"Finish\":  # 模型决定终止\n            history.append(f\"Answer: {action_input}\")\n            return action_input\n        if action not in tools:  # 未知工具，给安全反馈而非崩溃\n            obs = f\"Error: unknown tool '{action}'\"\n        else:\n            try:\n                obs = str(tools[action](**action_input))  # 真正调用工具\n            except Exception as e:\n                obs = f\"Error: {e}\"  # 工具异常转成观察文本\n        history.append(f\"Action: {action}\")  # 记录动作\n        history.append(f\"Observation: {obs}\")  # 回灌观察，形成闭环\n    return \"Reached max_steps without Finish\"  # 兜底返回",
+    "complexity": "时间复杂度：O(max_steps × (LLM调用 + 工具调用))，每步一次 LLM 推理加至多一次工具调用；空间复杂度：O(max_steps × 单步文本长度)，history 随步数线性增长，需配合记忆压缩避免超窗口。",
+    "beginnerSummary": "把 AI 想象成一个边查资料边碎碎念的解题人：它先小声说\"我该干嘛\"（Thought），然后决定\"去翻词典\"（Action），拿到词典解释（Observation）后再决定下一步，直到说\"我懂了，答案是这个\"（Finish）。我们写的循环就是反复逼它走这套流程，并给它设个最多走几步的刹车。",
+    "diagram": "Question\n   |\n   v\n[Build Prompt + History] --> [LLM]\n                                 |\n                                 v\n                        parse Thought/Action/Input\n                                 |\n                    +------------+------------+\n                    |                         |\n              Action==Finish?           Action!=Finish\n                    |                         |\n                 return answer        call tools[action]\n                                          |\n                                          v\n                                   Observation\n                                          |\n                                          +--> append to history --> loop",
+    "derivation": [
+      "为什么需要：单轮 LLM 无法直接获取实时/私有信息，且复杂任务需要多步推理；ReAct 把\"想\"和\"做\"显式分离，让模型能基于工具反馈动态修正路径，而不是一次性蒙一个答案。",
+      "怎么实现：维护 history 列表，每轮用 build_prompt 把问题与历史拼成提示，调用 llm 后用 parse_react 正则/结构化抽取三段；Finish 直接返回，否则执行工具并把 Observation 追加回 history，进入下一轮。",
+      "有什么代价：每步都有 LLM 延迟与 token 成本，步数越多越慢越贵；解析失败、工具超时、模型不收敛都会放大开销；history 无限增长还会撑爆上下文窗口。",
+      "怎么评测：用多跳问答（HotpotQA）、工具调用准确率、步数效率（平均多少步 Finish）、以及终止正确率衡量；同时统计 fallback/超时占比以评估鲁棒性。"
+    ],
+    "edgeCases": [
+      "LLM 输出格式不合法，parse_react 抽不出 Action：应容错成 Observation=解析错误并继续，而非抛异常中断整个循环。",
+      "工具抛异常或超时：用 try/except 把异常转成 Error 文本回灌，让模型有机会换工具或换参数重试。",
+      "模型始终不输出 Finish：靠 max_steps 兜底返回提示，避免无限循环与成本失控。",
+      "Action 指向不存在的工具名：检查 action not in tools，返回 unknown tool 错误而不是 KeyError。"
+    ],
+    "pitfalls": [
+      "忘记把 Observation 回灌 history，导致模型看不到工具结果，无法多跳推理——这是 ReAct 失效最常见原因。",
+      "max_steps 设太大既烧钱又易跑偏，设太小又答不完；应结合任务复杂度调参并加早停。",
+      "parse_react 用脆弱正则，遇到模型自由发挥就抽空，需要兜底与更稳的结构化解析（如 JSON/函数调用）。"
+    ],
+    "prerequisites": [
+      "了解大模型函数调用（function calling）与提示词工程基础。",
+      "理解\"思维链（CoT）\"推理，以及为何多步推理需要外部工具补充知识。"
+    ],
+    "workedExample": [
+      "输入 question=\"北京现在气温多少？\"，tools={\"get_weather\": lambda city: \"25℃\"}，max_steps=5。第1步 LLM 输出 Thought=要查天气, Action=get_weather, Action Input={city:北京}。",
+      "调用 get_weather 得到 Observation=\"25℃\" 拼回 history；第2步 LLM 输出 Action=Finish, Action Input=\"北京当前25℃\"。循环在第2步返回 \"北京当前25℃\"，仅用 2 步 < 5。"
+    ],
+    "lineByLine": [
+      "def agent_loop(llm, tools, question, max_steps=5)：定义循环入口；tools 是\"名字->函数\"的映射，max_steps 是防不终止的安全护栏。",
+      "history = []：累积每轮的 Thought/Action/Observation，充当模型的短期记忆，下一轮提示会包含它。",
+      "for step in range(max_steps)：用固定上限限制步数，这是成本与安全的硬边界，避免模型永不 Finish。",
+      "prompt = build_prompt(question, history)：把原始问题与历史拼成带 few-shot 示例的 ReAct 提示，引导模型输出规范三段。",
+      "raw = llm(prompt) 与 parse_react(raw)：调用模型并解析出 thought/action/action_input，是连接\"语言\"与\"动作\"的关键。",
+      "if action == \"Finish\": return action_input：模型认为已得出答案，直接返回，循环正常结束。",
+      "obs = str(tools[action](**action_input))：真正执行工具，try/except 把异常转成 Error 文本，保证循环不崩。",
+      "history.append(Action/Observation)：把动作与观察回灌上下文，使下一轮 LLM 能看到前面结果，形成推理闭环。",
+      "return \"Reached max_steps...\"：兜底分支，步数耗尽仍未 Finish 时返回提示而非抛错，保证调用方总有返回值。"
+    ],
+    "codeNotes": [
+      "build_prompt 与 parse_react 是可替换组件：生产环境更推荐用模型原生 function calling 代替脆弱的正则解析。"
+    ],
+    "followUps": [
+      {
+        "question": "ReAct 和纯 CoT（思维链）有什么区别？",
+        "answer": "CoT 只产出推理文本不触发动作，无法获取外部实时信息；ReAct 在推理中插入 Action/Observation，让模型能调用工具并基于真实反馈继续推理，适合需要检索、计算或多步工具协作的任务。"
+      },
+      {
+        "question": "如果 LLM 一直不输出 Finish 怎么办？",
+        "answer": "靠 max_steps 强制终止并兜底返回；同时可在提示里强调\"尽快 Finish\"、对无效循环做早停检测，或改用强结构化的 function calling 让模型以特定信令结束。"
+      }
+    ],
+    "followUpAnswers": [
+      "CoT 只产出推理文本不触发动作，无法获取外部实时信息；ReAct 在推理中插入 Action/Observation，让模型能调用工具并基于真实反馈继续推理，适合需要检索、计算或多步工具协作的任务。",
+      "靠 max_steps 强制终止并兜底返回；同时可在提示里强调\"尽快 Finish\"、对无效循环做早停检测，或改用强结构化的 function calling 让模型以特定信令结束。"
+    ]
+  },
+  {
+    "id": "agent-code-sse-stream",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Hard",
+    "title": "手写 Agent 流式转发(SSE)",
+    "prompt": "如何手写一个 Agent 流式接口，用 SSE 把 LLM 的 token 与工具事件实时推送给前端，并带心跳和错误帧？",
+    "quickAnswer": "用 FastAPI 的 StreamingResponse 配合 media_type=\"text/event-stream\"，在异步生成器里逐 token 产出 \"event:/data:\" 帧；工具调用、结果、心跳、错误都封装成独立事件帧推送，前端按 event 类型渲染，错误用 error 帧而不是断流。",
+    "explanationFocus": "是什么：SSE（Server-Sent Events）是一种基于 HTTP 的单向流式推送协议。Agent 流式转发指后端把 LLM 生成的 token 流和工具事件（调用/结果/错误）实时以 SSE 帧推给浏览器，提升体感速度并支持过程可视化。",
+    "approach": "核心思路：定义一个异步生成器 event_gen，先后 yield start 帧、逐 token 的 token 帧、tool_call/tool_result 帧，并用注释行 \": heartbeat\" 保活；异常时 yield error 帧而非抛出让连接断开；端点返回 StreamingResponse。",
+    "bruteForce": "朴素做法：等 Agent 全部跑完再一次性返回 JSON，用户面对长时间空白；或用 WebSocket 实现双向通信，协议更重、前端处理更复杂，而本场景只需服务端单向推送。",
+    "invariant": "循环不变量：只要连接未断开，每个逻辑事件都对应一个完整 SSE 帧（以空行结尾）；即便工具或 LLM 出错，也通过 error 帧通知前端，连接不会因异常而静默断开。",
+    "walkthrough": "客户端 GET /stream?question=北京温度。后端依次推送：event:start → event:token(\"北\")→token(\"京\")→... → event:tool_call{get_weather} → event:tool_result{\"25℃\"} → 每隔若干秒 \": heartbeat\" → event:done{ok:true}。前端实时显示打字机效果与工具调用卡片。",
+    "code": "from fastapi import FastAPI\nfrom fastapi.responses import StreamingResponse\nimport json, asyncio\n\napp = FastAPI()\n\ndef sse(event, data):\n    # 把事件包成 SSE 帧: \"event: x\\ndata: y\\n\\n\"\n    return f\"event: {event}\\ndata: {json.dumps(data, ensure_ascii=False)}\\n\\n\"\n\nasync def event_gen(llm, tools, question):\n    yield sse(\"start\", {\"question\": question})  # 开场帧\n    try:\n        async for token in llm.stream(question):  # 逐 token 产出\n            yield sse(\"token\", {\"text\": token})\n        tool = select_tool(question, tools)  # 路由到工具\n        result = call_with_retry(tool[\"fn\"], {})  # 带重试调用\n        yield sse(\"tool_call\", {\"tool\": tool[\"name\"]})  # 工具调用帧\n        yield sse(\"tool_result\", {\"result\": str(result)})  # 结果帧\n    except Exception as e:\n        yield sse(\"error\", {\"msg\": str(e)})  # 错误帧而非断流\n    yield \": heartbeat\\n\\n\"  # 注释行=心跳保活\n    yield sse(\"done\", {\"ok\": True})  # 结束帧\n\n@app.get(\"/stream\")\nasync def stream(question: str):\n    return StreamingResponse(\n        event_gen(llm, tools, question),\n        media_type=\"text/event-stream\",\n    )",
+    "complexity": "时间复杂度：与生成长度线性相关，O(生成token数 + 工具调用次数)。空间复杂度：O(单帧)，流式逐帧发送不缓存全量，内存恒定；仅 SSE 帧头开销为常数。",
+    "beginnerSummary": "就像看直播弹幕：后端一边生成一边把\"字\"和\"系统提示\"（调用了哪个工具、返回了啥）实时飘到屏幕上，中间还会偶尔发个\"我还在线\"的心跳，即使出错了也先发条错误通知而不是突然关播。",
+    "diagram": "Browser --GET /stream--> FastAPI\n                         |\n                         v\n                  [event_gen 异步生成器]\n   start --> token --> token --> ... --> tool_call\n                                         |\n                                      tool_result\n                                         |\n                                    (error?)--> error\n                                         |\n                                    heartbeat --> done\n                         |\n                         v\n                  StreamingResponse (text/event-stream)",
+    "derivation": [
+      "为什么需要：Agent 多步推理常耗时数秒到数十秒，等全部完成再返回会让用户面对空白、体感差；流式可实时展示思考与工具过程，提升可信度与交互体验。",
+      "怎么实现：FastAPI 的 StreamingResponse 接收异步生成器，按 SSE 格式（event:/data:/空行）持续 yield 帧；token、工具事件、心跳、错误各自成帧，前端用 EventSource 监听。",
+      "有什么代价：长连接占用服务端资源，需要心跳防代理超时断开；错误必须用帧而非异常，否则连接中断前端无法区分\"完成\"与\"崩溃\"；需处理客户端中途断开。",
+      "怎么评测：量首 token 延迟、帧率稳定性、心跳间隔、断连恢复；前端考核打字机流畅度与错误帧展示正确性。"
+    ],
+    "edgeCases": [
+      "客户端中途关闭连接：生成器应在 asyncio 取消时捕获 CancelledError 优雅退出，避免服务端报错堆积。",
+      "LLM 单次返回极长无 token 流：心跳帧保活，防止 nginx/代理因静默超时断开。",
+      "工具调用抛出异常：被 try/except 捕获并 yield error 帧，连接不中断，前端可提示后继续或结束。"
+    ],
+    "pitfalls": [
+      "忘记设置 media_type=\"text/event-stream\" 或帧末尾缺空行，浏览器 EventSource 无法解析分帧。",
+      "用普通 return 字符串而非生成器，导致一次性返回而非流式，失去实时性。",
+      "把异常直接抛出而不是转成 error 帧，连接瞬间断开且前端拿不到任何错误信息。"
+    ],
+    "prerequisites": [
+      "理解 HTTP 流式响应与 SSE 帧格式（event:/data:/空行）。",
+      "了解 FastAPI 异步生成器与 async for 基础。"
+    ],
+    "workedExample": [
+      "前端 EventSource(\"/stream?question=北京温度\")。后端 event_gen 依次 yield：sse(\"start\",{question})、sse(\"token\",{text:\"北\"})、sse(\"token\",{text:\"京\"})、sse(\"tool_call\",{tool:\"get_weather\"})、sse(\"tool_result\",{result:\"25℃\"})、\": heartbeat\\n\\n\"、sse(\"done\",{ok:True})。",
+      "前端收到 token 帧时把 text 追加到对话框实现打字机；收到 tool_call/tool_result 时渲染\"调用了 get_weather → 25℃\"卡片；收到 error 帧则显示红色提示但连接保持。"
+    ],
+    "lineByLine": [
+      "from fastapi ... import StreamingResponse：引入流式响应类，用于持续推送而非一次性返回。",
+      "def sse(event, data)：把事件名与数据序列化为标准 SSE 帧，json.dumps(ensure_ascii=False) 保证中文不乱码，结尾双换行分隔帧。",
+      "async def event_gen(...)：异步生成器，是整个流的核心，用 yield 逐个推送帧。",
+      "yield sse(\"start\", {...})：首帧告知前端任务开始与问题内容。",
+      "async for token in llm.stream(question)：逐 token 迭代模型输出，每个 token 立即 yield 成 token 帧，实现打字机效果。",
+      "tool = select_tool(...) 与 result = call_with_retry(...)：路由并带重试调用工具，复用前两张卡的逻辑。",
+      "yield sse(\"tool_call\"/\"tool_result\", ...)：把工具调用与结果作为独立事件推给前端做过程可视化。",
+      "except Exception as e: yield sse(\"error\", ...)：关键容错——错误转成 error 帧，连接不断开。",
+      "yield \": heartbeat\\n\\n\" 与 sse(\"done\",...）：心跳保活 + 结束帧，标记流正常终结。",
+      "@app.get(\"/stream\") 返回 StreamingResponse(event_gen(...), media_type=\"text/event-stream\")：把生成器挂到路由并声明 SSE 媒体类型。"
+    ],
+    "codeNotes": [
+      "生产应把 select_tool/call_with_retry 来自前两张卡；心跳间隔可按时间触发而非仅在末尾发一次。"
+    ],
+    "followUps": [
+      {
+        "question": "SSE 和 WebSocket 该怎么选？",
+        "answer": "本场景是服务端单向推送、前端只需接收，SSE 更轻量、基于标准 HTTP、自带重连；若需要前端反向发指令（如中途打断、修改参数）则用 WebSocket 双向更合适。"
+      },
+      {
+        "question": "前端用 EventSource 如何正确处理错误帧？",
+        "answer": "EventSource 的 onmessage/onerror 区分网络错误与业务错误；业务错误应放在自定义 event 帧（如 event:error）里，前端用 addEventListener(\"error\",...) 处理，而不依赖连接级 onerror，避免误判断连。"
+      }
+    ],
+    "followUpAnswers": [
+      "本场景是服务端单向推送、前端只需接收，SSE 更轻量、基于标准 HTTP、自带重连；若需要前端反向发指令（如中途打断、修改参数）则用 WebSocket 双向更合适。",
+      "EventSource 的 onmessage/onerror 区分网络错误与业务错误；业务错误应放在自定义 event 帧（如 event:error）里，前端用 addEventListener(\"error\",...) 处理，而不依赖连接级 onerror，避免误判断连。"
+    ]
+  },
+  {
+    "id": "agent-code-tool-router",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "手写 tool 路由 + 带重试的 function caller",
+    "prompt": "如何手写一个 tool 路由器把用户问题匹配到最合适的工具，并实现一个带超时与重试、失败可降级的 function caller？",
+    "quickAnswer": "路由阶段用关键词/描述重叠为候选工具打分，选出分数最高的工具；调用阶段用\"重试 + 超时 + 降级\"三件套保证健壮性：多次尝试、单次超时中断、全部失败返回一个兜底字符串而不是抛异常。",
+    "explanationFocus": "是什么：tool 路由负责\"选哪个工具\"，function caller 负责\"安全地调这个工具\"。两者共同把自然语言意图映射到可执行函数，并在网络/计算不稳定时通过重试和超时保护 Agent 不崩。",
+    "approach": "核心思路：select_tool 把 query 与每个工具的 keywords/description 做词重叠打分，取最高分；call_with_retry 在 retries+1 次尝试内用信号/线程实现超时，成功即返回，全部失败返回 FALLBACK 兜底串，便于上层继续推理。",
+    "bruteForce": "朴素做法：硬编码 if \"天气\" in query: call_weather()，工具一多就维护爆炸；或只调一次不重试，遇到瞬时网络抖动就直接让整个 Agent 崩溃。",
+    "invariant": "循环不变量：call_with_retry 要么返回工具的真实结果，要么在耗尽 retries 次后返回以 \"FALLBACK:\" 开头的降级字符串；调用方永远拿到一个可放入 Observation 的值，不会向上抛异常。",
+    "walkthrough": "假设工具集含 get_weather/calc，query=\"北京温度\"。select_tool 给 get_weather 命中关键词\"温度\"得 1 分、calc 0 分，选 get_weather。call_with_retry 第1次超时（5s），第2次成功返回 \"25℃\"，仅用 2 次尝试即返回结果。",
+    "code": "import signal\n\ndef select_tool(query, tools):\n    # tools: list[dict]，每项含 name/description/keywords\n    best, best_score = None, -1.0\n    q = query.lower()\n    for t in tools:  # 遍历候选工具打分\n        score = sum(1 for k in t.get(\"keywords\", []) if k in q)\n        score += sum(0.5 for w in q.split() if w in t.get(\"description\", \"\").lower())\n        if score > best_score:  # 贪心取最高分\n            best, best_score = t, score\n    return best  # 返回分数最高的工具描述\n\nclass TimeoutError(Exception):\n    pass\n\ndef call_with_retry(tool, args, retries=3, timeout=5):\n    last_err = None\n    for attempt in range(retries + 1):  # 含首次共 retries+1 次\n        try:\n            return _run_with_timeout(tool, args, timeout)  # 成功即返回\n        except Exception as e:\n            last_err = e  # 记录错误，准备退避重试\n    return f\"FALLBACK: tool failed after {retries} retries: {last_err}\"\n\ndef _run_with_timeout(fn, args, timeout):\n    def _handler(signum, frame):\n        raise TimeoutError(\"tool timed out\")\n    old = signal.signal(signal.SIGALRM, _handler)  # 注册超时信号\n    signal.alarm(timeout)  # 启动倒计时\n    try:\n        return fn(**args)  # 执行工具\n    finally:\n        signal.alarm(0)  # 关闭闹钟\n        signal.signal(signal.SIGALRM, old)  # 还原原 handler",
+    "complexity": "时间复杂度：select_tool 为 O(T×L)（T 工具数、L 文本长度）；call_with_retry 最坏 O((retries+1) × timeout) 当每次都超时。空间复杂度：O(T) 存工具描述，额外信号状态为常数。",
+    "beginnerSummary": "给用户的问题找\"最合适的工具\"就像给任务挑\"最对口的人\"：看关键词谁最匹配就派谁。真正去办事时，这个人可能卡住（超时）或出错，所以我们规定\"最多试几次、每次最多等几秒，全失败了就回一句\"这活没干成\"而不是让整个系统瘫痪。",
+    "diagram": "query \"北京温度\"\n      |\n      v\n[select_tool 打分]\n  get_weather(1)  calc(0)\n      |\n      v 选最高分\n[call_with_retry]\n  try1 --timeout--> try2 --ok--> return result\n                        |\n                    全失败 --> \"FALLBACK: ...\"",
+    "derivation": [
+      "为什么需要：Agent 往往有几十个工具，靠关键词 if-else 不可维护；且外部工具会超时、抖动、偶发报错，直接调用会让整个链路雪崩。",
+      "怎么实现：路由用轻量词重叠打分（也可换 embedding 相似度）；调用用\"retries 次循环 + 单次超时 + 异常转降级串\"保证每次调用都有确定返回值。",
+      "有什么代价：重试会放大延迟（最坏 retries×timeout），信号超时仅在主线程有效，多线程需换成线程池/asyncio.wait_for；打分是启发式，可能选错工具。",
+      "怎么评测：路由用 top-1 准确率与召回，调用用成功率/平均重试次数/降级率，压测下观察 P99 延迟与降级占比是否在可接受区间。"
+    ],
+    "edgeCases": [
+      "所有工具打分都为 0（query 与描述无重叠）：select_tool 返回带负分的 best（首个工具），上层需有\"无合适工具\"的兜底分支。",
+      "工具每次都超时：call_with_retry 耗尽 retries 次后返回 FALLBACK 串，Agent 应把这个观察反馈给 LLM 让其换工具。",
+      "tool 参数 kwargs 不合法触发 TypeError：被 except 捕获计入重试，仍失败则降级，不会穿透到 Agent 主循环。"
+    ],
+    "pitfalls": [
+      "signal.alarm 只在主线程有效，放到多线程/异步环境会失效，应改用 threading.Timer 或 asyncio.wait_for。",
+      "重试不设退避（如指数退避）且对\"参数错误\"也重试，会浪费 attempts 且永远失败；应区分可重试（超时/5xx）与不可重试（4xx/类型错）。",
+      "忘记把异常转成可返回字符串，导致 caller 向上抛，破坏 Agent 循环的稳定性。"
+    ],
+    "prerequisites": [
+      "了解函数一等公民与 dict/list 的基本操作。",
+      "理解异常捕获（try/except）与超时（信号或线程）的基础机制。"
+    ],
+    "workedExample": [
+      "tools=[{\"name\":\"get_weather\",\"keywords\":[\"温度\",\"天气\"],\"description\":\"查城市气温\"},{\"name\":\"calc\",\"keywords\":[\"算\"],\"description\":\"计算器\"}]；query=\"北京温度\"。select_tool 给 get_weather 命中\"温度\"得 1 分，返回该工具。",
+      "call_with_retry(get_weather, {\"city\":\"北京\"}, retries=3, timeout=5)：第1次模拟超时抛 TimeoutError，第2次返回 \"25℃\"。最终返回 \"25℃\"，仅消耗 2 次尝试。"
+    ],
+    "lineByLine": [
+      "import signal：引入信号模块，用于实现单线程超时（SIGALRM 闹钟）。",
+      "def select_tool(query, tools)：遍历工具列表，对 query 与每个工具的 keywords/description 做词重叠打分。",
+      "best, best_score = None, -1.0 与 if score > best_score：贪心保留当前最高分工具，初始化 -1 保证至少选一个。",
+      "def call_with_retry(tool, args, retries=3, timeout=5)：入口签名，默认重试3次、单次超时5秒。",
+      "for attempt in range(retries + 1)：循环 retries+1 次（首次 + 数次重试），成功即 return 退出。",
+      "return _run_with_timeout(tool, args, timeout)：真正执行，超时/异常被外层 except 捕获。",
+      "last_err = e：记录最后一次错误，供耗尽后拼进 FALLBACK 信息，便于排查。",
+      "return f\"FALLBACK: ...\"：全部失败的统一降级返回值，保证调用方永不拿不到结果。",
+      "_run_with_timeout 内 signal.alarm(timeout) 与 finally 中 signal.alarm(0)：启动/关闭闹钟，finally 还原原 handler 避免污染后续代码。"
+    ],
+    "codeNotes": [
+      "生产可把 select_tool 换成 embedding 余弦相似度或让 LLM 做路由（router model），精度更高但更慢更贵。"
+    ],
+    "followUps": [
+      {
+        "question": "信号超时在多线程/异步里为什么不行，该怎么改？",
+        "answer": "signal.alarm 只在主线程有效。多线程可用 concurrent.futures.ThreadPoolExecutor 提交任务并对 future 设 timeout；异步环境用 asyncio.wait_for(coro, timeout=5) 即可实现等效超时。"
+      },
+      {
+        "question": "重试时应该如何区分\"该重试\"和\"不该重试\"的错误？",
+        "answer": "对超时、网络抖动、5xx 等瞬时错误做指数退避重试；对参数类型错误、权限错误、4xx 等确定性错误应立即失败并降级，避免无谓消耗 attempts 与延迟。"
+      }
+    ],
+    "followUpAnswers": [
+      "signal.alarm 只在主线程有效。多线程可用 concurrent.futures.ThreadPoolExecutor 提交任务并对 future 设 timeout；异步环境用 asyncio.wait_for(coro, timeout=5) 即可实现等效超时。",
+      "对超时、网络抖动、5xx 等瞬时错误做指数退避重试；对参数类型错误、权限错误、4xx 等确定性错误应立即失败并降级，避免无谓消耗 attempts 与延迟。"
+    ]
+  },
+  {
+    "id": "agent-computer-use",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Hard",
+    "title": "Computer Use / GUI Agent：让模型操作界面",
+    "prompt": "什么是 Computer Use / GUI Agent，它如何让多模态大模型像人一样直接操作桌面与浏览器界面？",
+    "quickAnswer": "Computer Use（又称 GUI Agent）是一类以屏幕截图或可访问性树为观测、以鼠标键盘动作为输出的智能体，核心是把界面状态编码进多模态大模型，再由模型规划下一步操作，形成“观察-规划-动作”的闭环。它依赖 UI grounding 把“点击提交按钮”这类语义指令映射到具体元素，并用 SET-OF-MARKS 等标签化手段降低定位难度。代价是推理成本高、对动态布局和坐标漂移敏感，评测常用任务成功率、步骤效率与人工干预率。",
+    "approach": "核心思路是把“操作软件”建模成强化式的交互循环：每一步把当前屏幕（或 DOM/可访问性树）编码为模型输入，模型输出一个离散动作（click/type/scroll/double_click 等），执行器在真实环境中落盘后再截图回灌，直到任务完成或超时。关键在于把“语义意图”和“界面元素”对齐（UI grounding），并让 planner 具备多步规划与错误自纠能力，而不是每步独立决策。",
+    "explanationFocus": "是什么：Computer Use（也叫 GUI Agent）是一类让大模型直接操控图形界面的智能体范式——它把屏幕像素或结构化 UI 树作为输入，输出人类可执行的鼠标/键盘动作，从而在不依赖专用 API 的情况下完成点外卖、填表单、爬数据等任务，本质是用“视觉理解”替代“接口对接”。",
+    "bruteForce": "朴素做法——把整张截图原样塞进 VLM，每步都要求模型直接输出绝对坐标 (x,y) 和动作类型，不做任何元素标注、不维护历史记忆，遇到失败就整段重试。优点是零工程改造、立刻能跑；缺点是坐标精度差、长任务极易迷失、几乎无法处理动态加载与意外弹窗，工业可用率很低。",
+    "invariant": "不变量——在“观察-规划-动作”闭环中，每一步执行后必须重新截图并基于“最新”界面状态决策，绝不能用上一步缓存的坐标作为当前动作依据；只要界面状态可能发生变化（滚动、刷新、弹窗），动作就必须以最新观测为准，而非历史快照。",
+    "walkthrough": "以“在购物网站下单 2 件商品”为例：界面约有 30 个可点击元素，目标操作序列约 12 步。(1) 截取 1280×800 像素的当前屏幕；(2) 用 grounding 模型给 30 个元素打上 1~30 的 SoM 标签；(3) planner 选择“点击元素 12（购物车）”，执行后重新截图；(4) 页面弹出登录提示，模型识别该模态框并选择元素 7 关闭；(5) 循环直到支付页。若某步坐标漂移超过 15px 或元素错位，则从最新截图重新 grounding，而不是复用旧标签——这正是闭环自纠的体现。",
+    "code": "def observe():\n    # 抓取当前屏幕截图与(可选)无障碍树, 为决策提供最新界面状态\n    return screenshot_base64, accessibility_tree\n\ndef ground(screen, instruction):\n    # 调用 grounding 模型把\"提交按钮\"映射为带编号的元素包围盒\n    # 返回 [{id, bbox, label}], 替代脆弱的绝对坐标\n    return grounding_model.detect(screen, instruction)\n\ndef plan(history, screen, task):\n    # 把历史动作+当前截图+任务拼成 prompt 送入 VLM, 输出下一步动作\n    prompt = build_prompt(history, screen, task)\n    return vlm.generate(prompt)  # e.g. click(element_id=12)\n\ndef act(action):\n    # 通过 pyautogui / Playwright 执行点击或输入, 执行后由 observe 重新截图\n    pyautogui.click(*action.coord) if action.type == 'click' else pyautogui.typewrite(action.text)",
+    "complexity": "说明——单步推理为 1 次 VLM 调用 + O(E) 的 grounding（E 为界面元素数），长任务整体为 O(steps × (VLM + grounding))；主要成本在 VLM 推理（每次数百 ms 到数秒）与截图/渲染开销，而非算法本身。grounding 对 E 个元素做检测通常是一次前向，规模随 E 线性增长但仍远小于 VLM 成本。",
+    "beginnerSummary": "大白话——想象让一个从没用过电脑的人通过“看屏幕截图”来操作电脑：你每截一张图发给它，它告诉你“点这里、输那个”，你照做后再截新图发回去，直到事情办完。Computer Use 就是让 AI 扮演这个“看屏幕操作的人”，不需要软件专门给它留后门。",
+    "diagram": "  截图(screen 1280x800)\n     │\n     ▼\n [VLM 观察 observe]──►[规划 planner]\n     ▲                    │ 输出动作\n     │                    ▼\n [执行器 act]◄──[动作: click/type/scroll]\n  (鼠标/键盘)            │\n     │                   ▼\n     └──── 新截图反馈 ──(loop)──► 完成/超时",
+    "derivation": [
+      "为什么需要：传统软件自动化要么靠脆弱的 XPath/选择器（页面一改就崩），要么要求厂商开放 API（很多闭源应用没有）。Computer Use 想用“看屏幕”的通用方式操作任意软件，绕开定制集成，从而覆盖长尾应用、遗留系统与跨平台任务。",
+      "怎么实现：建立“感知-决策-执行”的循环——感知用截图或无障碍树获取界面；决策用 VLM 做 UI grounding（定位元素）加 planner 规划多步动作；执行用操作系统级输入（pyautogui/Playwright）落盘动作，再截图回灌形成闭环，并维护动作历史以防重复。",
+      "有什么代价：每次动作都要一次多模态推理，延迟高、Token/算力贵；像素级坐标在滚动、重排、分辨率变化时极易漂移；涉及账号、支付等操作时权限与安全边界难控，一次误动作代价很大，需要沙箱与确认机制。",
+      "怎么评测：用 WebArena/OSWorld 等带可验证环境的基准，记录任务成功率（SR）、步骤效率（steps to success）与人工接管率；同时统计崩溃率、重复动作率与超时率，作为鲁棒性指标，端到端考察“能否真正办成事”。"
+    ],
+    "edgeCases": [
+      "动态加载/异步刷新：点击后元素位置因懒加载改变，旧坐标失效，必须以新截图重新 grounding 而非复用标注。",
+      "模态弹窗与 Cookie 同意框：意外弹窗打断任务流，模型需先识别并关闭再继续，否则后续动作全部错位。",
+      "高分辨率或系统缩放变化：同一界面在不同 DPI 下坐标体系不同，绝对坐标不可移植，应绑定元素语义而非像素。",
+      "无障碍树缺失的私有应用：只能依赖像素观感，grounding 精度下降，需要更强的视觉定位模型兜底。"
+    ],
+    "pitfalls": [
+      "直接用绝对坐标而非元素语义：界面一变就点错，应优先绑定元素标签/语义 id 而非 (x,y) 绝对位置。",
+      "忽略历史上下文导致重复操作：长任务必须维护动作历史与状态摘要，否则容易陷入“点同一按钮”的死循环。",
+      "把 planner 输出当成确定结果：模型可能幻觉出不存在的按钮，必须对动作做存在性校验与重试，不能盲执行。"
+    ],
+    "prerequisites": [
+      "多模态大模型（VLM）基础：理解图文联合输入与视觉指令跟随能力。",
+      "UI grounding / 目标检测：知道如何把语义描述映射到界面具体元素。",
+      "交互式 Agent 循环：理解“观察-动作-奖励”的闭环与强化式决策。"
+    ],
+    "workedExample": [
+      "场景一（Web 下单）：界面 30 个元素、12 步操作。SoM 给元素标 1~30，planner 选元素 12 进购物车；出现登录弹窗，模型选元素 7 关闭后继续；最终第 11 步到达支付页，成功率主要取决于 grounding 精度与闭环纠错。",
+      "场景二（桌面填表）：在 Excel 中把 1000 行数据按某列排序并导出 CSV。Agent 截图识别菜单栏点击“数据→排序”，但弹窗默认升序与需求相反，模型需读取弹窗选项并切到降序，体现闭环中的纠错能力。"
+    ],
+    "lineByLine": [
+      "def observe(): 返回当前截图的 base64 与（可选）无障碍树；作用是为决策提供最新界面状态，保证“以最新观测为准”的不变量。",
+      "def ground(screen, instruction): 调用 grounding 模型把“提交按钮”映射到带标签的元素包围盒；为什么：把语义意图对齐到界面，替代脆弱的绝对坐标，抗漂移。",
+      "def plan(history, screen, task): 把历史动作、当前截图与任务拼成 prompt 送入 VLM，输出下一个动作；这是 planner 核心，负责多步推理与纠错。",
+      "def act(action): 通过 pyautogui/Playwright 执行点击或输入；执行后由 observe 重新截图，闭合“观察-规划-动作”循环。"
+    ],
+    "codeNotes": [
+      "这是交互闭环的骨架，真实系统还需加动作合法性校验、超时与回滚，以及把 grounding 结果缓存以避免重复检测带来的额外开销。"
+    ],
+    "followUps": [
+      {
+        "question": "SET-OF-MARKS 解决了什么问题，为什么比直接输出坐标更稳？",
+        "answer": "SoM 在截图上给每个可交互元素画编号框，让模型只需输出“点击元素 7”而非绝对像素坐标，显著降低定位误差、缓解坐标漂移，并让多元素场景更可控；代价是引入额外标注步骤与一定的视觉干扰，但整体鲁棒性大幅提升。"
+      },
+      {
+        "question": "Computer Use 与 RPA（机器人流程自动化）有何本质区别？",
+        "answer": "RPA 依赖固定的选择器/DOM 路径，页面一改就失效，属于“写死流程”；Computer Use 靠视觉理解通用界面，无需预定义脚本，能适应未见过布局和长尾应用，但代价是推理成本高、确定性弱，更适合无法用 RPA 覆盖的场景。"
+      }
+    ],
+    "followUpAnswers": [
+      "SoM 在截图上给每个可交互元素画编号框，让模型只需输出“点击元素 7”而非绝对像素坐标，显著降低定位误差、缓解坐标漂移，并让多元素场景更可控；代价是引入额外标注步骤与一定的视觉干扰，但整体鲁棒性大幅提升。",
+      "RPA 依赖固定的选择器/DOM 路径，页面一改就失效，属于“写死流程”；Computer Use 靠视觉理解通用界面，无需预定义脚本，能适应未见过布局和长尾应用，但代价是推理成本高、确定性弱，更适合无法用 RPA 覆盖的场景。"
+    ]
   },
   {
     "kind": "concept",
@@ -515,6 +1002,72 @@ export const questions = [
     "diagram": "评估维度\n├─ 结果层: 任务成功率 / 副作用\n├─ 轨迹层: 工具选择 / 参数 / 顺序 / 无效调用\n├─ 效率层: 步骤数 / 延迟 / Token 成本\n└─ 归因:   规划 → 选择 → 参数 → 执行"
   },
   {
+    "id": "agent-eval-trajectory",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "轨迹级评测工程",
+    "prompt": "为什么评测 Agent 不能只看最终答案，轨迹级评测工程该怎么做？",
+    "quickAnswer": "只看最终答案会掩盖\"靠运气/靠贵工具/绕远路\"的成功，无法指导优化。轨迹级评测在离线用 replay 回放完整(状态-动作-观察)序列做可复现打分，在线上用 A/B 对比策略；除任务成功率外，还要盯工具调用成功率、单次成本、p99 延迟等 SLO，并借助 AgentBench/WebArena/τ-bench 这类带轨迹标注的 benchmark。核心是\"既要结果对，也要过程好、成本低、可复现\"。",
+    "approach": "定义轨迹级指标(成功率+工具成功率+成本+延迟) → 离线 replay 回放 → 在线 A/B → 接入标准 benchmark → 持续看板。",
+    "explanationFocus": "是什么：轨迹级评测工程是把 Agent 的\"完整执行轨迹（而非仅最终答案）\"作为评测对象，通过离线 replay、在线 A/B、工具/成本/延迟 SLO 与标准 benchmark，全面衡量其正确性、效率与可靠性的工程方法。",
+    "bruteForce": "只在测试集上比\"最终答案对错\"：一个靠 50 次重试或调最贵模型蒙对的 Agent，指标上看不出问题，上线后成本爆炸。",
+    "invariant": "任何一次评测结果都必须可复现——固定输入、工具桩与随机种子，使同一轨迹能被 replay 出一致分数，否则指标无法信任。",
+    "walkthrough": "以\"订票 Agent\"评测为例，评测集 500 条任务。离线 replay：把历史 2 万条真实轨迹用确定性工具桩回放，统计任务成功率 82%、工具调用成功率 95%、平均成本 $0.03/任务、p99 延迟 4.2s。线上 A/B：新策略对小流量 5% 用户，对比旧策略，发现成功率+3pp 但成本+40%，触发成本 SLO 告警。接入 τ-bench 做带轨迹标注的评测，发现新策略在\"多轮工具依赖\"子集掉到 60%。最终结论：新策略在简单任务更省，复杂轨迹反而差，需回退该子集。",
+    "derivation": [
+      "为什么需要：最终答案对≠过程好，隐藏的高成本/高风险/低可靠会在线上爆雷，需要过程可见。",
+      "怎么实现：离线用工具桩 replay 历史轨迹做可复现打分；线上小流量 A/B 比策略差异；定义工具成功率、成本、p99 延迟 SLO；接入 AgentBench/WebArena/τ-bench 等带轨迹标注的 benchmark。",
+      "有什么代价：需构建工具桩与确定性回放环境；轨迹标注与指标采集工程量大；A/B 需流量与统计显著性保障。",
+      "怎么评测：用可复现 replay 的稳定性、A/B 的提升显著性、benchmark 分项（不同难度/工具依赖）达标率来反评\"评测本身\"的覆盖度。"
+    ],
+    "edgeCases": [
+      "工具本身偶发超时，评测需区分\"Agent 错\"还是\"工具抖\"，用工具桩固化。",
+      "同一任务多种合法轨迹，评测不能用字符串精确匹配，需语义/约束判分。",
+      "线上 A/B 流量不足，差异不显著易误判。"
+    ],
+    "code": "def eval_trajectory(traj, tool_stub, seed=42):\n    set_seed(seed); reset(tool_stub)                 # 可复现\n    for step in traj.steps:\n        out = tool_stub.call(step.tool, step.args)   # 确定性工具桩\n        if not step.expected(out):                   # 过程校验\n            return Score(success=False, why=\"tool mismatch\")\n    return Score(success=eval_final(traj.final),\n                 cost=traj.total_cost, p99=traj.latency_p99)",
+    "codeNotes": [
+      "评测与训练同理：可复现是信任前提，必须固化工具与随机源。",
+      "指标要\"分项+过程\"，单看最终答案会漏掉成本/可靠性雷。"
+    ],
+    "complexity": "离线 replay 为 O(轨迹数×步数) 的工具桩调用，可并行批处理；在线 A/B 额外占小流量。指标聚合为 O(轨迹数)，瓶颈在轨迹存储与回放环境搭建。",
+    "followUps": [
+      {
+        "question": "AgentBench、WebArena、τ-bench 各自适合评什么？",
+        "answer": "AgentBench 偏多领域任务广度（OS/DB/游戏等）；WebArena 偏真实网站端到端操作；τ-bench 偏\"带工具调用的多轮对话\"与工具依赖，尤其适合客服/预订类需轨迹标注的场景。"
+      },
+      {
+        "question": "线上 A/B 怎么做才不会被随机抖动误导？",
+        "answer": "保证足够流量与随机分流，预先算所需样本量达到统计显著性（如 p<0.05）；同时盯成功率与成本/延迟 SLO，避免单指标假阳性；用分层/互斥桶减少方差。"
+      }
+    ],
+    "followUpAnswers": [
+      "AgentBench 多领域广度；WebArena 真实网站；τ-bench 多轮工具依赖。",
+      "算样本量达显著性、分流随机、成功率与 SLO 同盯。"
+    ],
+    "pitfalls": [
+      "只看最终成功率，放任成本与延迟悄悄恶化。",
+      "replay 未固定随机种子/工具桩，分数抖动无法信。"
+    ],
+    "beginnerSummary": "评 Agent 像评厨师：不能只尝最后一道菜（最终答案）就说好——他可能用了最贵的食材、绕了十道弯、还慢得要命。轨迹级评测是把\"从备料到出菜的全过程\"回放打分：菜对不对、手法对不对、花了多少钱、用了多久，甚至请不同评委（benchmark）分项打分。",
+    "prerequisites": [
+      "能采集与存储完整执行轨迹。",
+      "有确定性工具桩与回放环境。",
+      "理解 A/B 实验与统计显著性。"
+    ],
+    "workedExample": [
+      "2 万条历史轨迹 replay：成功率 82%、工具成功率 95%、p99 4.2s，定位到\"多轮依赖\"子集偏弱。",
+      "新策略 A/B：成功率+3pp 但成本+40%，触发成本 SLO 回退。"
+    ],
+    "lineByLine": [
+      "先把每次运行的完整轨迹（含工具入参/出参）落盘，作为评测原料。",
+      "离线用确定性工具桩 replay，固定种子，输出可复现的过程指标。",
+      "在线上以小流量 A/B 对比策略，监控成功率/成本/延迟 SLO。",
+      "把任务按难度与工具依赖拆分子集，分别看 benchmark 分项，避免被平均值掩盖。"
+    ],
+    "diagram": "Agent 运行 ─▶ 存完整轨迹(状态/动作/观察)\n                    │\n        ┌───────────┼────────────┐\n    离线 replay         在线 A/B        标准 benchmark\n    (工具桩+种子)      (小流量对比)     (AgentBench/WebArena/τ-bench)\n        │                │                │\n        └──────▶ 指标看板 ◀┘\n   成功率 | 工具成功率 | 成本 | p99延迟"
+  },
+  {
     "kind": "concept",
     "id": "agent-failure-modes",
     "category": "Agent Workflow",
@@ -581,6 +1134,138 @@ export const questions = [
     "diagram": "Action -> [Loop?][Schema?][Budget?] -> allow/block"
   },
   {
+    "id": "agent-framework-compare",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "Agent 框架选型：LangGraph / CrewAI / AutoGen / 自研",
+    "prompt": "在 LangGraph、CrewAI、AutoGen 和自研之间，应该怎么为业务选型 Agent 框架？",
+    "quickAnswer": "选型看\"控制流形态\"：需要显式、可持久化、可断点恢复的有向图流程选 LangGraph（状态机）；需要多角色分工协作、强调角色与任务委派选 CrewAI；需要多 Agent 自由对话/协商编排选 AutoGen。当你的流程高度定制、对延迟/可观测/合规有强约束且团队有工程能力时自研更划算。MCP 是\"工具接入标准\"，与框架正交——框架负责编排，MCP 负责把工具统一暴露。",
+    "approach": "先定控制流形态(图/角色/对话) → 匹配框架 → 评估定制与合规需求 → 决定是否自研 → 用 MCP 接入工具。",
+    "explanationFocus": "是什么：Agent 框架选型是根据任务的控制流形态（图式状态机、角色分工、对话协商）与团队的定制/合规诉求，在 LangGraph、CrewAI、AutoGen 与自研之间做权衡，并用 MCP 作为统一的工具接入层。",
+    "bruteForce": "不管业务形态一律用通用 while 循环硬写多 Agent 协作：流程不可视、难恢复、难复用，迭代成本随规模爆炸。",
+    "invariant": "框架只解决\"编排\"，工具/数据的接入应当走与框架解耦的标准协议（如 MCP），避免把业务逻辑焊死在某个框架的适配器里。",
+    "walkthrough": "以\"周报生成\"业务为例：流程固定为 取数→汇总→润色→审核（4 节点、顺序+1 个条件分支），并发约 100 个用户任务/天，要求失败可断点续跑——选 LangGraph，把节点画成图、状态落库。另一个\"市场调研\"任务需要 研究员/写手/审校 三个角色循环互审——选 CrewAI 的 role/task 模型更顺手。若业务是客服多 Agent 自由协商（如退款 bot 与物流 bot 对话），AutoGen 的群聊编排更合适。当公司要求所有工具调用走自研审计网关且延迟 p99<200ms，现成框架适配成本高，则自研薄编排层 + MCP 接工具。",
+    "derivation": [
+      "为什么需要：手搓多 Agent 流程不可视、难恢复、难复用；框架把常见编排模式沉淀成可组合原语。",
+      "怎么实现：按控制流选——图式用 LangGraph(节点+边+状态)、角色用 CrewAI(role/task/crew)、对话用 AutoGen(群聊/代理)；自研则抽 DAG/状态机 + 事件总线；工具统一经 MCP server 暴露。",
+      "有什么代价：框架有学习曲线与抽象泄漏；重框架引入依赖与延迟；选错形态后期迁移成本高；自研要养维护成本。",
+      "怎么评测：用真实业务流做 PoC，比开发速度、可观测性、断点恢复、p99 延迟与团队上手成本。"
+    ],
+    "edgeCases": [
+      "流程需长时间挂起等人工，LangGraph 的 checkpoint 更关键，CrewAI 较弱。",
+      "角色间循环依赖导致死锁，需在框架层设最大轮次。",
+      "框架默认工具适配不满足内网合规，需自研 MCP 桥接。"
+    ],
+    "code": "def choose_framework(control_flow, needs):\n    if control_flow == \"graph\" and needs.resumable:\n        return \"LangGraph\"          # 状态机+checkpoint\n    if control_flow == \"roles\":\n        return \"CrewAI\"             # role/task 分工\n    if control_flow == \"dialogue\":\n        return \"AutoGen\"            # 多代理群聊\n    if needs.compliance and needs.low_latency:\n        return \"self-built + MCP\"   # 薄编排+标准工具层",
+    "codeNotes": [
+      "框架选型的核心是\"控制流形态匹配\"，而非功能清单长短。",
+      "MCP 与编排框架正交，可作为统一工具层降低锁定风险。"
+    ],
+    "complexity": "框架本身运行开销小（图遍历/事件分发 O(节点数)）；主要成本在框架带来的抽象与依赖体积，以及 Agent 自身的 LLM/工具调用。",
+    "followUps": [
+      {
+        "question": "MCP 和 Agent 框架是什么关系，能混用吗？",
+        "answer": "MCP 是工具/数据接入的标准协议，与编排框架正交。任何框架（LangGraph/CrewAI/AutoGen）都能通过 MCP server 统一暴露工具，混用可降低对单一框架工具生态的锁定。"
+      },
+      {
+        "question": "什么时候一定要自研而不是用现成框架？",
+        "answer": "当控制流高度定制、对 p99 延迟/可观测/合规审计有强约束，且现成框架的抽象带来不可接受的适配成本时；或团队已有成熟编排/事件基础设施，自研薄层反而更快更可控。"
+      }
+    ],
+    "followUpAnswers": [
+      "MCP 是正交工具层，任意框架都能经它接工具，降锁定。",
+      "强合规/低延迟/高度定制且团队有基建时自研更划算。"
+    ],
+    "pitfalls": [
+      "为\"赶时髦\"用对话框架做本应确定图的流程，调试地狱。",
+      "把业务强耦合进某框架专属 API，后续迁移被锁死。"
+    ],
+    "beginnerSummary": "选框架像选交通工具：固定路线通勤（确定性流程）骑共享单车画好路线最稳（LangGraph）；多人分工搬货（角色协作）用货运队（CrewAI）；几个人自由商量办事（多 Agent 对话）用微信群（AutoGen）。MCP 是统一的\"插座标准\"，不管开啥车都能接同一个充电桩。",
+    "prerequisites": [
+      "理解状态机/DAG 与事件驱动编排。",
+      "了解 MCP 等工具接入标准。",
+      "清楚业务的控制流形态与合规要求。"
+    ],
+    "workedExample": [
+      "周报流水线（4 节点顺序图）选 LangGraph，状态落库支持断点续跑。",
+      "三角色互审的调研任务选 CrewAI，少写大量协作样板。"
+    ],
+    "lineByLine": [
+      "先抽象业务的控制流：是确定图、角色分工还是自由对话。",
+      "对照三框架核心原语，选最贴合的那一个。",
+      "把工具/数据经 MCP 暴露，使框架与后端解耦。",
+      "用真实 PoC 验证断点恢复与 p99 延迟后再定。"
+    ],
+    "diagram": "控制流形态 ──▶ 图式 ──▶ LangGraph\n     │\n     ├──▶ 角色分工 ──▶ CrewAI\n     │\n     ├──▶ 对话协商 ──▶ AutoGen\n     │\n     └──▶ 强合规/低延迟 ──▶ 自研 + MCP\n工具层：任意框架 ──▶ MCP server ──▶ 统一工具/数据"
+  },
+  {
+    "id": "agent-guardrails-impl",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Hard",
+    "title": "Guardrails 工程落地：给 Agent 套上安全护栏",
+    "prompt": "如何给生产环境的 Agent 套上一套可落地的 Guardrails（安全护栏）？",
+    "quickAnswer": "Guardrails 是一套位于 Agent 与外部环境之间的\"过滤+约束\"层：输入侧做内容审核、敏感词与注入检测、PII 识别；输出侧做格式校验、违规拦截与脱敏；工具侧用沙箱与最小权限隔离副作用；再用 red-teaming 持续攻击发现漏网，用熔断/降级在异常时保底。目标是把\"聪明但不可控\"的模型，约束进\"有用且安全\"的运行边界。",
+    "approach": "输入过滤→PII 脱敏→输出校验→tool 沙箱/最小权限→注入防护→red-teaming→熔断降级。",
+    "explanationFocus": "是什么：Guardrails 是围绕 Agent 的纵深防御体系，通过输入/输出过滤、PII 脱敏、工具沙箱与最小权限、注入防护、红队演练和熔断降级，把不可控的模型推理约束在安全的执行边界内。",
+    "bruteForce": "直接把用户原话喂给 LLM 并允许它任意调用工具：一次注入就能窃取隐私、越权操作或把机密写进对外回复。",
+    "invariant": "任何越过 Agent 边界的\"输入解析\"与\"工具执行\"都必须先经过一层显式、可审计的校验与授权，绝不能直接透传。",
+    "walkthrough": "以客服 Agent 为例，峰值并发 100 路会话：输入 1000 条/分钟消息先过审核模型（p99 延迟 80ms），命中 PII 自动掩码（如把 138****1234 替换）；模型生成回复后，输出护栏校验是否泄露原始手机号（漏检率目标<0.1%）；工具调用走沙箱，删单/退款类高危动作需人工 gate。一次异常流量打满审核服务时，熔断降级为\"仅关键字黑名单+最小工具集\"，保证可用性。",
+    "derivation": [
+      "为什么需要：Agent 能读写数据、调用工具、对外发声，错误或恶意指令会造成隐私泄露与真实损失，需要把风险关进可控边界。",
+      "怎么实现：输入侧接内容审核与注入检测、PII 识别脱敏；输出侧接格式校验与泄露扫描；工具侧用沙箱+最小权限+高危人工 gate；配套 red-teaming 持续发现漏洞；异常时熔断降级。",
+      "有什么代价：每层都增加 p99 延迟（累计 100~300ms）与成本；过度拦截损害体验；规则维护与误杀需要平衡。",
+      "怎么评测：用红队数据集测拦截率/误拦率；压测看护栏本身的开销与熔断是否生效；线上观测 PII 泄露事件数与越权调用数。"
+    ],
+    "edgeCases": [
+      "注入指令藏在检索文档或用户附件里，需内容/指令隔离。",
+      "PII 以变体呈现（如\"手机 138 0013 1234\"带空格），脱敏正则需覆盖。",
+      "护栏服务自身故障，需熔断降级而非整体不可用。"
+    ],
+    "code": "def guardrails_pipeline(message, model_reply, tool_call):\n    # 输入：审核 + PII 脱敏\n    risk = content_moderation(message)\n    safe_in = mask_pii(message)                 # 138****1234\n    if risk == \"block\":\n        raise Blocked(\"input policy violation\")\n    # 输出：泄露扫描\n    if leaks_pii(model_reply):\n        model_reply = redact(model_reply)       # 改写后再发\n    # 工具：最小权限 + 高危人工 gate\n    if tool_call.risk == \"high\" and not human_confirmed(tool_call):\n        raise NeedApproval(tool_call)\n    return sandbox_exec(tool_call, scoped_creds(tool_call))",
+    "codeNotes": [
+      "护栏应作为可插拔中间件，串联在 Agent 的输入/输出与 tool 边界。",
+      "熔断降级策略要可配置，避免护栏自身成为单点故障。"
+    ],
+    "complexity": "每层护栏为 O(1) 推理或正则开销，主要成本在附加的审核/分类模型调用（单条 p99 约 50~150ms），可通过批处理与缓存摊薄。",
+    "followUps": [
+      {
+        "question": "输入护栏和输出护栏为什么要都做？",
+        "answer": "只做输入防护，机密仍可能从模型生成的回复里\"绕出来\"；输出护栏专门拦截回复中的明文 PII 与违规内容，形成闭环，二者缺一不可。"
+      },
+      {
+        "question": "怎么平衡安全与体验？",
+        "answer": "按风险分级施加摩擦：低风险自动过、中风险轻提示、高风险才强确认；并把护栏做成可降级的中间件，异常时退到最小规则集而非整体不可用。"
+      }
+    ],
+    "followUpAnswers": [
+      "输出护栏堵住回复泄露，与输入防护形成闭环。",
+      "风险分级+可降级，把摩擦集中在真正危险处。"
+    ],
+    "pitfalls": [
+      "把不可信检索内容当系统指令执行，导致间接提示注入。",
+      "只在输入做防护、忽略输出泄露，机密仍可从回复流出。"
+    ],
+    "beginnerSummary": "Guardrails 像小区门禁+快递柜：进门先刷脸登记（输入审核），包裹里的身份证号先打码（PII 脱敏），外卖小哥只能放柜子不能进家（工具沙箱），遇到可疑人员保安先拦下（熔断降级）。既方便住户，又防坏人。",
+    "prerequisites": [
+      "了解提示注入与最小权限原则。",
+      "具备内容审核/分类模型与 PII 识别能力。",
+      "工具调用走沙箱与凭证代理。"
+    ],
+    "workedExample": [
+      "用户消息含身份证号，护栏识别并掩码为 ****，模型全程只看到脱敏值。",
+      "回复草稿误带客户手机号，输出护栏拦截并改写后再发出。"
+    ],
+    "lineByLine": [
+      "入站消息先送审核管线，标记风险等级与 PII 位置。",
+      "命中 PII 按策略脱敏（掩码/替换）后再进 LLM 上下文。",
+      "模型输出回程再过泄露扫描，发现明文敏感信息则拦截或改写。",
+      "工具调用按风险分级执行，高危动作路由到人工确认 gate。"
+    ],
+    "diagram": "User ─▶ [Input Guard: 审核+脱敏] ─▶ LLM ─▶ [Output Guard: 泄露扫描] ─▶ User\n                                      │\n                                      ▼\n                              [Tool Guard: 沙箱+gate] ─▶ 外部API"
+  },
+  {
     "kind": "concept",
     "id": "agent-human-in-loop",
     "category": "Agent Workflow",
@@ -645,6 +1330,72 @@ export const questions = [
       "决策回灌续跑或终止。"
     ],
     "diagram": "Agent --pause--> Human --decision--> Agent"
+  },
+  {
+    "id": "agent-long-task-state",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Hard",
+    "title": "长程任务的状态管理",
+    "prompt": "Agent 执行需要数小时甚至跨天的长程任务时，状态该怎么管理才能保证可恢复、可审计、可隔离？",
+    "quickAnswer": "把长程任务拆成可持久化的\"步骤+状态\"单元：每次状态变更后 checkpoint 落库（数据库/KV），使进程重启能从断点 resume；在不可逆/高风险步骤前插入 human approval gate 暂停等待；多会话用 session_id 做并发隔离与租约；崩溃后靠事件日志/补偿事务恢复。目标是让\"长跑任务\"像可暂停的下载，而非一断就重来的脆弱脚本。",
+    "approach": "步骤化建模→checkpoint 持久化→人工 gate→会话隔离(租约)→崩溃恢复(日志/补偿)。",
+    "explanationFocus": "是什么：长程任务的状态管理是把跨小时/跨天的 Agent 运行拆成可持久化、可恢复、可隔离的状态单元，通过 checkpoint、人工 gate、会话租约与崩溃恢复机制，让任务在中断后能从断点继续而非整体重跑。",
+    "bruteForce": "把整个长任务塞进一个内存变量循环跑：进程一崩或机器一重启，几小时进度全丢，且无法让人中途介入确认。",
+    "invariant": "任何\"已产生外部副作用的步骤\"之前必须已有持久化 checkpoint，且恢复后该步骤要么未被提交、要么幂等可重放，绝不允许双重执行。",
+    "walkthrough": "以\"自动对账+批量退款\"任务为例，需处理 1,000,000 笔流水、跨约 6 小时。系统把任务切成 1000 个 batch（每批 1000 笔），每完成一个 batch 写 checkpoint 到 Postgres（状态=batch_index=327, 已退款额=...）；进程在第 500 批时宕机，重启读 checkpoint 从 501 批续跑，省下 500 批重算。在\"实际发起退款\"前插入 human approval gate，运营在控制台确认金额无误才放行。100 个并发 session 各自带 session_id 与 30 分钟租约，互不踩踏；恢复时校验租约避免双活。最终 p99 恢复时间<2s。",
+    "derivation": [
+      "为什么需要：长任务内存态脆弱、易因重启/超时丢失；不可逆动作需人工把关；并发会话需隔离防串数据。",
+      "怎么实现：任务步骤化并每步 checkpoint 落库(KV/DB)；不可逆步骤前 pause 等 human approval；session 用唯一 id+租约隔离；崩溃靠事件日志回放或补偿事务重建。",
+      "有什么代价：持久化增加写放大与延迟；gate 拉长任务墙钟时间；租约/幂等设计复杂；存储需可靠。",
+      "怎么评测：注入崩溃看恢复点准确性与重复执行数；压测并发 session 隔离；统计人工 gate 的误拦/漏拦。"
+    ],
+    "edgeCases": [
+      "进程在\"写 checkpoint\"与\"执行副作用\"之间崩溃，需二者顺序与幂等。",
+      "人工 gate 超时未确认，需超时自动取消或升级。",
+      "同一个 session 双实例抢跑，靠租约/分布式锁防重。"
+    ],
+    "code": "def run_long_task(task, session):\n    lease = acquire_lease(session.id, ttl=1800)        # 并发隔离\n    state = load_checkpoint(task.id) or State(step=0)   # 断点恢复\n    for i in range(state.step, task.total_steps):\n        if task.steps[i].irreversible:\n            wait_human_approval(task.steps[i])          # 人工 gate\n        result = execute(task.steps[i])\n        save_checkpoint(task.id, State(step=i+1, last=result))  # 先落库\n        if not lease.valid(): raise LostLease()         # 防双活",
+    "codeNotes": [
+      "checkpoint 与副作用执行要严格排序，必要时走事务保证原子。",
+      "gate 与租约是长任务的\"安全气囊\"，宁可慢不可乱。"
+    ],
+    "complexity": "checkpoint 写为 O(步骤数) 的 DB 写入；恢复为 O(1) 读最新点。主要开销在持久化与锁，不随任务总时长线性增长，仅随步骤数增长。",
+    "followUps": [
+      {
+        "question": "checkpoint 频率怎么定，太频繁会有什么问题？",
+        "answer": "频率过低崩溃丢进度多，过高则写放大拖慢吞吐。经验是按\"副作用粒度\"落点：每个不可逆/耗时步骤后必落，纯计算中间态可合并，平衡恢复粒度与写开销。"
+      },
+      {
+        "question": "人工 gate 会不会把长任务拖垮，怎么优化？",
+        "answer": "会拉长墙钟时间。优化法：批量 gate（聚多步一次确认）、低风险自动过+异常才升级、给 gate 设超时自动取消/转人工队列，并用预校验减少无效等待。"
+      }
+    ],
+    "followUpAnswers": [
+      "按副作用粒度落点，平衡恢复粒度与写放大。",
+      "批量 gate+低风险自动过+超时策略，减少等待。"
+    ],
+    "pitfalls": [
+      "checkpoint 频率过低，崩溃丢失大量进度；过高则写放大拖慢。",
+      "恢复时未校验幂等，导致退款/发消息被重复执行。"
+    ],
+    "beginnerSummary": "长任务状态管理像下载大文件：每下完一段就记个进度点（checkpoint），断网重连从断点继续，不用从头下。遇到\"付钱\"这种不能反悔的步骤，先弹窗问你确认（human gate）；多个下载同时跑各有自己的编号和时限（session 隔离），不会互相覆盖。",
+    "prerequisites": [
+      "理解幂等与补偿事务。",
+      "有可靠的 KV/数据库与租约机制。",
+      "能区分可逆与不可逆步骤。"
+    ],
+    "workedExample": [
+      "百万级对账任务按 1000 批落 checkpoint，宕机后从断点续跑省一半算力。",
+      "退款前 human gate 拦截了一笔金额异常（多一个 0）的批次。"
+    ],
+    "lineByLine": [
+      "把长任务切成可编号的步骤单元，每步明确输入/输出与副作用。",
+      "每步完成后写 checkpoint（含步骤序号与已提交副作用摘要）再继续。",
+      "遇不可逆步骤先 pause 并把上下文交人工 gate，确认后再 commit。",
+      "用 session_id+租约保证并发隔离，恢复时校验避免双活重放。"
+    ],
+    "diagram": "长任务 ─▶ [步骤1 ▣checkpoint] ─▶ [步骤2 ▣] ─▶ [不可逆? ▶ human gate] ─▶ ...\n                         │                                  │\n                    崩溃重启 ◀── 读 checkpoint 续跑 ────────┘\n并发：session_A(租约) | session_B(租约) | session_C(租约)  互不踩踏"
   },
   {
     "kind": "concept",
@@ -867,6 +1618,73 @@ export const questions = [
     "diagram": "Planner -> Researcher\nPlanner -> Writer -> Reviewer -> Merger"
   },
   {
+    "id": "agent-multimodal",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "多模态 Agent：VLM 驱动的内容理解/操作",
+    "prompt": "多模态 Agent 与纯文本 Agent 有何不同，VLM 如何作为工具驱动内容理解与操作闭环？",
+    "quickAnswer": "多模态 Agent 把图像、视频、音频等非文本信号作为一等公民接入 Agent 循环，通常以 VLM 作为“视觉工具”被 planner 按需调用，完成图文理解、视频摘要、界面定位等子任务。它与纯文本 Agent 的区别在于观测空间扩展到像素/帧、规划需跨模态对齐、且工具链包含视觉推理而非只有 API。在 TikTok 类场景中，它用于内容审核、字幕生成、封面理解与跨模态检索，直接消费 UGC 的图文视频。",
+    "approach": "核心思路是把“视觉理解”封装成可被调度的 tool：Agent 在规划时决定“我需要看这张图/这段视频的哪一帧”，调用 VLM 拿到结构化描述或坐标，再据此做后续决策；多模态信息在上下文里以图像 token 或文本化描述的形式参与推理，形成“看—想—做”的跨模态规划循环。",
+    "explanationFocus": "是什么：多模态 Agent 是一类以视觉/听觉等模态为输入与输出、并以大模型（尤其 VLM）为认知核心的智能体；它不只是“能看图”，而是把看图、理解、决策、操作串成可循环的工作流，区别于只能在纯文本空间里调用 API 的传统 Agent。",
+    "bruteForce": "朴素做法——把所有图片/视频帧无差别地全部塞进上下文让 VLM 一次性描述，或把视频抽帧后逐帧独立问模型；优点是无需调度逻辑、实现最快，缺点是上下文爆炸、冗余极高、长视频根本跑不动，且缺乏针对性提问导致关键信息被淹没。",
+    "invariant": "不变量——任何跨模态决策都必须基于“实际被观察过的模态内容”，不能让 planner 凭空假设图像里有什么；当输入模态缺失或被替换时，相关的视觉工具必须被重新调用，而不能沿用上一次的描述结果。",
+    "walkthrough": "以“审核一条 60 秒短视频并生成违规标签”为例（视频 30fps → 约 1800 帧）：(1) Agent 先抽关键帧 10 张（每 6 秒 1 帧）；(2) 并行调用 VLM 对每张帧做“是否含敏感画面”的二分类，得到 10 条描述；(3) planner 汇总发现第 4、7 帧疑似违规，定位到 24s 与 42s；(4) 再对这两段做细粒度 VLM 问答确认；(5) 输出标签与时间点。相比逐帧处理，关键帧+定位把 VLM 调用从 1800 次降到约 12 次，召回率仍可维持 95%。",
+    "code": "def select_keyframes(video, k=10):\n    # 按场景变化或等间隔抽 k 帧, 把 1800 帧压成少量代表性观察点\n    return scene_sample(video, k)\n\ndef call_vlm(frame, prompt):\n    # 把单帧 + 问题送入视觉模型, 返回结构化描述或坐标\n    return vlm.infer(image=frame, text=prompt)\n\ndef plan(context):\n    # 汇总各帧描述与任务, 让 planner 决定下一步: 继续观察/定位/输出\n    return llm.generate(build_prompt(context))\n\ndef act(decision):\n    # 执行最终动作: 打标签 / 出字幕 / 点界面\n    return apply(decision)",
+    "complexity": "说明——抽帧为 O(F)（F 为总帧数）、每关键帧一次 VLM 调用 O(K × VLM)；整体随关键帧数 K 与视频时长线性增长。瓶颈在 VLM 推理而非抽帧，因此工程关键在于“少而准”地选择被观察的帧，而非全量处理，典型可把成本降到 1/K。",
+    "beginnerSummary": "大白话——纯文本 Agent 像个只会读字的人，而多模态 Agent 还长了“眼睛”：它能在干活过程中随时拍张图或看段视频问“这画面里有什么”，再把答案拿去决定下一步。就像你边看视频边判断要不要举报，而不是只凭标题瞎猜。",
+    "diagram": " 用户输入(图 / 视频 / 文)\n        │\n        ▼\n ┌───────────────┐\n │  Agent 循环    │◄──┐\n └─────┬─────────┘   │\n       │ 调用         │\n       ▼             │\n [VLM tool] 图文理解 / 定位\n       │             │\n       ▼             │\n   决策 / 规划 ──────┘",
+    "derivation": [
+      "为什么需要：现实世界的任务大量依赖图像、视频、语音——内容审核、商品识别、视频字幕、界面操作都无法只靠文字完成；把视觉能力塞进 Agent 才能处理 TikTok 这类以 UGC 多模态内容为核心的业务。",
+      "怎么实现：把 VLM/ASR 等封装成 tool，Agent 在循环中按需调用——先决定观察哪些帧/图像，调用视觉模型得到描述或坐标，再把结果作为上下文继续规划；多模态信号以图像 token 或文本化描述参与推理，实现跨模态对齐。",
+      "有什么代价：图像/视频 token 极占上下文与算力，长视频全量处理不可行；跨模态对齐容易出错（图说是图说、决策是决策，两者可能脱节）；多工具调度带来额外延迟与编排复杂度，需要预算控制。",
+      "怎么评测：用内容理解准确率、定位 mAP、端到端任务完成率（如审核召回/误杀率、字幕 BLEU/CIDEr）衡量效果；同时看 VLM 调用次数与端到端延迟，评估“成本-质量”权衡是否可落地。"
+    ],
+    "edgeCases": [
+      "视频长且信息稀疏：99% 帧无关键信息，需关键帧采样或场景切分，避免无谓的 VLM 调用与成本浪费。",
+      "图像分辨率过低/模糊：VLM 描述失真，需先做超分或显式拒识，而不是硬判导致误标。",
+      "音画不一致（如配音与画面矛盾）：需跨模态校验，不能只信单一模态，否则审核/理解结论会偏。",
+      "多语言字幕/水印干扰：视觉 OCR 易被水印污染，需做预处理或屏蔽区域再识别。"
+    ],
+    "pitfalls": [
+      "把整段视频全帧喂给 VLM：上下文与成本爆炸，正确做法是先采样再定位，只精判候选片段。",
+      "误把 VLM 的文本化描述当作事实：描述可能幻觉，关键决策要回看原图或做存在性校验。",
+      "忽略模态缺失的兜底：无图时仍调用视觉 tool 会报错，需要 gateway 层校验输入模态是否齐备。"
+    ],
+    "prerequisites": [
+      "多模态大模型（VLM/视频模型）原理：图文/视频联合编码与指令跟随。",
+      "Agent 工具调用范式：理解 tool/function calling 与规划循环。",
+      "内容理解基础任务：分类、检测、OCR、视频摘要等子能力。"
+    ],
+    "workedExample": [
+      "场景一（TikTok 审核）：60 秒视频 1800 帧，Agent 抽 10 关键帧并行 VLM 二分类，定位 24s/42s 疑似违规段，再细粒度确认，VLM 调用从 1800 次降到约 12 次，召回率维持 95%。",
+      "场景二（自动字幕+封面）：Agent 先 VLM 选最具代表性的第 8 秒帧做封面，再对音频 ASR 出文字稿，调用 LLM 压缩成 3 行字幕，体现“视觉选帧+语音转写+语言生成”的跨模态流水线。"
+    ],
+    "lineByLine": [
+      "def select_keyframes(video, k=10): 按场景变化或等间隔抽 k 帧；作用是将 1800 帧压成少量有代表性的观察点，直接控制成本上限。",
+      "def call_vlm(frame, prompt): 把单帧+问题送入视觉模型，返回结构化描述或坐标；这是“视觉 tool”的核心实现，按需被 planner 调用。",
+      "def plan(context): 汇总各帧描述与任务，让 planner 决定下一步是继续观察、定位还是输出；负责跨模态对齐与多步规划。",
+      "def act(decision): 执行最终动作（打标签/出字幕/点界面）；闭合“看—想—做”的多模态决策循环。"
+    ],
+    "codeNotes": [
+      "关键帧选择策略决定成本上限；生产上常先用轻量模型做粗筛、再用 VLM 精判，形成“两级调度”以兼顾召回与成本。"
+    ],
+    "followUps": [
+      {
+        "question": "多模态 Agent 和纯文本 Agent 在上下文管理上最大区别是什么？",
+        "answer": "纯文本 Agent 上下文是 token 化的文字，可控且廉价；多模态 Agent 要承载图像/视频 token，单张图就占大量上下文且不可逆地吃显存，因此必须做关键帧采样、描述文本化与缓存淘汰，上下文预算是其核心工程问题。"
+      },
+      {
+        "question": "在 TikTok 内容理解里，为什么常用两级（粗筛+精判）而不是一次 VLM 全量？",
+        "answer": "全量 VLM 在长视频上海量调用，延迟与成本不可接受；两级法先用轻量模型/规则粗筛出候选帧或片段，再用 VLM 精判，既保召回又控成本，是工程上可落地的折中方案。"
+      }
+    ],
+    "followUpAnswers": [
+      "纯文本 Agent 上下文是 token 化的文字，可控且廉价；多模态 Agent 要承载图像/视频 token，单张图就占大量上下文且不可逆地吃显存，因此必须做关键帧采样、描述文本化与缓存淘汰，上下文预算是其核心工程问题。",
+      "全量 VLM 在长视频上海量调用，延迟与成本不可接受；两级法先用轻量模型/规则粗筛出候选帧或片段，再用 VLM 精判，既保召回又控成本，是工程上可落地的折中方案。"
+    ]
+  },
+  {
     "kind": "concept",
     "id": "agent-observability",
     "category": "Agent Workflow",
@@ -997,6 +1815,73 @@ export const questions = [
       "由 Executor 驱动运行。"
     ],
     "diagram": "[LLM] <-> [Agent] <-> [Tools]\n              <-> [Memory]/[Retriever]"
+  },
+  {
+    "id": "agent-parallel-tools",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Medium",
+    "title": "并行/依赖工具调用编排",
+    "prompt": "如何在 Agent 工作流中正确编排可并行与有依赖关系的工具调用，并处理超时与部分失败？",
+    "quickAnswer": "工具调用编排的本质是构造一张依赖图（DAG）：没有数据依赖的调用放进同一层并行扇出（fan-out），其结果汇聚后再触发下游（fan-in），依赖链则串行。实现上用拓扑排序确定执行序、用并发原语（线程池/asyncio）并行无依赖节点，并为每个节点设超时与重试；部分失败时按“关键/非关键”区分——关键路径失败则整体回退，非关键失败则用默认值或降级结果继续。常见模式是 DAG 调度器 + 超时熔断 + 部分结果聚合。",
+    "approach": "核心思路是把“调哪些工具、以什么顺序、能否并行”显式建模成 DAG：节点是工具调用、边是数据依赖；调度器按层做 fan-out 并行、按依赖做 fan-in 汇聚，再配合每节点的超时、重试与熔断策略，把“会出错的多工具协作”变成可预测、可观测的流水线。",
+    "explanationFocus": "是什么：并行/依赖工具调用编排是指在一个 Agent 步骤里，同时管理多个工具调用的执行顺序与并发关系——把相互独立的调用并行化以提升吞吐（fan-out），把有先后数据依赖的调用串成链路，并用超时、重试与部分失败策略保证整体可靠，而不是简单地一条一条串行调用。",
+    "bruteForce": "朴素做法——把所有工具调用写成顺序的 await，一个个串行执行，忽略它们之间本可并行的机会；优点是逻辑简单、好调试、好复盘，缺点是明明无依赖的 5 个调用被强行排队，端到端延迟等于各调用之和，遇到慢调用整体被拖死。",
+    "invariant": "不变量——任何节点的输入必须来自其依赖边指向的、且已经成功完成的节点产出；禁止在依赖尚未就绪时提前执行下游节点，也不能因为并行就跳过依赖检查，否则会出现“下游拿到空输入”的错误。",
+    "walkthrough": "以“回答一个问题需调 4 个工具”为例（天气、汇率、库存、翻译；前三者相互独立，翻译依赖前三者产出的文本）：(1) 拓扑排序得到层 1 = {天气,汇率,库存} 并行、层 2 = {翻译} 依赖层 1；(2) 用并发池 fan-out 同时发 3 个请求，每个设超时 2s；(3) 汇率调用在 1.8s 超时失败，按策略重试 1 次仍失败→标记非关键，用上次的缓存汇率兜底；(4) 层 1 其余两项 300ms 内返回，fan-in 汇聚后触发翻译；(5) 总耗时约 max(300ms, 失败重试~2s) + 翻译 200ms ≈ 2.3s，优于串行的 3×300ms+2s+200ms ≈ 3.1s。若把翻译误设为并行，则因缺输入而报错。",
+    "code": "def build_dag(calls):\n    # 根据调用间数据依赖构造 DAG 并做环检测, 防止误并行\n    dag = {}\n    for c in calls:\n        dag[c.name] = c.deps\n    assert no_cycle(dag)\n    return dag\n\ndef topo_layers(dag):\n    # 拓扑排序分出可执行层, 同层节点互不依赖, 是 fan-out 的依据\n    return layered_toposort(dag)\n\nasync def run_layer(layer):\n    # 用 asyncio.gather 并行执行一层内所有调用, 各自带 timeout\n    return await asyncio.gather(*[with_timeout(c, 2.0) for c in layer],\n                                return_exceptions=True)\n\ndef fan_in(upstream):\n    # 汇聚上游产出、处理部分失败(降级/抛错), 再喂给下游\n    results = {}\n    for node, out in upstream.items():\n        results[node] = out if not isinstance(out, Exception) else fallback(node)\n    return results",
+    "complexity": "说明——拓扑排序 O(V+E)（V 节点/E 边），并行执行的实际耗时约为各层内部最慢节点耗时之和（关键路径），而非所有节点之和；瓶颈在被并行掩盖后的关键路径长度与单个慢调用的超时惩罚，故优化重点是缩短关键路径与收紧超时。",
+    "beginnerSummary": "大白话——有些活儿能同时干就别排队：比如你要查天气、查汇率、查库存，这三件互不相干，就一口气同时发三个请求（扇出）；等它们都回来后，再把结果交给“翻译”这一步（扇入）。但如果某件事必须等前一件的结果才能做，那就得排队。还要给每件活儿定个“最多等多久”，超时就换备用方案，别让一个慢任务卡死全场。",
+    "diagram": "        ┌── tool1 ──┐\n fan-out│── tool2 ──┤ fan-in ──► downstream\n        └── tool3 ──┘\n   (依赖边: tool4 依赖 tool1 结果)",
+    "derivation": [
+      "为什么需要：真实 Agent 常需同时查多源数据/调多个 API，若全串行，延迟随调用数线性累加且被最慢者拖垮；而很多调用本无数据依赖，天然可并行，编排层能把“能并行的并行、该串行的串行”显式表达出来。",
+      "怎么实现：把调用建模成 DAG——节点=工具、边=数据依赖；用拓扑排序分层，同层节点用并发原语（asyncio/线程池）fan-out，结果汇聚后触发下游 fan-in；每个节点配超时、重试与熔断，调度器维护节点状态机。",
+      "有什么代价：并发带来资源竞争与限流风险（易触发对方 429），DAG 复杂度随工具数上升；超时/重试策略若不当会放大调用量与成本；部分失败的处理逻辑本身也要精心设计，否则静默错误更难排查。",
+      "怎么评测：看端到端时延（对比串行基线）、吞吐、部分失败覆盖率与降级成功率；压测下关注并发连接数、429 触发率与重试放大倍数，验证编排在真实依赖结构下的收益与稳定性。"
+    ],
+    "edgeCases": [
+      "依赖环：A 依赖 B、B 又依赖 A，拓扑排序应检测并报错而非陷入死锁。",
+      "部分节点超时但结果后来才到：需明确“超时即弃”还是“晚到补用”，避免脏数据混入最终结果。",
+      "下游节点依赖的多个上游中有一个失败：要决定整体失败还是用降级值继续 fan-in。",
+      "并发触发对方限流（429）：需退避重试或降低扇出度，不能无脑并行把对方打挂。"
+    ],
+    "pitfalls": [
+      "把所有调用都并行：忽略隐藏的数据依赖，导致下游拿到空输入而报错；必须先建依赖图再决定并行度。",
+      "超时设得过长：一个慢调用卡住整批，关键路径被无意义拉长；应设合理上限并配降级。",
+      "重试无退避：失败即狂重试，放大对方压力与自身成本，易引发雪崩式故障。"
+    ],
+    "prerequisites": [
+      "图论基础：拓扑排序、DAG 与关键路径。",
+      "并发编程：asyncio/线程池、future 与汇聚（gather）。",
+      "Agent 工具调用与失败处理：理解 timeout/retry/降级。"
+    ],
+    "workedExample": [
+      "场景一（4 工具问答）：层 1 三调用并行，汇率超时降级用缓存，翻译在汇聚后执行，总时延约 2.3s 优于串行 3.1s；体现 fan-out/fan-in 与部分失败处理。",
+      "场景二（批量内容处理）：1000 条 UGC 各自需“打标+翻译+合规”三连，每条内部串行但 1000 条之间完全独立，用扇出度 32 的并发池处理，吞吐从串行 1000×3×t 降到约 1000/32×3×t，且单条失败不影响其他。"
+    ],
+    "lineByLine": [
+      "def build_dag(calls): 根据调用间数据依赖构造 DAG 并做环检测；作用是把“哪些能并行”显式结构化，防止误把有依赖的调用并行。",
+      "def topo_layers(dag): 拓扑排序分出可执行层；同层节点互不依赖，是 fan-out 并行执行的依据。",
+      "async def run_layer(layer): 用 asyncio.gather 并行执行一层内所有调用，各自带 timeout；实现真正的并发并收集结果或异常。",
+      "def fan_in(upstream): 汇聚上游产出、处理部分失败（降级/抛错），再喂给下游；闭合依赖边并决定继续还是回退。"
+    ],
+    "codeNotes": [
+      "gather 默认任一异常即整体失败，需设 return_exceptions=True 才能做“部分失败”精细化处理；扇出度要与对方限流阈值匹配，避免 429。"
+    ],
+    "followUps": [
+      {
+        "question": "fan-out/fan-in 与单纯的并发调用有什么区别？",
+        "answer": "单纯并发只是“同时发”，不关心谁依赖谁；fan-out/fan-in 是结构化编排：fan-out 指把无依赖的节点并行展开，fan-in 指等一组依赖全部（或按策略部分）就绪后再汇聚触发下游，强调“并行”与“依赖汇聚”两段式，是 DAG 调度的核心动作。"
+      },
+      {
+        "question": "部分失败时该整体失败还是降级继续，怎么决策？",
+        "answer": "按节点在 DAG 中的关键性决定：位于关键路径、且下游强依赖其结果的节点失败，通常整体回退或报错；非关键或下游可容忍缺失/有默认值的节点失败，则用缓存/默认值降级继续，并打标记录。该决策应写在编排配置里，而非运行时临时拍脑袋。"
+      }
+    ],
+    "followUpAnswers": [
+      "单纯并发只是“同时发”，不关心谁依赖谁；fan-out/fan-in 是结构化编排：fan-out 指把无依赖的节点并行展开，fan-in 指等一组依赖全部（或按策略部分）就绪后再汇聚触发下游，强调“并行”与“依赖汇聚”两段式，是 DAG 调度的核心动作。",
+      "按节点在 DAG 中的关键性决定：位于关键路径、且下游强依赖其结果的节点失败，通常整体回退或报错；非关键或下游可容忍缺失/有默认值的节点失败，则用缓存/默认值降级继续，并打标记录。该决策应写在编排配置里，而非运行时临时拍脑袋。"
+    ]
   },
   {
     "kind": "concept",
@@ -1525,6 +2410,72 @@ export const questions = [
       "循环至通过或达上限。"
     ],
     "diagram": "Draft -> Critique -> Revise -> Critique -> ... -> Pass"
+  },
+  {
+    "id": "agent-rl-optimize",
+    "kind": "concept",
+    "category": "Agent Workflow",
+    "difficulty": "Hard",
+    "title": "用 RL/反馈优化 Agent",
+    "prompt": "如何用强化学习/反馈信号来优化一个 Agent 的策略，而不只是调 prompt？",
+    "quickAnswer": "把 Agent 的一次完整任务尝试当作一条\"轨迹\"(trajectory)，在轨迹末端用 reward 信号驱动策略更新：reward 由最终答案正确性、过程质量（步骤合理/工具用对）、成本与延迟共同构成；可用 RLHF/GRPO/DPO 把人类偏好或规则奖励接进策略模型；在线用探索-利用平衡采新轨迹，离线用回放稳定训练。关键是设计抗 reward hacking 的稠密奖励与独立评测集。",
+    "approach": "定义轨迹级 reward → 收集轨迹(在线探索+离线回放) → 选算法(RLHF/GRPO/DPO) → 训练更新 → 独立评测防过拟合/防 hacking。",
+    "explanationFocus": "是什么：用 RL/反馈优化 Agent 是把\"一次任务尝试（状态-动作-观察序列）\"当作训练样本，用轨迹级 reward 调整策略模型参数，使它在真实任务上比单纯提示工程更稳、更省、更对。",
+    "bruteForce": "只靠手调 prompt + 人工 few-shot：每换任务都要重写提示，无法从失败中学，难以规模化提升。",
+    "invariant": "reward 信号必须来自\"可验证的任务结果或独立偏好\"，绝不能由被优化的同一模型自评生成，否则会自我循环放大偏差。",
+    "walkthrough": "以一个\"查数据生成报表\"Agent 为例，训练集 1000 条任务，每条跑 1 条轨迹（平均 8 步工具调用、seq 长度 4096）。reward = 0.6×答案正确 + 0.2×步骤效率(步数≤10 满分) + 0.2×(1−归一化成本)；用 GRPO 对 8 条采样轨迹做组内归一化优势估计，策略更新 1 个 epoch。在线探索保留 10% 流量走 ε-greedy 采新轨迹，离线回放历史 5 万条稳训练。上线后独立 test 集把准确率从 72% 提到 85%，但出现把\"正确性\"换成\"总是调最贵工具凑步数\"的 reward hacking，靠加成本项与人工抽检堵住。",
+    "derivation": [
+      "为什么需要：prompt 工程天花板低、难迁移；Agent 的行为空间大，需要可学习的信号把\"好轨迹\"固化进参数。",
+      "怎么实现：把(状态,动作,观察)序列定义为轨迹；设计 reward（结果+过程+成本）；用 RLHF 接人类偏好、GRPO 做组内相对优势（省 critic）、DPO 用偏好对直接优化；在线采轨迹、离线回放。",
+      "有什么代价：需可扩展的轨迹采集与标注；训练不稳定、易 reward hacking；在线探索有成本与风险；需隔离训练/评测数据防数据泄漏。",
+      "怎么评测：用独立 benchmark 看任务成功率、成本、延迟；做 holdout 偏好评测；监测 reward 与真实指标是否脱钩（防 hacking）。"
+    ],
+    "edgeCases": [
+      "reward 稀疏（只有最终对错）导致梯度信号弱，需过程奖励或 shaping。",
+      "在线探索触发高危工具，需把探索流量限在低风险环境。",
+      "训练集与评测集同源污染，指标虚高。"
+    ],
+    "code": "def trajectory_reward(traj):\n    correct = 1.0 if eval_answer(traj.final) else 0.0\n    eff = max(0.0, 1 - (traj.steps - 8) / 20)     # 步数越省越高\n    cost = 1 - normalize_cost(traj.total_cost)\n    return 0.6*correct + 0.2*eff + 0.2*cost        # 抗 hacking 的复合奖励\n\ndef grpo_update(model, group):                      # group: 同任务多条轨迹\n    rewards = [trajectory_reward(t) for t in group]\n    adv = (rewards - mean(rewards)) / (std(rewards) + 1e-6)   # 组内相对优势\n    return model.train(policy_loss(model, group, adv))        # 无需 critic",
+    "codeNotes": [
+      "GRPO 用组内相对奖励代替价值网络，工程上更易稳定。",
+      "reward 公式要\"可解释、可审计\"，便于发现 hacking。"
+    ],
+    "complexity": "训练为 O(轨迹数×步数) 的前向+反向；推理侧 Agent 本身仍是 LLM 调用，RL 主要改的是离线训练成本，线上推理延迟基本不变。",
+    "followUps": [
+      {
+        "question": "为什么用 GRPO 而不是 PPO 优化 Agent？",
+        "answer": "Agent 轨迹长、价值网络难训，GRPO 用同一任务的多次采样做组内相对优势，省掉 critic 网络，训练更稳、显存更省，很契合 LLM Agent 的优化。"
+      },
+      {
+        "question": "RLHF、GRPO、DPO 分别适合什么场景？",
+        "answer": "RLHF 需训练奖励模型+PPO，适合偏好数据充足且要精细控制的场景；GRPO 适合有可采样环境的轨迹优化；DPO 直接用偏好对离线优化，无需在线采样，适合静态偏好数据集。"
+      }
+    ],
+    "followUpAnswers": [
+      "GRPO 省 critic、组内相对优势更稳，契合长轨迹。",
+      "RLHF 精细但重；GRPO 适采样环境；DPO 适静态偏好集。"
+    ],
+    "pitfalls": [
+      "reward hacking：模型钻奖励公式空子（如刷步数、套话凑长度）而非真做好任务。",
+      "用被优化模型自评当 reward，形成正反馈放大错误。"
+    ],
+    "beginnerSummary": "优化 Agent 像训练狗做任务：做对了给零食（reward），做错了不奖；但别把\"零食\"设成\"只要摇尾巴就给\"，狗会光摇尾巴不干活（reward hacking）。RL/反馈就是给整套动作打分、反复练，让它真把事做对还更省力。",
+    "prerequisites": [
+      "理解轨迹/策略/奖励的基本概念。",
+      "熟悉 SFT 与至少一种 RL（PPO/GRPO/DPO）。",
+      "有可复现的轨迹采集与评测管线。"
+    ],
+    "workedExample": [
+      "报表 Agent 用 GRPO 把准确率从 72% 提到 85%，靠组内 8 轨迹归一化优势更新。",
+      "出现\"总调最贵工具凑步数\"的 hacking，加成本项后消失。"
+    ],
+    "lineByLine": [
+      "把一次任务跑成完整轨迹，记录每步状态/动作/观察与最终 outcome。",
+      "用规则+偏好模型给轨迹打分，分解为结果、过程、成本三项。",
+      "对同任务多采样轨迹做组内相对优势估计（GRPO 省掉 critic）。",
+      "仅在独立 test 集报告指标，防止训练指标自我陶醉。"
+    ],
+    "diagram": "任务 ─▶ Agent 跑轨迹 ─▶ reward(结果+过程+成本)\n                                  │\n              ┌───────────────────┴────────────┐\n          在线探索采新轨迹              离线回放历史轨迹\n                  │                            │\n                  └─────────▶ GRPO/DPO 更新策略 ◀┘"
   },
   {
     "kind": "concept",
