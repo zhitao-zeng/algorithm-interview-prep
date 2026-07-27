@@ -27,7 +27,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 437);
+  assert.equal(questions.length, 465);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -72,7 +72,7 @@ test('kind 分布与分类映射一致', () => {
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 60, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 377, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 405, '概念题数量');
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
@@ -618,6 +618,53 @@ test('子Agent模块【语音合成】全部题卡通过初学者契约', () => 
   ]);
   const matched = questions.filter((q) => ids.has(q.id));
   assert.equal(matched.length, 7, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【计算机系统基础·深化】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "cs-memory-layout","cs-io-multiplexing","cs-lock-free","cs-thread-pool",
+    "cs-tcp-rpc","cs-consistent-hash","cs-lsm-btree","cs-cache",
+    "cs-compile-link","cs-disk-io","cs-cpu-scheduling",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 11, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【系统设计·深化】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "sysd-multimodal-feature-platform","sysd-model-version-ab","sysd-multi-region",
+    "sysd-inference-cost","sysd-recsys-realtime-adv","sysd-observability","sysd-gpu-cluster",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 7, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【评测与对齐安全】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "ev-mmlu","ev-subjective","ev-multimodal-eval","ev-hallucination-detect",
+    "ev-redteam","ev-alignment-tax","ev-online-metrics","ev-benchmark-bias",
+    "ev-safety-align","ev-eval-pipeline",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
     assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);

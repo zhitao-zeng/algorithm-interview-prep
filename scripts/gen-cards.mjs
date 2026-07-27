@@ -26,7 +26,7 @@ const CANONICAL_ORDER = [
   'ASR 专项', '语音大模型', '语音合成', 'RL 后训练', '大模型推理原理', '流式推理工程', 'KV Cache',
   'Continuous Batching', 'PagedAttention', '多GPU并行', '量化推理', 'ONNX/TensorRT',
   '服务性能评测', '视觉与视频理解', '多模态模型', '生成式模型', '搜索推荐', '系统设计', 'Agent Workflow', '计算机系统基础',
-  'Transformer 架构', '训练与微调', '分布式训练', 'RAG', '长上下文与位置编码',
+  'Transformer 架构', '训练与微调', '分布式训练', 'RAG', '长上下文与位置编码', '评测与对齐安全',
 ];
 
 // Build the categories export: "全部" first, then present categories in canonical order.
