@@ -27,7 +27,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 410);
+  assert.equal(questions.length, 437);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -72,7 +72,7 @@ test('kind 分布与分类映射一致', () => {
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 60, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 350, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 377, '概念题数量');
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
@@ -571,6 +571,53 @@ test('子Agent模块【视觉与视频理解】全部题卡通过初学者契约
   ]);
   const matched = questions.filter((q) => ids.has(q.id));
   assert.equal(matched.length, 14, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【搜索推荐·深化】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "recd-multiobjective","recd-ee","recd-coldstart-adv","recd-listwise-rerank",
+    "recd-generative-rec","recd-rl-rec","recd-shortvideo-signals","recd-bias-loop",
+    "recd-real-time-feature","recd-graph-rec",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【多模态模型·深化】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "mmd-unified-gen-understand","mmd-video-gen-understand","mmd-hallucination-bench",
+    "mmd-data-engine","mmd-spatial-3d","mmd-mllm-agent","mmd-ocr-doc","mmd-audio-visual",
+    "mmd-efficient-mllm","mmd-vlm-pretrain-adv",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【语音合成】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "tts-tacotron","tts-vits","tts-hifigan","tts-streaming",
+    "tts-llm-tts","tts-multilingual-emotion","tts-eval-prosody",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 7, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
     assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);

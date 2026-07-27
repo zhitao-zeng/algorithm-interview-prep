@@ -13,6 +13,7 @@ export const categories = [
   "模型手写",
   "ASR 专项",
   "语音大模型",
+  "语音合成",
   "RL 后训练",
   "大模型推理原理",
   "流式推理工程",
@@ -14597,6 +14598,566 @@ export const questions = [
     "diagram": "纯文本模型 ─▶ +视觉链路 ─▶ 多模态\n   收益:新能力 / 代价:序列↑·成本↑·幻觉风险"
   },
   {
+    "id": "mmd-audio-visual",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "音视频联合多模态",
+    "difficulty": "Hard",
+    "prompt": "音视频联合多模态模型如何做视听语音识别与跨模态对齐？保持音视频一致性有哪些方法？",
+    "quickAnswer": "音视频联合模型把语音波形与对应画面（说话人唇形）编码为对齐的 token 序列，用跨模态注意力互相增强。视听语音识别（AVSR）在嘈杂环境用唇读补语音；一致性通过对比学习（音-画正样本拉近）与时序同步损失保持。",
+    "code": "import torch\n\ndef av_contrastive(audio_feat, video_feat, temperature=0.1):\n    a = torch.nn.functional.normalize(audio_feat, dim=-1)\n    v = torch.nn.functional.normalize(video_feat, dim=-1)\n    logits = (a @ v.t()) / temperature\n    labels = torch.arange(a.size(0))          # 对角线=同片段正样本\n    return torch.nn.functional.cross_entropy(logits, labels)",
+    "complexity": "O(N²)",
+    "beginnerSummary": "人说话时声音和嘴型是配套的。音视频联合模型同时“听声音”和“看口型”，在吵闹环境下即使听不清，也能通过看嘴唇把字猜对，并且让声音和画面对齐不跑偏。",
+    "explanationFocus": "是什么：音视频联合多模态指同时建模语音/声音与视觉信号（如说话人唇形、场景画面），用于视听语音识别、音视频检索与跨模态生成，并通过对齐机制保持两模态语义一致。",
+    "approach": "音频用 Whisper/HuBERT 式编码器、视频用唇部/人脸或场景编码器，二者经跨模态注意力融合；AVSR 用视觉补语音缺失；一致性用对比损失（同片段正负样本）与时序同步（互相关峰）约束，必要时加音视频扩散生成。",
+    "derivation": [
+      "为什么需要：纯语音在噪声/多人场景下失效，视觉提供互补线索；多模态需一致避免“画音不符”。",
+      "怎么实现：双编码器+跨模态注意力，对比/同步损失对齐，AVSR 以视觉为辅助解码条件。",
+      "有什么代价：需严格时间同步标注，唇部质量受遮挡/角度影响，训练数据稀缺。",
+      "怎么评测：AVSR 词错率（WER）、音视频检索 R@K、同步一致性指标。"
+    ],
+    "edgeCases": [
+      "说话人侧脸/遮挡，唇读信号弱。",
+      "背景音乐与语音混淆，音频编码器误判。",
+      "多人同时说话，声源与画面不匹配。",
+      "音画轻微不同步，对比损失误罚。"
+    ],
+    "pitfalls": [
+      "只做特征拼接不做跨模态注意力，未真正融合。",
+      "用非同步数据做对比学习，学到错误对齐。"
+    ],
+    "prerequisites": [
+      "语音表征（Whisper/HuBERT）",
+      "跨模态对比学习与对齐"
+    ],
+    "workedExample": [
+      "AVSR：噪声环境下模型结合唇形与含噪语音，WER 显著低于纯音频 ASR。",
+      "音视频检索：用对比损失让“狗叫”声音与狗的画面向量靠近，支持跨模态搜索。"
+    ],
+    "lineByLine": [
+      "av_contrastive 把音频与视频特征归一化后做点积，同片段（对角线）为正样本。",
+      "cross_entropy 拉正样本近、负样本远，实现音画语义对齐、保持一致性。"
+    ],
+    "followUps": [
+      {
+        "question": "AVSR 在干净环境下还有用吗？",
+        "answer": "安静时纯音频已足够，AVSR 增益有限甚至会因视觉噪声略降；因此常做门控融合，按信噪比动态加权视觉贡献。"
+      },
+      {
+        "question": "如何获得大规模音视频对齐数据？",
+        "answer": "利用影视台词时间戳、YouTube 自带字幕与语音对齐、或自监督（音画同时出现的片段天然正样本）降低标注成本。"
+      }
+    ],
+    "followUpAnswers": [
+      "安静时纯音频已足够，AVSR 增益有限甚至会因视觉噪声略降；因此常做门控融合，按信噪比动态加权视觉贡献。",
+      "利用影视台词时间戳、YouTube 自带字幕与语音对齐、或自监督（音画同时出现的片段天然正样本）降低标注成本。"
+    ]
+  },
+  {
+    "id": "mmd-data-engine",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "多模态数据引擎",
+    "difficulty": "Hard",
+    "prompt": "数据被认为是多模态大模型能力的天花板，如何设计多模态“数据引擎”：配比、难例挖掘、自动标注与清洗？",
+    "quickAnswer": "多模态数据引擎是覆盖采集—清洗—标注—配比—迭代的自动化流水线。核心是数据配方（图文/视频/交错比例）、难例挖掘（用模型置信度挑错题）、LLM/VLM 自动标注与跨模态一致性清洗。迭代上用“训练—评测—补数据”闭环持续提升上限。",
+    "code": "def mine_hard_examples(model, dataloader, k=1000):\n    import torch\n    hard = []\n    for batch in dataloader:\n        with torch.no_grad():\n            logits = model(batch['pixels'], batch['text'])\n        conf = logits.softmax(-1).max(-1).values\n        wrong = (logits.argmax(-1) != batch['label']) & (conf > 0.5)\n        for i in range(len(wrong)):\n            if wrong[i]:\n                hard.append(batch['sample'][i])   # 高置信却答错=难例\n    return hard[:k]",
+    "complexity": "O(D·B)",
+    "beginnerSummary": "模型好不好，很大程度看喂了什么数据。数据引擎就像一条自动工厂流水线：自动找高质量图文、自动打标签、自动剔除脏数据，并专门挑出模型“以为会其实不会”的难题来强化训练。",
+    "explanationFocus": "是什么：多模态数据引擎指为多模态训练构建的自动化数据生产系统，涵盖数据配方设计、难例挖掘、自动标注与清洗，以及“训练—评测—补数据”的闭环迭代。",
+    "approach": "先定数据配方（图文对、交错文档、视频、纯文本比例与课程顺序）；用现成 VLM/LLM 做 caption 与 QA 自动标注，并用跨模态一致性（图-文相似度、OCR 校验）清洗；难例挖掘用模型高置信错误样本回灌；周期性用榜单缺口指导补采。",
+    "derivation": [
+      "为什么需要：人工标注贵且慢，数据质量与配比直接决定能力上限与模态偏科。",
+      "怎么实现：流水线化采集→CLIP 相似度/启发式过滤→LLM 生成指令与答案→模型自筛难例→配比调度。",
+      "有什么代价：自动标注引入噪声，需置信过滤；难例回灌不当致过拟合噪声；配比实验成本高。",
+      "怎么评测：以最终模型在各基准的增益与数据效率（单位数据性能）衡量引擎有效性。"
+    ],
+    "edgeCases": [
+      "长尾概念（稀有物体）自动标注几乎全错，需定向补采。",
+      "跨语言图文对对齐噪声大，清洗阈值难设。",
+      "难例回灌若含标注错误，模型学错。",
+      "视频时序标注自动生成易丢运动语义。"
+    ],
+    "pitfalls": [
+      "用 CLIP 相似度单一阈值过滤，误删抽象/艺术图像。",
+      "重数量轻配比，导致模态或能力偏科（如只擅长英文 caption）。"
+    ],
+    "prerequisites": [
+      "对比学习表征用于数据过滤",
+      "课程学习与大模型自动标注"
+    ],
+    "workedExample": [
+      "LLM 自动标注：用强 VLM 给图像生成多轮 QA，作为 SFT 指令数据，省去人工。",
+      "难例挖掘：训练中对高置信答错样本重新标注并回灌，专门补模型薄弱点。"
+    ],
+    "lineByLine": [
+      "wrong 标记“预测错且置信度高”的样本，这类最具训练价值（模型误以为会）。",
+      "收集 hard 并返回前 k 个，用于下一轮针对性补数据与重训，形成数据闭环。"
+    ],
+    "followUps": [
+      {
+        "question": "自动标注噪声如何控制而不污染训练？",
+        "answer": "采用多模型投票/一致性过滤、对低置信样本人工复核、并用较小 clean 集做噪声鲁棒损失（如置信加权或对称交叉熵），避免错误标签主导梯度。"
+      },
+      {
+        "question": "数据配方里图文对和纯文本的比例怎么定？",
+        "answer": "初期偏图文对齐建立跨模态能力，中期加入纯文本保持 LLM 指令遵循，末期按能力缺口动态调整；常以消融实验找拐点，并配合课程（易→难）顺序。"
+      }
+    ],
+    "followUpAnswers": [
+      "采用多模型投票/一致性过滤、对低置信样本人工复核、并用较小 clean 集做噪声鲁棒损失（如置信加权或对称交叉熵），避免错误标签主导梯度。",
+      "初期偏图文对齐建立跨模态能力，中期加入纯文本保持 LLM 指令遵循，末期按能力缺口动态调整；常以消融实验找拐点，并配合课程（易→难）顺序。"
+    ]
+  },
+  {
+    "id": "mmd-efficient-mllm",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "高效多模态大模型",
+    "difficulty": "Medium",
+    "prompt": "如何在保持多模态能力的同时压缩模型？轻量 VLM、token 压缩进阶与蒸馏/量化的关键手段有哪些？",
+    "quickAnswer": "三类手段：轻量 VLM（小 VIT+小 LLM、Mobile 架构）、token 压缩（按语义合并/下采样视觉 token，进阶如 Q-Former、token pruning）、蒸馏与量化（用大模型教小模型、INT8/INT4 与 LoRA 适配）。目标是降显存与时延同时尽量保住基准分数。",
+    "code": "import torch\n\ndef token_compress(tokens, keep_ratio=0.5):\n    scores = tokens.norm(dim=-1)                 # 粗略重要性\n    k = int(tokens.size(0) * keep_ratio)\n    idx = scores.topk(k).indices                 # 保留最显著 token\n    return tokens[idx.sort().values]             # 压缩后的视觉 token",
+    "complexity": "O(N·log N)",
+    "beginnerSummary": "大模型能力强但太重、跑得慢、费显存。高效多模态就像给模型“减肥”：要么用更小的模型，要么把不重要的图像小块丢掉，要么把数字精度降低，让它在手机和实时场景也能跑。",
+    "explanationFocus": "是什么：高效多模态大模型指在不显著损失多模态理解与生成能力前提下，通过轻量架构、视觉 token 压缩、知识蒸馏与低比特量化，降低参数量、显存与推理时延的技术体系。",
+    "approach": "架构上用小 VIT+紧凑 LLM；token 压缩用下采样、聚类合并或注意力重要性剪枝（如 token pruning）；训练上用大模型蒸馏小模型、用适配器迁移；推理上做 INT8/INT4 量化与 KV-cache 优化。进阶压缩结合可学习 query（Q-Former）做瓶颈表征。",
+    "derivation": [
+      "为什么需要：原生 VLM 视觉 token 动辄上千，部署成本高，难上边缘设备。",
+      "怎么实现：架构瘦身 + token 压缩 + 蒸馏/量化三级组合，逐层压成本。",
+      "有什么代价：过度压缩损细粒度能力（小字、细节计数），量化引入舍入误差。",
+      "怎么评测：在 MMBench 等榜测精度掉点，并报告时延/显存/参数量 Pareto。"
+    ],
+    "edgeCases": [
+      "文档小字/密集计数对 token 压缩极敏感。",
+      "低比特量化在激活异常值上误差放大。",
+      "蒸馏时大模型自身幻觉被小模型继承。",
+      "移动端算子不支持某些量化格式。"
+    ],
+    "pitfalls": [
+      "只压 LLM 不压视觉 token，视觉序列仍是时延瓶颈。",
+      "为保精度过度保留 token，压缩收益归零。"
+    ],
+    "prerequisites": [
+      "模型量化与蒸馏基础",
+      "视觉 token 化与注意力机制"
+    ],
+    "workedExample": [
+      "Token pruning：按注意力权重丢弃低信息图像 patch，序列减半而 VQA 掉点很小。",
+      "Q-Former：用少量可学 query 从图像抽瓶颈表征，替代上千原始视觉 token。"
+    ],
+    "lineByLine": [
+      "token_compress 用 token 范数近似重要性，按 keep_ratio 保留最显著者。",
+      "返回排序后的压缩 token，序列变短，直接降低后续 LLM 计算量。"
+    ],
+    "followUps": [
+      {
+        "question": "Token 压缩和量化哪个对精度影响更大？",
+        "answer": "通常激进 token 压缩更易伤细粒度任务（OCR、计数），量化对语义问答影响较小但需处理激活离群点；实践常先量化再适度压缩 token。"
+      },
+      {
+        "question": "蒸馏小模型如何避免继承大模型的幻觉？",
+        "answer": "在蒸馏数据中加入负样本/事实一致性过滤，并对齐到更可靠的教师（或集成），而非盲目模仿；可结合 RLHF 式对齐减小编造。"
+      }
+    ],
+    "followUpAnswers": [
+      "通常激进 token 压缩更易伤细粒度任务（OCR、计数），量化对语义问答影响较小但需处理激活离群点；实践常先量化再适度压缩 token。",
+      "在蒸馏数据中加入负样本/事实一致性过滤，并对齐到更可靠的教师（或集成），而非盲目模仿；可结合 RLHF 式对齐减小编造。"
+    ]
+  },
+  {
+    "id": "mmd-hallucination-bench",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "多模态幻觉评测基准",
+    "difficulty": "Medium",
+    "prompt": "如何系统评测多模态大模型的“幻觉”问题？MMBench、SEED、RealWorldQA 与 POPE、GPT4V-eval 各自的侧重点是什么？",
+    "quickAnswer": "幻觉评测分两类：综合性选择题基准（MMBench、SEED、RealWorldQA）测整体能力同时暴露错误，专项幻觉检测（POPE 用正负样本测物体存在性幻觉，GPT4V-eval 用强模型打分）精准量化“无中生有”。组合使用可区分是能力缺失还是编造。",
+    "code": "def pope_sample(caption_objects, all_objects, ratio=0.5):\n    pos = [o for o in all_objects if o in caption_objects]\n    neg = [o for o in all_objects if o not in caption_objects]\n    n = int(len(pos) * ratio)\n    import random\n    neg = random.sample(neg, n)            # 负样本：图中不存在的物体\n    questions = [f\"Is there a {o} in the image?\" for o in pos + neg]\n    labels = [1] * len(pos) + [0] * len(neg)\n    return questions, labels               # 用于测存在性幻觉",
+    "complexity": "O(N)",
+    "beginnerSummary": "多模态模型有时会“睁眼说瞎话”，比如图里没有猫却说有猫。幻觉评测就是设计考题，专门抓这种编造，分为考综合能力的选择题和专抓“无中生有”的针对性测试。",
+    "explanationFocus": "是什么：多模态幻觉评测基准是一组用于量化模型“回答与图像事实不符（编造、遗漏、属性错误）”程度的数据集与方法，包括综合选择题基准与针对性幻觉探测器。",
+    "approach": "综合基准（MMBench 多能力循环评测、SEED 人工校验、RealWorldQA 真实场景）以准确率间接反映幻觉；专项方法用 POPE 的正负物体存在性问答测“说有”，用 GPT4V-eval/FAITHScore 让强模型或结构化核对做细粒度事实一致性打分。",
+    "derivation": [
+      "为什么需要：模型流畅但错误比明显失败更危险，需可量化指标驱动改进。",
+      "怎么实现：构造带标准答案的问答对；POPE 控制正负样本比例测存在性，GPT4V-eval 用裁判模型比对回答与图像/标注。",
+      "有什么代价：基准易被过拟合；GPT4V-eval 引入裁判模型自身偏差，人工标注成本高。",
+      "怎么评测：以准确率、F1、幻觉率、CHAIR 等指标横向对比，并做跨基准一致性检验。"
+    ],
+    "edgeCases": [
+      "物体部分可见或被遮挡，POPE 负样本边界模糊。",
+      "属性幻觉（颜色/数量错）POPE 的存在性测试抓不到。",
+      "裁判模型（GPT4V）自身也会幻觉，污染评分。",
+      "训练数据含基准导致指标虚高。"
+    ],
+    "pitfalls": [
+      "只用综合基准准确率，把能力缺失与幻觉混为一谈。",
+      "盲目信任 GPT4V-eval 分数，忽略裁判模型偏差与成本。"
+    ],
+    "prerequisites": [
+      "多模态模型基本评测范式",
+      "幻觉的类型（存在性/属性/关系幻觉）"
+    ],
+    "workedExample": [
+      "POPE：针对图中猫，构造“有猫”正样本与“有狗（图中无）”负样本，让模型判断，统计假阳性率即存在性幻觉。",
+      "GPT4V-eval：把模型回答与图像一并交给 GPT-4V，逐项核对事实一致性并打分。"
+    ],
+    "lineByLine": [
+      "pos 取图中真实存在的物体作为正样本，neg 取图中不存在的物体作负样本。",
+      "构造的是/否问答并打 1/0 标签，通过模型对负样本的误判率衡量“无中生有”的幻觉程度。"
+    ],
+    "followUps": [
+      {
+        "question": "POPE 只能测存在性幻觉，如何覆盖属性与关系幻觉？",
+        "answer": "可扩展为 AMPOPE 或在 CCEval/MMHalBenchmark 中加入属性（颜色、数量）与关系（左/右、上/下）问答；也可用 AMBER 统一测存在、属性、关系三类幻觉并区分生成与判别。"
+      },
+      {
+        "question": "为什么综合基准准确率不能直接当幻觉率？",
+        "answer": "准确率低可能源于模型不会而非编造；只有专项负样本测试（如 POPE 假阳性）才能隔离“编造”成分，二者需结合解读。"
+      }
+    ],
+    "followUpAnswers": [
+      "可扩展为 AMPOPE 或在 CCEval/MMHalBenchmark 中加入属性（颜色、数量）与关系（左/右、上/下）问答；也可用 AMBER 统一测存在、属性、关系三类幻觉并区分生成与判别。",
+      "准确率低可能源于模型不会而非编造；只有专项负样本测试（如 POPE 假阳性）才能隔离“编造”成分，二者需结合解读。"
+    ]
+  },
+  {
+    "id": "mmd-mllm-agent",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "多模态 Agent 落地",
+    "difficulty": "Hard",
+    "prompt": "多模态 Agent 在 GUI/手机/桌面操控中如何落地？视觉规划与工具调用面临哪些核心挑战？",
+    "quickAnswer": "多模态 Agent 以屏幕截图/录屏为观测，用 VLM 做视觉规划（定位元素、生成操作步骤），并通过工具调用（点击、输入、API）执行。核心挑战是长程规划误差累积、元素精确定位、动作反馈闭环，以及安全与权限边界。",
+    "code": "def agent_step(vlm, screenshot, goal, history=[]):\n    prompt = f\"目标:{goal}\\n历史:{history}\\n请输出下一步动作(JSON)\"\n    action = vlm.generate(screenshot, prompt)        # 视觉规划\n    obs = execute(action)                            # 工具调用:点击/输入\n    history.append((action, obs))                    # 反馈闭环\n    return action, obs, history",
+    "complexity": "O(S·T)",
+    "beginnerSummary": "多模态 Agent 像一个会看屏幕的“机器人助理”：它看着手机或电脑界面，理解要做什么，然后自动点按钮、打字、调用工具一步步完成任务，比如订机票、填表格。",
+    "explanationFocus": "是什么：多模态 Agent 指以视觉（截图/视频）为主要观测、用多模态模型做规划决策并通过工具/动作接口与软件环境交互，自主完成多步任务的智能体，典型场景为 GUI/手机/桌面操控。",
+    "approach": "观测用截图或 UI 树，VLM 输出“定位+动作”计划（如点 (x,y) 或调 API）；工具层把动作映射为系统事件；用 ReAct 式历史记忆做长程规划，并以执行后新截图作为反馈闭环。常配合 Set-of-Mark 标注提升元素可定位性。",
+    "derivation": [
+      "为什么需要：软件任务多步且依赖视觉状态，纯文本 Agent 难以理解图形界面。",
+      "怎么实现：截图+VLM 规划→动作执行→新观测反馈；Set-of-Mark 标注元素，工具调用接口标准化。",
+      "有什么代价：每步都跑 VLM 时延高、成本高；长程任务错误累积；截图隐私与安全敏感。",
+      "怎么评测：在 AndroidWorld、WebArena 等环境测任务成功率与步骤效率。"
+    ],
+    "edgeCases": [
+      "弹窗/广告打断原计划流程。",
+      "动态加载导致元素坐标漂移。",
+      "需要登录/验证码等人工介入步骤。",
+      "模糊或相似的按钮导致定位错误。"
+    ],
+    "pitfalls": [
+      "无反馈闭环，模型凭记忆盲操作导致连续误点。",
+      "把 VLM 当一次性规划器，忽略长程错误累积与回滚。"
+    ],
+    "prerequisites": [
+      "ReAct/工具调用智能体范式",
+      "视觉定位与 UI 理解"
+    ],
+    "workedExample": [
+      "Set-of-Mark：在截图上给可交互元素编号，VLM 只需输出编号而非坐标，定位更稳。",
+      "AndroidWorld：在真实安卓环境跑多步任务，以成功率评测 Agent 能力。"
+    ],
+    "lineByLine": [
+      "vlm.generate 接收截图与目标，输出下一步结构化动作，体现视觉规划。",
+      "execute 把动作转为真实系统事件，并把结果回写 history 形成观测-动作闭环。"
+    ],
+    "followUps": [
+      {
+        "question": "如何降低多模态 Agent 每步调用 VLM 的成本与时延？",
+        "answer": "用轻量视觉定位模型替代全量 VLM 做简单点击，仅在需要推理时调用大模型；或缓存布局、用差分截图只处理变化区域，并采用动作批处理。"
+      },
+      {
+        "question": "长程任务错误累积怎么缓解？",
+        "answer": "引入子目标分解与校验点（每步后自问“是否偏离目标”）、可回滚状态快照、以及失败后重规划；并用地图/记忆避免重复探索。"
+      }
+    ],
+    "followUpAnswers": [
+      "用轻量视觉定位模型替代全量 VLM 做简单点击，仅在需要推理时调用大模型；或缓存布局、用差分截图只处理变化区域，并采用动作批处理。",
+      "引入子目标分解与校验点（每步后自问“是否偏离目标”）、可回滚状态快照、以及失败后重规划；并用地图/记忆避免重复探索。"
+    ]
+  },
+  {
+    "id": "mmd-ocr-doc",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "文档与图表多模态理解",
+    "difficulty": "Medium",
+    "prompt": "OCR-free 文档多模态模型如何直接理解扫描件、图表和表格？版面结构与视觉特征在其中起什么作用？",
+    "quickAnswer": "OCR-free 模型把文档整页作为图像输入，用高分辨率 VIT 编码后再由 LLM 直接回答，无需先做 OCR 文字框识别。关键是保留版面（行列、表格线、图表轴）的视觉结构：通过高分辨 patch、坐标感知注意力与结构化输出（HTML/Markdown 表格）还原语义。",
+    "code": "def doc_to_tokens(page_image, encoder, max_res=1024):\n    image = resize_keep_aspect(page_image, max_res)   # 高分辨率保版面\n    patches = split_to_patches(image, patch_size=16)  # 细粒度切块\n    tokens = encoder(patches)                          # 视觉 token\n    return tokens                                      # 直接进 LLM, 无需 OCR",
+    "complexity": "O((H·W)/P²·D)",
+    "beginnerSummary": "传统方法读文档先框出每个字（OCR）再理解，容易在复杂排版下出错。OCR-free 模型把整页文档当一张图直接“看”，像人一样连版面带文字一起读懂，特别适合表格、图表这类结构复杂的内容。",
+    "explanationFocus": "是什么：文档/图表多模态理解指让模型直接以扫描件、PDF、图表、表格的页面图像为输入，联合建模文字与版面/视觉结构，完成问答、抽取与结构化输出，且尽量不依赖独立 OCR 前置。",
+    "approach": "用高分辨率 VIT 切细 patch 保留版面细节，必要时加坐标/2D 位置编码；LLM 在视觉 token 上做理解；结构化输出用 HTML/Markdown 表格还原；图表理解额外建模轴线、图例与数据点映射。",
+    "derivation": [
+      "为什么需要：OCR 流水线在复杂版面、手写、图表上易错且割裂文字与结构。",
+      "怎么实现：高分辨率整页编码 + 坐标感知注意力 + 结构化输出，端到端联合训练。",
+      "有什么代价：高分辨率导致 token 数巨大、显存高；长文档需分块与拼接。",
+      "怎么评测：DocVQA、ChartQA、TableVQA 等以答案准确率评测。"
+    ],
+    "edgeCases": [
+      "多栏排版文字顺序错乱，需版面感知重排。",
+      "表格跨页断裂，结构还原失败。",
+      "图表无坐标轴线，数据点难以映射。",
+      "扫描倾斜/噪点导致字符混淆。"
+    ],
+    "pitfalls": [
+      "直接用低分辨率 VIT，文字过小不可辨，等价于“瞎读”。",
+      "输出纯文本忽略结构，表格语义丢失。"
+    ],
+    "prerequisites": [
+      "高分辨率视觉编码与位置感知",
+      "结构化输出（HTML/Markdown 表格）"
+    ],
+    "workedExample": [
+      "DocVQA：把扫描文档整页输入，直接回答“合同金额是多少”，无需先 OCR。",
+      "ChartQA：模型读柱状图 axes 与柱高，回答“哪一季度最高”。"
+    ],
+    "lineByLine": [
+      "resize_keep_aspect 在高分辨率下保持版面比例，避免文字压缩失真。",
+      "split_to_patches 把整页细切，使 LLM 能逐区域读取文字与表格线等结构。"
+    ],
+    "followUps": [
+      {
+        "question": "完全 OCR-free 和“OCR+LLM”哪种更好？",
+        "answer": "OCR-free 端到端更强于版依赖与鲁棒性，但训练数据贵；实践中常混合：用 OCR 提供文本线索作辅助输入，模型再结合视觉版面做最终判断，兼顾准确与结构。"
+      },
+      {
+        "question": "长文档超过上下文怎么办？",
+        "answer": "采用分块编码+检索（RAG）只取相关页，或层次化：先页面级摘要再细读；也可做 token 压缩与跨页状态记忆。"
+      }
+    ],
+    "followUpAnswers": [
+      "OCR-free 端到端更强于版依赖与鲁棒性，但训练数据贵；实践中常混合：用 OCR 提供文本线索作辅助输入，模型再结合视觉版面做最终判断，兼顾准确与结构。",
+      "采用分块编码+检索（RAG）只取相关页，或层次化：先页面级摘要再细读；也可做 token 压缩与跨页状态记忆。"
+    ]
+  },
+  {
+    "id": "mmd-spatial-3d",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "空间与 3D 多模态",
+    "difficulty": "Hard",
+    "prompt": "多模态模型如何获得空间与 3D 理解能力？点云/深度如何注入，空间推理与具身多模态有哪些关键技术？",
+    "quickAnswer": "3D 多模态把深度、点云或多视角信息编码为额外 token 与图像/文本对齐。空间推理靠坐标投影（2D→3D 反投影）、空间关系头与神经辐射场/3D 表征；具身方向则把 VLM 接动作策略，用视觉-语言-动作（VLA）闭环感知并执行。",
+    "code": "import torch\n\ndef lift_to_3d(pixels_2d, depth, intrinsics):\n    # pixels_2d: [N,2], depth: [N], intrinsics K: [3,3]\n    fx, fy = intrinsics[0,0], intrinsics[1,1]\n    cx, cy = intrinsics[0,2], intrinsics[1,2]\n    x = (pixels_2d[:,0] - cx) * depth / fx\n    y = (pixels_2d[:,1] - cy) * depth / fy\n    return torch.stack([x, y, depth], dim=-1)   # [N,3] 相机坐标点云",
+    "complexity": "O(N)",
+    "beginnerSummary": "普通多模态模型看的是“平面照片”，不知道物体离多远、在空间的什么位置。空间 3D 多模态给模型加上“深度眼睛”（深度图、点云），让它能理解远近、前后、左右，进而指挥机器人拿东西。",
+    "explanationFocus": "是什么：空间与 3D 多模态指让模型融合深度、点云、多视角或 3D 结构信息，具备距离、空间关系与三维场景理解能力，并支撑具身智能中的感知-决策-执行。",
+    "approach": "把深度/点云经专用编码器（PointNet、3D CNN）转为 token 与图像 token 拼接；用 2D-3D 反投影建立像素到空间的对应；空间问答通过坐标与关系头回答；具身场景用 VLA 把视觉-语言表征映射到动作分布，闭环交互学习。",
+    "derivation": [
+      "为什么需要：平面图像缺乏度量深度，无法支持抓取、导航、空间规划等物理交互。",
+      "怎么实现：深度/点云 token 化并与语言对齐；反投影与多视图融合建 3D 表征；VLA 连接感知与动作。",
+      "有什么代价：3D 数据稀缺昂贵，标定与坐标对齐误差敏感，具身训练需仿真-现实迁移。",
+      "怎么评测：3D 问答、空间关系准确率、具身任务成功率（真实/仿真）。"
+    ],
+    "edgeCases": [
+      "透明/反光物体深度估计失效，点云空洞。",
+      "多视角标定误差导致 3D 重建错位。",
+      "具身训练中仿真与真实传感器分布偏移。",
+      "遮挡下空间关系歧义（A 在 B 前/后）。"
+    ],
+    "pitfalls": [
+      "仅用单张深度图做空间推理，忽略多视角一致性。",
+      "把具身成功率全归因于 VLM，忽略动作策略与底层控制。"
+    ],
+    "prerequisites": [
+      "3D 表征（点云、NeRF、多视图几何）",
+      "视觉-语言-动作（VLA）与具身学习"
+    ],
+    "workedExample": [
+      "深度注入：RGB-D 图像把深度通道编码为额外 token，模型可回答“杯子离相机多远”。",
+      "VLA 具身：VLM 输出“抓取红色方块”的语义计划，下游策略映射为夹爪轨迹并执行。"
+    ],
+    "lineByLine": [
+      "lift_to_3d 用相机内参把 2D 像素与深度反投影为 3D 相机坐标，是平面图像获得度量空间的桥梁。",
+      "返回的 [N,3] 点云可作为 3D token 输入下游空间推理或抓取模块。"
+    ],
+    "followUps": [
+      {
+        "question": "没有真实深度传感器时如何获得 3D 信号？",
+        "answer": "可用单目深度估计模型（如 Depth Anything）生成伪深度，或多视图立体（MVS）从多张照片重建点云；代价是误差较大，需对齐微调。"
+      },
+      {
+        "question": "VLM 如何接入机器人动作？",
+        "answer": "典型 VLA 把视觉-语言表征经轻量动作头（扩散或离散策略）输出动作块；训练用遥操作数据或仿真强化，推理时闭环观测-决策。"
+      }
+    ],
+    "followUpAnswers": [
+      "可用单目深度估计模型（如 Depth Anything）生成伪深度，或多视图立体（MVS）从多张照片重建点云；代价是误差较大，需对齐微调。",
+      "典型 VLA 把视觉-语言表征经轻量动作头（扩散或离散策略）输出动作块；训练用遥操作数据或仿真强化，推理时闭环观测-决策。"
+    ]
+  },
+  {
+    "id": "mmd-unified-gen-understand",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "统一生成-理解多模态架构",
+    "difficulty": "Hard",
+    "prompt": "多模态大模型如何用一个模型同时完成“理解”（VQA/描述）与“生成”（文生图/文生视频）？以 Emu、Janus、Show-o 为例，自回归与扩散两条统一路径各有什么权衡？",
+    "quickAnswer": "统一架构的核心是把图像也表示为可与文本共享同一序列空间的 token。自回归路径（Emu、Show-o）让 LLM 逐 token 预测图像/文本，理解与生成天然统一但图像保真度受限；扩散路径（Janus 双路）用独立 diffusion 解码器生成，质量高但与理解分支解耦。主流折中是共享语义编码器、分离轻量生成头。",
+    "code": "import torch\n\nclass UnifiedMLLM(torch.nn.Module):\n    def __init__(self, encoder, llm, diffusion_head):\n        super().__init__()\n        self.encoder = encoder          # 图像/文本共享语义编码器\n        self.llm = llm                  # 自回归理解主干\n        self.diff_head = diffusion_head # 扩散生成头\n\n    def forward(self, tokens, task=\"understand\"):\n        h = self.encoder(tokens)\n        if task == \"understand\":\n            return self.llm(h)          # 理解：预测文本 token\n        return self.diff_head(h)        # 生成：去噪还原图像",
+    "complexity": "O(N·D + M·T)",
+    "beginnerSummary": "早期多模态模型只能“看”和“答”，不能“画”。统一架构想让一个模型既会看图回答问题，又会按文字画图或视频。做法是把图片也切成一串 token，和文字混在一起交给同一个大模型处理。",
+    "explanationFocus": "是什么：统一生成-理解架构指用同一套模型参数与共享表征空间，同时完成多模态“理解”（如 VQA、图像描述、推理）与“生成”（如文生图、文生视频、图像编辑）任务，避免为两类任务维护两套独立模型。",
+    "approach": "关键是把图像编码为可与文本对齐的 token：自回归路线把图像离散化为 visual token 交 LLM 预测（Emu/Show-o）；扩散路线保留独立扩散解码器但共享前置语义编码器（Janus）。训练上多采用多任务混合：理解用 next-token 损失，生成用扩散/回归损失，并用课程式数据调度。",
+    "derivation": [
+      "为什么需要：理解与生成分治导致部署成本高、跨任务迁移差，统一模型可共享表征、互相增强（生成提升语义对齐，理解提升细粒度可控性）。",
+      "怎么实现：将图像映射为共享 token 空间；自回归统一用离散视觉 codebook + LLM 联合预测，扩散统一用 shared encoder + 解耦 diffusion head；多任务损失联合训练。",
+      "有什么代价：自回归生成分辨率/保真度弱，扩散统一需额外解码器且两分支梯度可能冲突，训练数据与稳定性更难；推理时长随生成步数上升。",
+      "怎么评测：在理解榜（MMBench、SEED）与生成榜（GenEval、T2I-CompBench）上同时报告，并测统一模型的指令一致性（生成是否遵循理解上下文）。"
+    ],
+    "edgeCases": [
+      "图像与文本 token 长度悬殊，长图序列导致自回归生成显存爆炸。",
+      "训练早期理解与生成损失量级不一致，一方主导梯度。",
+      "生成分支需要高分辨率，但共享编码器为理解优化，语义与像素对齐错配。",
+      "多任务数据配比失衡时模型退化为只擅长其中一项（mode collapse）。"
+    ],
+    "pitfalls": [
+      "误把“共享 encoder”当作“完全统一”，实际仍是两个 head，评测时互不知晓。",
+      "用理解数据主导训练，生成质量塌缩却只在生成榜暴露，易被忽略。"
+    ],
+    "prerequisites": [
+      "多模态对齐与对比学习（CLIP 式表征）",
+      "自回归语言模型与扩散模型基本原理"
+    ],
+    "workedExample": [
+      "Emu：图像经 VIT 编码后离散化为 visual token，与文本拼接由 LLM 自回归预测，既答问又生成图。",
+      "Janus：理解走 LLM 文本头，生成走独立扩散解码器，二者共享同一语义编码器实现“一脑两用”。"
+    ],
+    "lineByLine": [
+      "encoder 把混合的图像/文本输入投影到同一语义空间，是理解-生成共享的基础。",
+      "forward 中按 task 分支：understand 交给 LLM 做 next-token 预测，generate 交给 diffusion_head 做去噪，体现双路统一。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么 Janus 不直接让 LLM 生成图像，而要单独 diffusion head？",
+        "answer": "LLM 的离散 next-token 预测难以刻画高频像素细节，扩散在连续空间去噪保真度更高；共享 encoder 已提供语义条件，解耦 head 可在不破坏理解能力下获得高质量生成。"
+      },
+      {
+        "question": "统一训练时如何平衡理解与生成损失？",
+        "answer": "常用损失加权 + 课程调度：早期偏理解稳定表征，后期加生成；或按 token 类型分别归一化，防止长生成序列的回归损失淹没分类损失。"
+      }
+    ],
+    "followUpAnswers": [
+      "LLM 的离散 next-token 预测难以刻画高频像素细节，扩散在连续空间去噪保真度更高；共享 encoder 已提供语义条件，解耦 head 可在不破坏理解能力下获得高质量生成。",
+      "常用损失加权 + 课程调度：早期偏理解稳定表征，后期加生成；或按 token 类型分别归一化，防止长生成序列的回归损失淹没分类损失。"
+    ]
+  },
+  {
+    "id": "mmd-video-gen-understand",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "视频生成式理解",
+    "difficulty": "Hard",
+    "prompt": "“用生成来辅助理解”的视频多模态模型是怎么回事？时序 token 与时空建模如何支撑视频的生成与理解统一？",
+    "quickAnswer": "视频生成式理解把视频帧编码为带时间顺序的 token 序列，模型既能预测下一帧（生成）也能回答关于视频内容的问题（理解）。核心是时空 token 化与时序注意力：时间维建模运动与因果，空间维建模每帧内容。生成任务提供的运动先验反过来提升动作/事件理解。",
+    "code": "import torch\n\ndef temporal_tokenize(frames, encoder, tube_size=4):\n    # frames: [B, T, 3, H, W]\n    b, t, c, h, w = frames.shape\n    tokens = []\n    for start in range(0, t, tube_size):\n        tube = frames[:, start:start + tube_size]      # 时空立方体\n        tokens.append(encoder(tube))                   # 编码为时空 token\n    return torch.cat(tokens, dim=1)                    # [B, T', D] 序列",
+    "complexity": "O(T·N·D)",
+    "beginnerSummary": "视频就是一堆按时间排列的图片。让模型既懂得“发生了什么”，又能“接着往下演”，关键是把一小段时间里的画面切成带顺序的 token，让模型学会时间上的规律。",
+    "explanationFocus": "是什么：视频生成式理解指将视频同时用于“生成”（预测/补全未来帧、视频扩散）与“理解”（动作识别、时序问答、事件定位）的统一范式，借助生成任务学到的运动与因果先验增强理解能力。",
+    "approach": "把视频切成时空 token（tube/temporal patch），用 3D 或分解的时空注意力建模；理解用时序池化+问答头，生成用帧预测/扩散解码。二者共享时空编码器，常用“遮挡帧重建”等生成式自监督作为预训练，使模型隐式学到运动与因果。",
+    "derivation": [
+      "为什么需要：纯理解模型缺乏运动与因果建模，难以回答“接下来会怎样”“谁先做的”等时序问题；生成任务天然提供时序监督。",
+      "怎么实现：时空 token 化（tubelet/patch）+ 分解时空注意力或 3D 卷积；掩码帧重建、未来帧预测作为生成式预训练。",
+      "有什么代价：视频 token 数量随帧数线性增长，长视频显存与时延压力大；时空注意力复杂度高。",
+      "怎么评测：时序 VQA（NExT-QA、TVQA）、动作定位与视频生成质量（FVD）联合评估。"
+    ],
+    "edgeCases": [
+      "长视频远超上下文窗口，需分段或压缩时序 token。",
+      "相机运动与物体运动混淆，生成式重建可能只学到外观不变。",
+      "高帧率与低帧率语义不一致，时序下采样丢失关键动作。",
+      "静态镜头无运动信号，生成式时序监督失效。"
+    ],
+    "pitfalls": [
+      "把空间 VIT 逐帧套用而忽略时间维，等于“看图说话”而非视频理解。",
+      "用单帧问答数据评估视频模型，掩盖时序推理缺陷。"
+    ],
+    "prerequisites": [
+      "视频时空建模（3D 卷积、时空注意力）",
+      "多模态生成与自监督预训练"
+    ],
+    "workedExample": [
+      "tubelet 编码：每 4 帧作为一个时空立方体编码为一个 token，既压缩序列又保留局部运动。",
+      "掩码帧重建预训练：随机遮挡中间帧，让模型据前后帧生成被遮挡内容，隐式学到因果时序。"
+    ],
+    "lineByLine": [
+      "temporal_tokenize 将视频按 tube_size 切成时空立方体，降低帧数带来的 token 爆炸。",
+      "encoder(tube) 把每个时空立方体映射为单个 token，拼接成可输入 LLM 的时序序列。"
+    ],
+    "followUps": [
+      {
+        "question": "视频生成式理解与直接做视频问答有什么本质区别？",
+        "answer": "前者在预训练/训练中显式优化生成（重建、预测未来帧），迫使模型建模运动与因果，因而对“接下来发生什么”类问题更强；后者只优化问答损失，易退化为关键帧分类。"
+      },
+      {
+        "question": "如何处理超长视频的时序 token 爆炸？",
+        "answer": "采用分段编码+时序记忆、token 合并（如时间维 pool/attention merge），或分层表示：底层高帧率低分辨率、高层低帧率高语义。"
+      }
+    ],
+    "followUpAnswers": [
+      "前者在预训练/训练中显式优化生成（重建、预测未来帧），迫使模型建模运动与因果，因而对“接下来发生什么”类问题更强；后者只优化问答损失，易退化为关键帧分类。",
+      "采用分段编码+时序记忆、token 合并（如时间维 pool/attention merge），或分层表示：底层高帧率低分辨率、高层低帧率高语义。"
+    ]
+  },
+  {
+    "id": "mmd-vlm-pretrain-adv",
+    "kind": "concept",
+    "category": "多模态模型",
+    "title": "多模态预训练进阶",
+    "difficulty": "Hard",
+    "prompt": "大规模多模态预训练有哪些进阶技巧？图文对清洗、交错数据（interleaved）与课程/阶段训练如何安排？",
+    "quickAnswer": "进阶预训练强调数据质量优先：用 CLIP 相似度+启发式清洗图文对，去重与去噪；引入交错文档（图文混排、多图多文）提升上下文多图推理；训练分“对齐—预训练—指令微调”多阶段，课程由粗到细、由单图到多图/视频，稳定收敛并提上限。",
+    "code": "def stage_schedule(epoch, plan):\n    # plan: [(end_epoch, data_mix, lr)]\n    for end_epoch, data_mix, lr in plan:\n        if epoch < end_epoch:\n            return data_mix, lr        # 当前阶段的数据配比与学习率\n    return plan[-1][1], plan[-1][2]",
+    "complexity": "O(E·D)",
+    "beginnerSummary": "训练一个强大的多模态模型不是一股脑喂数据，而是像备课一样分阶段的：先学图文对齐打基础，再读大量图文混排资料提升综合理解，最后做指令微调学会听话。数据也要反复清洗，去掉脏的和重复的。",
+    "explanationFocus": "是什么：多模态预训练进阶指在大规视觉-语言预训练中，超越“随机图文对”的基础做法，系统化运用数据清洗、交错（interleaved）多图多文数据、以及分阶段/课程化训练策略来提升模型上限与稳定性。",
+    "approach": "数据侧：CLIP 相似度阈值+文本质量（长度、噪声词）过滤、全局去重；引入 MMC4/OBELICS 式交错数据强化上下文；训练侧：阶段一冻 LLM 只训连接器做对齐，阶段二联合预训练，阶段三指令微调，并按难度/模态课程递进。",
+    "derivation": [
+      "为什么需要：原始网络图文对噪声大、重复多，且单图配对缺乏多图/上下文推理能力。",
+      "怎么实现：相似度+质量过滤与去重；混入交错数据；多阶段冻结-解冻与课程配比。",
+      "有什么代价：清洗与去重计算开销大；交错数据构造复杂；阶段切换需调学习率防遗忘。",
+      "怎么评测：对比清洗前后、交错有无、阶段策略在综合榜与多图任务上的增益。"
+    ],
+    "edgeCases": [
+      "过度清洗误删罕见但正确的图文对，损长尾。",
+      "交错数据上下文过长超窗口。",
+      "阶段切换学习率不当导致灾难性遗忘。",
+      "去重误伤同图不同描述的有效样本。"
+    ],
+    "pitfalls": [
+      "只堆量不清洗，噪声主导梯度，上限受限。",
+      "预训练直接放开全部参数，易遗忘语言能力。"
+    ],
+    "prerequisites": [
+      "对比预训练（CLIP 式）基础",
+      "多阶段训练与课程学习"
+    ],
+    "workedExample": [
+      "交错数据：一段文档中图文交替出现，模型学会“下图展示了上述现象”的上下文引用。",
+      "三阶段：先对齐连接器，再联合预训练，最后指令微调，逐步解冻避免遗忘。"
+    ],
+    "lineByLine": [
+      "stage_schedule 按 epoch 区间返回对应的数据混合与学习率，实现分阶段训练。",
+      "阶段切换通过更换 data_mix 与 lr 控制，避免一次性全参数训练导致的遗忘。"
+    ],
+    "followUps": [
+      {
+        "question": "交错数据相比图文对的核心价值是什么？",
+        "answer": "图文对是单图单句，缺上下文；交错数据让模型在多图多文序列中学会指代、对比与多步推理，是 few-shot 与多图理解能力的关键来源。"
+      },
+      {
+        "question": "为什么预训练初期要冻结 LLM？",
+        "answer": "初期只训轻量连接器可低成本建立图文对齐，避免随机初始化的视觉映射破坏已学的语言知识；对齐稳后再联合解冻提升上限。"
+      }
+    ],
+    "followUpAnswers": [
+      "图文对是单图单句，缺上下文；交错数据让模型在多图多文序列中学会指代、对比与多步推理，是 few-shot 与多图理解能力的关键来源。",
+      "初期只训轻量连接器可低成本建立图文对齐，避免随机初始化的视觉映射破坏已学的语言知识；对齐稳后再联合解冻提升上限。"
+    ]
+  },
+  {
     "id": "inf-arithmetic-intensity",
     "kind": "concept",
     "category": "大模型推理原理",
@@ -17763,6 +18324,576 @@ export const questions = [
       "物品向量离线建索引加速。"
     ],
     "diagram": "用户特征─▶用户塔─▶u\n               ×内积\n物品特征─▶物品塔─▶v  (离线建索引)\n→ 近邻检索 top-K 召回"
+  },
+  {
+    "id": "recd-bias-loop",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "推荐回环与偏置：选择性偏差与去偏",
+    "difficulty": "Hard",
+    "prompt": "推荐系统中的反馈循环会带来哪些偏置（选择性、流行度、曝光偏差）？有哪些去偏方法可以打破恶性循环？",
+    "quickAnswer": "反馈循环会放大偏置：选择性偏差(只看曝光样本)、流行度偏差(马太效应)、曝光偏差(未曝光永不学)。去偏可用 IPS 逆概率加权、因果图/兴趣反事实、探索注入与正则化，目标是让模型学到\"用户真实兴趣\"而非\"系统给的\"。",
+    "code": "def ips_debias(label, propensity, clip=0.1):\n    # 逆倾向加权：降低高曝光样本权重，提升长尾样本权重\n    p = max(propensity, clip)\n    return label / p\n\ndef popularity_regularize(logit, pop_score, alpha=0.1):\n    # 抑制热门物品偏置项，缓解马太效应\n    return logit - alpha * pop_score",
+    "complexity": "O(N) per batch",
+    "beginnerSummary": "系统总推它推过的东西，越推越火、别的越没机会——这就是回环偏置。去偏就是故意打破这个循环，给非热门内容公平学习的机会。",
+    "explanationFocus": "是什么：推荐回环与偏置指模型训练数据来自自身曝光，导致选择性/流行度/曝光偏差自我强化，使系统偏离用户真实兴趣并损害多样性与公平性。",
+    "approach": "用 IPS/DR 逆倾向加权纠正选择性偏差；用因果去偏(反事实推断用户真正偏好)剥离展示偏置；加流行度正则与探索流量打破马太效应；用无偏日志或随机流量做校准。",
+    "derivation": [
+      "为什么需要：训练只见过系统选过的内容，未曝光永远负向，偏差自我强化。",
+      "怎么实现：IPS 用曝光倾向分加权；因果图做反事实校正；流行度正则降权热门。",
+      "有什么代价：IPS 方差大需截断，随机流量牺牲短期指标，因果假设难验证。",
+      "怎么评测：长尾覆盖率、基尼系数、去偏后离线与长期多样性。"
+    ],
+    "edgeCases": [
+      "倾向分估计不准导致 IPS 权重爆炸需截断。",
+      "新品无曝光历史，倾向分缺失。",
+      "随机探索流量成本随规模非线性增长。"
+    ],
+    "pitfalls": [
+      "只优化点击忽视偏差，系统越来越窄。",
+      "误把去偏当万能，忽略内容质量底限。"
+    ],
+    "prerequisites": [
+      "因果推断与反事实",
+      "IPS/DR 重要性采样"
+    ],
+    "workedExample": [
+      "热门视频 A 曝光 100 万次、点击 10 万；长尾 B 曝光 1 万、点击 800。",
+      "IPS 用倾向分(曝光概率)加权后，B 的相对学习信号被放大，模型不再只讨好热门，长尾曝光提升。"
+    ],
+    "lineByLine": [
+      "def ips_debias：逆倾向加权纠正样本偏差。",
+      "p = max(propensity, clip)：截断防极端权重。",
+      "return label / p：低曝光样本权重升高。",
+      "def popularity_regularize：从 logit 中减去热门偏置项。"
+    ],
+    "followUps": [
+      {
+        "question": "因果去偏和 IPS 去偏有什么联系？",
+        "answer": "IPS 是从采样视角纠偏，因果去偏从生成视角建模\"展示→反馈\"的机制并用反事实剔除展示偏置，二者都旨在估计无偏兴趣，可结合使用。"
+      },
+      {
+        "question": "曝光偏差和选择性偏差区别？",
+        "answer": "曝光偏差是\"未曝光样本从未进入训练\"的集合级问题；选择性偏差是\"用户在曝光集中选择性点击\"的样本级问题，前者更根本。"
+      }
+    ],
+    "followUpAnswers": [
+      "IPS 是从采样视角纠偏，因果去偏从生成视角建模\"展示→反馈\"的机制并用反事实剔除展示偏置，二者都旨在估计无偏兴趣，可结合使用。",
+      "曝光偏差是\"未曝光样本从未进入训练\"的集合级问题；选择性偏差是\"用户在曝光集中选择性点击\"的样本级问题，前者更根本。"
+    ]
+  },
+  {
+    "id": "recd-coldstart-adv",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "用户&物品冷启动进阶：元学习与实时特征",
+    "difficulty": "Hard",
+    "prompt": "对于新用户和新物品（冷启动），除了默认兜底策略，有哪些进阶方法可以利用元学习与实时特征来快速建模兴趣？",
+    "quickAnswer": "物品冷启动可用内容/多模态特征与实时点击信号做快速embedding；用户冷启动可用元学习(MAML)从少量行为快速适配，或用跨域/社交关系泛化兴趣。关键是把\"冷\"转化为\"有内容语义与实时反馈\"的热。",
+    "code": "import torch\n\ndef meta_adapt(model, support_x, support_y, lr=0.01):\n    # MAML 风格：在少量支持集上走一步内循环，得到个性化参数\n    params = [p.clone().requires_grad_(True) for p in model.parameters()]\n    for _ in range(5):\n        loss = model.loss(support_x, support_y, params)\n        grads = torch.autograd.grad(loss, params)\n        params = [p - lr * g for p, g in zip(params, grads)]\n    return params  # 冷用户快速适配后的参数",
+    "complexity": "O(K·|θ|) 内循环 (K 步)",
+    "beginnerSummary": "新用户没历史、新视频没播放，系统一开始不知道推什么。冷启动就是用内容本身的信息和最初几次反馈来\"猜\"兴趣。",
+    "explanationFocus": "是什么：冷启动进阶指在不依赖长期行为日志的前提下，借助内容语义、元学习快速适配、跨域迁移与实时反馈信号，为全新用户/物品建立有效表征的技术集合。",
+    "approach": "物品侧用多模态/文本特征生成 item embedding 并接实时点击更新；用户侧用 MAML 在少量支持集上内循环适配，或用兴趣泛化（群体先验+会话内序列）建模；再配合探索流量快速积累信号。",
+    "derivation": [
+      "为什么需要：纯 ID embedding 对零曝光物品/新用户无效，ID 稀疏导致无法泛化。",
+      "怎么实现：内容特征预训练 item 语义向量；MAML 学\"易适配\"初始化；会话内实时序列建模新用户即时兴趣。",
+      "有什么代价：内容特征与行为分布有 gap，元学习训练不稳定、内循环耗算力。",
+      "怎么评测：冷启子集上的 CTR/完播，以及冷用户次日留存、新物品曝光渗透率。"
+    ],
+    "edgeCases": [
+      "全新用户零行为，只能靠设备/上下文与内容热度兜底。",
+      "新物品内容特征缺失（无封面/标题）需多模态补全。",
+      "实时反馈噪声大（误触）需去噪与置信过滤。"
+    ],
+    "pitfalls": [
+      "直接用全局热门填充，长期伤害个性化与多样性。",
+      "元学习过拟合到\"易适配\"的少数任务，真实冷用户表现差。"
+    ],
+    "prerequisites": [
+      "Embedding 与序列建模（DIN/Transformer）",
+      "元学习(MAML)与迁移学习基础"
+    ],
+    "workedExample": [
+      "新用户仅看了 3 个宠物视频；用会话序列 Transformer 立刻得到\"宠物\"兴趣向量，首屏偏向萌宠内容。",
+      "新视频无播放：用封面+标题多模态 embedding 进入相似萌宠簇召回，并给 1% 探索流量，2 小时内积累点击后转入正常排序。"
+    ],
+    "lineByLine": [
+      "def meta_adapt：输入模型与支持集，输出适配后参数。",
+      "params = clone：复制原参数用于内循环，不动全局模型。",
+      "for _ in range(5)：在支持集上做 5 步梯度下降模拟\"快速学习\"。",
+      "return params：得到针对该冷用户的个性化参数，仅用极少样本。"
+    ],
+    "followUps": [
+      {
+        "question": "物品冷启动和内容推荐有什么区别？",
+        "answer": "物品冷启动聚焦\"无行为新物品如何获得曝光\"，侧重实时特征与探索；内容推荐是更广义的用内容语义做召回排序，二者在语义 embedding 上重合但目标不同。"
+      },
+      {
+        "question": "实时特征在冷启动里起什么作用？",
+        "answer": "冷启动初期行为极少，实时点击/停留信号能在分钟级更新临时 embedding，把\"冷\"快速变\"温\"，是冷启转正的核心闭环。"
+      }
+    ],
+    "followUpAnswers": [
+      "物品冷启动聚焦\"无行为新物品如何获得曝光\"，侧重实时特征与探索；内容推荐是更广义的用内容语义做召回排序，二者在语义 embedding 上重合但目标不同。",
+      "冷启动初期行为极少，实时点击/停留信号能在分钟级更新临时 embedding，把\"冷\"快速变\"温\"，是冷启转正的核心闭环。"
+    ]
+  },
+  {
+    "id": "recd-ee",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "探索与利用(EE)：置信上界与 Thompson Sampling",
+    "difficulty": "Medium",
+    "prompt": "推荐系统如何在\"利用已知好内容\"和\"探索未知潜力内容\"之间做平衡？请说明 UCB 与 Thompson Sampling 的思路？",
+    "quickAnswer": "EE 通过给不确定性高的内容更多曝光来发现潜在好物品。UCB 用\"均值+置信半径\"选分高且不确定者；Thompson Sampling 从后验采样再贪心，理论上 regret 更优。冷启动与多样性都依赖 EE 来打破马太效应。",
+    "code": "import math\nimport random\n\ndef ucb_score(avg_reward, n_item, n_total, c=1.0):\n    # avg_reward: 该物品平均奖励; n_item: 该物品曝光次数\n    if n_item == 0:\n        return float('inf')          # 未曝光优先探索\n    bonus = c * math.sqrt(math.log(n_total + 1) / n_item)\n    return avg_reward + bonus\n\ndef thompson_sample(alpha, beta):\n    # 对每个物品从 Beta 后验采样一次，取最大者\n    return random.betavariate(alpha, beta)",
+    "complexity": "O(N) per decision (N 物品数)",
+    "beginnerSummary": "如果系统只推它\"以为\"你喜欢的东西，就永远发现不了你可能更喜欢的新内容。EE 就是给没把握的内容一点机会去试探。",
+    "explanationFocus": "是什么：探索与利用(EE)是一类在\"推已知好内容(利用)\"和\"试探未知内容(探索)\"之间权衡的策略，目标是最小化长期累积遗憾(regret)。",
+    "approach": "把每个物品的奖励建模为带不确定性的分布：UCB 用均值加置信上界显式鼓励未充分曝光物品；Thompson Sampling 从后验分布采样再贪心，理论 regret 界更紧；线上常配合随机流量与多样性约束。",
+    "derivation": [
+      "为什么需要：纯利用会陷入信息茧房、马太效应，新内容永远没机会，长期收益受损。",
+      "怎么实现：维护每物品奖励估计与曝光计数；UCB=均值+√(logN/n)；TS 从 Beta/高斯后验采样取最大。",
+      "有什么代价：探索浪费部分流量于可能低质内容，短期指标有损，需控制探索比例。",
+      "怎么评测：用累积 regret、长期留存/多样性指标，以及探索内容的后续转化率。"
+    ],
+    "edgeCases": [
+      "全新物品 n_item=0，UCB 应返回无穷大优先探索或给先验。",
+      "奖励非平稳（热点时效性强）需衰减计数或滑动窗口。",
+      "物品海量时逐物品 UCB 计算开销大，需分桶或乱序抽样。"
+    ],
+    "pitfalls": [
+      "探索比例固定拍脑袋，未随置信度自适应。",
+      "把点击当唯一奖励，忽略负反馈导致探索到低质内容。"
+    ],
+    "prerequisites": [
+      "多臂老虎机(MAB)基础",
+      "贝叶斯推断与后验分布"
+    ],
+    "workedExample": [
+      "两个视频：A 曝光100次均值0.8，B 曝光5次均值0.6；n_total=105，c=1。",
+      "UCB_A≈0.8+√(ln106/100)≈0.829，UCB_B≈0.6+√(ln106/5)≈0.954，选 B 探索，因为 B 不确定性高。"
+    ],
+    "lineByLine": [
+      "def ucb_score：计算单个物品的 UCB 分数。",
+      "if n_item==0: return inf：未曝光物品优先探索。",
+      "bonus = c*√(log(n_total+1)/n_item)：曝光越少置信半径越大。",
+      "def thompson_sample：从 Beta 后验采样一个值用于贪心比较。"
+    ],
+    "followUps": [
+      {
+        "question": "UCB 和 Thompson Sampling 哪个更好？",
+        "answer": "TS 在理论 regret 上通常更优且实现简单（只需采样），UCB 更直观易调参；实践中 TS 配合 Beta-Bernoulli 在推荐 EE 中更常见。"
+      },
+      {
+        "question": "怎么把 EE 和深度学习排序结合？",
+        "answer": "可在召回/重排层注入探索流量，或用基于模型的 EE（如 LinUCB 用上下文特征预估置信区间），让探索更个性化。"
+      }
+    ],
+    "followUpAnswers": [
+      "TS 在理论 regret 上通常更优且实现简单（只需采样），UCB 更直观易调参；实践中 TS 配合 Beta-Bernoulli 在推荐 EE 中更常见。",
+      "可在召回/重排层注入探索流量，或用基于模型的 EE（如 LinUCB 用上下文特征预估置信区间），让探索更个性化。"
+    ]
+  },
+  {
+    "id": "recd-generative-rec",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "生成式推荐：TIGER 与 LLM-as-Recommender",
+    "difficulty": "Hard",
+    "prompt": "什么是生成式推荐（如 TIGER）？它用 item 语义 ID 替代传统 ID embedding 的思路是什么，和传统召排有何不同？",
+    "quickAnswer": "生成式推荐把推荐看作\"生成下一个 item\"的序列生成问题：TIGER 用 RQ-VAE 把 item 编码成离散语义 ID 序列，再用 Transformer 自回归生成。相比传统 ID embedding，它天然泛化到冷启动、可做零样本推荐，但推理成本与语义 ID 质量是关键瓶颈。",
+    "code": "import torch\n\ndef semantic_id(item_feat, rqvae):\n    # RQ-VAE：残差量化得到多级 code 作为 item 语义 ID\n    z = rqvae.encoder(item_feat)\n    codes = []\n    for q in rqvae.quantizers:\n        z, code = q(z)        # 每级最近码本向量 + 离散 code\n        codes.append(code)\n    return codes              # 如 [12, 4, 7] 即 item 的语义 ID\n\n# 自回归：P(id_t | id_<t, user_seq)\n",
+    "complexity": "O(L·K·D) 生成 (L 序列长)",
+    "beginnerSummary": "传统推荐给每个视频编个号码，新视频没号码就懵了。生成式推荐给视频起一串\"语义编号\"，模型像写作文一样续写出下一个视频的编号。",
+    "explanationFocus": "是什么：生成式推荐将推荐建模为自回归生成任务，用离散语义 ID 表示 item，由序列模型直接生成用户下一个可能感兴趣的 item ID 序列。",
+    "approach": "先用 RQ-VAE 把 item 内容特征量化成多级语义 ID；再把用户行为序列当作 token 序列，训练 Transformer 预测下一组语义 ID；推理时 beam search 解码出候选 item，可用 LLM 注入语义推理。",
+    "derivation": [
+      "为什么需要：传统 ID embedding 无法处理零曝光新物品，且召排分离带来信息损失。",
+      "怎么实现：RQ-VAE 量化得语义 ID；序列模型自回归生成；LLM 用自然语言偏好做零样本推荐。",
+      "有什么代价：语义 ID 量化有损、推理慢、beam search 成本高，且依赖内容特征质量。",
+      "怎么评测：Recall@K/NDCG 同传统，外加冷启 Recall 与生成多样性。"
+    ],
+    "edgeCases": [
+      "语义 ID 碰撞（不同物品同 code）导致混淆。",
+      "长尾 item 量化码本覆盖不足。",
+      "LLM 推理延迟高需蒸馏或缓存。"
+    ],
+    "pitfalls": [
+      "把语义 ID 当普通 token 忽视层级结构。",
+      "仅用标题文本，忽略多模态导致 ID 语义不准。"
+    ],
+    "prerequisites": [
+      "RQ-VAE / 向量量化(VQ)",
+      "自回归语言模型(Transformer)"
+    ],
+    "workedExample": [
+      "某美食视频经 RQ-VAE 得到语义 ID [3,9,2]；用户历史序列 token 化为 [5,1,.., 3,9,2]。",
+      "模型自回归续写出 [3,9,5]，解码回码本得到同簇\"烘焙\"视频，实现零曝光新品被推荐。"
+    ],
+    "lineByLine": [
+      "def semantic_id：把 item 特征转成语义 ID。",
+      "z = encoder：编码内容特征到连续向量。",
+      "for q in quantizers：逐级残差量化，得到多级离散 code。",
+      "return codes：返回如 [12,4,7] 的层级语义 ID 供生成模型使用。"
+    ],
+    "followUps": [
+      {
+        "question": "语义 ID 和传统 item ID 最大的区别？",
+        "answer": "传统 ID 是随机独热、无语义且不可泛化；语义 ID 由内容量化得到，相似物品共享前缀 code，天然支持冷启动与层次化召回。"
+      },
+      {
+        "question": "生成式推荐能完全替代召排吗？",
+        "answer": "短期内难替代：生成式推理成本高、候选规模受限，更常见是作为召回补充或重排，与传统双塔/粗排级联。"
+      }
+    ],
+    "followUpAnswers": [
+      "传统 ID 是随机独热、无语义且不可泛化；语义 ID 由内容量化得到，相似物品共享前缀 code，天然支持冷启动与层次化召回。",
+      "短期内难替代：生成式推理成本高、候选规模受限，更常见是作为召回补充或重排，与传统双塔/粗排级联。"
+    ]
+  },
+  {
+    "id": "recd-graph-rec",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "图推荐：U-I 二部图与 GraphSAGE/PinSage",
+    "difficulty": "Hard",
+    "prompt": "如何用语图结构（用户-物品二部图）做推荐？GraphSAGE 与 PinSage 的邻域采样与聚合思路是什么？",
+    "quickAnswer": "图推荐把用户与物品建成二部图，用节点间连边传播协同信号。GraphSAGE 通过采样固定大小邻域并聚合邻居表示来学节点 embedding；PinSAGE 用随机游走重要性采样+生产者-消费者聚合，适合工业级海量图。",
+    "code": "import torch\n\ndef sage_aggregate(node, neighbors, mlp):\n    # GraphSAGE：采样邻居并聚合得到节点表示\n    neigh_vecs = [n.embed for n in neighbors]\n    agg = torch.mean(torch.stack(neigh_vecs), dim=0)   # 均值聚合\n    combined = torch.cat([node.embed, agg], dim=-1)\n    return mlp(combined)                                # 更新节点 embedding",
+    "complexity": "O(S·D) per node (S 采样邻居数)",
+    "beginnerSummary": "\"和你看过相似视频的人，也看了这个\"——图推荐就是把用户和视频连成一张大网，让喜好沿着连线传播扩散。",
+    "explanationFocus": "是什么：图推荐将用户与物品视为二部图中的两类节点，通过连边传播协同信号来学习节点表示并做推荐，能显式利用高阶邻居信息。",
+    "approach": "构建 U-I 二部图；用 GraphSAGE 采样固定邻域并均值/池化聚合更新节点 embedding；PinSAGE 进一步用随机游走计算邻居重要性、做工业级采样与生产者-消费者并行聚合，得到 embedding 后接相似度检索。",
+    "derivation": [
+      "为什么需要：协同过滤只用到一阶共现，图可捕捉高阶连通与长尾传播。",
+      "怎么实现：建二部图→采样邻域→聚合(均值/pool)→多层堆叠得表示→检索。",
+      "有什么代价：全图传播算力大，采样引入方差，冷节点邻域稀疏。",
+      "怎么评测：Recall@K、NDCG，以及长尾 item 的覆盖提升。"
+    ],
+    "edgeCases": [
+      "超级热门节点连接过多需限采样防主导。",
+      "孤立冷物品无邻域需内容特征兜底。",
+      "动态图边频繁变化需增量更新。"
+    ],
+    "pitfalls": [
+      "邻域采样过大导致训练爆炸。",
+      "忽略边类型(点击/购买)把弱关系当强关系。"
+    ],
+    "prerequisites": [
+      "图神经网络(GNN)基础",
+      "协同过滤与 embedding 检索"
+    ],
+    "workedExample": [
+      "用户 U 看过视频 I1；I1 被用户 U2 看，U2 又看 I2。",
+      "二部图 2 跳：U 的表示经 I1→U2→I2 聚合到 I2 信号，故向 U 推荐 I2，实现高阶协同。"
+    ],
+    "lineByLine": [
+      "def sage_aggregate：对单节点做一层聚合。",
+      "neigh_vecs：收集采样邻居的当前 embedding。",
+      "agg = mean：均值池化邻居信息。",
+      "combined→mlp：拼接自身与邻居表示后映射更新。"
+    ],
+    "followUps": [
+      {
+        "question": "PinSage 相对 GraphSAGE 的工业改进？",
+        "answer": "PinSAGE 用随机游走重要性采样替代均匀采样，并用生产者-消费者模式做高效 mini-batch 聚合，配合局部图裁剪，能扩展到十亿级节点。"
+      },
+      {
+        "question": "图推荐和双塔召回怎么结合？",
+        "answer": "可用图模型产出更丰富的 user/item embedding 作为双塔的初始化或特征，再接 ANN 检索，兼顾图的高阶信号与召回路的线上效率。"
+      }
+    ],
+    "followUpAnswers": [
+      "PinSAGE 用随机游走重要性采样替代均匀采样，并用生产者-消费者模式做高效 mini-batch 聚合，配合局部图裁剪，能扩展到十亿级节点。",
+      "可用图模型产出更丰富的 user/item embedding 作为双塔的初始化或特征，再接 ANN 检索，兼顾图的高阶信号与召回路的线上效率。"
+    ]
+  },
+  {
+    "id": "recd-listwise-rerank",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "Listwise 重排与多样性：MMR/DPP 与生成式重排",
+    "difficulty": "Hard",
+    "prompt": "召回排序产出的候选列表如何做 listwise 重排以兼顾相关性与多样性？请说明 MMR、DPP 与生成式重排的取舍？",
+    "quickAnswer": "Listwise 重排把整个列表当优化对象：MMR 贪心插入\"既相关又互补\"的项；DPP 用行列式刻画\"质量×多样性\"做全局择优；生成式重排用序列模型直接生成排列。MMR 简单可控，DPP 全局优但开销大，生成式更灵活但难约束。",
+    "code": "import numpy as np\n\ndef mmr(selected, candidates, rel, sim, lambda_=0.7):\n    # rel: 相关性; sim: 候选与已选的最大相似度\n    while candidates:\n        scores = {i: lambda_ * rel[i] - (1 - lambda_) * max(sim[i][j] for j in selected)\n                  for i in candidates}\n        nxt = max(scores, key=scores.get)\n        selected.append(nxt); candidates.remove(nxt)\n    return selected  # 贪心构造兼顾相关与多样的列表",
+    "complexity": "O(L²·k) (L 列表长, k 候选)",
+    "beginnerSummary": "排好的列表如果全是同类视频会很无聊。重排就是把最终要展示的一屏内容调一调顺序，既保证好看又保证不重复。",
+    "explanationFocus": "是什么：Listwise 重排是在给定候选集合上以\"整列\"为决策单元、联合优化相关性与多样性/业务约束的排序阶段，区别于逐点(pointwise)与配对(pairwise)建模。",
+    "approach": "用 MMR 贪心平衡相关性与最大相似度；用 DPP 以核矩阵行列式同时建模质量与互斥性做全局采样；或用生成式/序列模型(如 PRM、Generator)直接输出排列，并叠加业务硬约束（品类打散、去重）。",
+    "derivation": [
+      "为什么需要：pointwise 排序忽视列表内重复与上下文，导致同质化、用户体验下降。",
+      "怎么实现：MMR=λ·rel-(1-λ)·maxSim 贪心；DPP 最小化 -log det(L) 求高质量低冗余子集；生成式用 encoder-decoder 输出序。",
+      "有什么代价：DPP 行列式计算 O(n³)，生成式重排不可微约束难加、推理慢。",
+      "怎么评测：列表级指标(Illeagecy/ILD/覆盖率)、线上时长与互动多样性。"
+    ],
+    "edgeCases": [
+      "候选全同类时多样性约束可能牺牲过多相关性。",
+      "硬业务约束（同作者≤2）与最优排列冲突需松弛。",
+      "列表短(≤3)时 MMR/DPP 收益有限。"
+    ],
+    "pitfalls": [
+      "λ 固定忽略用户对不同场景的多样需求。",
+      "DPP 核矩阵近似不当导致数值不稳定。"
+    ],
+    "prerequisites": [
+      "行列式点过程(DPP)基础",
+      "序列生成与 beam search"
+    ],
+    "workedExample": [
+      "候选：3 个搞笑、2 个美食、2 个科普；用户爱搞笑。",
+      "MMR(λ=0.6)先选最相关搞笑，再因相似度惩罚选一个美食，交错插入，最终列表搞笑-美食-搞笑-科普，避免连续搞笑疲劳。"
+    ],
+    "lineByLine": [
+      "def mmr：输入已选/候选/相关性/相似度，贪心构造列表。",
+      "while candidates：循环直到候选清空。",
+      "scores = λ·rel - (1-λ)·maxSim：兼顾自身相关与和已选最大相似度。",
+      "nxt = max：每步选综合分最高者加入已选。"
+    ],
+    "followUps": [
+      {
+        "question": "DPP 相比 MMR 好在哪？",
+        "answer": "MMR 是贪心局部决策，DPP 用行列式一次性建模集合的\"质量×多样性\"联合概率，能选出全局更优子集，但计算更重且需合适的核。"
+      },
+      {
+        "question": "生成式重排怎么加业务约束？",
+        "answer": "可在解码阶段用约束 beam search（禁止连续同类、限制同作者数），或在训练时把约束违反作为 reward 用 RL 微调。"
+      }
+    ],
+    "followUpAnswers": [
+      "MMR 是贪心局部决策，DPP 用行列式一次性建模集合的\"质量×多样性\"联合概率，能选出全局更优子集，但计算更重且需合适的核。",
+      "可在解码阶段用约束 beam search（禁止连续同类、限制同作者数），或在训练时把约束违反作为 reward 用 RL 微调。"
+    ]
+  },
+  {
+    "id": "recd-multiobjective",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "多目标排序深化：多目标联合建模与帕累托前沿",
+    "difficulty": "Hard",
+    "prompt": "在短视频推荐中，如何联合建模完播、点赞、转发、关注等多个目标，并处理目标之间的冲突？",
+    "quickAnswer": "多目标排序通常先为每个目标单独预估（共享底层表示），再通过融合层聚合；目标冲突时可用帕累托前沿寻找非支配解，或采用 ESMM/MMOE 等多任务结构显式解耦专家。线上一般用可学习权重或约束优化平衡长期与短期收益。",
+    "code": "import torch\n\nclass MMOE(torch.nn.Module):\n    def __init__(self, n_experts=8, n_tasks=4):\n        super().__init__()\n        self.experts = torch.nn.ModuleList([torch.nn.Linear(64, 64) for _ in range(n_experts)])\n        self.gates = torch.nn.ModuleList([torch.nn.Linear(64, n_experts) for _ in range(n_tasks)])\n\n    def forward(self, x):\n        expert_out = [e(x) for e in self.experts]\n        stacked = torch.stack(expert_out, dim=1)        # [B, E, D]\n        outs = []\n        for gate in self.gates:\n            w = torch.softmax(gate(x), dim=-1)          # [B, E]\n            outs.append((w.unsqueeze(-1) * stacked).sum(dim=1))\n        return outs  # 每个目标的塔输入",
+    "complexity": "O(B·E·D) per forward",
+    "beginnerSummary": "推荐系统不只关心用户会不会点，还关心完播、点赞、转发等。一个模型同时学多个目标，既要准又要不互相拖累，这就是多目标排序。",
+    "explanationFocus": "是什么：多目标排序是在同一套特征与表示上联合预估多个业务指标（完播/点赞/转发/关注等），并通过融合或解耦机制平衡目标间冲突的排序范式。",
+    "approach": "先用共享底层（embedding + 特征交叉）产出统一表示，再为每个目标建独立塔；用 MMOE 的门控专家解耦目标间干扰，用 ESMM 借助全链路标签缓解样本选择偏差，最后用帕累托优化或可调权重融合。",
+    "derivation": [
+      "为什么需要：单一 CTR 目标会推高\"标题党\"，损害完播与关注，需要多目标刻画真实满意度。",
+      "怎么实现：共享底层 + 多专家门控(MMOE) + 各目标塔；ESMM 用曝光→点击→转化链路联合训练；线上融合分数 = Σ w_i·p_i 或帕累托加权。",
+      "有什么代价：目标互相冲突时权重难调、训练不稳定，多塔增加算力与上线复杂度。",
+      "怎么评测：离线用各目标 AUC/GAUC 分别评估，线上用多指标 A/B（完播率、互动率、关注率）与长期留存。"
+    ],
+    "edgeCases": [
+      "不同目标量级差异极大（关注远少于点击），需校准与负采样。",
+      "新目标冷启无标签，需迁移或影子模型灰度。",
+      "目标间负相关强时帕累托解不唯一，需策略选择。"
+    ],
+    "pitfalls": [
+      "直接用固定权重求和，权重靠拍脑袋且随场景漂移。",
+      "忽视目标间因果，把转发当独立目标导致刷量。"
+    ],
+    "prerequisites": [
+      "多任务学习基础（shared-bottom / 多塔）",
+      "排序模型 CTR 预估（DeepFM/DCN）"
+    ],
+    "workedExample": [
+      "场景：某视频曝光后用户完播且点赞但没关注——多目标模型分别给出 p(完播)=0.9, p(点赞)=0.7, p(关注)=0.1。",
+      "融合：score = 0.4·p完播 + 0.3·p点赞 + 0.3·p关注 = 0.60，与纯 CTR 模型排序不同，避免低质高点击内容。"
+    ],
+    "lineByLine": [
+      "class MMOE：定义多门控混合专家模型，含专家子网络与每个任务一个门控。",
+      "experts = ModuleList(...)：多个前馈专家共享输入，捕捉不同子空间模式。",
+      "gates = ModuleList(...)：每个任务一个门控，输出对专家的 softmax 权重。",
+      "forward：专家产出 stacked，按门控权重加权求和得到各任务塔输入。"
+    ],
+    "followUps": [
+      {
+        "question": "ESMM 如何解决样本选择偏差？",
+        "answer": "ESMM 不直接用\"转化\"正样本，而是建模 p(点击)·p(转化|点击)=p(转化)，用全量曝光样本训练，避免只在点击样本上训转化模型带来的偏差。"
+      },
+      {
+        "question": "帕累托前沿在推荐里怎么落地？",
+        "answer": "训练多个权重组合得到一组非支配解，线上用约束优化（如保证完播不低于基线）或超网络按用户/上下文动态选权重。"
+      }
+    ],
+    "followUpAnswers": [
+      "ESMM 不直接用\"转化\"正样本，而是建模 p(点击)·p(转化|点击)=p(转化)，用全量曝光样本训练，避免只在点击样本上训转化模型带来的偏差。",
+      "训练多个权重组合得到一组非支配解，线上用约束优化（如保证完播不低于基线）或超网络按用户/上下文动态选权重。"
+    ]
+  },
+  {
+    "id": "recd-real-time-feature",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "实时特征与样本拼接：线上线下一致性",
+    "difficulty": "Hard",
+    "prompt": "推荐系统的实时特征（用户最近行为、实时 embedding）如何生产与拼接？如何保证线上线下特征一致性，并处理 label 延迟？",
+    "quickAnswer": "实时特征靠流式窗口(如 Flink)聚合用户近 N 分钟行为并写特征库；样本拼接需把曝光请求时点的特征与延迟回传的 label 对齐。线上线下一致性靠同一套特征 SDK/快照，label 延迟用归因窗口与回刷解决。",
+    "code": "def build_sample(req_features, action_log, label_window=3600):\n    # 以请求时刻特征为准，回查窗口内动作作为 label\n    feat_snapshot = req_features.copy()      # 推理时点快照\n    label = 0\n    for act in action_log:\n        if 0 < act.ts - req_features.ts <= label_window:\n            label = 1                          # 窗口内转化记正\n    return feat_snapshot, label              # 特征与 label 解耦拼接",
+    "complexity": "O(M) 回查 (M 窗口内动作)",
+    "beginnerSummary": "用户刚看完一个视频，下一刷就该体现这个偏好。实时特征就是\"把刚才的行为立刻用上\"，而样本拼接要保证训练时用的特征和当时线上看的一致。",
+    "explanationFocus": "是什么：实时特征与样本拼接指在推荐链路中低延迟地生产用户/物品近期行为特征，并将\"请求时点特征\"与\"延迟回传 label\"正确对齐，保证训练与serving特征一致性的工程体系。",
+    "approach": "流式计算近实时行为特征写入在线存储；推理时同一 SDK 取特征并落快照；离线以请求快照+回查 label 窗口拼接训练样本；用特征监控与回放校验消除穿越与时点不一致。",
+    "derivation": [
+      "为什么需要：静态天级特征滞后，无法捕捉当下兴趣；label 延迟导致正负样本错位。",
+      "怎么实现：Flink 窗口聚合→特征库；请求落快照；回查归因窗口打 label。",
+      "有什么代价：流式链路复杂、一致性校验成本高，label 回刷引入重算。",
+      "怎么评测：特征一致性 diff 率、label 归因准确率、离线在线指标 gap。"
+    ],
+    "edgeCases": [
+      "label 延迟超过默认窗口导致漏标正样本。",
+      "特征库读取超时降级到旧值引入噪声。",
+      "同一请求多路重试造成重复曝光需去重。"
+    ],
+    "pitfalls": [
+      "训练用 T+1 特征而线上用实时特征，造成穿越。",
+      "忽略 label 延迟把未转化误当负例。"
+    ],
+    "prerequisites": [
+      "流式计算(Flink/Kafka)基础",
+      "特征存储与在线 serving"
+    ],
+    "workedExample": [
+      "用户 10:00 曝光视频，10:05 点击；label_window=3600 内回查到点击 → label=1。",
+      "训练样本使用 10:00 请求时点特征快照(含当时近 5 分钟行为)，与点击 label 拼接，避免用 10:05 才产生的特征造成穿越。"
+    ],
+    "lineByLine": [
+      "def build_sample：构造训练样本。",
+      "feat_snapshot = req_features.copy：保存推理时点特征防穿越。",
+      "for act in action_log：回查窗口内动作。",
+      "if 0<dt<=window: label=1：在归因窗口内记正样本。"
+    ],
+    "followUps": [
+      {
+        "question": "线上线下特征不一致最常见的根因？",
+        "answer": "同一特征在训练(离线SQL)与线上(实时服务)实现逻辑不同，或时间戳/窗口边界不一致，导致穿越与离线在线 gap。"
+      },
+      {
+        "question": "label 延迟怎么处理才不误导模型？",
+        "answer": "设足够长的归因窗口并做回刷，对未到窗口的样品延迟打标或暂存，避免把\"还没转化\"误判为负。"
+      }
+    ],
+    "followUpAnswers": [
+      "同一特征在训练(离线SQL)与线上(实时服务)实现逻辑不同，或时间戳/窗口边界不一致，导致穿越与离线在线 gap。",
+      "设足够长的归因窗口并做回刷，对未到窗口的样品延迟打标或暂存，避免把\"还没转化\"误判为负。"
+    ]
+  },
+  {
+    "id": "recd-rl-rec",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "强化学习在推荐：长期收益与 Reward 设计",
+    "difficulty": "Hard",
+    "prompt": "为什么推荐系统会引入强化学习？如何设计 reward 来优化用户长期收益，并解决 off-policy 与线上线下一致性问题？",
+    "quickAnswer": "RL 把推荐看成序列决策，能优化点击之外的长期指标（留存、时长）。Reward 常由即时互动+长期价值(LTV)折扣构成；off-policy 用 IPS 纠偏，线上线下一致性靠仿真器与一致性正则缓解分布漂移。",
+    "code": "def discounted_return(rewards, gamma=0.9):\n    # 把会话内逐步 reward 折算成长期收益\n    G = 0.0\n    for r in reversed(rewards):\n        G = r + gamma * G\n    return G\n\ndef ips_weight(propensity, behavior=0.5):\n    # 用倾向分纠正 off-policy 样本分布偏差\n    return min(propensity / behavior, 5.0)  # 截断防极端",
+    "complexity": "O(T) 回报计算 (T 会话步数)",
+    "beginnerSummary": "推荐不是推一次就完事，而是连续翻页的过程。RL 考虑\"现在推这个，将来用户会不会更愿意留下来\"，而不是只盯眼前点击。",
+    "explanationFocus": "是什么：强化学习在推荐中把系统建模为智能体，在\"状态(用户上下文)-动作(推荐列表)-奖励(用户反馈)\"的循环中学习最大化长期累积收益的策略。",
+    "approach": "定义 reward = 即时互动 + γ·长期价值（次日留存/时长）；用 off-policy 算法(如 DQN/RLSVP)在日志上训练并用 IPS 纠偏；用用户仿真器做离线评估，加一致性正则缩小线上策略与训练分布差距。",
+    "derivation": [
+      "为什么需要：监督式 CTR 只优化单步点击，易诱导短视内容、损害长期留存。",
+      "怎么实现：MDP 建模会话；reward 融合即时+长期；off-policy 训练 + IPS/DR 纠偏。",
+      "有什么代价：奖励稀疏、方差大、训练不稳定，线上探索有业务风险。",
+      "怎么评测：离线仿真 ROI、线上长期留存 A/B，而非单步 AUC。"
+    ],
+    "edgeCases": [
+      "奖励极度稀疏（很少产生关注/留存信号）。",
+      "短期 reward 与长期 reward 冲突需调 γ。",
+      "线上策略漂移导致 IPS 权重极端需截断。"
+    ],
+    "pitfalls": [
+      "reward 只设点击，RL 退化为监督学习。",
+      "忽视 off-policy 偏差直接上线导致效果崩。"
+    ],
+    "prerequisites": [
+      "MDP 与策略梯度基础",
+      "因果推断(倾向分 IPS)"
+    ],
+    "workedExample": [
+      "用户连续刷搞笑视频，单步点击高但 10 分钟后流失。",
+      "RL 策略因长期 reward 低，主动插入一个知识视频降低即时点击却提升 7 日留存，体现长期优化。"
+    ],
+    "lineByLine": [
+      "def discounted_return：把逐步 reward 折算为长期回报。",
+      "for r in reversed：从后往前累加并乘折扣 γ。",
+      "def ips_weight：计算倾向分纠正权重。",
+      "min(...,5.0)：截断防止极端权重放大方差。"
+    ],
+    "followUps": [
+      {
+        "question": "RL 推荐的 reward 怎么避免被刷量？",
+        "answer": "应混合行为质量信号（完播、真实互动、停留）与长期留存，并对异常高频互动做反作弊过滤，避免把刷量当正 reward。"
+      },
+      {
+        "question": "离线怎么评估 RL 推荐？",
+        "answer": "常用用户仿真器(learned simulator)批量回放策略，或用重加权(IPS/DR)在日志上估计策略价值，再小流量 A/B 验证。"
+      }
+    ],
+    "followUpAnswers": [
+      "应混合行为质量信号（完播、真实互动、停留）与长期留存，并对异常高频互动做反作弊过滤，避免把刷量当正 reward。",
+      "常用用户仿真器(learned simulator)批量回放策略，或用重加权(IPS/DR)在日志上估计策略价值，再小流量 A/B 验证。"
+    ]
+  },
+  {
+    "id": "recd-shortvideo-signals",
+    "kind": "concept",
+    "category": "搜索推荐",
+    "title": "短视频特有信号：完播、停留时长与负反馈",
+    "difficulty": "Medium",
+    "prompt": "短视频推荐相比长视频/图文，有哪些特有信号（完播率、停留时长、滑走、负反馈）？如何把这些信号建模进排序目标？",
+    "quickAnswer": "短视频核心信号是完播率、有效播放、停留时长、滑走(快速划过)与显式负反馈(不感兴趣/举报)。这些连续/隐式信号比点击更反映真实满意度，常作为多目标或权重项进入 loss，并对滑走做强负例惩罚。",
+    "code": "def short_video_label(play_duration, video_len, dwell, swiped):\n    # 构造短视频监督信号\n    finish_rate = play_duration / max(video_len, 1)\n    if swiped and dwell < 2:\n        return -1.0            # 强负例：秒划\n    if finish_rate >= 0.9:\n        return 1.0             # 完播正例\n    return finish_rate - 0.3   # 部分观看给中间分\n\ndef sample_weight(label):\n    return 2.0 if label == -1.0 else 1.0  # 负反馈加权",
+    "complexity": "O(1) per impression",
+    "beginnerSummary": "短视频用户手指一划就走。点不点反而没那么重要，更关键的是\"看没看完\"\"看了几秒就划走\"，这些才是短视频独有的真实态度。",
+    "explanationFocus": "是什么：短视频特有信号指完播率、有效播放、停留时长、快速滑走与显式负反馈等，比点击更能刻画用户在极短交互中的真实满意度。",
+    "approach": "把完播率与停留时长作为回归/分类目标；把\"秒划\"与\"不感兴趣\"作为强负例并加权；滑走序列建模为负向序列特征；与点击、互动一起进入多目标融合。",
+    "derivation": [
+      "为什么需要：短视频决策成本低，点击噪声大，完播/滑走更能区分好内容。",
+      "怎么实现：定义 finish_rate 回归目标；秒划打 -1 强负例；负反馈进 loss 加权。",
+      "有什么代价：时长目标分布长尾、阈值敏感，误判滑走为不喜会伤探索。",
+      "怎么评测：完播率、人均时长、负反馈率与次留。"
+    ],
+    "edgeCases": [
+      "超短视频(5秒)完播率意义不同需归一化。",
+      "误触滑走需结合回看判定。",
+      "负反馈(举报)极稀疏需单独处理。"
+    ],
+    "pitfalls": [
+      "只用点击忽略滑走，推高\"前3秒吸睛\"低质内容。",
+      "完播率绝对阈值不分视频长度。"
+    ],
+    "prerequisites": [
+      "多目标排序基础",
+      "隐式负反馈与样本加权"
+    ],
+    "workedExample": [
+      "视频 A：用户看了 2 秒划走(总 30s) → label=-1 强负例。",
+      "视频 B：用户看完并停留评论 → finish_rate=1, label=1；模型学到 B 优于 A，尽管两者都\"点击\"了。"
+    ],
+    "lineByLine": [
+      "def short_video_label：综合多种行为给出监督标签。",
+      "finish_rate = play/video_len：完播率。",
+      "if swiped and dwell<2: return -1：秒划判定强负例。",
+      "def sample_weight：对强负例给 2 倍权重强化惩罚。"
+    ],
+    "followUps": [
+      {
+        "question": "完播率在不同长度视频间怎么可比？",
+        "answer": "用相对完播率(播放/时长)或分桶归一化，也可改用时长占用户总消费比，避免长视频天然吃亏。"
+      },
+      {
+        "question": "滑走和\"不感兴趣\"负反馈有何区别？",
+        "answer": "滑走是隐式弱负反馈(可能误触)，\"不感兴趣/举报\"是显式强负反馈，后者权重更高且直接降权相似内容。"
+      }
+    ],
+    "followUpAnswers": [
+      "用相对完播率(播放/时长)或分桶归一化，也可改用时长占用户总消费比，避免长视频天然吃亏。",
+      "滑走是隐式弱负反馈(可能误触)，\"不感兴趣/举报\"是显式强负反馈，后者权重更高且直接降权相似内容。"
+    ]
   },
   {
     "kind": "code",
@@ -24979,6 +26110,417 @@ export const questions = [
       "补充：真实训练还需 steps = D / (global_batch_size × seq_len) 才能落地为具体训练计划。"
     ],
     "diagram": "N(参数) ──×20──▶ D(最优 token)\n   │\n   └─ C=6ND ─▶ 受算力封顶"
+  },
+  {
+    "id": "tts-eval-prosody",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "TTS 评测与韵律自然度",
+    "difficulty": "Medium",
+    "prompt": "请说明 TTS 系统的评测方法，主观 MOS 与客观指标如何权衡，以及如何评价韵律自然度与可懂度？",
+    "quickAnswer": "TTS 评测分主观与客观：主观以 MOS（平均意见分，5 分制）评自然度，常辅以 ABX 偏好测试；客观用 MCD（梅尔倒谱距离）、F0 包络误差、WER（把合成音频 ASR 转写看可懂度）、RTF（实时率）等。韵律自然度靠基频/能量/时长分布的统计相似度与听感打分，可懂度由 ASR-WER 与人工辨听共同衡量，二者需同时达标。",
+    "explanationFocus": "是什么：TTS 评测是衡量合成语音‘像不像人、听不听得清、对不对味’的体系。主观评测以人类打分（MOS、AB 测试）为金标准，反映真实听感；客观评测用可计算的声学/语义指标（MCD、F0 RMSE、WER、RTF）做低成本自动化监控。韵律自然度关注音高、能量、节奏的拟真，可懂度关注内容是否被正确传达。",
+    "approach": "核心思路是‘主观定标、客观监控、分维拆解’：用 MOS/ABX 确立上限与发布结论；用 MCD/F0 距离量化谱与韵律偏差；用 ASR 回环（WER）客观估计可懂度；把韵律拆成基频轮廓、能量包络、停顿与语速分布，分别与真人统计对比，定位‘机械感/平淡/错位’等具体缺陷。",
+    "code": "import numpy as np\n\ndef mcd(mel_true, mel_pred, n_coeff=13):\n    # 梅尔倒谱距离：谱相似度客观指标\n    d = mel_true[:, :n_coeff] - mel_pred[:, :n_coeff]\n    return np.mean(np.sqrt(np.sum(d**2, axis=1))) * (10.0 / np.log(10.0)) * np.sqrt(2)\n\ndef intelligibility(wav, asr_model):\n    text = asr_model.transcribe(wav)                # 回环 ASR\n    return text                                      # 与原文比对得 WER -> 可懂度",
+    "complexity": "O(T·D) 逐帧比对；主观评测为人工 O(样本数)，不可自动化",
+    "beginnerSummary": "判断机器发音好不好，有两个办法：让人听打分（MOS，最权威但慢且贵），或用程序自动算差别（比如频谱距离、把合成语音再让识别器听一遍看有没有听错）。自然度看语调像不像真人，可懂度看有没有念错字，两者都要兼顾。",
+    "derivation": [
+      "为什么需要：模型损失（如 L1 mel）不等于听感，缺乏可靠评测就无法迭代与对比系统。",
+      "怎么实现：主观用 ITU-T P.800 的 MOS 与 ABX 偏好测试；客观用 MCD、F0 RMSE、时长误差与 ASR-WER；韵律用基频/能量分布 KL 散度等统计指标。",
+      "有什么代价：MOS 昂贵、易受人因偏差与样本量影响；客观指标与听感相关性有限（MCD 低未必自然）；ASR-WER 只测可懂度不测自然度。",
+      "怎么评测：在测试集上同时报告 MOS、偏好率、MCD、F0 误差、WER、RTF，并做显著性检验避免偶然。"
+    ],
+    "edgeCases": [
+      "评测样本过短：MOS 方差大、不稳定。",
+      "评测员口音偏差：对某方言/语种打分系统性偏低。",
+      "ASR 自身错误：WER 虚高掩盖 TTS 实际可懂度。",
+      "对抗样本：模型在测试集过拟合导致指标虚高。"
+    ],
+    "pitfalls": [
+      "只用 MCD 等客观指标做发布结论，忽略 MOS，可能选了‘指标好但难听’的模型。",
+      "把可懂度（WER）等同于自然度，忽视韵律平淡问题。"
+    ],
+    "prerequisites": [
+      "梅尔频谱与倒谱系数基础",
+      "MOS 与主观听评实验设计",
+      "ASR 回环评测与词错率（WER）"
+    ],
+    "workedExample": [
+      "MOS 测试：招募 20 名听评员对 A/B 两系统各 50 句打分（1-5），系统 A 平均 4.1、B 3.8，做 t 检验确认差异显著。",
+      "可懂度回环：把合成音频送 ASR，原文‘北京市’被识别成‘北经市’则记一次替换错误，统计 WER 反映可懂度。"
+    ],
+    "lineByLine": [
+      "mcd：取前后 mel 的前 n_coeff 个倒谱系数逐帧求欧氏距离再平均，乘常数换算为分贝量级的距离。",
+      "intelligibility：把合成波形送 ASR 转写，转写文本与原文本比对即得 WER，间接衡量可懂度。",
+      "两函数分别覆盖‘谱/韵律相似度’与‘语义可懂度’两个客观维度。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么 MCD 低但听感仍然机械？",
+        "answer": "MCD 只比较静态谱包络均值，对动态韵律（基频轮廓、停顿、重音）不敏感；语音机械感多来自韵律缺乏变化，而这些未被 MCD 捕获，需结合 F0 动态误差与 MOS 才能反映。"
+      },
+      {
+        "question": "如何低成本做持续监控而不每次请人打分？",
+        "answer": "建立客观指标看板（MCD/F0 RMSE/WER/RTF）+ 周期性小样本 MOS 抽检；并用神经 MOS 预测模型（如基于 wav2vec 的 UT-MOS）做近似自动打分，仅在版本上线前做正式人工评测。"
+      }
+    ],
+    "followUpAnswers": [
+      "MCD 只比较静态谱包络均值，对动态韵律（基频轮廓、停顿、重音）不敏感；语音机械感多来自韵律缺乏变化，而这些未被 MCD 捕获，需结合 F0 动态误差与 MOS 才能反映。",
+      "建立客观指标看板（MCD/F0 RMSE/WER/RTF）+ 周期性小样本 MOS 抽检；并用神经 MOS 预测模型（如基于 wav2vec 的 UT-MOS）做近似自动打分，仅在版本上线前做正式人工评测。"
+    ]
+  },
+  {
+    "id": "tts-hifigan",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "声码器 HiFi-GAN：神经声码器（mel→waveform）",
+    "difficulty": "Medium",
+    "prompt": "请说明 HiFi-GAN 神经声码器如何把 mel 频谱还原成波形，多尺度/多周期判别器如何工作，以及它为什么能实时？",
+    "quickAnswer": "HiFi-GAN 是一个一维卷积生成器，通过逐级上采样的转置卷积把低帧率 mel 还原为高采样率波形，并用多感受野融合（MRF）模块增强局部细节。它用多尺度判别器（不同 STFT 分辨率）与多周期判别器（不同周期切片）联合对抗训练，迫使生成波形在频域与周期结构上逼真。纯卷积、无自回归使其可实时、低延时合成。",
+    "explanationFocus": "是什么：神经声码器（neural vocoder）负责把声学模型输出的中间表征（通常是 mel 频谱）还原成时域波形。HiFi-GAN 是一种基于 GAN 的一维卷积声码器，相比 WaveNet 的自回归逐采样生成，它用全卷积生成器一次性并行产出波形，在保持高音质的同时实现远超实时的推理速度。",
+    "approach": "核心思路是‘多分辨率对抗 + 局部感受野融合’：生成器用转置卷积逐级上采样 mel 到波形，并用多感受野融合模块（多个不同膨胀率的卷积残差块求和）捕捉多尺度局部结构；判别器侧同时用多尺度（不同下采样率）与多周期（按周期 reshape 成 2D 后卷积）判别器，从时频与周期两个角度施加对抗压力。",
+    "code": "import torch\nimport torch.nn as nn\n\nclass HiFiGANGenerator(nn.Module):\n    def __init__(self, mel_channels=80, upsample_rates=(8,8,2,2)):\n        super().__init__()\n        self.conv_pre = nn.Conv1d(mel_channels, 512, 7, padding=3)\n        self.ups = nn.ModuleList([\n            nn.ConvTranspose1d(512//(2**i), 512//(2**(i+1)),\n                               (2,)*0 + (upsample_rates[i]*2,), stride=upsample_rates[i])\n            for i in range(len(upsample_rates))\n        ])\n        self.mrf = MultiReceptiveFieldFusion(256)   # 多感受野融合\n\n    def forward(self, mel):\n        x = self.conv_pre(mel)\n        for up in self.ups:                          # 逐级上采样到波形率\n            x = torch.tanh(up(x))\n        x = self.mrf(x)                             # 多尺度局部细节\n        return self.conv_post(x)                    # 输出波形",
+    "complexity": "O(N) 一次前向，N 为采样点数；纯卷积可实时（RTF<1），无需自回归逐点生成",
+    "beginnerSummary": "频谱像‘声音的乐谱’，声码器负责把它演奏成真实声音。HiFi-GAN 用一个全卷积网络一次性把乐谱‘画’成波形，再用几个‘评委’（判别器）从多个角度挑毛病，逼它越做越像真人，而且因为不用一个一个点地生成，速度非常快。",
+    "derivation": [
+      "为什么需要：WaveNet 等自回归声码器逐采样点生成，速度慢无法实时；需要高保真且可并行的替代。",
+      "怎么实现：一维转置卷积逐级上采样 mel 至目标采样率，插入多感受野融合残差块丰富谐波/瞬态；对抗训练配合多尺度（不同 STFT 窗）与多周期判别器让波形在频域和周期结构上逼真。",
+      "有什么代价：GAN 训练不稳定、需仔细调判别器权重与学习率；纯 L1/L2 重建会糊掉高频，需特征匹配等辅助损失；模型对 unseen 说话人/设备可能泛化下降。",
+      "怎么评测：MOS 音质、STFT 谱距离、RTF（实时率，越小越实时）、以及主观可懂度。"
+    ],
+    "edgeCases": [
+      "输入 mel 含噪或裁剪：生成波形可能爆音，需幅度裁剪/限幅。",
+      "极低频或高基频语音：周期判别器周期选择需覆盖，否则细节丢失。",
+      "跨语种/跨说话人：未训练分布外易产生金属声。",
+      "极端采样率切换：上采样率组合需与训练一致。"
+    ],
+    "pitfalls": [
+      "只用波形级 L1 重建损失，会平滑高频导致‘闷’；必须配合判别器与特征匹配损失。",
+      "上采样率乘积必须等于 mel 帧率到采样率的转换比，否则相位/时长错位产生杂音。"
+    ],
+    "prerequisites": [
+      "一维卷积与转置卷积（上采样）",
+      "生成对抗网络与判别器设计",
+      "STFT / mel 频谱与采样率关系"
+    ],
+    "workedExample": [
+      "mel 帧率 80Hz、目标 16kHz：上采样率乘积需为 16000/80=200（如 8×5×5 或 8×8×2×2≈需校准），逐层转置卷积把 80 通道特征扩到波形长度。",
+      "多周期判别器以周期 p=2,3,5,7,11 把波形 reshape 成 (p, N/p) 的 2D，用二维卷积判别，专门捕捉基频谐波结构。"
+    ],
+    "lineByLine": [
+      "conv_pre：把 80 维 mel 投影到 512 维特征序列。",
+      "ups：每个转置卷积按 upsample_rates 上采样，tanh 激活逐步抬升时间分辨率到波形率。",
+      "mrf：多感受野融合模块对不同膨胀率卷积输出求和，补足局部细节。",
+      "conv_post：1×1 卷积输出单通道波形样本。"
+    ],
+    "followUps": [
+      {
+        "question": "多周期判别器（MPD）相比普通判别器强在哪？",
+        "answer": "语音是强周期信号，MPD 按不同周期把波形折叠成 2D 网格再用二维卷积判别，能显式建模谐波/基频结构，比只看时域或单一 STFT 的判别器更有效防止蜂鸣与金属声。"
+      },
+      {
+        "question": "HiFi-GAN 能否用于非 TTS 任务？",
+        "answer": "可以，它本质是通用波形生成器，也用于音乐生成、语音增强与神经音频编解码（如 SoundStream 的波形重建端），只要提供合适的条件输入或频谱表征。"
+      }
+    ],
+    "followUpAnswers": [
+      "语音是强周期信号，MPD 按不同周期把波形折叠成 2D 网格再用二维卷积判别，能显式建模谐波/基频结构，比只看时域或单一 STFT 的判别器更有效防止蜂鸣与金属声。",
+      "可以，它本质是通用波形生成器，也用于音乐生成、语音增强与神经音频编解码（如 SoundStream 的波形重建端），只要提供合适的条件输入或频谱表征。"
+    ]
+  },
+  {
+    "id": "tts-llm-tts",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "LLM-TTS / 语音大模型合成（VALL-E、AudioPaLM、SoundStream）",
+    "difficulty": "Hard",
+    "prompt": "请说明语音大模型（如 VALL-E / AudioPaLM / SoundStream）的合成范式，如何从文本或说话人提示生成语音，与传统 TTS 有何不同？",
+    "quickAnswer": "语音大模型把语音 token 化（如 EnCodec/SoundStream 神经编解码器把波形压成离散 token），再用类 LLM 的自回归/非自回归 Transformer 在‘文本 token + 说话人提示 token’条件下生成语音 token，最后由解码器还原波形。它支持零样本声音克隆（给 3 秒参考即可模仿音色）、多语种与风格控制，把 TTS 从专用流水线升级为统一生成范式。",
+    "explanationFocus": "是什么：LLM-TTS（语音大模型合成）指用大规模语言模型式架构做语音合成，先由神经音频编解码器（SoundStream/EnCodec）把波形离散化成 token 序列，再用 Transformer 在文本与说话人提示条件下自回归（VALL-E）或并行（AudioPaLM）地生成语音 token，最后由编解码器解码回波形。",
+    "approach": "核心思路是‘把语音当语言来生成’：用残差向量量化（RVQ）把波形编码成多层 token；训练时用大规模无标注/弱标注语音做 next-token 预测；推理时以文本 token 和声纹提示（参考音频的 token）为条件，模型‘续写’出目标语音 token 再解码。零样本克隆天然来自‘提示条件生成’而非显式说话人建模。",
+    "code": "import torch\n\ndef vall_e_generate(text_tokens, prompt_tokens, model, codec):\n    # 用参考音频 token 作提示，条件生成语音 token\n    cond = torch.cat([prompt_tokens, text_tokens], dim=-1)\n    speech_tokens = model.autoregressive(cond)       # 自回归续写语音 token\n    wav = codec.decode(speech_tokens)                # 编解码器还原波形\n    return wav\n\ndef zero_shot_clone(text, ref_wav, model, codec):\n    prompt_tokens = codec.encode(ref_wav)            # 3s 参考提取声纹 token\n    return vall_e_generate(tokenize(text), prompt_tokens, model, codec)",
+    "complexity": "O(L) 语音 token 长度自回归生成；可借 KV-cache/并行解码加速，仍高于卷积声码器",
+    "beginnerSummary": "传统 TTS 是‘专用工厂’一步步加工；语音大模型则把声音先变成一串‘语音文字’（token），再用大模型像写作文一样根据提示（要说什么+参考音色）把这段‘语音文字’写出来，再翻译回声音。好处是给几秒样本就能模仿任何人声。",
+    "derivation": [
+      "为什么需要：传统 TTS 对说话人/语种/风格需单独建模与微调，难以大规模统一；零样本克隆与海量数据利用需求推动范式升级。",
+      "怎么实现：SoundStream/EnCodec 用 RVQ 把波形压成离散 token；VALL-E 用两层自回归 Transformer 先生成语义 token 再生成声学 token；AudioPaLM 把文本与语音 token 同处一个词表做多模态生成。",
+      "有什么代价：自回归 token 生成慢、易暴露量化噪声；RVQ 层数决定音质上限；需海量多说话人数据，推理显存与延迟高。",
+      "怎么评测：说话人相似度（ speaker embedding cosine）、MOS、可懂度（ASR-WER）、零样本克隆成功率。"
+    ],
+    "edgeCases": [
+      "参考音频过短或含噪：声纹提示不稳，克隆失真。",
+      "目标文本含未见语言混合：跨语种 token 分布外易跑调。",
+      "长音频 token 序列：KV-cache 显存爆炸，需分块。",
+      "量化伪影：低码率 RVQ 产生金属/水泡声。"
+    ],
+    "pitfalls": [
+      "把编解码器重建损失当成听感代理，忽视高层语义与韵律，导致‘清晰但机械’。",
+      "零样本克隆过度依赖参考音质量，误以为任意参考都能高保真，实际对录音条件敏感。"
+    ],
+    "prerequisites": [
+      "Transformer 自回归生成与 token 化",
+      "神经音频编解码器与残差向量量化（RVQ）",
+      "说话人嵌入与零样本学习概念"
+    ],
+    "workedExample": [
+      "VALL-E：给 3 秒‘参考说话人’音频 + 文本‘你好’，模型先编码参考得到声纹 token 作 prompt，再自回归生成匹配音色的语音 token 并解码。",
+      "AudioPaLM：同一词表混合文本与语音 token，可输入‘语音提问’输出‘语音回答’，实现跨模态续写。"
+    ],
+    "lineByLine": [
+      "vall_e_generate：把参考提示 token 与文本 token 拼接成条件序列。",
+      "model.autoregressive：以该条件自回归续写目标语音 token（语义层再到声学层）。",
+      "codec.decode：神经编解码器把离散 token 还原为时域波形。",
+      "zero_shot_clone：仅用参考音频 encode 出提示，无需任何微调即可模仿音色。"
+    ],
+    "followUps": [
+      {
+        "question": "VALL-E 为什么能零样本克隆而传统 TTS 不行？",
+        "answer": "传统 TTS 需为说话人训练或微调显式声纹模型；VALL-E 把合成建模为‘条件续写’，推理时把参考音频的 token 作为 prompt 注入，模型从海量多说话人数据中学到‘按提示模仿’的泛化能力，故无需微调即可克隆。"
+      },
+      {
+        "question": "SoundStream/EnCodec 的 RVQ 层数如何影响质量与延迟？",
+        "answer": "RVQ 层数越多可还原的细节越丰富、音质越高，但 token 序列更长、码率更高、推理与存储成本上升；层数少则延迟低但量化伪影明显，需在音质与效率间权衡。"
+      }
+    ],
+    "followUpAnswers": [
+      "传统 TTS 需为说话人训练或微调显式声纹模型；VALL-E 把合成建模为‘条件续写’，推理时把参考音频的 token 作为 prompt 注入，模型从海量多说话人数据中学到‘按提示模仿’的泛化能力，故无需微调即可克隆。",
+      "RVQ 层数越多可还原的细节越丰富、音质越高，但 token 序列更长、码率更高、推理与存储成本上升；层数少则延迟低但量化伪影明显，需在音质与效率间权衡。"
+    ]
+  },
+  {
+    "id": "tts-multilingual-emotion",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "多语种与情感/风格控制 TTS",
+    "difficulty": "Hard",
+    "prompt": "请说明多语种 TTS 的跨语种迁移、情感/韵律标签控制，以及零样本声音克隆的实现要点？",
+    "quickAnswer": "多语种 TTS 常用共享音素/字符空间或语言无关表征（如国际音标 IPA、可学习的语言嵌入）让模型跨语种共享韵律与声学知识，实现跨语种迁移。情感/风格控制通过显式标签嵌入、参考编码器（从参考音频提取风格向量）或无监督解耦（如全局/局部风格 token）注入。零样本声音克隆则依赖说话人编码器（如 d-vector/x-vector）或语音大模型的提示条件，无需微调即可复现音色。",
+    "explanationFocus": "是什么：多语种与情感/风格控制 TTS 是在基础合成能力之上，叠加‘说哪种语言、带什么情绪、像谁在说’三类可控维度的能力。多语种强调跨语言共享表征与迁移；情感/风格强调把韵律（音高、能量、语速）从内容中解耦并可被外部信号驱动；零样本克隆强调脱离微调复现任意说话人音色。",
+    "approach": "核心思路是‘解耦 + 条件注入’：文本侧用语言 ID/共享音素表区分语种；韵律侧用参考编码器或风格 token 把情感/说话人压缩成向量并做归一化解耦（如 GST、VITS 的说话人适配器）；推理时把语言、情感、说话人三类条件拼接进模型，从而自由组合‘语种×情感×说话人’。",
+    "code": "import torch\n\ndef controlled_synthesis(text, lang_id, emotion_vec, spk_vec, model):\n    # 解耦条件注入：语种 + 情感 + 说话人\n    h = model.text_encoder(text)\n    h = h + model.lang_emb(lang_id)                 # 语种条件\n    style = torch.cat([emotion_vec, spk_vec], dim=-1)\n    h = model.ada_in(h, style)                       # 自适应归一化注入风格\n    return model.decode(h)\n\ndef clone_voice(ref_wav, spk_encoder):\n    return spk_encoder(ref_wav)                      # 零样本声纹向量",
+    "complexity": "O(T) 与基础模型同阶；条件注入为轻量加法/归一化，开销可忽略",
+    "beginnerSummary": "让机器‘用某种语言、带着某种情绪、模仿某个人的声音’说话，需要把这三件事拆开来控制。做法是给模型额外的开关：选语言、给情绪样本、给目标说话人的几秒录音，模型就能自由组合，比如‘用中文、开心地、模仿张三’说话。",
+    "derivation": [
+      "为什么需要：全球化与拟人交互要求单一系统覆盖多语种、多变情感与任意说话人，逐一训练成本不可接受。",
+      "怎么实现：语种用共享音素/IPA 或语言嵌入；情感用标签或参考编码器提取风格向量并通过 AdaIN/条件归一化注入；说话人用预训练编码器或大模型提示实现零样本克隆；多任务训练让表征解耦。",
+      "有什么代价：解耦不彻底会‘串味’（情感泄漏到音色或语种）；低资源语种数据少易退化；多条件组合下分布外难泛化。",
+      "怎么评测：跨语种 MOS、情感识别准确率（把合成音频再过情感分类器）、说话人相似度、主观自然度。"
+    ],
+    "edgeCases": [
+      "低资源语种：数据稀疏导致韵律生硬。",
+      "语种混说（code-switch）：需语言边界准确标注。",
+      "强情感与高可懂度冲突：过度情绪化降低清晰度。",
+      "参考音频与目标语种不同：跨语种克隆音色可能偏移。"
+    ],
+    "pitfalls": [
+      "风格与说话人向量未解耦，导致‘换情绪却也换了音色’的串扰。",
+      "语言嵌入仅在推理时切换但训练覆盖不均，小语种被大语种主导。"
+    ],
+    "prerequisites": [
+      "说话人嵌入（d-vector/x-vector）与说话人验证",
+      "风格建模（GST/参考编码器/AdaIN）",
+      "多语种音素与国际音标（IPA）基础"
+    ],
+    "workedExample": [
+      "跨语种迁移：一个中英混合模型，输入中文文本+英文语言嵌入，复用共享韵律知识产出带英文韵律的中文朗读。",
+      "情感控制：给定‘愤怒’参考音频提取 emotion_vec，注入后合成语句音高上升、能量增强、语速加快，而内容不变。"
+    ],
+    "lineByLine": [
+      "controlled_synthesis：文本编码得到基础隐表征 h。",
+      "lang_emb：把语言 ID 嵌入加到 h，区分语种。",
+      "ada_in：用拼接后的风格向量（情感+说话人）做自适应实例归一化，注入风格而不破坏内容。",
+      "clone_voice：说话人编码器从参考波形产出零样本声纹向量。"
+    ],
+    "followUps": [
+      {
+        "question": "如何防止情感控制时‘串’到说话人音色？",
+        "answer": "关键是解耦训练：用正交约束/互信息最小化或独立编码器分别建模情感与说话人，并在推理时验证两者余弦相似度互不影响；也可采用解耦更彻底的 VAE 式分离，使风格向量各司其职。"
+      },
+      {
+        "question": "零样本克隆和微调克隆怎么选？",
+        "answer": "零样本（编码器/提示）无需训练、即时可用、适合海量临时说话人但上限受参考质量限制；微调克隆在特定说话人上音质更高更稳，但需训练时间与过拟合风险，适合固定主播等高频场景。"
+      }
+    ],
+    "followUpAnswers": [
+      "关键是解耦训练：用正交约束/互信息最小化或独立编码器分别建模情感与说话人，并在推理时验证两者余弦相似度互不影响；也可采用解耦更彻底的 VAE 式分离，使风格向量各司其职。",
+      "零样本（编码器/提示）无需训练、即时可用、适合海量临时说话人但上限受参考质量限制；微调克隆在特定说话人上音质更高更稳，但需训练时间与过拟合风险，适合固定主播等高频场景。"
+    ]
+  },
+  {
+    "id": "tts-streaming",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "流式 TTS：chunk 级合成与首包延迟",
+    "difficulty": "Medium",
+    "prompt": "请说明流式 TTS 的工作原理，如何做 chunk 级合成、降低首包延迟，以及与 ASR 的全双工联动？",
+    "quickAnswer": "流式 TTS 把长文本切分为 chunk（句子/短语级）逐块合成并边合成边播放，首包延迟取决于前端分块与前几帧生成耗时而非整句。常用前缀/增量解码、上下文窗口、以及声码器流式上采样实现低延时。与 ASR 全双工联动时，用打断检测（VAD/端点）在用户插话时立即停止当前播放并切换状态，形成双向实时对话。",
+    "explanationFocus": "是什么：流式 TTS（streaming TTS）指模型不必等整句文本到齐、也不等整句合成完，而是边接收文本边分块合成、边把已生成的音频推给播放器。它与‘整句合成后播放’相对，目标是把首包延迟（Time-to-First-Audio，TTFA）和端到端时延压到可对话级别（通常 < 300ms）。",
+    "approach": "核心思路是‘分块 + 增量 + 即时播放’：前端按语义边界（标点/句子）切 chunk，声学模型对每个 chunk 做带左/右上下文的局部合成，声码器以流式窗口上采样输出波形帧；同时维护播放缓冲与打断信号，一旦收到 ASR 的打断事件就清空缓冲并停止生成，实现全双工。",
+    "code": "import queue\n\ndef streaming_synthesize(text_stream, tts_model, chunker):\n    audio_q = queue.Queue()\n    for chunk in chunker.iter(text_stream):         # 按标点切分 chunk\n        mel = tts_model.acoustic(chunk, context=chunker.context)\n        for wav in tts_model.vocoder.stream(mel):    # 流式声码器逐段产出\n            audio_q.put(wav)                         # 边合成边播放\n    return audio_q\n\ndef on_user_interrupt(audio_q, gen_task):\n    gen_task.cancel()                                # 打断：停止生成\n    while not audio_q.empty():\n        audio_q.get()                                # 清空缓冲，立即让出话权",
+    "complexity": "O(C) 个 chunk 各自 O(T_c)；首包延迟 ~ O(T_first_chunk)，与句长解耦",
+    "beginnerSummary": "普通 TTS 要等整句话说完才出声，对话时显得迟钝。流式 TTS 像边想边说：来一小段就先念出来，别人一插话就立刻闭嘴，从而做到像真人一样实时对话。",
+    "derivation": [
+      "为什么需要：对话/导航/实时播报场景要求低延迟与可打断，整句合成延迟不可接受。",
+      "怎么实现：文本按语义边界分 chunk；声学模型支持增量/前缀解码并在 chunk 边界做上下文拼接；声码器以滑动窗口流式上采样；播放与生成用队列解耦，配合 VAD 打断。",
+      "有什么代价：chunk 边界易出现韵律断点、音色/能量不连续；右上下文缺失会让结尾帧质量下降；并发与缓冲管理复杂，需防卡顿与爆音。",
+      "怎么评测：首包延迟 TTFA、端到端时延、打断响应时间、以及边界自然度 MOS。"
+    ],
+    "edgeCases": [
+      "chunk 在词中间切断：需基于词/子句边界而非定长切分。",
+      "用户极快连续打断：需幂等取消与状态机防止竞态。",
+      "网络抖动导致 chunk 乱序：需重排或背压。",
+      "末 chunk 缺少右上下文：可用轻量预测尾音避免突兀截断。"
+    ],
+    "pitfalls": [
+      "为降延迟把 chunk 切太碎，破坏韵律短语导致‘一字一顿’。",
+      "忽略播放缓冲与生成的速率匹配，造成欠载（卡顿）或过载（延迟累积）。"
+    ],
+    "prerequisites": [
+      "TTS 声学模型与声码器基础",
+      "流式系统与队列/背压概念",
+      "VAD 与端点检测（用于打断）"
+    ],
+    "workedExample": [
+      "输入长文本流‘请…帮我查一下…今天的天气’，按‘请/帮我查一下/今天的天气’分三 chunk，第一 chunk 合成后即播放，用户中途说‘不用了’触发打断清空缓冲。",
+      "声码器维护 200ms 滑动窗口，每收到一段 mel 就输出对应波形帧，播放器从队列取帧，TTFA 仅取决于首 chunk 处理时间。"
+    ],
+    "lineByLine": [
+      "streaming_synthesize：用 chunker 把文本流切成语义 chunk，避免破坏韵律。",
+      "acoustic：对单 chunk 做带上下文的局部合成得到 mel。",
+      "vocoder.stream：流式声码器逐段产出波形并放入 audio_q，实现边合成边播放。",
+      "on_user_interrupt：取消生成任务并清空队列，立即释放话权以响应打断。"
+    ],
+    "followUps": [
+      {
+        "question": "流式 TTS 如何在 chunk 边界保持韵律连贯？",
+        "answer": "常用做法是为每个 chunk 引入左/右上下文窗口（前后若干词）参与合成，或用语义边界感知的分块；声码器用重叠-相加的流式窗口抹平边界，并在句末显式预测尾音拖尾。"
+      },
+      {
+        "question": "全双工对话中 TTS 与 ASR 如何协调状态？",
+        "answer": "用对话状态机管理‘听/想/说/打断’：ASR 检测到用户语音活动（VAD+端点）即发打断事件，TTS 侧停止生成并清空播放缓冲，ASR 进入识别态，识别完成后触发下一轮合成，形成双向实时环路。"
+      }
+    ],
+    "followUpAnswers": [
+      "常用做法是为每个 chunk 引入左/右上下文窗口（前后若干词）参与合成，或用语义边界感知的分块；声码器用重叠-相加的流式窗口抹平边界，并在句末显式预测尾音拖尾。",
+      "用对话状态机管理‘听/想/说/打断’：ASR 检测到用户语音活动（VAD+端点）即发打断事件，TTS 侧停止生成并清空播放缓冲，ASR 进入识别态，识别完成后触发下一轮合成，形成双向实时环路。"
+    ]
+  },
+  {
+    "id": "tts-tacotron",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "声学模型 Tacotron 与 FastSpeech：自回归 vs 非自回归",
+    "difficulty": "Medium",
+    "prompt": "请对比 Tacotron 系列（自回归）与 FastSpeech（非自回归）声学模型的差异，并说明时长建模与端到端 TTS 的演进脉络？",
+    "quickAnswer": "Tacotron 2 用编码器-注意力-解码器的自回归结构逐帧生成 mel 频谱，质量高但速度慢、易出错（重复/漏读）。FastSpeech 用 Transformer 非自回归结构，配合时长预测器把音素对齐到帧数后一次性并行生成，推理快且鲁棒。端到端 TTS 演进主线是：从级联（文本→音素→声学→声码器）到端到端（文本→频谱），再到非自回归与完全端到端（如 VITS）。",
+    "explanationFocus": "是什么：声学模型（acoustic model）是端到端 TTS 的核心组件，负责把输入文本（字符/音素）映射为中间声学表征（通常是 mel 频谱）。Tacotron 2 采用编码器-注意力-解码器的自回归结构逐帧生成频谱；FastSpeech 采用基于 Transformer 的非自回归结构，配合时长预测器一次性并行生成全部帧，从而解决自回归的速度与鲁棒性问题。",
+    "approach": "核心思路是‘先对齐、再生成’：自回归 Tacotron 用注意力在解码时隐式学习文本-频谱对齐，逐帧条件生成；非自回归 FastSpeech 先用时长预测器显式给出每个音素对应的帧数，再用长度规整（length regulation）把隐状态扩展到目标长度，从而彻底消除帧间依赖、实现并行合成。",
+    "code": "import torch\nimport torch.nn as nn\n\ndef autoregressive_decode(encoder_out, mel_decoder, max_len=1000):\n    # 自回归 Tacotron：用上一帧 mel 预测下一帧，直到 <eos>\n    mel_prev = torch.zeros(1, 1, 80)        # 起始帧 (1, T=1, n_mels)\n    hidden = None\n    mels = []\n    for t in range(max_len):\n        mel_t, hidden = mel_decoder(mel_prev, encoder_out, hidden)\n        mels.append(mel_t)\n        if is_eos(mel_t):\n            break\n        mel_prev = mel_t                    # 帧间自回归依赖\n    return torch.cat(mels, dim=1)\n\ndef length_regulate(hidden, durations, mel_len):\n    # 非自回归 FastSpeech：按预测帧时长扩展隐状态\n    out = []\n    for h, d in zip(hidden, durations):\n        out.append(h.repeat(int(d), 1))     # 每帧重复 d 次\n    return torch.cat(out, dim=0)[:mel_len]",
+    "complexity": "O(T) 每句合成，T 为输出帧数；并行度上 FastSpeech 为 O(1) 步自回归，Tacotron 需 T 步",
+    "beginnerSummary": "语音合成（TTS）先把文字变成频谱图，再把频谱变成声音。‘声学模型’就是第一步的模型。老办法是一帧一帧地生成（自回归），慢但自然；新办法是先把每个字该发多长算好，再一口气全部生成（非自回归），又快又稳。",
+    "derivation": [
+      "为什么需要：传统级联 TTS 需要文本分析、时长模型、声学模型、声码器多步级联，错误会逐级累积且难以联合优化；端到端声学模型直接从文本生成频谱，简化了流程并提升自然度。",
+      "怎么实现：Tacotron 用 CNN/RNN 编码器提取文本表征，结合位置敏感注意力让解码器逐帧对齐并生成 mel；FastSpeech 用时长预测器（在teacher-forcing下用真实对齐或自蒸馏获得）预测帧长，经长度规整后由非自回归 Transformer 并行解码。",
+      "有什么代价：Tacotron 自回归推理慢、难以并行，且注意力失败会导致重复/漏读；FastSpeech 依赖准确的时长预测，对时长建模误差敏感，且单向并行损失了一定韵律连贯性，需要用 teacher（如 Transformer-TTS）蒸馏对齐。",
+      "怎么评测：主观用 MOS 评自然度，客观用 mel 重建损失、对齐错误率（attention error）、推理 RTF（实时率）与 Word Error Rate（把合成音频再 ASR 看可懂度）。"
+    ],
+    "edgeCases": [
+      "未见过的稀有词/专有名词：子词或字符级建模更易泛化，否则易念错。",
+      "极长句或极短句：长句注意力易失焦，短句时长预测易抖动。",
+      "数字、缩写、同形异音字（如‘重’chong/zhong）：需前端读音消歧或单独归一化。",
+      "多音字与韵律边界：错误对齐会导致断句怪异。"
+    ],
+    "pitfalls": [
+      "把 FastSpeech 时长预测器的监督信号当成‘真实’，实际常来自自回归 teacher 的注意力对齐，teacher 出错会被继承。",
+      "误以为非自回归一定更好：并行带来速度，但单向长度规整会削弱跨帧依赖，低资源下质量可能不如自回归。"
+    ],
+    "prerequisites": [
+      "序列到序列模型与注意力机制（encoder-decoder、attention）",
+      "mel 频谱等声学表征与 STFT 基础",
+      "Transformer 自注意力与位置编码"
+    ],
+    "workedExample": [
+      "输入‘你好世界’：Tacotron 在注意力图上应沿对角线逐字对齐，逐帧吐出 4 个汉字对应的 mel 段。",
+      "FastSpeech 中‘你/好/世/界’时长预测为 [8,8,10,10] 帧，经长度规整把 4 个音素隐状态扩展到 36 帧后再并行解码。"
+    ],
+    "lineByLine": [
+      "autoregressive_decode：初始化起始静音帧 mel_prev，循环调用解码器，把上一帧作为条件输入，实现帧间自回归依赖。",
+      "当 is_eos 命中或达 max_len 停止，拼接所有帧得到完整 mel 序列。",
+      "length_regulate：对每对 (隐状态, 预测帧数) 用 repeat 平铺，再把序列截断到目标帧数，完成非自回归扩展。"
+    ],
+    "followUps": [
+      {
+        "question": "FastSpeech 的时长预测器标签从哪来？为什么需要蒸馏？",
+        "answer": "通常用自回归 teacher（如 Transformer-TTS）的注意力/对齐作为软标签，因真实帧级对齐难获取；蒸馏让非自回归学生学到与自回归一致的对齐分布，否则时长预测无监督极易崩溃。"
+      },
+      {
+        "question": "FastSpeech 2 相比 FastSpeech 1 主要改了什么？",
+        "answer": "FastSpeech 2 直接用真实语音提取的时长（forced alignment）和音高/能量方差信息作监督，并引入 variance adaptor（pitch/energy predictor），减少对 teacher 的依赖、提升韵律与训练效率。"
+      }
+    ],
+    "followUpAnswers": [
+      "通常用自回归 teacher（如 Transformer-TTS）的注意力/对齐作为软标签，因真实帧级对齐难获取；蒸馏让非自回归学生学到与自回归一致的对齐分布，否则时长预测无监督极易崩溃。",
+      "FastSpeech 2 直接用真实语音提取的时长（forced alignment）和音高/能量方差信息作监督，并引入 variance adaptor（pitch/energy predictor），减少对 teacher 的依赖、提升韵律与训练效率。"
+    ]
+  },
+  {
+    "id": "tts-vits",
+    "kind": "concept",
+    "category": "语音合成",
+    "title": "VITS：端到端 TTS（变分推断 + 归一化流 + 对抗训练）",
+    "difficulty": "Hard",
+    "prompt": "请解释 VITS 端到端 TTS 的结构与训练原理，说明变分推断、归一化流与对抗训练各自的作用？",
+    "quickAnswer": "VITS 把文本前端、声学模型与声码器统一为一个端到端网络，直接从文本生成波形。它用变分自编码器（后验编码器+先验）建模语音潜变量，用归一化流（Normalizing Flow）把简单高斯先验变换成更灵活的语音分布，并用 HiFi-GAN 式判别器做对抗训练提升音质。推理时只走先验+流+解码器，无需 mel 中间表征。",
+    "explanationFocus": "是什么：VITS 是一种完全端到端的 TTS 模型，将传统‘文本→mel→波形’级联压缩为单一可微网络。它把语音建模为潜变量 z，用变分推断（后验编码器从真实波形取 z、先验从文本生成 z）学习分布，用 Normalizing Flow 提升先验表达力，用对抗损失让生成波形更自然，从而在 mel 重建之外直接优化听感。",
+    "approach": "核心思路是‘用隐变量桥接文本与波形并联合对抗优化’：训练时用后验编码器从真实音频抽 z 作为监督，先验网络从文本预测 z 的分布；归一化流把各向同性高斯变换成复杂分布；波形解码器（HiFi-GAN 生成器）把 z 还原成波形，判别器做多尺度对抗判别，使合成与真实难以区分。",
+    "code": "import torch\nimport torch.nn as nn\n\nclass VITS(nn.Module):\n    def __init__(self, text_dim, z_dim):\n        super().__init__()\n        self.prior = TextPrior(text_dim, z_dim)   # 文本->z 分布\n        self.posterior = PosteriorEncoder(z_dim)   # 波形->z 分布\n        self.flow = ResidualFlow(z_dim)            # 归一化流\n        self.decoder = HiFiGANGenerator(z_dim)     # 波形生成器\n        self.disc = MultiScaleDiscriminator()      # 多尺度判别器\n\n    def forward(self, text, wav):\n        z_posterior = self.posterior(wav)          # 训练时真实 z\n        z_flowed, ldj = self.flow(z_posterior)\n        mu, logvar = self.prior(text)\n        kl = kl_loss(z_flowed, mu, logvar)         # 变分下界项\n        wav_hat = self.decoder(z_flowed)\n        adv = self.disc(wav_hat, wav)              # 对抗损失\n        return kl + adv",
+    "complexity": "O(T) 训练与推理，T 为波形采样点数（生成器一阶卷积为主），较自回归快且并行",
+    "beginnerSummary": "过去 TTS 分两步：先出频谱再出声音，两步都会丢信息。VITS 直接让模型从文字‘脑补’出声音的隐藏表示，再一步变出波形，并用‘真假判别’逼模型学得更像真人，整体更自然、训练更简单。",
+    "derivation": [
+      "为什么需要：级联 TTS 的 mel 重建损失不等于听感，且 mel 到波形再训练一次会累积误差；端到端直接优化波形可统一目标、提升自然度。",
+      "怎么实现：以变分自编码器框架，后验编码器从真实波形抽潜变量 z，先验网络从文本预测 z 分布并用 KL 约束；归一化流对 z 做可逆变换提升先验灵活度；HiFi-GAN 生成器把 z 解码成波形，多尺度/多周期判别器做对抗训练。",
+      "有什么代价：训练需要真实波形做后验，数据与时延要求高；对抗训练不稳定、需小心平衡 KL 与对抗权重；推理虽快但模型大、显存占用高。",
+      "怎么评测：MOS 自然度（常优于级联）、MCD（谱距离）、RTF、以及 ablation 验证流/KL/对抗各自贡献。"
+    ],
+    "edgeCases": [
+      "说话人 unseen：依赖 speaker embedding 的零样本泛化，否则音色漂移。",
+      "极快/极慢语速：先验时长分布外推易失真。",
+      "带噪训练数据：后验编码器会学到噪声，需数据清洗或加鲁棒损失。",
+      "长文本生成：潜变量序列长，显存与流式切分需处理。"
+    ],
+    "pitfalls": [
+      "把 KL 权重设得过大导致后验被先验压垮（后验坍塌），语音变平淡；过小则对齐混乱。",
+      "忽略对抗与重建损失的平衡，判别器过强会让生成器只产‘骗过判别器’但听感差的样本。"
+    ],
+    "prerequisites": [
+      "变分自编码器（VAE）与 KL 散度",
+      "Normalizing Flow 可逆变换与 Jacobian 对数行列式",
+      "生成对抗网络（GAN）与多尺度判别器"
+    ],
+    "workedExample": [
+      "训练时：输入文本‘天气真好’与对应真人波形，后验编码器抽 z，先验网络从文本预测 z；两者 KL 拉近，解码出波形与真人波形被判别器比对。",
+      "推理时：只跑先验->流->解码器，从文本采样 z 直接合成波形，不依赖 mel 也不需后验编码器。"
+    ],
+    "lineByLine": [
+      "forward：先用 posterior 从真实 wav 取 z_posterior 作为训练目标分布。",
+      "flow 对 z 做可逆变换并记录 log-det-jacobian（ldj），增强先验表达力。",
+      "prior 从文本输出 (mu, logvar)，与 flowed z 计算 KL 形成变分下界。",
+      "decoder 生成 wav_hat，disc 返回对抗损失，最终返回 kl+adv 联合目标。"
+    ],
+    "followUps": [
+      {
+        "question": "VITS 推理时为什么不需要后验编码器？",
+        "answer": "后验编码器只在训练时提供真实语音的潜变量作监督；推理时直接从文本先验采样 z 并经流与解码器生成波形，因此可丢弃后验分支，实现纯文本到波形。"
+      },
+      {
+        "question": "归一化流在 VITS 里具体起什么作用？",
+        "answer": "文本先验初始是简单高斯，难以刻画语音复杂分布；流提供可逆非线性变换，将高斯映射为富有结构的语音潜分布，使先验更贴近后验，降低 KL 同时提升音质。"
+      }
+    ],
+    "followUpAnswers": [
+      "后验编码器只在训练时提供真实语音的潜变量作监督；推理时直接从文本先验采样 z 并经流与解码器生成波形，因此可丢弃后验分支，实现纯文本到波形。",
+      "文本先验初始是简单高斯，难以刻画语音复杂分布；流提供可逆非线性变换，将高斯映射为富有结构的语音潜分布，使先验更贴近后验，降低 KL 同时提升音质。"
+    ]
   },
   {
     "kind": "concept",
