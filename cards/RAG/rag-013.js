@@ -67,5 +67,6 @@ export default {
     "全 incorrect 则 web 兜底",
     "否则用非 incorrect 文档生成"
   ],
-  "diagram": "Query -> Retrieve -> [Evaluator: C/A/I]\n I -> Web Search -> Generate\n C/A -> Refine -> Generate\nSelf-RAG: [Retrieve][ISREL][ISSUP][ISUSE] tokens drive loop"
+  "diagram": "Query -> Retrieve -> [Evaluator: C/A/I]\n I -> Web Search -> Generate\n C/A -> Refine -> Generate\nSelf-RAG: [Retrieve][ISREL][ISSUP][ISUSE] tokens drive loop",
+  "order": 13
 };

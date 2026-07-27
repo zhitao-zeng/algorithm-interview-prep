@@ -61,5 +61,6 @@ export default {
     "serialize 的 walk 为每个节点写值，遇到空写 #，并先左后右递归。",
     "deserialize 用 iter(tokens) 生成迭代器，build 每次 next 取下一个 token。",
     "build 遇到 # 返回 None；否则建节点并递归填充左右孩子。"
-  ]
+  ],
+  "order": 6
 };

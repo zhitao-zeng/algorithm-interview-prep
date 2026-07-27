@@ -63,5 +63,6 @@ export default {
     "发压并流式埋点：自写脚本 async for chunk 记录每个 token 时间戳。",
     "聚合分位数输出报告：算 p50/p95/p99 的 TTFT、TPS、错误率，与基线对比。"
   ],
-  "diagram": "locust(分布式流量)\n    │\n    ├──▶ 服务端\n    │\n自写脚本(精确 token 埋点)"
+  "diagram": "locust(分布式流量)\n    │\n    ├──▶ 服务端\n    │\n自写脚本(精确 token 埋点)",
+  "order": 3
 };

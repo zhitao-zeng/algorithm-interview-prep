@@ -62,5 +62,6 @@ export default {
     "以候选为 Q 算注意力。",
     "聚合得兴趣向量。"
   ],
-  "diagram": "t1 t2 ... tL 行为\n   │ embedding+位置\n   ▼ Transformer\n   h1..hL ─▶ target attention(候选Q) ─▶ 兴趣向量"
+  "diagram": "t1 t2 ... tL 行为\n   │ embedding+位置\n   ▼ Transformer\n   h1..hL ─▶ target attention(候选Q) ─▶ 兴趣向量",
+  "order": 13
 };

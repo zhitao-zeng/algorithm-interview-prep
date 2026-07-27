@@ -60,5 +60,6 @@ export default {
     "遍历 i 从 1 到 n；遍历长度 L 从 1 到 min(i, max_word_len)：若 dp[i-L] 且 s[i-L:i] 在 wordSet，则 dp[i]=True 并 break。",
     "返回 dp[n]。"
   ],
-  "diagram": "s=\"leetcode\", wordDict=[\"leet\",\"code\"]\ndp[i]=s[0:i] 可否拆分\ndp[0]=T\ndp[4]=T(leet)  dp[8]=T(leet+code)\ndp[0]=T → dp[4]=T → dp[8]=T ✓"
+  "diagram": "s=\"leetcode\", wordDict=[\"leet\",\"code\"]\ndp[i]=s[0:i] 可否拆分\ndp[0]=T\ndp[4]=T(leet)  dp[8]=T(leet+code)\ndp[0]=T → dp[4]=T → dp[8]=T ✓",
+  "order": 5
 };

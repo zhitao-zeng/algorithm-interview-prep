@@ -72,5 +72,6 @@ export default {
     "记录「首 token → 末 token」为 Decode 段：逐 token 自回归，∝ 输出长度×TPOT。",
     "按请求聚合三段看占比：定位瓶颈是排队/Prefill/Decode 哪一段，决定优化投入方向。"
   ],
-  "diagram": "请求 →[排队]→[Prefill 输入]→[Decode tok1..tokN]→结束\n           输入长↑           输出长↑"
+  "diagram": "请求 →[排队]→[Prefill 输入]→[Decode tok1..tokN]→结束\n           输入长↑           输出长↑",
+  "order": 16
 };

@@ -61,5 +61,6 @@ export default {
     "RECOMMEND：按约束（倍数/微调/外推）给出经验选型。",
     "注释提醒超参需二次核对，避免盲用。"
   ],
-  "diagram": "方案   局部保真  免微调  最大倍数  实现\nPI      ✗        ✗       ~4x     易\nNTK     ✓        △      中       中\nYaRN    ✓        △      大       中+\nALiBi   短任务弱  ✓      大       易"
+  "diagram": "方案   局部保真  免微调  最大倍数  实现\nPI      ✗        ✗       ~4x     易\nNTK     ✓        △      中       中\nYaRN    ✓        △      大       中+\nALiBi   短任务弱  ✓      大       易",
+  "order": 6
 };

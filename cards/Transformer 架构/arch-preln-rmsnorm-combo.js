@@ -60,5 +60,6 @@ export default {
     "x+ffn(norm(x))：FFN 子层 Pre-LN。",
     "norm 用 RMSNorm 实现轻量化。"
   ],
-  "diagram": "x -> RMSNorm -> Attn ->+ x\nx -> RMSNorm -> FFN  ->+ x\n(残差流不被归一化)"
+  "diagram": "x -> RMSNorm -> Attn ->+ x\nx -> RMSNorm -> FFN  ->+ x\n(残差流不被归一化)",
+  "order": 17
 };

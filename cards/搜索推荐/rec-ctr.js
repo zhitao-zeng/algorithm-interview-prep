@@ -62,5 +62,6 @@ export default {
     "sigmoid 得 pCTR。",
     "校准后用于排序。"
   ],
-  "diagram": "样本(曝光,点击)\n   │ 特征交叉\n   ▼ 模型\n logit ─▶ sigmoid ─▶ pCTR ─▶ 排序/竞价"
+  "diagram": "样本(曝光,点击)\n   │ 特征交叉\n   ▼ 模型\n logit ─▶ sigmoid ─▶ pCTR ─▶ 排序/竞价",
+  "order": 10
 };

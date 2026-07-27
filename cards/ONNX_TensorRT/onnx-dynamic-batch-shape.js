@@ -62,5 +62,6 @@ export default {
     "运行时 set_input_shape。",
     "校验不超 max 并预分配 buffer。"
   ],
-  "diagram": "负载分布 ─▶ profile(min/opt/max) ─▶ 运行时 set_input_shape"
+  "diagram": "负载分布 ─▶ profile(min/opt/max) ─▶ 运行时 set_input_shape",
+  "order": 7
 };

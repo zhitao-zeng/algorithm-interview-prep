@@ -67,5 +67,6 @@ export default {
     "两者相加并补激活/余量，得到总显存预算。",
     "实测时用 torch 的 allocated/reserved 或 nvidia-smi 在压测峰值校验估算值，确认留有安全余量。"
   ],
-  "diagram": "显存 = 权重(固定)\n        + KV Cache(batch×seq, 膨胀)\n        + 激活(波动)\n        ───────────▶ 峰值"
+  "diagram": "显存 = 权重(固定)\n        + KV Cache(batch×seq, 膨胀)\n        + 激活(波动)\n        ───────────▶ 峰值",
+  "order": 10
 };

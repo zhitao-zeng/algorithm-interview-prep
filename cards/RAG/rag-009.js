@@ -63,5 +63,6 @@ export default {
     "逐块让 LLM 抽取相关句",
     "拼接保留句作为精简上下文"
   ],
-  "diagram": "chunks -> [Compress: keep relevant sentences] -> short context -> LLM"
+  "diagram": "chunks -> [Compress: keep relevant sentences] -> short context -> LLM",
+  "order": 9
 };

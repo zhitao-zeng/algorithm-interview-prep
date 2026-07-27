@@ -63,5 +63,6 @@ export default {
     "按训练均值方差归一化：to_tensor 后 .normalize(mean, std)，与训练同款配置。",
     "转 tensor 后切 patch 编码：按 patch_size=14 切块送视觉编码器，得到视觉 token。"
   ],
-  "diagram": "文件 ─▶ 解码RGB ─▶ resize/pad ─▶ 归一化 ─▶ tensor ─▶ patch ─▶ 编码"
+  "diagram": "文件 ─▶ 解码RGB ─▶ resize/pad ─▶ 归一化 ─▶ tensor ─▶ patch ─▶ 编码",
+  "order": 8
 };

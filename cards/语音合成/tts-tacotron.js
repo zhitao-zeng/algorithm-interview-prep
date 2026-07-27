@@ -54,5 +54,6 @@ export default {
   "followUpAnswers": [
     "通常用自回归 teacher（如 Transformer-TTS）的注意力/对齐作为软标签，因真实帧级对齐难获取；蒸馏让非自回归学生学到与自回归一致的对齐分布，否则时长预测无监督极易崩溃。",
     "FastSpeech 2 直接用真实语音提取的时长（forced alignment）和音高/能量方差信息作监督，并引入 variance adaptor（pitch/energy predictor），减少对 teacher 的依赖、提升韵律与训练效率。"
-  ]
+  ],
+  "order": 1
 };

@@ -62,5 +62,6 @@ export default {
     "GQA: 分组共享, 折中。",
     "KV体积 ∝ KV头数。"
   ],
-  "diagram": "MHA : 头1..32 各持KV ─▶ hkv=32 (大)\nGQA : 8组(每组4个Q头), 共享KV ─▶ hkv=8 (中)\nMQA : 全部共享1份KV ─▶ hkv=1 (小)\nKV体积: MHA > GQA > MQA"
+  "diagram": "MHA : 头1..32 各持KV ─▶ hkv=32 (大)\nGQA : 8组(每组4个Q头), 共享KV ─▶ hkv=8 (中)\nMQA : 全部共享1份KV ─▶ hkv=1 (小)\nKV体积: MHA > GQA > MQA",
+  "order": 7
 };

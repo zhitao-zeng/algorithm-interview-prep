@@ -70,5 +70,6 @@ export default {
     "返回 s 后，部署时令 X' = X / s.unsqueeze(0)，W' = W * s.unsqueeze(1)，再分别对 X'、W' 做 INT8 量化；由于 X'/W' 的动态范围更均衡，量化误差显著下降。",
     "可选地把 1/s 烘焙进上一层输出、把 s 烘焙进本层权重，使在线前向无额外算子、与标准 INT8 GEMM 完全一致。"
   ],
-  "diagram": "X(有outlier)·W  ─▶ (X/s)·(sW)\n 激活范围↓   权重范围↑  → 都可 INT8"
+  "diagram": "X(有outlier)·W  ─▶ (X/s)·(sW)\n 激活范围↓   权重范围↑  → 都可 INT8",
+  "order": 15
 };

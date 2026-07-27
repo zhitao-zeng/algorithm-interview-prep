@@ -61,5 +61,6 @@ export default {
     "起点判断 if x-1 not in values 跳过所有段内元素，避免重复工作。",
     "while y in values: y += 1 找到连续段右边界，y - x 就是该段长度。",
     "空集合时循环不执行，返回 0。"
-  ]
+  ],
+  "order": 4
 };

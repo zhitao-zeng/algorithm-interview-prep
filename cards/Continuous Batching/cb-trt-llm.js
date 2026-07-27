@@ -63,5 +63,6 @@ export default {
     "释放其 KV 缓存。",
     "从 scheduler 拉新请求即时插入。"
   ],
-  "diagram": "TRT-LLM: scheduler 每步 增/删 batch 成员\n+ paged KV + chunked context"
+  "diagram": "TRT-LLM: scheduler 每步 增/删 batch 成员\n+ paged KV + chunked context",
+  "order": 15
 };

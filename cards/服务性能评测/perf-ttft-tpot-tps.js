@@ -72,5 +72,6 @@ export default {
     "记录每 token 间隔均值 → TPOT：反映 Decode 节奏，决定生成是否流畅。",
     "总 token / 总时长 → TPS：反映系统综合吞吐，需统一口径（常不含或含 prefill 须标注）。"
   ],
-  "diagram": "TTFT: 请求 ──▶ 首token (prefill主导)\nTPOT: token_i ─▶ token_{i+1} (decode主导)\nTPS : 总token / 总耗时 (系统吞吐)"
+  "diagram": "TTFT: 请求 ──▶ 首token (prefill主导)\nTPOT: token_i ─▶ token_{i+1} (decode主导)\nTPS : 总token / 总耗时 (系统吞吐)",
+  "order": 19
 };

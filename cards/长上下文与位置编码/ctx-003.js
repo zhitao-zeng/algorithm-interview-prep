@@ -60,5 +60,6 @@ export default {
     "new_base = base * scale**(dim/(dim-2))：核心缩放，scale>1。",
     "1.0/(new_base**(i/dim))：用新基频算逆频率，高频几乎不变、低频明显拉伸。"
   ],
-  "diagram": "维 i: 高(局部) ──── 低(全局)\nPI:   全压 ×1/s\nNTK:  几乎不动 ──── 拉 ×s"
+  "diagram": "维 i: 高(局部) ──── 低(全局)\nPI:   全压 ×1/s\nNTK:  几乎不动 ──── 拉 ×s",
+  "order": 3
 };

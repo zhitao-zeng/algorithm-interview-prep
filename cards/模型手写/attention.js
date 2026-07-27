@@ -61,5 +61,6 @@ export default {
     "weights = softmax(scores, dim=-1)（按 Key 维）。",
     "output = weights · V，返回输出（及可选注意力权重）。"
   ],
-  "diagram": "Q·Kᵀ / √d\n  [q1·k1  q1·k2 ...]\n  [q2·k1  q2·k2 ...]   /√d\nsoftmax(列) → 权重\n权重 · V = 输出\n(自注意力: Q=K=V=输入)"
+  "diagram": "Q·Kᵀ / √d\n  [q1·k1  q1·k2 ...]\n  [q2·k1  q2·k2 ...]   /√d\nsoftmax(列) → 权重\n权重 · V = 输出\n(自注意力: Q=K=V=输入)",
+  "order": 5
 };

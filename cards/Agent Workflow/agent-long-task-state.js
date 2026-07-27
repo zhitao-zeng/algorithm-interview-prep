@@ -68,5 +68,6 @@ export default {
     "用 session_id + 租约（lease, TTL 30 分钟）保证并发隔离；执行前校验租约有效，失效则抛 LostLease 中止，防止双活重放。",
     "崩溃重启时读最新 checkpoint，对未提交副作用用幂等/补偿逻辑重建，确保\"要么没发生、要么恰好一次\"。"
   ],
-  "diagram": "长任务 ─▶ [步骤1 ▣checkpoint] ─▶ [步骤2 ▣] ─▶ [不可逆? ▶ human gate] ─▶ ...\n                         │                                  │\n                    崩溃重启 ◀── 读 checkpoint 续跑 ────────┘\n并发：session_A(租约) | session_B(租约) | session_C(租约)  互不踩踏"
+  "diagram": "长任务 ─▶ [步骤1 ▣checkpoint] ─▶ [步骤2 ▣] ─▶ [不可逆? ▶ human gate] ─▶ ...\n                         │                                  │\n                    崩溃重启 ◀── 读 checkpoint 续跑 ────────┘\n并发：session_A(租约) | session_B(租约) | session_C(租约)  互不踩踏",
+  "order": 12
 };

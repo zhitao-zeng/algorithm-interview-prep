@@ -61,5 +61,6 @@ export default {
     "ang_r/ang_c 分别用行/列位置。",
     "对维度块分别旋转实现轴解耦。"
   ],
-  "diagram": "1D RoPE:  rot(m)\n2D RoPE:  rot_row(r) ⊗ rot_col(c)\n内积依赖 (Δr, Δc)"
+  "diagram": "1D RoPE:  rot(m)\n2D RoPE:  rot_row(r) ⊗ rot_col(c)\n内积依赖 (Δr, Δc)",
+  "order": 8
 };

@@ -66,5 +66,6 @@ export default {
   "followUpAnswers": [
     "signal.alarm 只在主线程有效。多线程可用 concurrent.futures.ThreadPoolExecutor 提交任务并对 future 设 timeout；异步环境用 asyncio.wait_for(coro, timeout=5) 即可实现等效超时。",
     "对超时、网络抖动、5xx 等瞬时错误做指数退避重试；对参数类型错误、权限错误、4xx 等确定性错误应立即失败并降级，避免无谓消耗 attempts 与延迟。"
-  ]
+  ],
+  "order": 16
 };

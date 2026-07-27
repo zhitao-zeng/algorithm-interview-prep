@@ -67,5 +67,6 @@ export default {
     "modality=='image'：返回 (0,h,w)，时间维恒定、用高/宽两维表达空间。",
     "modality=='video'：返回 (i,h,w)，时间维 i 随帧递增，叠加空间维。"
   ],
-  "diagram": "文本: (t,0,0)\n图像: (0,h,w)\n视频: (t,h,w)  ← t 随帧增加"
+  "diagram": "文本: (t,0,0)\n图像: (0,h,w)\n视频: (t,h,w)  ← t 随帧增加",
+  "order": 7
 };

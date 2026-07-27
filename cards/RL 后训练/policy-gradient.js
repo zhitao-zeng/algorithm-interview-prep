@@ -61,5 +61,6 @@ export default {
     "构造损失 −Σ logπ(a|s)·G_t。",
     "反向传播更新策略参数 θ。"
   ],
-  "diagram": "θ ─▶ π_θ ─▶ 动作 a\n        ▲           │\n        └─ 梯度 ∇logπ·G ── (G高: 提升)"
+  "diagram": "θ ─▶ π_θ ─▶ 动作 a\n        ▲           │\n        └─ 梯度 ∇logπ·G ── (G高: 提升)",
+  "order": 4
 };

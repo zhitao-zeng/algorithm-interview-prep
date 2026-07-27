@@ -62,5 +62,6 @@ export default {
     "离线 build 并按架构存 engine。",
     "门禁校验后上线并监控。"
   ],
-  "diagram": "导出→解析→精度→build(离线)→门禁→上线+监控"
+  "diagram": "导出→解析→精度→build(离线)→门禁→上线+监控",
+  "order": 14
 };

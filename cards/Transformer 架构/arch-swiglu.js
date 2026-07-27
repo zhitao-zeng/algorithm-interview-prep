@@ -61,5 +61,6 @@ export default {
     "x@w3.T：门控分支生成开关。",
     "gate*up 与 h@w2.T：逐元素乘后下投影。"
   ],
-  "diagram": "x ──> W1 ─> SiLU ─┐\n   └─> W3 ─────────> ⊙ ─> W2 ─> out\n        (门控)      (乘)"
+  "diagram": "x ──> W1 ─> SiLU ─┐\n   └─> W3 ─────────> ⊙ ─> W2 ─> out\n        (门控)      (乘)",
+  "order": 14
 };

@@ -59,5 +59,6 @@ export default {
     "textual inversion 学文本 embedding，容量小；IP-Adapter 用图像 tokens 经 cross-attn，表达力强且免训练新词。",
     "可把多张参考图 tokens 拼接作为 K/V，实现多身份/风格混合。",
     "插拔式适配器保留原模型、参数少、可与其他控制器叠加。"
-  ]
+  ],
+  "order": 10
 };

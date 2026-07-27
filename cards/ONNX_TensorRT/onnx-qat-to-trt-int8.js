@@ -62,5 +62,6 @@ export default {
     "TRT 解析并用其中 scale。",
     "build INT8 engine 部署。"
   ],
-  "diagram": "QAT训练(伪量化) ─▶ Q/DQ ONNX ─▶ TRT INT8(用训练scale)"
+  "diagram": "QAT训练(伪量化) ─▶ Q/DQ ONNX ─▶ TRT INT8(用训练scale)",
+  "order": 13
 };

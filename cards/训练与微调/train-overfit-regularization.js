@@ -67,5 +67,6 @@ export default {
     "patience -= 1：否则消耗一次容忍额度，容忍短暂波动避免误停。",
     "return patience <= 0, best：额度耗尽即停，返回最优 val_loss 用于回滚权重。"
   ],
-  "diagram": "epoch: 训练↓ 验证↓→↑(过拟合) 早停在拐点"
+  "diagram": "epoch: 训练↓ 验证↓→↑(过拟合) 早停在拐点",
+  "order": 8
 };

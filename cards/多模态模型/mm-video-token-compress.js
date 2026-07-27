@@ -82,5 +82,6 @@ export default {
     "跨模态引导（ASR/事件）保关键帧与区域，防误删。",
     "目标：在精度损失内降 token，保 OCR/小目标/关键动作。"
   ],
-  "diagram": "视频 Token 压缩:\n输入侧: 均匀/动态采帧, 降分辨率, Patch Merge\n模型侧: Pooling, Query Token, Pruning, Merging\n跨模态: 文本/音频/事件引导保留\n目标: 保 OCR/小目标/关键动作, 降 token"
+  "diagram": "视频 Token 压缩:\n输入侧: 均匀/动态采帧, 降分辨率, Patch Merge\n模型侧: Pooling, Query Token, Pruning, Merging\n跨模态: 文本/音频/事件引导保留\n目标: 保 OCR/小目标/关键动作, 降 token",
+  "order": 11
 };

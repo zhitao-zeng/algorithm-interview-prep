@@ -62,5 +62,6 @@ export default {
     "对静态/连续分别测。",
     "取比值得 speedup。"
   ],
-  "diagram": "QPS↑: 静态 TPS  plateau@1800\n       连续 TPS  plateau@5400 (3x)"
+  "diagram": "QPS↑: 静态 TPS  plateau@1800\n       连续 TPS  plateau@5400 (3x)",
+  "order": 12
 };

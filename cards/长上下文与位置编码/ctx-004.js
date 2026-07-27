@@ -60,5 +60,6 @@ export default {
     "dist = clamp(i−j,min=0)：因果下只算过去距离。",
     "return −m*dist：把距离惩罚作为偏置加回注意力分数。"
   ],
-  "diagram": "Q@K^T/√d  ── + (−m·|i−j|) ──> softmax\n近邻扣分少 | 远距扣分多\n任意长度距离都可算 → 免训练外推"
+  "diagram": "Q@K^T/√d  ── + (−m·|i−j|) ──> softmax\n近邻扣分少 | 远距扣分多\n任意长度距离都可算 → 免训练外推",
+  "order": 4
 };

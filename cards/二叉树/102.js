@@ -61,5 +61,6 @@ export default {
     "队列从根节点开始，answer 收集结果。",
     "for _ in range(len(q)): 在入队孩子「之前」固定本层长度，避免把下一层混入。",
     "本层所有节点收集完再 append 到 answer，然后循环处理下一层。"
-  ]
+  ],
+  "order": 1
 };

@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "DDP 每步对梯度做一次 all-reduce（2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做 N-1 次 all-gather（≈2ψ），总通信约 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。",
     "offload 把 optimizer.step 放到 CPU，需把梯度从 GPU 拷到 CPU、更新后再拷回，引入 PCIe 带宽瓶颈且 step 串行化；只在 GPU 显存真正不够、且 CPU 内存与带宽富余时划算。"
-  ]
+  ],
+  "order": 3
 };

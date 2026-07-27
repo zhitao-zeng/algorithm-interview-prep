@@ -62,5 +62,6 @@ export default {
     "rel=i−j 得到相对距离矩阵。",
     "bias=slope*rel 每头不同斜率施加距离惩罚。"
   ],
-  "diagram": "Sinusoidal: 加在输入\nRoPE: 旋转 Q/K\nALiBi: score += m*(i-j)  偏置\n趋势: 绝对 -> 相对乘性 -> 相对加性偏置"
+  "diagram": "Sinusoidal: 加在输入\nRoPE: 旋转 Q/K\nALiBi: score += m*(i-j)  偏置\n趋势: 绝对 -> 相对乘性 -> 相对加性偏置",
+  "order": 12
 };

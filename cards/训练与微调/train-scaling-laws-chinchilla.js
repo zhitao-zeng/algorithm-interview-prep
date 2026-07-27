@@ -65,5 +65,6 @@ export default {
     "D_opt = C_flops/(6*N_opt)：用总算力减去参数占用得到训练 token 数（6 为每参数每 token FLOPs）。",
     "返回三者中 D_opt/N_opt 即 Chinchilla 比例≈20，用于检查预算分配是否均衡。"
   ],
-  "diagram": "算力 C 固定\n ┌─────────────┐\n │  N (参数)   │  ∝ C^0.5\n │  D (token)  │  ∝ C^0.5\n └─────────────┘\n D / N ≈ 20 : 1"
+  "diagram": "算力 C 固定\n ┌─────────────┐\n │  N (参数)   │  ∝ C^0.5\n │  D (token)  │  ∝ C^0.5\n └─────────────┘\n D / N ≈ 20 : 1",
+  "order": 13
 };

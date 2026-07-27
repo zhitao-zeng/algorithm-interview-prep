@@ -61,5 +61,6 @@ export default {
     "递归查左右子树，得到 left、right 两个结果。",
     "if left and right: return root —— 两侧各有一个目标，当前节点即 LCA。",
     "return left or right —— 只一侧有结果时继续向上传递。"
-  ]
+  ],
+  "order": 5
 };

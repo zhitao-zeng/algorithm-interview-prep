@@ -62,5 +62,6 @@ export default {
     "随 L、B 线性膨胀。",
     "常是长上下文 OOM 主因。"
   ],
-  "diagram": "KV 显存 ∝ B × L × N × Hkv\nB:并发 L:上下文 N:层数 Hkv:KV隐维\nFP16: 2B/参数\n→ 长上下文时 KV 可超过权重本身"
+  "diagram": "KV 显存 ∝ B × L × N × Hkv\nB:并发 L:上下文 N:层数 Hkv:KV隐维\nFP16: 2B/参数\n→ 长上下文时 KV 可超过权重本身",
+  "order": 3
 };

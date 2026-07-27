@@ -61,5 +61,6 @@ export default {
     "LLM 以语义 token 为输入/输出做推理。",
     "合成时再叠加声学 token 还原音色与韵律。"
   ],
-  "diagram": "语音波形 ─▶ Encoder ─▶ RVQ 多层码本\n                ├─ 层1: 语义 token (说什么)\n                └─ 层2..N: 声学 token (怎么说的/音色)\nLLM 用 层1 推理, 合成用 全部层"
+  "diagram": "语音波形 ─▶ Encoder ─▶ RVQ 多层码本\n                ├─ 层1: 语义 token (说什么)\n                └─ 层2..N: 声学 token (怎么说的/音色)\nLLM 用 层1 推理, 合成用 全部层",
+  "order": 3
 };

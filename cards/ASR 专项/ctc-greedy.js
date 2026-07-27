@@ -61,5 +61,6 @@ export default {
     "若当前 token 是 blank，跳过（留待最后删除）。",
     "拼接剩余 token 得到解码结果。"
   ],
-  "diagram": "标注序列(含 blank ␣):\n  每帧 logit 取 argmax:\n  帧: C  C  A  T  ␣  ␣\n  → 合并重复: CCAT␣␣ → CAT␣\n  → 去 blank: \"CAT\""
+  "diagram": "标注序列(含 blank ␣):\n  每帧 logit 取 argmax:\n  帧: C  C  A  T  ␣  ␣\n  → 合并重复: CCAT␣␣ → CAT␣\n  → 去 blank: \"CAT\"",
+  "order": 1
 };

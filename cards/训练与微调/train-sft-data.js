@@ -66,5 +66,6 @@ export default {
     "msgs 示例展示 system/user/assistant 三段结构，模板据此注入对应特殊 token。",
     "训练前需对 assistant 段做 loss mask，使梯度只来自答案 token。"
   ],
-  "diagram": "system ─┐\nuser   ─┼─▶ apply_chat_template ─▶ <s>...训练文本\nassistant─┘"
+  "diagram": "system ─┐\nuser   ─┼─▶ apply_chat_template ─▶ <s>...训练文本\nassistant─┘",
+  "order": 2
 };

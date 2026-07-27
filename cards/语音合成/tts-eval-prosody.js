@@ -54,5 +54,6 @@ export default {
   "followUpAnswers": [
     "MCD 只比较静态谱包络均值，对动态韵律（基频轮廓、停顿、重音）不敏感；语音机械感多来自韵律缺乏变化，而这些未被 MCD 捕获，需结合 F0 动态误差与 MOS 才能反映。",
     "建立客观指标看板（MCD/F0 RMSE/WER/RTF）+ 周期性小样本 MOS 抽检；并用神经 MOS 预测模型（如基于 wav2vec 的 UT-MOS）做近似自动打分，仅在版本上线前做正式人工评测。"
-  ]
+  ],
+  "order": 7
 };

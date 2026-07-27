@@ -67,5 +67,6 @@ export default {
     "AI 低于拐点 → Memory Bound，延迟由“等权重搬运”而非“计算”决定。",
     "代码 prefill_ai 返回 2*n*d*d/(2*d*d)=n，decode_ai 返回 2*1*d*d/(2*d*d)=1，直接量化两者差距。"
   ],
-  "diagram": "Prefill: (n,d)x(d,d) 大矩阵 → 算力吃满 (Compute Bound)\nDecode : (1,d)x(d,d) 小矩阵 → 等权重搬运 (Memory Bound)"
+  "diagram": "Prefill: (n,d)x(d,d) 大矩阵 → 算力吃满 (Compute Bound)\nDecode : (1,d)x(d,d) 小矩阵 → 等权重搬运 (Memory Bound)",
+  "order": 6
 };

@@ -72,5 +72,6 @@ export default {
     "从链中提取答案(如最后一行/Answer: 字段)：解析而非让模型\"再总结\"，避免引入新错。",
     "Agent 场景每轮输出 Thought→Action→Observation，把推理链与工具调用交错展开，必要时加反思步纠偏。"
   ],
-  "diagram": "Q -> step1 -> step2 -> ... -> A"
+  "diagram": "Q -> step1 -> step2 -> ... -> A",
+  "order": 5
 };

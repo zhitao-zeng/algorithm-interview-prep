@@ -71,5 +71,6 @@ export default {
     "labels[i]=input_ids[i]：仅答案 token 有监督，其余 -100 被交叉熵忽略。",
     "（工程上）answer_spans 应来自 chat template 的结构化输出，避免手工数错边界。"
   ],
-  "diagram": "sys -100 | U1 -100 | A1 ✓ | U2 -100 | A2 ✓ | U3 -100 | A3 ✓"
+  "diagram": "sys -100 | U1 -100 | A1 ✓ | U2 -100 | A2 ✓ | U3 -100 | A3 ✓",
+  "order": 4
 };

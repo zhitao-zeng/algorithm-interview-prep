@@ -61,5 +61,6 @@ export default {
     "qi 取该组 Q 头。",
     "qi@k[i].T：整组共享第 i 个 KV 头做注意力。"
   ],
-  "diagram": "MHA: Q1..Q32 各用 K1..K32\nMQA: Q1..Q32 共用 K1\nGQA: {Q1..Q8}->K1 {Q9..Q16}->K2 ..."
+  "diagram": "MHA: Q1..Q32 各用 K1..K32\nMQA: Q1..Q32 共用 K1\nGQA: {Q1..Q8}->K1 {Q9..Q16}->K2 ...",
+  "order": 4
 };

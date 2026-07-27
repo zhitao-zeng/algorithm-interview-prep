@@ -64,5 +64,6 @@ export default {
     "LLM 裁判按 rubric 打分",
     "返回各指标均值"
   ],
-  "diagram": "Retrieve -> Context Recall / Context Precision\nGenerate -> Faithfulness / Answer Relevancy"
+  "diagram": "Retrieve -> Context Recall / Context Precision\nGenerate -> Faithfulness / Answer Relevancy",
+  "order": 7
 };

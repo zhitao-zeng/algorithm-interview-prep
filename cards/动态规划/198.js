@@ -61,5 +61,6 @@ export default {
     "从 i=2 起：cur = max(nums[i] + prev2, prev1)；然后 prev2, prev1 = prev1, cur。",
     "返回 prev1。"
   ],
-  "diagram": "[2,7,9,3,1]\ndp[i]=max(抢i+dp[i-2], 不抢+dp[i-1])\ndp: 2, 7, 11, 11, 12\n抢 2→9→1 = 12   (跳过7和3)"
+  "diagram": "[2,7,9,3,1]\ndp[i]=max(抢i+dp[i-2], 不抢+dp[i-1])\ndp: 2, 7, 11, 11, 12\n抢 2→9→1 = 12   (跳过7和3)",
+  "order": 6
 };

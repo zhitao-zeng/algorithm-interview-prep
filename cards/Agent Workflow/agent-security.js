@@ -72,5 +72,6 @@ export default {
     "`return sandbox_exec(call, scoped_creds(call))`：通过检查后用最小凭证在沙箱内执行。",
     "整体确保任意外部副作用都过「授权 + 注入检测 + 沙箱」三道关。"
   ],
-  "diagram": "call -> risk? -> sandbox/confirm/human"
+  "diagram": "call -> risk? -> sandbox/confirm/human",
+  "order": 32
 };

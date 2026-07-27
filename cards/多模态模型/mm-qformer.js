@@ -72,5 +72,6 @@ export default {
     "x = cross_attn(x, visual_feat)：关键一步——query 作为 Q、视觉特征作为 K/V，从视觉中「读取」相关信息，实现压缩提炼。",
     "可选 if text_feat: x = cross_attn(x, text_feat)：再与文本做交叉注意力，使输出同时与文本空间对齐；最终返回 (B, N_query, d) 的对齐 token。"
   ],
-  "diagram": "ViT tokens(多) ─▶ 交叉注意力 ← 查询(少,N)\n                        │\n                    自注意力(查询间)\n                        │\n                   N 个对齐 token ─▶ LLM"
+  "diagram": "ViT tokens(多) ─▶ 交叉注意力 ← 查询(少,N)\n                        │\n                    自注意力(查询间)\n                        │\n                   N 个对齐 token ─▶ LLM",
+  "order": 4
 };

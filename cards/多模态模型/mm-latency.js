@@ -66,5 +66,6 @@ export default {
     "LLM 随输出长度增长：llm_generate 自回归逐 token，耗时 ≈ 输出长度 × 每步成本。",
     "按瓶颈优化：本例 LLM 最大，则减 token/量化/并行；若编码大则减视觉 token。"
   ],
-  "diagram": "输入 ─▶ 预处理 ─▶ 视觉编码 ─▶ 连接 ─▶ LLM生成\n   计时拆分各段 → 定位瓶颈"
+  "diagram": "输入 ─▶ 预处理 ─▶ 视觉编码 ─▶ 连接 ─▶ LLM生成\n   计时拆分各段 → 定位瓶颈",
+  "order": 20
 };

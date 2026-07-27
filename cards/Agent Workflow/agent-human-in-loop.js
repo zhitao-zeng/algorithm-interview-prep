@@ -66,5 +66,6 @@ export default {
     "若 action=='edit'：apply_edit 把人工补丁写回 state，并强制作为后续唯一真相，模型不得覆盖。",
     "若 action=='reject'：raise AbortedByHuman()，终止流程并留痕；否则 return state 回灌续跑。"
   ],
-  "diagram": "Agent --pause--> Human --decision--> Agent"
+  "diagram": "Agent --pause--> Human --decision--> Agent",
+  "order": 21
 };

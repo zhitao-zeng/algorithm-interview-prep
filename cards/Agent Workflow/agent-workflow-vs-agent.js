@@ -87,5 +87,6 @@ export default {
     "写操作/支付等节点永远用确定性代码，不交模型自由调用。",
     "Agent 需限步数、防循环、保证幂等。"
   ],
-  "diagram": "Workflow vs Agent:\nWorkflow: 固定路径 -> 可预测/易测/省成本\nAgent:    模型动态规划 -> 灵活/状态大/不稳/贵\n原则: 能 Workflow 就别 Agent\n写操作/支付: 永远确定性代码"
+  "diagram": "Workflow vs Agent:\nWorkflow: 固定路径 -> 可预测/易测/省成本\nAgent:    模型动态规划 -> 灵活/状态大/不稳/贵\n原则: 能 Workflow 就别 Agent\n写操作/支付: 永远确定性代码",
+  "order": 2
 };

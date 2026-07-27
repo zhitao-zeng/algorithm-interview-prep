@@ -62,5 +62,6 @@ export default {
     "新请求从池取离散 block。",
     "页表把离散块映射为逻辑序列。"
   ],
-  "diagram": "连续批(调度) ──依赖──▶ PagedAttention(分页KV)\n释放 block ⇄ 取 block 闭环"
+  "diagram": "连续批(调度) ──依赖──▶ PagedAttention(分页KV)\n释放 block ⇄ 取 block 闭环",
+  "order": 9
 };

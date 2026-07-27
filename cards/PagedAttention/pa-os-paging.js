@@ -62,5 +62,6 @@ export default {
     "页表 ≈ block table。",
     "按需分配、共享块均同源。"
   ],
-  "diagram": "OS:   进程虚拟地址 ─页表─▶ 离散物理页\nPaged: 请求逻辑KV  ─块表─▶ 离散物理block\n同构: 逻辑连续, 物理离散, 表管理"
+  "diagram": "OS:   进程虚拟地址 ─页表─▶ 离散物理页\nPaged: 请求逻辑KV  ─块表─▶ 离散物理block\n同构: 逻辑连续, 物理离散, 表管理",
+  "order": 3
 };

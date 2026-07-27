@@ -61,5 +61,6 @@ export default {
     "将 PE 广播加到词嵌入上（通常还需乘 √d 缩放嵌入）。",
     "返回 embedding + PE。"
   ],
-  "diagram": "PE(pos,2i)   = sin( pos / 10000^{2i/d} )\nPE(pos,2i+1) = cos( pos / 10000^{2i/d} )\npos=0: [sin0, cos0, ...] = [0, 1, ...]\npos=1: 不同频率振荡\n→ 给每个位置唯一编码, 注入顺序信息"
+  "diagram": "PE(pos,2i)   = sin( pos / 10000^{2i/d} )\nPE(pos,2i+1) = cos( pos / 10000^{2i/d} )\npos=0: [sin0, cos0, ...] = [0, 1, ...]\npos=1: 不同频率振荡\n→ 给每个位置唯一编码, 注入顺序信息",
+  "order": 6
 };

@@ -60,5 +60,6 @@ export default {
     "遍历每个数：cur = max(num, cur + num)；max_so_far = max(max_so_far, cur)。",
     "返回 max_so_far。"
   ],
-  "diagram": "nums=[-2,1,-3,4,-1,2,1,-5,4]\ncur:  -2 → 1 → -2 → 4 → 3 → 5 → 6 → 1 → 5\nmax = 6   (子数组 [4,-1,2,1])\ncur<0 则归零重起"
+  "diagram": "nums=[-2,1,-3,4,-1,2,1,-5,4]\ncur:  -2 → 1 → -2 → 4 → 3 → 5 → 6 → 1 → 5\nmax = 6   (子数组 [4,-1,2,1])\ncur<0 则归零重起",
+  "order": 1
 };

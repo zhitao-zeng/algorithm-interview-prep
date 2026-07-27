@@ -61,5 +61,6 @@ export default {
     "SFT：对话指令塑形交互风格。",
     "RL 后训练：以偏好奖励提升质量与安全。"
   ],
-  "diagram": "L1 Codec预训练 ─▶ L2 多任务监督 ─▶ L3 SFT ─▶ L4 RLHF/DPO\n (声学token)      (听想说基础)      (对话风格)   (偏好对齐)"
+  "diagram": "L1 Codec预训练 ─▶ L2 多任务监督 ─▶ L3 SFT ─▶ L4 RLHF/DPO\n (声学token)      (听想说基础)      (对话风格)   (偏好对齐)",
+  "order": 6
 };

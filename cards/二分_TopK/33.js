@@ -63,5 +63,6 @@ export default {
     "if nums[left] <= nums[mid]: 说明左半 [left,mid] 升序；再判断 target 是否在 [nums[left], nums[mid]] 内决定砍左或右（注意闭合区间）。",
     "else: 右半有序，同理判断 target 是否落在右半范围内。"
   ],
-  "diagram": "nums=[4,5,6,7,0,1,2], target=0\n      l       m       r\nmid=7 > nums[0] → 左半有序\ntarget<nums[0]  → 在右半 [0,1,2]\n→ 收缩右半, 找到 0\n每轮靠\"有序侧\"判断 target 归属, 砍半"
+  "diagram": "nums=[4,5,6,7,0,1,2], target=0\n      l       m       r\nmid=7 > nums[0] → 左半有序\ntarget<nums[0]  → 在右半 [0,1,2]\n→ 收缩右半, 找到 0\n每轮靠\"有序侧\"判断 target 归属, 砍半",
+  "order": 2
 };

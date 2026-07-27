@@ -62,5 +62,6 @@ export default {
     "新 token 的 Q 与全部缓存 K 做注意力。",
     "新 K、V 再追加，供下一步用。"
   ],
-  "diagram": "token_1..t ─▶ 各层算 K,V ─▶ 缓存(K,V)\n新 token_t+1: Q_{t+1} × [K_1..K_t] ─▶ 注意力\n再 append K_{t+1},V_{t+1}"
+  "diagram": "token_1..t ─▶ 各层算 K,V ─▶ 缓存(K,V)\n新 token_t+1: Q_{t+1} × [K_1..K_t] ─▶ 注意力\n再 append K_{t+1},V_{t+1}",
+  "order": 1
 };

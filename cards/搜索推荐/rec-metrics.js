@@ -62,5 +62,6 @@ export default {
     "曝光加权得 GAUC。",
     "统计相关项落入 topK 比例得 Recall。"
   ],
-  "diagram": "样本 ─▶ AUC(全局排序)\n用户分组 ─▶ AUC_u ─▶ 加权 ─▶ GAUC\n相关集 ∩ topK ─▶ Recall@K"
+  "diagram": "样本 ─▶ AUC(全局排序)\n用户分组 ─▶ AUC_u ─▶ 加权 ─▶ GAUC\n相关集 ∩ topK ─▶ Recall@K",
+  "order": 18
 };

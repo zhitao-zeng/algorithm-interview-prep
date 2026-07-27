@@ -61,5 +61,6 @@ export default {
     "repeat_interleave：把 KV 头复制 group 次对齐 Q。",
     "对齐后可直接用标准 MHA 代码路径。"
   ],
-  "diagram": "MHA h:h | MQA h:1 | GQA h:g(1<g<h)\nGQA = 多组共享，缓存缩 h/g 倍"
+  "diagram": "MHA h:h | MQA h:1 | GQA h:g(1<g<h)\nGQA = 多组共享，缓存缩 h/g 倍",
+  "order": 5
 };

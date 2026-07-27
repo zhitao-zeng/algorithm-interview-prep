@@ -72,5 +72,6 @@ export default {
     "依靠 tokenizer 的“前缀一致性”：decode(ids[0:i]+[ids[i]]) 的输出前缀必须等于 decode(ids[0:i]) 的输出。实现上始终对 pending 整体 decode 而非逐 token 拼接，并只在能成完整片段时 flush；只要 flush 时刻的 pending 是最终前缀的子集，累积结果在流结束时必然与整段 decode 一致。SentencePiece 还需统一首 token 的前缀空格处理。",
     "逻辑上复用同一 tokenizer 的 encode/decode 即可，但流式只用到 decode 的增量形式。关键在于 decode 要支持“部分序列→可读前缀”且前缀稳定；有些老旧 tokenizer 的 decode 在部分序列上会加额外空格或合并异常，需要包一层增量缓冲与完整性判定，不能直接裸用。",
     "通常不是。一个 SSE chunk 可能含 0/1/多个 token 的文本片段：服务端为了等完整字会缓冲，所以 flush 时机由 detokenizer 决定，chunk 边界与 token 边界解耦。前端按 chunk 拼接即可，不应假设每 chunk 恰一个 token。"
-  ]
+  ],
+  "order": 3
 };

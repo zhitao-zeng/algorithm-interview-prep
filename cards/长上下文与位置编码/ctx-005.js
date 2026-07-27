@@ -61,5 +61,6 @@ export default {
     "gamma = clamp((r-α)/(β-α),0,1)：分段斜坡，避免突变。",
     "yarn_attn_scale：返回 1/√t，用于缩放 q,k 修正注意力熵。"
   ],
-  "diagram": "波长 λ: 短(局部)──中──长(全局)\n处理:  不动 │斜坡γ│ 全插值(PI)\n+ 注意力温度 t 修正 softmax 熵"
+  "diagram": "波长 λ: 短(局部)──中──长(全局)\n处理:  不动 │斜坡γ│ 全插值(PI)\n+ 注意力温度 t 修正 softmax 熵",
+  "order": 5
 };

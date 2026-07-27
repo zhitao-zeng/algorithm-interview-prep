@@ -64,5 +64,6 @@ export default {
     "挂上日志回调：callbacks=[Logger()] 是观测关键入口，记录每一步的思考和工具调用。",
     "由 AgentExecutor 驱动运行：executor 管理循环终止、异常处理与中间状态。"
   ],
-  "diagram": "[LLM] <-> [Agent] <-> [Tools]\n              <-> [Memory]/[Retriever]"
+  "diagram": "[LLM] <-> [Agent] <-> [Tools]\n              <-> [Memory]/[Retriever]",
+  "order": 18
 };

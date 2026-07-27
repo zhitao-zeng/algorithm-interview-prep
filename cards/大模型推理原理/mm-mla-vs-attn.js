@@ -86,5 +86,6 @@ export default {
     "return kv_mla / kv_full：返回压缩比，远小于 1 说明 MLA 在 KV 上大幅节省，且节省来自维度而非头数。",
     "（隐含）推理时需上投影把 latent_d 还原回 d 维，这一步是 MLA 相对 GQA 多出的算力代价。"
   ],
-  "diagram": "KV 缓存形态:\nMHA : [K1V1][K2V2]...[KhVh]   (最大)\nMQA : [KV] 共享            (最小)\nGQA : [KV]g1 [KV]g2 ...     (分组)\nMLA : [Latent] 低维, 用时上投影还原 (体积最小, 机理不同)"
+  "diagram": "KV 缓存形态:\nMHA : [K1V1][K2V2]...[KhVh]   (最大)\nMQA : [KV] 共享            (最小)\nGQA : [KV]g1 [KV]g2 ...     (分组)\nMLA : [Latent] 低维, 用时上投影还原 (体积最小, 机理不同)",
+  "order": 14
 };

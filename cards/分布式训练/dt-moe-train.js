@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "aux loss 鼓励每个专家被选中的总体概率与其实际处理 token 占比一致，缓解负载不均；z-loss 对 router logit 的平方做惩罚，防止个别 logit 过大使 softmax 塌缩到单一专家，二者互补。",
     "把大专家拆成更多小专家（如 64 个一半尺寸的专家配合 top-2/4），提升每 token 可选粒度与组合多样性，在相近算力下提高专家利用率与模型表达，且更易均衡。"
-  ]
+  ],
+  "order": 6
 };

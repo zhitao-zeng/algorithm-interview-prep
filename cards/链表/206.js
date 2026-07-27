@@ -62,5 +62,6 @@ export default {
     "while cur: 保证即使链表为空（cur 一开始就是 None）也会直接返回 prev（也就是 None），不会进入循环。",
     "nxt = cur.next 必须在改写 cur.next 之前执行，这是「暂存后继」的关键，避免断链。",
     "cur.next = prev 完成一次「掉头」；prev, cur = cur, nxt 让两个游标同时前进，最终 prev 成为新头节点并返回。"
-  ]
+  ],
+  "order": 9
 };

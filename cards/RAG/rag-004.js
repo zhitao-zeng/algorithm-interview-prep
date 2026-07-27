@@ -65,5 +65,6 @@ export default {
     "range 按 step 取窗口",
     "拼接成块返回"
   ],
-  "diagram": "[====block1====]\n    [====block2====]  <- overlap\n        [====block3====]"
+  "diagram": "[====block1====]\n    [====block2====]  <- overlap\n        [====block3====]",
+  "order": 4
 };

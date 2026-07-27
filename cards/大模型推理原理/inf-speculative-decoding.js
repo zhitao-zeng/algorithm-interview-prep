@@ -85,5 +85,6 @@ export default {
     "首个拒绝处由 Target 重采样接续，保证无损。",
     "本回合净产出 = 接受数，大模型前向只 1 次。"
   ],
-  "diagram": "Speculative Decoding:\n  Draft Model (小/快)\n      | 自回归提议 γ 个候选\n      v\n  Target Model (大) -- 一次前向验证 γ+1 位置\n      | 按 p_target/p_draft 接受/拒绝\n      v\n  接受片段保留，拒绝处 Target 重采样\n  输出分布 == Target 自回归分布 (无损)"
+  "diagram": "Speculative Decoding:\n  Draft Model (小/快)\n      | 自回归提议 γ 个候选\n      v\n  Target Model (大) -- 一次前向验证 γ+1 位置\n      | 按 p_target/p_draft 接受/拒绝\n      v\n  接受片段保留，拒绝处 Target 重采样\n  输出分布 == Target 自回归分布 (无损)",
+  "order": 16
 };

@@ -72,5 +72,6 @@ export default {
     "元素除 scale 后四舍五入并 clamp 到 [−2^(bits−1), 2^(bits−1)−1]：完成量化。",
     "存量化值 + 各 scale（per-group 每组一个）：反量化时 x≈s·q，scale 数量随粒度增加。"
   ],
-  "diagram": "per-tensor: [===== 1 scale =====]\nper-channel:[s][s][s]... (每通道)\nper-group:  [s][s] 每128元素"
+  "diagram": "per-tensor: [===== 1 scale =====]\nper-channel:[s][s][s]... (每通道)\nper-group:  [s][s] 每128元素",
+  "order": 6
 };

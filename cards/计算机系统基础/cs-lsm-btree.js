@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "用极小空间判断某 key 是否\"可能存在于某层\"，避免对不存在的 key 做无谓的多层磁盘查找，显著降低读放大。",
     "常见 size-tiered（按大小合并，写放大低）与 leveled（分层、读放大低、写放大高），需在读写放大间权衡。"
-  ]
+  ],
+  "order": 10
 };

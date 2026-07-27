@@ -65,5 +65,6 @@ export default {
     "faithfulness_ok 校验答案是否忠于上下文",
     "不忠则返回警示"
   ],
-  "diagram": "Retrieve(错/漏) -> Context(噪/错位) -> Generate(不忠/编造)\n  改写+重排      压缩+排序        拒答+校验"
+  "diagram": "Retrieve(错/漏) -> Context(噪/错位) -> Generate(不忠/编造)\n  改写+重排      压缩+排序        拒答+校验",
+  "order": 11
 };

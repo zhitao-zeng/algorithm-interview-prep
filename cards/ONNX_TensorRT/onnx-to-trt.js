@@ -62,5 +62,6 @@ export default {
     "检查并打印解析错误。",
     "交 Builder 优化生成 engine。"
   ],
-  "diagram": "ONNX ─▶ OnnxParser ─▶ NetworkDef ─▶ Optimizer ─▶ Engine"
+  "diagram": "ONNX ─▶ OnnxParser ─▶ NetworkDef ─▶ Optimizer ─▶ Engine",
+  "order": 8
 };

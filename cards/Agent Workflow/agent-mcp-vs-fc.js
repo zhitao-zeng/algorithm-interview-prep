@@ -88,5 +88,6 @@ export default {
     "Client 负责按协议发现可用能力、把 FC 的请求路由到对应 Server、执行并取回结果。",
     "MCP 只管\"能力的暴露与连接\"，不规定模型如何规划下一步——那是 Agent 框架的职责。"
   ],
-  "diagram": "MCP 架构:\nHost(应用)\n  +- Client -- 连接 --> Server\n                     |- Tools(可执行)\n                     |- Resources(可读)\n                     +- Prompts(模板)\nFC: 模型决定调用哪个 Tool\nMCP!=Agent框架(不管规划)"
+  "diagram": "MCP 架构:\nHost(应用)\n  +- Client -- 连接 --> Server\n                     |- Tools(可执行)\n                     |- Resources(可读)\n                     +- Prompts(模板)\nFC: 模型决定调用哪个 Tool\nMCP!=Agent框架(不管规划)",
+  "order": 14
 };

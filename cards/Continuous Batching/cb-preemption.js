@@ -62,5 +62,6 @@ export default {
     "按 KV 占用选 victim。",
     "swap 或 recompute 腾出资源。"
   ],
-  "diagram": "运行中[P0?] 池满 → 选低优高KV victim\n→ swap 到 CPU → 高优运行 → 恢复 victim"
+  "diagram": "运行中[P0?] 池满 → 选低优高KV victim\n→ swap 到 CPU → 高优运行 → 恢复 victim",
+  "order": 8
 };

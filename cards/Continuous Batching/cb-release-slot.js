@@ -62,5 +62,6 @@ export default {
     "统计剩余 live 请求。",
     "按空闲数从 waiting 补入新请求。"
   ],
-  "diagram": "running[8] --完成3--> 释放3 --> free=3\nwaiting 取3 --> running 回到[8]"
+  "diagram": "running[8] --完成3--> 释放3 --> free=3\nwaiting 取3 --> running 回到[8]",
+  "order": 7
 };

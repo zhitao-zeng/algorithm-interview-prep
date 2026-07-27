@@ -72,5 +72,6 @@ export default {
     "return min(D_from_N, C_flops/(6*params))：取「比例约束」与「算力约束」中的较小可行值，保证两者都不超标。",
     "补充：真实训练还需 steps = D / (global_batch_size × seq_len) 才能落地为具体训练计划。"
   ],
-  "diagram": "N(参数) ──×20──▶ D(最优 token)\n   │\n   └─ C=6ND ─▶ 受算力封顶"
+  "diagram": "N(参数) ──×20──▶ D(最优 token)\n   │\n   └─ C=6ND ─▶ 受算力封顶",
+  "order": 12
 };

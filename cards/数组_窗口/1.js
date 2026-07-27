@@ -61,5 +61,6 @@ export default {
     "need = target - value 是让当前值凑成 target 的唯一补数。",
     "命中时返回 [seen[need], i]，保证是两个不同的位置。",
     "完整扫描仍无配对时返回空列表作为兜底。"
-  ]
+  ],
+  "order": 1
 };

@@ -69,5 +69,6 @@ export default {
     "w_scaled = weight * scale.unsqueeze(1)：把缩放吸收进权重，随后 quantize_int4 做 group INT4；因缩放已并入，部署 kernel 与标准 INT4 一致。",
     "quantize_int4 内部按 group 求 scale/zero 并四舍五入，输出仍是规整 INT4 张量，硬件无需特殊处理。"
   ],
-  "diagram": "激活大 ─▶ 权重重要 ─▶ 加缩放保护\n                       └─▶ 统一 INT4 量化"
+  "diagram": "激活大 ─▶ 权重重要 ─▶ 加缩放保护\n                       └─▶ 统一 INT4 量化",
+  "order": 12
 };

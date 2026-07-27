@@ -62,5 +62,6 @@ export default {
     "配 Config(精度/workspace)。",
     "build_serialized_network 并写文件。"
   ],
-  "diagram": "Builder ─ Network ─ Parser(ONNX) ─▶ Config ─▶ build ─▶ engine(blob)"
+  "diagram": "Builder ─ Network ─ Parser(ONNX) ─▶ Config ─▶ build ─▶ engine(blob)",
+  "order": 9
 };

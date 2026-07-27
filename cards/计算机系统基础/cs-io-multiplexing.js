@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "Reactor 是\"等就绪再同步读写\"（多路复用+非阻塞），Proactor 是\"内核完成 IO 后回调通知\"（异步 IO，如 io_uring/IOCP）。",
     "使用 EPOLLEXCLUSIVE 标志或让仅一个 acceptor 监听、worker 用自身 epoll 且不共享监听 fd，配合 reuseport 分散。"
-  ]
+  ],
+  "order": 3
 };

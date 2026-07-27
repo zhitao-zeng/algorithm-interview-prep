@@ -62,5 +62,6 @@ export default {
     "写特征存储。",
     "请求时读取重召回。"
   ],
-  "diagram": "用户行为 ─▶ Kafka ─▶ Flink(窗口) ─▶ 特征存储\n                                          ▲\n下次请求 ──读取──┘"
+  "diagram": "用户行为 ─▶ Kafka ─▶ Flink(窗口) ─▶ 特征存储\n                                          ▲\n下次请求 ──读取──┘",
+  "order": 7
 };

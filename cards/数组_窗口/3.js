@@ -61,5 +61,6 @@ export default {
     "left = max(left, last[ch] + 1) 只在「重复字符位于当前窗口内」时才真正移动 left，避免 left 倒退。",
     "更新 last[ch] = right 后，用 right - left + 1 刷新 best。",
     "空字符串时 right 不进入循环，best 保持 0，自然返回 0。"
-  ]
+  ],
+  "order": 2
 };

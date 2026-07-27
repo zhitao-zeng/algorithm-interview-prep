@@ -72,5 +72,6 @@ export default {
     "logits = matmul(img_emb, txt_emb.T) * exp(temp)：构造 N×N 相似度矩阵，温度 temp 控制分布锐度。",
     "labels = arange(N)：对角线为正对；ce 两侧平均即 InfoNCE，把正对拉近、负对推远。"
   ],
-  "diagram": "图像 ─▶ 图像塔 ─┐\n                  ├─▶ 相似度矩阵 ─▶ InfoNCE(正对近/负对远)\n文本 ─▶ 文本塔 ─┘"
+  "diagram": "图像 ─▶ 图像塔 ─┐\n                  ├─▶ 相似度矩阵 ─▶ InfoNCE(正对近/负对远)\n文本 ─▶ 文本塔 ─┘",
+  "order": 2
 };

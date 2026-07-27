@@ -66,5 +66,6 @@ export default {
     "y_q = layer(量化权重)(x)：用量化权重再过一次前向，得到『量化后输出』。",
     "return (y_fp - y_q).pow(2).mean()：计算两层输出均方误差，值越大说明该层越敏感、越该留高精度。"
   ],
-  "diagram": "层敏感度: 高●●● 低○○○○○○\n精度:      FP16 INT4 INT4 INT4 ..."
+  "diagram": "层敏感度: 高●●● 低○○○○○○\n精度:      FP16 INT4 INT4 INT4 ...",
+  "order": 14
 };

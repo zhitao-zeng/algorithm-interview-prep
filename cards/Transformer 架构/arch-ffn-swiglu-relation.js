@@ -60,5 +60,6 @@ export default {
     "x@w3.T：门控分支升维。",
     "(silu*up)@w2.T：门控相乘后降维。"
   ],
-  "diagram": "FFN: x -> W1 -> act -> W2 -> out\nSwiGLU: x->W1->SiLU ┐\n        x->W3 ----->⊙->W2->out"
+  "diagram": "FFN: x -> W1 -> act -> W2 -> out\nSwiGLU: x->W1->SiLU ┐\n        x->W3 ----->⊙->W2->out",
+  "order": 13
 };

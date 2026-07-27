@@ -62,5 +62,6 @@ export default {
     "写入前若 ref>1 则 COW。",
     "引用归零才回收。"
   ],
-  "diagram": "seqA: [P1 P2 P3] ref各+1\nseqB: [P1 P2 P3] 共享同一批\nseqC: [P1 P2 P3]\n写P3时: COW -> 新P3' 给C, 原P3 ref-1"
+  "diagram": "seqA: [P1 P2 P3] ref各+1\nseqB: [P1 P2 P3] 共享同一批\nseqC: [P1 P2 P3]\n写P3时: COW -> 新P3' 给C, 原P3 ref-1",
+  "order": 10
 };

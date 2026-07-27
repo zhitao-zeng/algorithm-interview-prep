@@ -62,5 +62,6 @@ export default {
     "lse = max(z) + log(sum(exp(z - max(z)))) 计算 log-sum-exp。",
     "返回 mean(z_true - lse) 的负值。"
   ],
-  "diagram": "logits=[2,1,0.1]\nsoftmax: p_i = e^{z_i} / Σe^{z_j}\nlabel = 类0\nCE = -log( p_类0 )\n   = -[ z_0 - log(Σe^{z_j}) ]\np 越大 → CE 越小 (预测越准)"
+  "diagram": "logits=[2,1,0.1]\nsoftmax: p_i = e^{z_i} / Σe^{z_j}\nlabel = 类0\nCE = -log( p_类0 )\n   = -[ z_0 - log(Σe^{z_j}) ]\np 越大 → CE 越小 (预测越准)",
+  "order": 8
 };

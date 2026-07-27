@@ -61,5 +61,6 @@ export default {
     "if slow is fast: break 只在首次相遇时跳出，进入第二阶段。",
     "若循环正常结束（未 break）则 else 分支返回 None，明确处理无环。",
     "seeker 与 slow 同速各走一步，第二次相遇的节点就是环的入口。"
-  ]
+  ],
+  "order": 6
 };

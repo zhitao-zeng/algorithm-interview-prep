@@ -61,5 +61,6 @@ export default {
     "sqrt(+eps)：开根得 RMS，eps 防除零。",
     "weight*(x/rms)：缩放并乘可学习 γ。"
   ],
-  "diagram": "LayerNorm: (x-μ)/σ·γ + β\nRMSNorm:  x/rms · γ      (无 μ, 无 β)"
+  "diagram": "LayerNorm: (x-μ)/σ·γ + β\nRMSNorm:  x/rms · γ      (无 μ, 无 β)",
+  "order": 18
 };

@@ -73,5 +73,6 @@ export default {
     "forward 中 return x @ self.W.T + (x @ self.A.T) @ self.B.T：先算原路径 W0·x，再算低秩增量 B·A·x 并相加；实际工程还应乘 scaling=α/r 控制幅度。",
     "注：该草图省略了 scaling 与批量维度处理，落地时需在 B 分支乘以 α/r，并保证 x 形状为 (batch, seq, k)。"
   ],
-  "diagram": "x ─▶[W 冻结]─┐\n    └▶[A]▶[B]─┴─▶ + ─▶ y"
+  "diagram": "x ─▶[W 冻结]─┐\n    └▶[A]▶[B]─┴─▶ + ─▶ y",
+  "order": 17
 };

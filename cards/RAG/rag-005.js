@@ -63,5 +63,6 @@ export default {
     "predict 得相关性分数",
     "按分数降序取前 10"
   ],
-  "diagram": "Retriever(top-100) -> CrossEncoder(score each) -> sort -> top-10 -> LLM"
+  "diagram": "Retriever(top-100) -> CrossEncoder(score each) -> sort -> top-10 -> LLM",
+  "order": 5
 };

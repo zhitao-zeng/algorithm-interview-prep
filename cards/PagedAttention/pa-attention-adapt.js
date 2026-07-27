@@ -62,5 +62,6 @@ export default {
     "块内算分数并增量累加分子/分母。",
     "在线 softmax 得最终输出。"
   ],
-  "diagram": "q × [P5的K | P2的K | P9的K]  (按表拼, 不真拷贝)\n  └─> 逐块算分数 -> 增量softmax -> 输出\n等价: q × 连续KV"
+  "diagram": "q × [P5的K | P2的K | P9的K]  (按表拼, 不真拷贝)\n  └─> 逐块算分数 -> 增量softmax -> 输出\n等价: q × 连续KV",
+  "order": 7
 };

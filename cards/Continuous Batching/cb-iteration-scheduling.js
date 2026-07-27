@@ -62,5 +62,6 @@ export default {
     "保留未完成的 live。",
     "按空闲补入 waiting 请求。"
   ],
-  "diagram": "step t: [A,B,C] → forward → A EOS\nstep t+1: [B,C] + D → [B,C,D]"
+  "diagram": "step t: [A,B,C] → forward → A EOS\nstep t+1: [B,C] + D → [B,C,D]",
+  "order": 5
 };

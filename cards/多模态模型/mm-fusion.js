@@ -72,5 +72,6 @@ export default {
     "late：各模态先独立出 logits_v、logits_t，再用权重 w 加权求和得到最终决策，解耦且易扩展新模态。",
     "评估：在基准上对比两种融合的精度、鲁棒性与延迟，按任务取舍。"
   ],
-  "diagram": "early: 视觉─┐\n             ├─▶ 联合 Transformer ─▶ 输出\n       文本─┘\nlate:  视觉─▶塔─┐\n                ├─▶ 加权/投票 ─▶ 决策\n       文本─▶塔─┘"
+  "diagram": "early: 视觉─┐\n             ├─▶ 联合 Transformer ─▶ 输出\n       文本─┘\nlate:  视觉─▶塔─┐\n                ├─▶ 加权/投票 ─▶ 决策\n       文本─▶塔─┘",
+  "order": 5
 };

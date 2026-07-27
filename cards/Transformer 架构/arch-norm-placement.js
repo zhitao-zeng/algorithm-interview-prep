@@ -60,5 +60,6 @@ export default {
     "n2(h)：FFN 子层输入归一化。",
     "残差 x/h 不经归一化直接加回。"
   ],
-  "diagram": "x ->[RMSNorm]-> Attn --\\\n                                 + -> x' ->[RMSNorm]-> FFN -->+ -> out\n(残差主干不经 norm)"
+  "diagram": "x ->[RMSNorm]-> Attn --\\\n                                 + -> x' ->[RMSNorm]-> FFN -->+ -> out\n(残差主干不经 norm)",
+  "order": 15
 };

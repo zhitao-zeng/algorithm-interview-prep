@@ -61,5 +61,6 @@ export default {
     "max_profit = max(max_profit, price - min_price)。",
     "返回 max_profit。"
   ],
-  "diagram": "价=[7,1,5,3,6,4]\nmin=7 → 1   profit=max(0,5-1)=4\n         min=1, 6-1=5 → profit=5\n一次买卖, 维护最低买入价"
+  "diagram": "价=[7,1,5,3,6,4]\nmin=7 → 1   profit=max(0,5-1)=4\n         min=1, 6-1=5 → profit=5\n一次买卖, 维护最低买入价",
+  "order": 4
 };

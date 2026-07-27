@@ -62,5 +62,6 @@ export default {
     "校准器喂代表样本估范围。",
     "生成 scale 并量化执行。"
   ],
-  "diagram": "FP32 ─▶ FP16(直接)   FP32 ─▶[校准估范围]─▶ INT8(需 scale)"
+  "diagram": "FP32 ─▶ FP16(直接)   FP32 ─▶[校准估范围]─▶ INT8(需 scale)",
+  "order": 11
 };

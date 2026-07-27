@@ -62,5 +62,6 @@ export default {
     "同一步算所有就绪 token。",
     "结束即释放 block 复用。"
   ],
-  "diagram": "static: [A A A A | 等最慢 | 空转]\nconti.: [A101][B2][C7][新D] 同一步并行\n       各占各自block, GPU不空转"
+  "diagram": "static: [A A A A | 等最慢 | 空转]\nconti.: [A101][B2][C7][新D] 同一步并行\n       各占各自block, GPU不空转",
+  "order": 8
 };

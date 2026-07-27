@@ -62,5 +62,6 @@ export default {
     "输出 pCTR/pCVR/pStay。",
     "加权融合成排序分。"
   ],
-  "diagram": "特征\n  │ 共享底层\n  ├─专家A─▶ pCTR\n  ├─专家B─▶ pCVR   ─▶ 融合 ─▶ 排序\n  └─专家C─▶ pStay"
+  "diagram": "特征\n  │ 共享底层\n  ├─专家A─▶ pCTR\n  ├─专家B─▶ pCVR   ─▶ 融合 ─▶ 排序\n  └─专家C─▶ pStay",
+  "order": 11
 };

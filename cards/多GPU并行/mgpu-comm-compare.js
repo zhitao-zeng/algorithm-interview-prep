@@ -62,5 +62,6 @@ export default {
     "PP: 相邻 stage 点对点。",
     "EP: all-to-all，最吃网络。"
   ],
-  "diagram": "通信原语:\nDP/ZeRO ─ all-reduce (量∝参数量)\nTP      ─ all-reduce/层 (量∝激活, 高频)\nPP      ─ p2p 激活 (量最小, 有 bubble)\nEP      ─ all-to-all (最吃网络)"
+  "diagram": "通信原语:\nDP/ZeRO ─ all-reduce (量∝参数量)\nTP      ─ all-reduce/层 (量∝激活, 高频)\nPP      ─ p2p 激活 (量最小, 有 bubble)\nEP      ─ all-to-all (最吃网络)",
+  "order": 14
 };

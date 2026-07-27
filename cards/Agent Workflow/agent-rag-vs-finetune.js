@@ -66,5 +66,6 @@ export default {
     "行动类用 Agent 编排：把 RAG、工具、微调节的能力串成多步流程。",
     "仅当确需固化风格或降延迟时，才做微调，且绝不把易变知识焊进权重。"
   ],
-  "diagram": "RAG(knowledge) + Finetune(style) + Agent(action)"
+  "diagram": "RAG(knowledge) + Finetune(style) + Agent(action)",
+  "order": 23
 };

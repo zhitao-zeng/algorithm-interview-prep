@@ -66,5 +66,6 @@ export default {
     "与 16 位激活做普通 GEMM（或在整数域算后乘 scale 还原），两种路径数学等价、仅差舍入。",
     "输出层保持 16 位精度，因此激活路径无损，整体近似等价于 FP16 计算。"
   ],
-  "diagram": "权重 INT4 ─▶ dequant ─┐\n激活 BF16 ───────────┴─▶ GEMM (近无损)"
+  "diagram": "权重 INT4 ─▶ dequant ─┐\n激活 BF16 ───────────┴─▶ GEMM (近无损)",
+  "order": 13
 };

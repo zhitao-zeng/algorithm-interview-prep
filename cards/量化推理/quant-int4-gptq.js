@@ -67,5 +67,6 @@ export default {
     "算该列量化误差 err=(w_q - W_col)*scale。",
     "comp = H_inv @ err：用逆海森把误差按敏感度投影到剩余列，补偿后继续下一列。"
   ],
-  "diagram": "W 列: [w1 w2 w3 ...]\n量化 w1→ 误差 err\n  └─ H^{-1}·err ─▶ 补偿 w2,w3...  (整层输出≈不变)"
+  "diagram": "W 列: [w1 w2 w3 ...]\n量化 w1→ 误差 err\n  └─ H^{-1}·err ─▶ 补偿 w2,w3...  (整层输出≈不变)",
+  "order": 11
 };

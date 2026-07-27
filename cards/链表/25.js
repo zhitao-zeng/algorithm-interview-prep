@@ -61,5 +61,6 @@ export default {
     "for 循环先找 kth，若中途 kth 变成 None，说明剩余不足 k 个，直接返回 dummy.next 保留残组。",
     "内层 while 在 cur is not after 的边界内反转这一整组（after 是组后第一个节点）。",
     "old_start = before.next 是反转前的组首，反转后它变成组尾；把它接到 before 之后，before 再前移到 old_start，准备下一组。"
-  ]
+  ],
+  "order": 3
 };

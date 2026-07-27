@@ -60,5 +60,6 @@ export default {
     "非 pre_ln 分支：先 sub(x) 残差加，再整体 norm。",
     "两者仅顺序不同，但梯度路径差异巨大。"
   ],
-  "diagram": "Pre:  x -> Norm -> Sub ->+ x -> out\nPost: x -> Sub ->+ x -> Norm -> out"
+  "diagram": "Pre:  x -> Norm -> Sub ->+ x -> out\nPost: x -> Sub ->+ x -> Norm -> out",
+  "order": 16
 };

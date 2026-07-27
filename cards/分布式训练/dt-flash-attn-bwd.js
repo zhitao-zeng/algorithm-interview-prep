@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "没有，注意力数学上的 FLOPs 仍是 O(N²)，它降的是 HBM 访问次数（IO），因 SRAM 比 HBM 快一个数量级，减少搬数据才是提速关键；显存从 O(N²) 降到 O(N) 是附带收益。",
     "若存完整 softmax 概率矩阵，显存回到 O(N²)，违背初衷；而重算每块似然只需 O(N) 统计量，在 SRAM 内代价很小，所以反向选择重算以保住线性显存。"
-  ]
+  ],
+  "order": 7
 };

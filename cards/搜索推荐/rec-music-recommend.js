@@ -84,5 +84,6 @@ export default {
     "精排结合内容+偏好。",
     "版权/业务规则兜底; 线上A/B校准。"
   ],
-  "diagram": "视频配乐推荐:\n视频(视觉/文本/音频) -+-\n                      +-> 统一 Embedding 空间\n音乐(acoustic/标签) -+-\n      | ANN 召回\n精排(内容匹配 × 用户偏好)\n      | 版权/业务规则\n推荐音乐\n离线Recall@K != 线上CTR"
+  "diagram": "视频配乐推荐:\n视频(视觉/文本/音频) -+-\n                      +-> 统一 Embedding 空间\n音乐(acoustic/标签) -+-\n      | ANN 召回\n精排(内容匹配 × 用户偏好)\n      | 版权/业务规则\n推荐音乐\n离线Recall@K != 线上CTR",
+  "order": 30
 };

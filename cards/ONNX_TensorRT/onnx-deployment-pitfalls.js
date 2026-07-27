@@ -62,5 +62,6 @@ export default {
     "对齐 TRT 版本与架构。",
     "精度/延迟回归校验。"
   ],
-  "diagram": "痛点: op不支持 / 版本错 / 精度偏\n应对: plugin库 / 版本矩阵 / 精度回归"
+  "diagram": "痛点: op不支持 / 版本错 / 精度偏\n应对: plugin库 / 版本矩阵 / 精度回归",
+  "order": 20
 };

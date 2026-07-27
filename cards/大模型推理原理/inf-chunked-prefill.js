@@ -78,5 +78,6 @@ export default {
     "总 FLOPs 不变，只是被摊到 ceil(n/chunk_size) 个迭代；chunk 越小分摊越细、ITL 越稳，但调度开销与 TTFT 上升。",
     "实际调度器需在 chunk 边界重新决策：决定下一个处理哪个 chunk、哪些 Decode 进 batch，按排队与优先级平衡 TTFT 与 ITL。"
   ],
-  "diagram": "Chunked Prefill:\n长 Prefill --切分--> [chunk1][chunk2]...[chunkK]\n   每个迭代处理 1 chunk\n   迭代间隙插入 Decode 请求\n   => Decode 的 ITL 不被长 Prefill 独占拖垮"
+  "diagram": "Chunked Prefill:\n长 Prefill --切分--> [chunk1][chunk2]...[chunkK]\n   每个迭代处理 1 chunk\n   迭代间隙插入 Decode 请求\n   => Decode 的 ITL 不被长 Prefill 独占拖垮",
+  "order": 15
 };

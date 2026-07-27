@@ -61,5 +61,6 @@ export default {
     "m_new=max(m, S.max)：更新运行最大值保稳定。",
     "rescale+l 与 O：用 e^{m−m_new} 校正并累加加权值。"
   ],
-  "diagram": "HBM: Q K V  ──load块──> SRAM\n  SRAM: S=QiKj^T → 在线softmax → 更新 O\n  只把最终 O 写回 HBM（S/P 从不落盘）"
+  "diagram": "HBM: Q K V  ──load块──> SRAM\n  SRAM: S=QiKj^T → 在线softmax → 更新 O\n  只把最终 O 写回 HBM（S/P 从不落盘）",
+  "order": 19
 };

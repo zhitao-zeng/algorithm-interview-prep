@@ -54,5 +54,6 @@ export default {
   "followUpAnswers": [
     "主要有位置偏置、长度偏置、自我偏好与风格偏见。缓解：双盲互换位置取多数、固定结构化 rubric、多裁判投票、用更强调节温度、并用人标集持续校准。",
     "ELO 是 Bradley-Terry 的特例：把胜率建模为分差 logistic，ELO 分数为 r 的对数值映射；BT 更自然地支持多模型联合最大似然估计与置信区间。"
-  ]
+  ],
+  "order": 3
 };

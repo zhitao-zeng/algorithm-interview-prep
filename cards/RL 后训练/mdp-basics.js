@@ -61,5 +61,6 @@ export default {
     "环境按转移 P 给出下一状态与奖励 r。",
     "折扣因子 γ 把未来 r 折算进回报 G。"
   ],
-  "diagram": "s ─a─▶ P(s,a) ─▶ s′ , r\n策略π: s ─▶ a\n回报 G = r₀ + γ r₁ + γ² r₂ + ..."
+  "diagram": "s ─a─▶ P(s,a) ─▶ s′ , r\n策略π: s ─▶ a\n回报 G = r₀ + γ r₁ + γ² r₂ + ...",
+  "order": 1
 };

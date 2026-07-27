@@ -67,5 +67,6 @@ export default {
     "s_logits = student(batch)：学生输出，参与 KL 与(可选)任务损失。",
     "kd_loss(s_logits, t_logits, labels, T)：温度 KL 对齐分布 + 任务损失，训练学生逼近教师。"
   ],
-  "diagram": "teacher(大)──软标签──▶ student(小)\n        └─可选:中间层对齐─┘"
+  "diagram": "teacher(大)──软标签──▶ student(小)\n        └─可选:中间层对齐─┘",
+  "order": 15
 };

@@ -61,5 +61,6 @@ export default {
     "空节点返回 0 贡献，让父节点可正常计算。",
     "left/right 用 max(0, dfs(...)) 把负贡献截断为 0。",
     "返回 node.val + max(left, right)，即「带当前节点向下的最大单臂」；同时用 node.val+left+right 更新 best。"
-  ]
+  ],
+  "order": 4
 };

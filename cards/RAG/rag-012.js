@@ -63,5 +63,6 @@ export default {
     "缩小后的集合做向量检索",
     "返回既相关又合规的结果"
   ],
-  "diagram": "Query+Filter -> [Meta Filter] -> subset -> [Vector ANN] -> top-k"
+  "diagram": "Query+Filter -> [Meta Filter] -> subset -> [Vector ANN] -> top-k",
+  "order": 12
 };

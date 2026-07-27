@@ -74,5 +74,6 @@ export default {
     "out = role.act(msg)：角色用专长出力，产出本环节结果（如检索摘要、初稿），并自动带上自己的 role 与版本标签。",
     "bus.post(role.name, out)：把带角色标签的产物回贴黑板，供下游订阅；最后 arbitrate(bus) 汇总仲裁成最终产出，并留存每次采纳/否决理由。"
   ],
-  "diagram": "Planner -> Researcher\nPlanner -> Writer -> Reviewer -> Merger"
+  "diagram": "Planner -> Researcher\nPlanner -> Writer -> Reviewer -> Merger",
+  "order": 17
 };

@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "因为 TCP 全双工，关闭需双方各自 FIN/ACK：一方发 FIN 表示不再发，另一方可能还有数据要发，故 ACK 与 FIN 分开，共四次。",
     "每收到一个 ACK 就增加一个 MSS 的窗口，一个 RTT 内窗口翻倍，目的是快速探测可用带宽，直到阈值后转线性避免过载。"
-  ]
+  ],
+  "order": 8
 };

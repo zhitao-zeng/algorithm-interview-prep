@@ -72,5 +72,6 @@ export default {
     "`out = fn()`：执行动作（模型推理或工具调用）。",
     "`s.set_output(serialize(out)); s.set_metric('tokens', out.tokens)`：记录输出与成本指标，关闭 span。"
   ],
-  "diagram": "trace_id -> [step1]->[step2]->[tool]->[step3]"
+  "diagram": "trace_id -> [step1]->[step2]->[tool]->[step3]",
+  "order": 34
 };

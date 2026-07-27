@@ -62,5 +62,6 @@ export default {
     "将当前块（含上下文）送入解码器，基于增量缓存更新部分输出。",
     "把当前块特征写入 cache，滑动窗口淘汰过旧块。"
   ],
-  "diagram": "流式音频分块:\nchunk1 [0:1s] → encoder → cache\nchunk2 [1:2s] → 复用 chunk1 高层特征(cache)\n            └ 拼接历史上下文\n输出增量解码, 低延迟"
+  "diagram": "流式音频分块:\nchunk1 [0:1s] → encoder → cache\nchunk2 [1:2s] → 复用 chunk1 高层特征(cache)\n            └ 拼接历史上下文\n输出增量解码, 低延迟",
+  "order": 5
 };

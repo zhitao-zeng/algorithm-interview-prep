@@ -62,5 +62,6 @@ export default {
     "行切: 各卡算并 all-reduce 求和。",
     "串联时让列切输出喂行切输入省通信。"
   ],
-  "diagram": "列切: Y=[X·W1 | X·W2]  (拼, 无通信)\n行切: Y = (X·W1)+(X·W2) (all-reduce 求和)\nMegatron: 列切GEMM →(局部)→ 行切GEMM (+1 all-reduce)"
+  "diagram": "列切: Y=[X·W1 | X·W2]  (拼, 无通信)\n行切: Y = (X·W1)+(X·W2) (all-reduce 求和)\nMegatron: 列切GEMM →(局部)→ 行切GEMM (+1 all-reduce)",
+  "order": 5
 };

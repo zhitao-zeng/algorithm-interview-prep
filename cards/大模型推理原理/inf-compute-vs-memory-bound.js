@@ -72,5 +72,6 @@ export default {
     "优先减搬运：权重量化（INT8/FP8）让每次读取字节减半；KV Cache 量化/压缩（如 INT4 KV、MQA/GQA 减 KV 头数）；算子融合减少中间激活的读写；同时用更大 batch 把一次权重读取摊薄到更多并发请求，提升有效 AI。顺序通常是先量化权重与 KV，再做算子融合，最后调大 batch。",
     "提有效算力：用更快/更优的 kernel（如 FlashAttention 替代朴素注意力）、更高算力精度（FP8）、张量并行把大矩阵切到多卡并行、或制造更大可并行矩阵（更长 Prefill 序列、更大 batch 的 Prefill）以抬高 AI。也可算法层面减少冗余计算（如稀疏化、剪枝）让算力用在刀刃上。",
     "Prefill 一次处理 n 个输入 token，矩阵 batch 维=n，『算得多、相对搬得少』，AI 高 → compute-bound；Decode 每步只算 1 个新 token 却要读全部权重与历史 KV，『算得极少、搬得极多』，AI≈1 → memory-bound。这就是同一模型两阶段瓶颈相反的根因。"
-  ]
+  ],
+  "order": 3
 };

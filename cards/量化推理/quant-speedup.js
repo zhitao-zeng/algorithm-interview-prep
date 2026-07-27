@@ -72,5 +72,6 @@ export default {
     "端到端计时(含预热+prefill+decode)：固定 batch/seq 重复 N 次,取均值与 P99。",
     "扣开销得实际加速：减去 dequant/kernel 启动/调度,报告五联指标,验证 ≤ 理论上限。"
   ],
-  "diagram": "加速 ≤ min(算力倍数, 带宽倍数) − 开销"
+  "diagram": "加速 ≤ min(算力倍数, 带宽倍数) − 开销",
+  "order": 18
 };

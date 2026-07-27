@@ -61,5 +61,6 @@ export default {
     "while a is not b: 只要还没相遇（或都为 None）就继续。",
     "未相遇时各走一步；到尾部（a 为 None）则改走 head_b，实现「交换链表」。",
     "退出循环时，a 要么是两个链的交点的第一个公共节点，要么都是 None（不相交），直接 return a。"
-  ]
+  ],
+  "order": 8
 };

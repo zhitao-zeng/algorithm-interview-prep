@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "PinSAGE 用随机游走重要性采样替代均匀采样，并用生产者-消费者模式做高效 mini-batch 聚合，配合局部图裁剪，能扩展到十亿级节点。",
     "可用图模型产出更丰富的 user/item embedding 作为双塔的初始化或特征，再接 ANN 检索，兼顾图的高阶信号与召回路的线上效率。"
-  ]
+  ],
+  "order": 21
 };

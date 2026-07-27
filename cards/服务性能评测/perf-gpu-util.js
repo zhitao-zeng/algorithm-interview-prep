@@ -71,5 +71,6 @@ export default {
     "求实际 TFLOPs 与 MFU：FLOPs / (秒 × 1e12) 再除峰值，得到利用率。",
     "结合带宽定位瓶颈：若 MFU 低且带宽利用率高→带宽瓶颈；MFU 高→算力用满。"
   ],
-  "diagram": "GPU-Util(灯亮) ─┐\n                  ├─ 高Util低MFU → 带宽瓶颈\nMFU(真出力)  ─┘   高MFU        → 算力用满"
+  "diagram": "GPU-Util(灯亮) ─┐\n                  ├─ 高Util低MFU → 带宽瓶颈\nMFU(真出力)  ─┘   高MFU        → 算力用满",
+  "order": 9
 };

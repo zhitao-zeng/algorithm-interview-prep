@@ -62,5 +62,6 @@ export default {
     "build 时纳入该 profile。",
     "推理时 set_input_shape 设实际值。"
   ],
-  "diagram": "输入维: min ── opt(调优) ── max   ==> 可伸缩 engine"
+  "diagram": "输入维: min ── opt(调优) ── max   ==> 可伸缩 engine",
+  "order": 10
 };

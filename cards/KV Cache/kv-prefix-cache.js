@@ -62,5 +62,6 @@ export default {
     "从非共享处开始计算。",
     "省去重复 Prefill。"
   ],
-  "diagram": "请求A: [SYS]... → 算KV并缓存\n请求B: [SYS]... → 命中, 复用KV, 跳过Prefill\n请求C: [SYS]... → 命中, 复用\n(SAME prefix → 只算一次)"
+  "diagram": "请求A: [SYS]... → 算KV并缓存\n请求B: [SYS]... → 命中, 复用KV, 跳过Prefill\n请求C: [SYS]... → 命中, 复用\n(SAME prefix → 只算一次)",
+  "order": 10
 };

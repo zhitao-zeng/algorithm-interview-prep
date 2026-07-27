@@ -61,5 +61,6 @@ export default {
     "遍历每个 token 先 slots-=1，表示占用一个位置。",
     "若 slots<0 立即返回 False，代表节点数超过了可用槽位。",
     "非空节点 slots+=2 补充两个孩子槽；结束必须 slots==0 才合法。"
-  ]
+  ],
+  "order": 7
 };

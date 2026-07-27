@@ -67,5 +67,6 @@ export default {
     "add_temporal_pos(tk, temporal_pos(t))：给第 t 帧 token 打时间位置(如 M-RoPE 时间维 t)，保留顺序。",
     "concat(toks, dim=1)：沿序列维拼成一条带时戳的时序序列，送后续注意力/池化/LLM。"
   ],
-  "diagram": "视频 ─▶ 采样帧 ─▶ 逐帧编码 ─(时戳)─▶ 拼接 ─▶ 时序注意力 ─▶ LLM"
+  "diagram": "视频 ─▶ 采样帧 ─▶ 逐帧编码 ─(时戳)─▶ 拼接 ─▶ 时序注意力 ─▶ LLM",
+  "order": 10
 };

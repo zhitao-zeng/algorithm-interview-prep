@@ -68,5 +68,6 @@ export default {
     "报告分项而非总分：画雷达图诊断哪科弱，指引改进。",
     "辅以私有 hold-out 复核，排除训练数据污染导致的虚高。"
   ],
-  "diagram": "模型 ─▶ [MMBench, MME, POPE, MMMU, TextVQA...] ─▶ 分项雷达"
+  "diagram": "模型 ─▶ [MMBench, MME, POPE, MMMU, TextVQA...] ─▶ 分项雷达",
+  "order": 18
 };

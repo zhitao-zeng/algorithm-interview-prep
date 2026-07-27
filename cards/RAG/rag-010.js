@@ -64,5 +64,6 @@ export default {
     "对每路每文档按 1/(k+排名) 累加",
     "按总分降序返回融合结果"
   ],
-  "diagram": "Query -> BM25(top) --\\n                > RRF -> top-k\nQuery -> Vector(top) --/"
+  "diagram": "Query -> BM25(top) --\\n                > RRF -> top-k\nQuery -> Vector(top) --/",
+  "order": 10
 };

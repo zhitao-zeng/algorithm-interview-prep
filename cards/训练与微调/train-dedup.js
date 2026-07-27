@@ -72,5 +72,6 @@ export default {
     "if h not in seen: seen.add(h); out.append(d)：未见过的才保留，实现典型「保留首次出现、删后续重复」的精确去重语义。",
     "补充：生产环境更常用 MinHash+LSH 替代整文档 SHA，以处理「近似重叠」而非仅「完全相同」，并可分块（50-token 窗口）提升网页去重召回。"
   ],
-  "diagram": "语料 → [哈希去重] → 唯一集 → [embedding 近邻] → 近重复簇合并"
+  "diagram": "语料 → [哈希去重] → 唯一集 → [embedding 近邻] → 近重复簇合并",
+  "order": 10
 };

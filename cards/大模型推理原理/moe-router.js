@@ -87,5 +87,6 @@ export default {
     "把 K 个专家输出按路由权重（softmax 概率）加权聚合，得到该层输出。",
     "总参数随 N 增长（专家多），单 token 算力随 K 增长（激活少）——Total≫Active 是 MoE 的核心恒等式。"
   ],
-  "diagram": "MoE 单层:\ntoken -> Router(softmax) -> Top-K 专家\n         |- Expert_3 (激活)\n         |- Expert_7 (激活)\n其他专家 休眠\n输出 = 加权聚合\nTotal>>Active (K<<N)"
+  "diagram": "MoE 单层:\ntoken -> Router(softmax) -> Top-K 专家\n         |- Expert_3 (激活)\n         |- Expert_7 (激活)\n其他专家 休眠\n输出 = 加权聚合\nTotal>>Active (K<<N)",
+  "order": 13
 };

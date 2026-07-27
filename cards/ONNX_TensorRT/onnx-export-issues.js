@@ -62,5 +62,6 @@ export default {
     "调用 onnx.export 写出。",
     "多组输入验证数值一致。"
   ],
-  "diagram": "PyTorch 模型 ─(script/trace)─▶ ONNX\n   动态分支 ─▶ scripting    自定义层 ─▶ CustomOp+plugin"
+  "diagram": "PyTorch 模型 ─(script/trace)─▶ ONNX\n   动态分支 ─▶ scripting    自定义层 ─▶ CustomOp+plugin",
+  "order": 3
 };

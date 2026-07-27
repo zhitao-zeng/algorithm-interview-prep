@@ -61,5 +61,6 @@ export default {
     "for i in range(start, n)：path.append(candidates[i])，dfs(i, remain-candidates[i])，path.pop() 回溯。",
     "起始 dfs(0, target)。"
   ],
-  "diagram": "candidates=[2,3,6,7], target=7\n2→2→2→1(超) 回溯\n2→2→3 = 7  ✓ [2,2,3]\n      7 = 7  ✓ [7]\n指针不前进 → 同一数可重复选"
+  "diagram": "candidates=[2,3,6,7], target=7\n2→2→2→1(超) 回溯\n2→2→3 = 7  ✓ [2,2,3]\n      7 = 7  ✓ [7]\n指针不前进 → 同一数可重复选",
+  "order": 1
 };

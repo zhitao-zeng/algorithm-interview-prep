@@ -71,5 +71,6 @@ export default {
     "解析并调用工具得 Observation：真正执行（搜索/查库/计算），拿到环境真实反馈。",
     "回灌后再循环，无 Action 则终止：模型见到 Observation 后决定继续或给最终答案。"
   ],
-  "diagram": "Thought -> Action -> Observation -> Thought -> ... -> Answer\n(推理与真实反馈交错)"
+  "diagram": "Thought -> Action -> Observation -> Thought -> ... -> Answer\n(推理与真实反馈交错)",
+  "order": 4
 };

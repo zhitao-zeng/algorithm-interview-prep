@@ -61,5 +61,6 @@ export default {
     "构造 TD 目标 r+γ·max。",
     "用 α·(目标−Q) 更新 Q(s,a)。"
   ],
-  "diagram": "Q(s,a) ──▶ r + γ·max Q(s′,a′)\n   ▲                │\n   └──── α·TD误差 ◀─┘   (TD 目标)"
+  "diagram": "Q(s,a) ──▶ r + γ·max Q(s′,a′)\n   ▲                │\n   └──── α·TD误差 ◀─┘   (TD 目标)",
+  "order": 2
 };

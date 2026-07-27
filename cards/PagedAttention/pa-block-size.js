@@ -62,5 +62,6 @@ export default {
     "共享粒度随 block 变粗。",
     "经验值 16 折中。"
   ],
-  "diagram": "block=4 : frag小, 表长4x, 开销大\nblock=16: 甜点\nblock=64: frag大(平均32), 共享粗\n碎片∝block, 元数据∝1/block"
+  "diagram": "block=4 : frag小, 表长4x, 开销大\nblock=16: 甜点\nblock=64: frag大(平均32), 共享粗\n碎片∝block, 元数据∝1/block",
+  "order": 5
 };

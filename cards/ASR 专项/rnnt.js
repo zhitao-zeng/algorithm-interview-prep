@@ -61,5 +61,6 @@ export default {
     "选 blank：转移到 (t+1, u)；选 label k：输出 k，转移到 (t, u+1)。",
     "到达 (T, U)（全部帧用完且全部标签输出）结束。"
   ],
-  "diagram": "输入帧 t, 目标位置 u → 联合网络\n  f_t = encoder 帧特征\n  g_u = predictor 上一输出\n  y = join(f_t, g_u)\n  blank → 前进到下一帧 t+1\n  label → 输出该 label, u+1"
+  "diagram": "输入帧 t, 目标位置 u → 联合网络\n  f_t = encoder 帧特征\n  g_u = predictor 上一输出\n  y = join(f_t, g_u)\n  blank → 前进到下一帧 t+1\n  label → 输出该 label, u+1",
+  "order": 4
 };

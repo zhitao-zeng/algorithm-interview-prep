@@ -60,5 +60,6 @@ export default {
     "flash_mem 体现 O(N) 块状态。",
     "B 为块大小，越大 HBM 访问越少但有 SRAM 上限。"
   ],
-  "diagram": "标准: QK^T(N²)->HBM->softmax(N²)->HBM->PV\nFlash: tile loop in SRAM, 仅 O 回写 HBM"
+  "diagram": "标准: QK^T(N²)->HBM->softmax(N²)->HBM->PV\nFlash: tile loop in SRAM, 仅 O 回写 HBM",
+  "order": 20
 };

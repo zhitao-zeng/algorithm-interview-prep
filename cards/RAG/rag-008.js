@@ -62,5 +62,6 @@ export default {
     "change_behavior 触发微调",
     "都不满足则组合"
   ],
-  "diagram": "RAG: 外部知识(实时,可溯源)\nFT : 内部参数(风格,能力)\nCombo: FT定风格 + RAG供知识"
+  "diagram": "RAG: 外部知识(实时,可溯源)\nFT : 内部参数(风格,能力)\nCombo: FT定风格 + RAG供知识",
+  "order": 8
 };

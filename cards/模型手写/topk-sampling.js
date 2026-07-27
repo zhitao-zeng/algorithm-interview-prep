@@ -61,5 +61,6 @@ export default {
     "校验 isfinite，避免 -inf 参与导致 nan。",
     "softmax 后按概率采样一个 token。"
   ],
-  "diagram": "logits=[5,1,3,2]\nsoftmax → p=[.84,.02,.12,.02]\n取前 K=2: {5:.84, 3:.12}\n重归一化 → 按新分布采样\n(过滤低概率长尾, 提升多样性)"
+  "diagram": "logits=[5,1,3,2]\nsoftmax → p=[.84,.02,.12,.02]\n取前 K=2: {5:.84, 3:.12}\n重归一化 → 按新分布采样\n(过滤低概率长尾, 提升多样性)",
+  "order": 14
 };

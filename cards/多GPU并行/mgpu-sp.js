@@ -62,5 +62,6 @@ export default {
     "在本地算 LayerNorm 等层。",
     "算完 reduce-scatter 再切回序列分片。"
   ],
-  "diagram": "TP 切隐藏维 h → 仍有完整序列 s 副本\nSP 再切序列维 s/tp → 激活 O(s/tp·h)\n边界: all-gather ↔ reduce-scatter"
+  "diagram": "TP 切隐藏维 h → 仍有完整序列 s 副本\nSP 再切序列维 s/tp → 激活 O(s/tp·h)\n边界: all-gather ↔ reduce-scatter",
+  "order": 11
 };

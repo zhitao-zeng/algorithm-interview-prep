@@ -76,5 +76,6 @@ export default {
     "loss += w * cross_entropy(logit, tgt)：把各步预测损失按权重累加，得到 MTP 总损失。",
     "返回 loss 用于反向传播：模型因此被迫让隐藏状态编码多步未来信息——但注意这只是训练，推理加速还需另接验证框架。"
   ],
-  "diagram": "对比:\nMTP  -- 训练目标 --> 模型多步前瞻\nSD   -- 推理机制 --> 草稿+并行验证(无损)\n结合: MTP 头产候选 -> SD 验证 -> 加速\n关键: MTP 不自带加速, 需推理 Runtime"
+  "diagram": "对比:\nMTP  -- 训练目标 --> 模型多步前瞻\nSD   -- 推理机制 --> 草稿+并行验证(无损)\n结合: MTP 头产候选 -> SD 验证 -> 加速\n关键: MTP 不自带加速, 需推理 Runtime",
+  "order": 10
 };

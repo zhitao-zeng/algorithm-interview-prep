@@ -67,5 +67,6 @@ export default {
   "followUpAnswers": [
     "本场景是服务端单向推送、前端只需接收，SSE 更轻量、基于标准 HTTP、自带重连；若需要前端反向发指令（如中途打断、修改参数）则用 WebSocket 双向更合适。",
     "EventSource 的 onmessage/onerror 区分网络错误与业务错误；业务错误应放在自定义 event 帧（如 event:error）里，前端用 addEventListener(\"error\",...) 处理，而不依赖连接级 onerror，避免误判断连。"
-  ]
+  ],
+  "order": 31
 };

@@ -72,5 +72,6 @@ export default {
     "通常没用。Decode 卡在显存带宽，而高端卡（H100 vs A100）的带宽提升比例（约 2×）远小于算力提升比例（约 2.5~3×），换卡后 AI 仍远低于新拐点，利用率照旧低。应优先减搬运（INT8/FP8 量化权重、KV Cache 压缩）或增有效计算（更大 batch、投机解码、更长可并行 Prefill）。",
     "两步：① 算 Arithmetic Intensity = FLOPs/Byte，对比硬件拐点（峰值算力 TFLOPS ÷ 峰值带宽 TB/s），低于拐点即 memory-bound；② 实测 nvidia-smi：HBM 带宽利用率高（>80%）而 SM 占用低（个位数%~十几%）即佐证。两者一致即可确诊。",
     "增 batch 会抬升单请求 TPOT 与 P99（因排队与更大矩阵），但总吞吐显著提升，是典型『吞吐换延迟』权衡；量化/投机解码则能在不增 batch 的情况下同时改善利用率与单请求延迟。需按 SLA 选手段。"
-  ]
+  ],
+  "order": 4
 };

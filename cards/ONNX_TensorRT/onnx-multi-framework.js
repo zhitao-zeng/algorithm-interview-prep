@@ -62,5 +62,6 @@ export default {
     "统一校验数值一致性。",
     "进同一条 TRT 部署链路。"
   ],
-  "diagram": "PyTorch ─┐\nTF ───────▶ ONNX ─▶ 统一 TRT/ORT 部署\nJAX ──────┘"
+  "diagram": "PyTorch ─┐\nTF ───────▶ ONNX ─▶ 统一 TRT/ORT 部署\nJAX ──────┘",
+  "order": 4
 };

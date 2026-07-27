@@ -66,5 +66,6 @@ export default {
     "if control_flow == 'dialogue'：多 Agent 自由协商→AutoGen，群聊编排擅长代理间对话。",
     "if needs.compliance and needs.low_latency：强合规且低延迟→自研薄编排 + MCP，既可控又解耦工具层。"
   ],
-  "diagram": "控制流形态 ──▶ 图式 ──▶ LangGraph\n     │\n     ├──▶ 角色分工 ──▶ CrewAI\n     │\n     ├──▶ 对话协商 ──▶ AutoGen\n     │\n     └──▶ 强合规/低延迟 ──▶ 自研 + MCP\n工具层：任意框架 ──▶ MCP server ──▶ 统一工具/数据"
+  "diagram": "控制流形态 ──▶ 图式 ──▶ LangGraph\n     │\n     ├──▶ 角色分工 ──▶ CrewAI\n     │\n     ├──▶ 对话协商 ──▶ AutoGen\n     │\n     └──▶ 强合规/低延迟 ──▶ 自研 + MCP\n工具层：任意框架 ──▶ MCP server ──▶ 统一工具/数据",
+  "order": 39
 };

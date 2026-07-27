@@ -62,5 +62,6 @@ export default {
     "IB 承载跨机大块通信。",
     "按带宽布局并行维度。"
   ],
-  "diagram": "单机内: GPU0═NVLink═GPU1═... (数百 GB/s)\n跨机:  节点A ──IB/RDMA── 节点B (数十 GB/s)\nNCCL 自动选路"
+  "diagram": "单机内: GPU0═NVLink═GPU1═... (数百 GB/s)\n跨机:  节点A ──IB/RDMA── 节点B (数十 GB/s)\nNCCL 自动选路",
+  "order": 15
 };

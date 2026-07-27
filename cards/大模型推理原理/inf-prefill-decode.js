@@ -72,5 +72,6 @@ export default {
     "因为两者硬件特性相反：Prefill 像大矩阵乘（batch 维=n，compute-bound，受算力限制）；Decode 像反复搬权重（batch 维=1，memory-bound，受带宽限制）。分开才能用不同策略——Prefill 用更优注意力 kernel/FP8/Chunked Prefill 提算力利用率，Decode 用量化/KV 压缩/大 batch/投机解码减带宽压力。混用手段会南辕北辙。",
     "把长 prompt 切成固定大小的块分批做 Prefill，并与 Decode 请求在调度上混排（continuous batching 的一种），避免一条长 prompt 独占 GPU 做完整 Prefill 导致短请求长时间饿死。它牺牲了一点 Prefill 的并行度，换取更公平、更高的整体吞吐与更稳的尾延迟。",
     "Continuous Batching 让不同请求在不同阶段混跑：新请求到来立即开始 Prefill（不再等批次填满），已完成的请求让出位置、新 Decode 步补上。它需要调度器分别管理 Prefill（写 KV）与 Decode（读/append KV）的显存与计算，是连接两阶段、提升 GPU 利用率的关键工程机制。"
-  ]
+  ],
+  "order": 7
 };

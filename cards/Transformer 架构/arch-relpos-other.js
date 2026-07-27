@@ -61,5 +61,6 @@ export default {
     "bucket_bias[b] 查得可学偏置。",
     "偏置加到 softmax 前分数。"
   ],
-  "diagram": "T5:   score += learned_bias[bucket(|i-j|)]\nALiBi:score += m * (i - j)   (m 预设, 线性)"
+  "diagram": "T5:   score += learned_bias[bucket(|i-j|)]\nALiBi:score += m * (i - j)   (m 预设, 线性)",
+  "order": 11
 };

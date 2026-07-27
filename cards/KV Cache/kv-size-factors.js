@@ -62,5 +62,6 @@ export default {
     "KV 头数/维度决定单位置体积。",
     "精度决定每参数字节。"
   ],
-  "diagram": "KV = 2 · N · L · hkv · dkv · bytes\n影响因素:\n N 层数      ↑线性\n L 上下文    ↑线性(最易爆)\n hkv KV头数  ↑线性(GQA可控)\n dkv 头维    ↑线性\n bytes 精度  ↑线性(FP8减半)\nB 并发: 整体 ×B"
+  "diagram": "KV = 2 · N · L · hkv · dkv · bytes\n影响因素:\n N 层数      ↑线性\n L 上下文    ↑线性(最易爆)\n hkv KV头数  ↑线性(GQA可控)\n dkv 头维    ↑线性\n bytes 精度  ↑线性(FP8减半)\nB 并发: 整体 ×B",
+  "order": 4
 };

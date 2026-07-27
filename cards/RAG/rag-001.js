@@ -62,5 +62,6 @@ export default {
     "index.search 用 ANN 找回最相近的片段",
     "拼接 context 与 query 成 prompt 后调用 LLM 生成"
   ],
-  "diagram": "Query -> [Embed] -> VectorDB -> top-k chunks -> [Augment] -> LLM -> Answer"
+  "diagram": "Query -> [Embed] -> VectorDB -> top-k chunks -> [Augment] -> LLM -> Answer",
+  "order": 1
 };

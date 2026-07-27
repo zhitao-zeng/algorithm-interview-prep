@@ -61,5 +61,6 @@ export default {
     "若需生成，经量化器离散成 token 序列。",
     "离散 token 用交叉熵做 next-token 训练。"
   ],
-  "diagram": "连续: 波形 ─▶ Encoder ─▶ (T,D) 浮点  ─▶ LLM前缀(理解)\n离散: 波形 ─▶ Encoder ─▶ RVQ ─▶ (T,L) 整数 ─▶ 自回归生成"
+  "diagram": "连续: 波形 ─▶ Encoder ─▶ (T,D) 浮点  ─▶ LLM前缀(理解)\n离散: 波形 ─▶ Encoder ─▶ RVQ ─▶ (T,L) 整数 ─▶ 自回归生成",
+  "order": 2
 };

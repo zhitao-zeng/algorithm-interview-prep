@@ -62,5 +62,6 @@ export default {
     "加上下文并归一。",
     "拼接编码入模。"
   ],
-  "diagram": "user(画像,行为,统计) + item(内容,统计) + ctx(时段)\n        │ 编码/分桶/embedding\n        ▼\n   特征向量 ─▶ 模型"
+  "diagram": "user(画像,行为,统计) + item(内容,统计) + ctx(时段)\n        │ 编码/分桶/embedding\n        ▼\n   特征向量 ─▶ 模型",
+  "order": 5
 };

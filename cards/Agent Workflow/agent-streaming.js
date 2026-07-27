@@ -66,5 +66,6 @@ export default {
     "await ws.send(serialize(ev))：把每个事件增量推给前端，前端按类型渲染进度或追加 token。",
     "if ws.cancelled: agent.cancel(); break：每次迭代检查取消标志，真终止在途调用并释放资源，而非只停前端。"
   ],
-  "diagram": "Agent --events--> WS --> UI(progress)"
+  "diagram": "Agent --events--> WS --> UI(progress)",
+  "order": 27
 };

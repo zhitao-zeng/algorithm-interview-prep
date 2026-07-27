@@ -66,5 +66,6 @@ export default {
     "首个有效事件时间减基准即 TTFT；相邻事件时间差即单段间隔，求平均得 TPOT。",
     "收尾校验最终 token 数与完整性，必要时对比服务端日志剥离网络抖动后再出报告。"
   ],
-  "diagram": "请求 → SSE流: [t0 c1][t1 c2]...[tn cN]\n          TTFT=t0   TPOT=ti-t{i-1}"
+  "diagram": "请求 → SSE流: [t0 c1][t1 c2]...[tn cN]\n          TTFT=t0   TPOT=ti-t{i-1}",
+  "order": 13
 };

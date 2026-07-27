@@ -62,5 +62,6 @@ export default {
     "否则：结果.append(label)，u += 1，更新预测网络 g_u；若已达本帧符号上限则强制前进。",
     "返回结果序列。"
   ],
-  "diagram": "每帧取 join 输出最大:\n  若 blank → t+1 (不输出)\n  若 label → 输出该 label, u+1\n直到 t 走完所有帧\n沿最可能路径贪心解码"
+  "diagram": "每帧取 join 输出最大:\n  若 blank → t+1 (不输出)\n  若 label → 输出该 label, u+1\n直到 t 走完所有帧\n沿最可能路径贪心解码",
+  "order": 3
 };

@@ -62,5 +62,6 @@ export default {
     "decode 每步 all-reduce 隐藏态。",
     "KV-cache 按层/序列分片。"
   ],
-  "diagram": "推理(仅前向):\n权重 1/tp 各卡 ── 每步 all-reduce ──→ 下一 token\nKV-cache 沿序列/层分片防 OOM"
+  "diagram": "推理(仅前向):\n权重 1/tp 各卡 ── 每步 all-reduce ──→ 下一 token\nKV-cache 沿序列/层分片防 OOM",
+  "order": 7
 };

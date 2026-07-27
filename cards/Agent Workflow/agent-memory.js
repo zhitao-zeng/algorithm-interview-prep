@@ -66,5 +66,6 @@ export default {
     "需要时 recall 用 query 的 embedding 在向量库中做语义检索，取 top-k 最相关记忆。",
     "rank_by_freshness 在相关性相近时偏向新记忆，再按来源标注回灌决策，避免陈旧或错误记忆污染回答。"
   ],
-  "diagram": "Context(window) <--> summarize\nLongTerm(DB) <--> embed/search"
+  "diagram": "Context(window) <--> summarize\nLongTerm(DB) <--> embed/search",
+  "order": 9
 };

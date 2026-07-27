@@ -60,5 +60,6 @@ export default {
     "乘 h：多头叠加。",
     "瓶颈在 N² 项随序列平方增长。"
   ],
-  "diagram": "复杂度来源:\nQK^T : (N,N,d) -> N*N*d\nsoftmax: (N,N)\nPV    : (N,N,d) -> N*N*d\n总计 O(N^2 d)，瓶颈 N^2"
+  "diagram": "复杂度来源:\nQK^T : (N,N,d) -> N*N*d\nsoftmax: (N,N)\nPV    : (N,N,d) -> N*N*d\n总计 O(N^2 d)，瓶颈 N^2",
+  "order": 1
 };

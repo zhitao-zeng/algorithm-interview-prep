@@ -62,5 +62,6 @@ export default {
     "第一个 for 循环让 before 恰好停在 left 的前一个位置，作为头插的锚点。",
     "内层循环重复 right-left 次：每次 move=cur.next 先摘下，再把它接到 before 之后，实现头插。",
     "cur 始终留在反转区间的尾部，因此循环结束时整个区间已就位，直接返回 dummy.next。"
-  ]
+  ],
+  "order": 4
 };

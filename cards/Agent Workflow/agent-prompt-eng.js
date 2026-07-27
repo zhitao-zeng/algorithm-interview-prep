@@ -66,5 +66,6 @@ export default {
     "规定输出结构与停止条件：Thought/Action(JSON) 或三段式，无动作则结束，保证可解析。",
     "附少量贴近分布的 few-shot：稳定格式与工具选择，抑制自由发挥带来的解析失败。"
   ],
-  "diagram": "System(role+tools+format) + few-shot -> Model"
+  "diagram": "System(role+tools+format) + few-shot -> Model",
+  "order": 24
 };

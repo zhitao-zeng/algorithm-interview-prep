@@ -62,5 +62,6 @@ export default {
     "枚举 kernel 实测选最优。",
     "规划显存并序列化 engine。"
   ],
-  "diagram": "通用图 ─▶[融合][量化][调优][显存规划]─▶ 高效 engine"
+  "diagram": "通用图 ─▶[融合][量化][调优][显存规划]─▶ 高效 engine",
+  "order": 17
 };

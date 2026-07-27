@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "切 batch 是数据并行，单卡仍须容纳整条序列；Ring Attention 切的是序列维度本身，单卡只放序列的一个分块，因此能突破单卡序列长度上限，而不是仅增加样本数。",
     "思想一致：都是沿序列维切分。Megatron 的 SP 常配合 TP 在层内把激活按序列切，Ring Attention 用环形通信做跨设备注意力；二者可叠加，Ring 更侧重超长序列的注意力扩展。"
-  ]
+  ],
+  "order": 5
 };

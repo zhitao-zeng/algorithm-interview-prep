@@ -67,5 +67,6 @@ export default {
     "把任务按难度与工具依赖拆分子集，分别看 benchmark 分项（AgentBench/WebArena/τ-bench），避免被平均值掩盖结构性弱点。",
     "所有指标进持续看板，设定 SLO 阈值，回归时自动对比，保证\"过程好、成本低、可复现\"可量化、可告警。"
   ],
-  "diagram": "Agent 运行 ─▶ 存完整轨迹(状态/动作/观察)\n                    │\n        ┌───────────┼────────────┐\n    离线 replay         在线 A/B        标准 benchmark\n    (工具桩+种子)      (小流量对比)     (AgentBench/WebArena/τ-bench)\n        │                │                │\n        └──────▶ 指标看板 ◀┘\n   成功率 | 工具成功率 | 成本 | p99延迟"
+  "diagram": "Agent 运行 ─▶ 存完整轨迹(状态/动作/观察)\n                    │\n        ┌───────────┼────────────┐\n    离线 replay         在线 A/B        标准 benchmark\n    (工具桩+种子)      (小流量对比)     (AgentBench/WebArena/τ-bench)\n        │                │                │\n        └──────▶ 指标看板 ◀┘\n   成功率 | 工具成功率 | 成本 | p99延迟",
+  "order": 36
 };

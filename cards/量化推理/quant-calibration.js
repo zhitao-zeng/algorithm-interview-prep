@@ -72,5 +72,6 @@ export default {
     "按策略算范围：minmax(快怕 outlier)/百分位 99.9%(抗 outlier)/KL(最小化分布差),生成 scale/零点。",
     "生成量化参数并验证：产出 scale/零点→量化→跑下游评测比对策略与样本量,选最优。"
   ],
-  "diagram": "样本 ─▶ 前向 ─▶ 激活统计 ─▶ scale/零点 ─▶ 量化"
+  "diagram": "样本 ─▶ 前向 ─▶ 激活统计 ─▶ scale/零点 ─▶ 量化",
+  "order": 9
 };

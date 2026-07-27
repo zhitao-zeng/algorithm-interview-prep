@@ -72,5 +72,6 @@ export default {
     "返回结果列表交给 Agent 循环，作为 Observation 拼入下一轮 prompt。",
     "模型基于这些带出处的小抄决定下一步动作（继续检索 / 作答 / 追问用户），形成闭环。"
   ],
-  "diagram": "Agent <-> retrieve_tool <-> Corpus"
+  "diagram": "Agent <-> retrieve_tool <-> Corpus",
+  "order": 22
 };

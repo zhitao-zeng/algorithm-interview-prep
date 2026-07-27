@@ -66,5 +66,6 @@ export default {
     "done.append(step)：记录已完成步骤与观察，作为后续步骤的依赖与重规划的输入。",
     "if not ok: llm_replan(goal, done, obs)：失败则带上已完成列表与观察动态重规划，承接现状而非推倒。"
   ],
-  "diagram": "Goal -> [Plan] -> step1 -> step2 -> (replan?) -> ... -> Done"
+  "diagram": "Goal -> [Plan] -> step1 -> step2 -> (replan?) -> ... -> Done",
+  "order": 6
 };

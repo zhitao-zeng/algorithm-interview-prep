@@ -62,5 +62,6 @@ export default {
     "build 出底层 TRT engine。",
     "用其 runtime 做生成推理。"
   ],
-  "diagram": "LLM ─▶ TRT-LLM(融合Attn/KV-Cache/批处理) ─▶ TRT engine"
+  "diagram": "LLM ─▶ TRT-LLM(融合Attn/KV-Cache/批处理) ─▶ TRT engine",
+  "order": 19
 };

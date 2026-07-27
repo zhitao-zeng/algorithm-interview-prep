@@ -61,5 +61,6 @@ export default {
     "用稳定式：term = max(0,z) + log(1+exp(-|z|))；loss = term - z*y + (1-y)*...（融合表达）。",
     "按 reduction 聚合（mean/sum/none）。"
   ],
-  "diagram": "logit=1.5 → σ=1/(1+e^-1.5)=0.82\nlabel y=1\nBCE = -[ y·log(p) + (1-y)·log(1-p) ]\n负样本 logit=-2 → p=0.12\ny=0 时只留 -(1-y)·log(1-p)"
+  "diagram": "logit=1.5 → σ=1/(1+e^-1.5)=0.82\nlabel y=1\nBCE = -[ y·log(p) + (1-y)·log(1-p) ]\n负样本 logit=-2 → p=0.12\ny=0 时只留 -(1-y)·log(1-p)",
+  "order": 7
 };

@@ -62,5 +62,6 @@ export default {
     "读取按表定位物理块与偏移。",
     "物理块带引用计数管理生命周期。"
   ],
-  "diagram": "请求A block_table\n  [0] -> P5\n  [1] -> P2\n  [2] -> P9\n逻辑pos20: 块1(P2) 偏移4\n物理块P2.ref = 2 (被A和B共享)"
+  "diagram": "请求A block_table\n  [0] -> P5\n  [1] -> P2\n  [2] -> P9\n逻辑pos20: 块1(P2) 偏移4\n物理块P2.ref = 2 (被A和B共享)",
+  "order": 6
 };

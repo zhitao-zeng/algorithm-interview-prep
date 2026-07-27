@@ -66,5 +66,6 @@ export default {
     "return agent.run(req, use_cache=True)：依赖不健康时走降级分支，用缓存答案兜底而非硬失败。",
     "正常路径 return agent.run(req)：依赖健康时正常执行，但生产里它外面通常还包着超时与重试。"
   ],
-  "diagram": "User -> Limiter -> Agent -> (Breaker/Degrade) -> Tools"
+  "diagram": "User -> Limiter -> Agent -> (Breaker/Degrade) -> Tools",
+  "order": 41
 };

@@ -63,5 +63,6 @@ export default {
     "normalize_embeddings 保证向量单位长度",
     "矩阵乘得到相似度分数矩阵"
   ],
-  "diagram": "Query+instruction -> [BGE] -> q_vec(1024,|v|=1)\nDoc -> [BGE] -> d_vec(1024,|v|=1)\nscore = q_vec · d_vec"
+  "diagram": "Query+instruction -> [BGE] -> q_vec(1024,|v|=1)\nDoc -> [BGE] -> d_vec(1024,|v|=1)\nscore = q_vec · d_vec",
+  "order": 2
 };

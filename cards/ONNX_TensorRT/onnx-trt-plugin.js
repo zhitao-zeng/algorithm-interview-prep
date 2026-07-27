@@ -62,5 +62,6 @@ export default {
     "ONNX 导出为自定义 node。",
     "parser 映射到 plugin 并 build。"
   ],
-  "diagram": "ONNX CustomOp ─▶ PluginRegistry ─▶ CUDA kernel ─▶ engine"
+  "diagram": "ONNX CustomOp ─▶ PluginRegistry ─▶ CUDA kernel ─▶ engine",
+  "order": 18
 };

@@ -73,5 +73,6 @@ export default {
     "Decode 每步只算一个很小的矩阵乘（单 token × 权重），算力严重过剩，真正卡在把权重从显存读到片上，即 Memory Bound。即使堆再多算力，每步要读的数据量不变，SM 大部分时间在等带宽，所以 GPU-Util 可能高但 SM 实际计算占比很低。",
     "算 Arithmetic Intensity（FLOPs/Byte）对照硬件 Roofline 拐点：低于拐点是访存瓶颈（量化/压缩/大 batch），高于拐点是算力瓶颈（更优 kernel/FP8/并行）。再配合 nvidia-smi 看 HBM 带宽利用率 vs SM 占用确认。Prefill 看算力、Decode 看带宽，分开定位。",
     "未必。若没有对应高效低精度 kernel，仍要 dequant→算→quant，访存没省且多一步，INT4 也可能『更小但不更快』。量化要配套高性能 kernel（如 FP8 Tensor Core）才把字节减半、AI 翻倍真正兑现加速；否则只是省了显存、没提速。"
-  ]
+  ],
+  "order": 1
 };

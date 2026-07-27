@@ -62,5 +62,6 @@ export default {
     "校准并融合成单分。",
     "按分排序出最终序。"
   ],
-  "diagram": "候选(几十)\n   │ 特征交叉(DeepFM/DIN)\n   ▼\n pCTR,pCVR ─▶ 校准融合 ─▶ 排序 ─▶ 最终序"
+  "diagram": "候选(几十)\n   │ 特征交叉(DeepFM/DIN)\n   ▼\n pCTR,pCVR ─▶ 校准融合 ─▶ 排序 ─▶ 最终序",
+  "order": 9
 };

@@ -61,5 +61,6 @@ export default {
     "reach = max(reach, i + step)。",
     "循环结束返回 True（期间未被断层拦截）。"
   ],
-  "diagram": "[2,3,1,1,4]\nreach=0\ni0: reach=max(0,0+2)=2\ni1: reach=max(2,1+3)=4 ≥ 末(4) → 可达\n维护\"最远可达下标\""
+  "diagram": "[2,3,1,1,4]\nreach=0\ni0: reach=max(0,0+2)=2\ni1: reach=max(2,1+3)=4 ≥ 末(4) → 可达\n维护\"最远可达下标\"",
+  "order": 2
 };

@@ -62,5 +62,6 @@ export default {
     "新请求补入保持满载。",
     "老化/优先级防饿死。"
   ],
-  "diagram": "slot: [L][S1][S2][S3] → S完成 → [L][S4][S5][S6]"
+  "diagram": "slot: [L][S1][S2][S3] → S完成 → [L][S4][S5][S6]",
+  "order": 10
 };

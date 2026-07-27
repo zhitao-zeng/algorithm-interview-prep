@@ -62,5 +62,6 @@ export default {
     "Cache 存低精度，用前反量化。",
     "需低精度 KV Attention kernel。"
   ],
-  "diagram": "精度: FP16(2B) ─▶ INT8(1B) 省1/2 ─▶ INT4(0.5B) 省3/4\nKV 量化: 高收益 + 低质量风险\n(因 KV 对舍入较鲁棒)"
+  "diagram": "精度: FP16(2B) ─▶ INT8(1B) 省1/2 ─▶ INT4(0.5B) 省3/4\nKV 量化: 高收益 + 低质量风险\n(因 KV 对舍入较鲁棒)",
+  "order": 11
 };

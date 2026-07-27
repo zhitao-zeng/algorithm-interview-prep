@@ -66,5 +66,6 @@ export default {
     "nprobe=64 决定查多少单元",
     "search 返回距离与 id"
   ],
-  "diagram": "Query -> coarse(k-means) -> nprobe cells -> PQ decode -> top-k\nHNSW: top layer -> greedy descend -> layer0 refine"
+  "diagram": "Query -> coarse(k-means) -> nprobe cells -> PQ decode -> top-k\nHNSW: top layer -> greedy descend -> layer0 refine",
+  "order": 3
 };

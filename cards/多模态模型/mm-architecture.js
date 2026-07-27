@@ -66,5 +66,6 @@ export default {
     "视觉 token 与文本 token 拼成统一序列（拼接式）或经 Cross-Attention 注入（注入式）。",
     "LLM 自回归生成回答，外接式可冻结 LLM 只训连接器。"
   ],
-  "diagram": "① 拼接式(LLaVA/Qwen-VL): 视觉token拼到文本前 → LLM自回归\n② 压缩式(BLIP-2): Q-Former/Resampler压缩视觉特征\n③ Cross-Attention注入式(Flamingo): VisionEnc→Perceiver→Gated X-Attn 注入冻结LLM\n④ 统一离散token式: 多模态变token → 单一Transformer自回归\n注: Flamingo 属③, 非④"
+  "diagram": "① 拼接式(LLaVA/Qwen-VL): 视觉token拼到文本前 → LLM自回归\n② 压缩式(BLIP-2): Q-Former/Resampler压缩视觉特征\n③ Cross-Attention注入式(Flamingo): VisionEnc→Perceiver→Gated X-Attn 注入冻结LLM\n④ 统一离散token式: 多模态变token → 单一Transformer自回归\n注: Flamingo 属③, 非④",
+  "order": 1
 };

@@ -54,5 +54,6 @@ export default {
   "followUpAnswers": [
     "它把样本视为流形上邻点，监督目标从 one-hot 变为软标签，使决策边界更平滑、提升校准与鲁棒。",
     "后续方法如 RandAugment 用固定操作集+单一幅度参数，去掉策略搜索，大幅降低算力。"
-  ]
+  ],
+  "order": 12
 };

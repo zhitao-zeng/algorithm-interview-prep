@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "Flink 周期性 checkpoint 快照状态与位点，sink 支持两阶段提交(预写+在 checkpoint 完成时真正提交)，故障从 checkpoint 恢复，做到端到端不丢不重。",
     "watermark 是事件时间的进度钟，用来判断窗口何时可触发并容忍一定乱序；设错会导致数据丢失或产出延迟，是流处理正确性的核心。"
-  ]
+  ],
+  "order": 7
 };

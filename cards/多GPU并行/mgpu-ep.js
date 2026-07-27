@@ -63,5 +63,6 @@ export default {
     "各卡算本地专家前向。",
     "all-to-all 把结果发回原卡拼接。"
   ],
-  "diagram": "token ──门控──┐\n            all-to-all ↓\n卡0:[专家0,1] 卡1:[专家2,3] ...\n结果 all-to-all 回原卡 → 拼接"
+  "diagram": "token ──门控──┐\n            all-to-all ↓\n卡0:[专家0,1] 卡1:[专家2,3] ...\n结果 all-to-all 回原卡 → 拼接",
+  "order": 12
 };

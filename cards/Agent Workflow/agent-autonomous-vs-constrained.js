@@ -73,5 +73,6 @@ export default {
     "高危动作(对外发信/退款/删库)无论什么模式都需显式授权：这是不可让步的底线。",
     "用自主完成率/人工介入率/事故率三指标持续回调旋钮，找到安全与效率平衡点。"
   ],
-  "diagram": "Auto: goal -> run freely\nConstrained: goal -> step -> confirm -> step"
+  "diagram": "Auto: goal -> run freely\nConstrained: goal -> step -> confirm -> step",
+  "order": 3
 };

@@ -62,5 +62,6 @@ export default {
     "求和得 pad 后总 token。",
     "用 1 - 真实/总 得到浪费比例。"
   ],
-  "diagram": "静态批: [4,32,8,64] → pad 到 64 → 泡沫占 58%\n问题: padding + 气泡 + 显存预留"
+  "diagram": "静态批: [4,32,8,64] → pad 到 64 → 泡沫占 58%\n问题: padding + 气泡 + 显存预留",
+  "order": 3
 };

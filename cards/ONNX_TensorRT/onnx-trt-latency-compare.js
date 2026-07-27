@@ -62,5 +62,6 @@ export default {
     "多次计时取中位数/p99。",
     "同精度下对比 eager 与 TRT。"
   ],
-  "diagram": "eager: 逐算子+Python  ─▶ 慢\nTRT:   融合+低精度+调优 ─▶ 快 (3~10x)"
+  "diagram": "eager: 逐算子+Python  ─▶ 慢\nTRT:   融合+低精度+调优 ─▶ 快 (3~10x)",
+  "order": 16
 };

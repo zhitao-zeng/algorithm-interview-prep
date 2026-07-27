@@ -62,5 +62,6 @@ export default {
     "风险: outlier/长程累积/敏感头。",
     "per-token缩放+混合精度可控损。"
   ],
-  "diagram": "损失来源:\n 舍入/截断误差\n outlier 被压扁 → 关键token注意力错位\n 长上下文误差累积\n 层/头敏感度不一\n对策: per-token缩放, 混合精度, outlier处理"
+  "diagram": "损失来源:\n 舍入/截断误差\n outlier 被压扁 → 关键token注意力错位\n 长上下文误差累积\n 层/头敏感度不一\n对策: per-token缩放, 混合精度, outlier处理",
+  "order": 12
 };

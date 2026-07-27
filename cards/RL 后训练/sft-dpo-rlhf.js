@@ -62,5 +62,6 @@ export default {
     "DPO：把偏好写成分类损失直接训。",
     "常见链路 SFT → DPO/RLHF 后训练。"
   ],
-  "diagram": "SFT ──▶ DPO (轻, 无RM/RL)\n  └──▶ RLHF (重, RM+PPO)\n共同目标: 对齐人类偏好"
+  "diagram": "SFT ──▶ DPO (轻, 无RM/RL)\n  └──▶ RLHF (重, RM+PPO)\n共同目标: 对齐人类偏好",
+  "order": 8
 };

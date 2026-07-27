@@ -62,5 +62,6 @@ export default {
     "需缓存 KV 头数 = g。",
     "KV 显存缩小 n_heads/g 倍。"
   ],
-  "diagram": "MHA: 32人 × 32份笔记\nGQA: 32 Q头 / 8 KV头 = 8份KV (每4个Q头共享1份)\nKV 显存: 1/4\n并发/上下文(KV维度): ≈×4"
+  "diagram": "MHA: 32人 × 32份笔记\nGQA: 32 Q头 / 8 KV头 = 8份KV (每4个Q头共享1份)\nKV 显存: 1/4\n并发/上下文(KV维度): ≈×4",
+  "order": 8
 };

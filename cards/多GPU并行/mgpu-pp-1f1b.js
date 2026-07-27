@@ -62,5 +62,6 @@ export default {
     "每完成一个前向立即做其反向。",
     "cooldown 收尾剩余反向。"
   ],
-  "diagram": "GPipe:  FFFF|BBBB  (大块气泡)\n1F1B:  FFFB FBFB FBFB B  (气泡切碎)\n       ↑ warmup   ↑ steady 1F1B"
+  "diagram": "GPipe:  FFFF|BBBB  (大块气泡)\n1F1B:  FFFB FBFB FBFB B  (气泡切碎)\n       ↑ warmup   ↑ steady 1F1B",
+  "order": 9
 };

@@ -62,5 +62,6 @@ export default {
     "本卡算局部结果。",
     "all-reduce 汇总成完整输出。"
   ],
-  "diagram": "Y = X·W, W=[W1|W2]\n卡0: X·W1 ─┐\n卡1: X·W2 ─┴─concat → Y   (列切)\n或: 行切各算→ all-reduce 求和"
+  "diagram": "Y = X·W, W=[W1|W2]\n卡0: X·W1 ─┐\n卡1: X·W2 ─┴─concat → Y   (列切)\n或: 行切各算→ all-reduce 求和",
+  "order": 4
 };

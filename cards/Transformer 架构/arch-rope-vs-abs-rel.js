@@ -60,5 +60,6 @@ export default {
     "rel_bias 用 bias[n-m] 直接建模相对距离。",
     "rope_score 用旋转矩阵把相对位置写进内积。"
   ],
-  "diagram": "绝对: x + p_m  ─┐\n相对: score + bias[n-m]\nRoPE: R(m)q · R(n)k = (相对角度)"
+  "diagram": "绝对: x + p_m  ─┐\n相对: score + bias[n-m]\nRoPE: R(m)q · R(n)k = (相对角度)",
+  "order": 10
 };

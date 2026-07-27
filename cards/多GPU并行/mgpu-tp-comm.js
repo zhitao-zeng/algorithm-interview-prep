@@ -62,5 +62,6 @@ export default {
     "计算同时发通信以重叠。",
     "等待聚合结果继续前向。"
   ],
-  "diagram": "卡0 ─┐\n卡1 ─┼─ all-reduce (量≈2·s·h/t) ─→ 各卡同值\n...\n卡t ─┘   带宽↑ 开销↓ (NVLink >> 以太网)"
+  "diagram": "卡0 ─┐\n卡1 ─┼─ all-reduce (量≈2·s·h/t) ─→ 各卡同值\n...\n卡t ─┘   带宽↑ 开销↓ (NVLink >> 以太网)",
+  "order": 6
 };

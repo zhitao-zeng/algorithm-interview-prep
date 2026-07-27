@@ -72,5 +72,6 @@ export default {
     "端到端 ≈ TTFT + (N−1)·TPOT：两个自由度精确刻画延迟结构，N 为生成 token 数。",
     "用 P95/P99 评估而非均值：长尾才是用户真实痛点，均值会掩盖偶发卡顿。"
   ],
-  "diagram": "请求 ──TTFT──▶ █ 第1 token ──TPOT──▶ █ ──TPOT──▶ █ ...\n         (首响)              (生成节奏)"
+  "diagram": "请求 ──TTFT──▶ █ 第1 token ──TPOT──▶ █ ──TPOT──▶ █ ...\n         (首响)              (生成节奏)",
+  "order": 9
 };

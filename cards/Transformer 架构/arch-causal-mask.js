@@ -61,5 +61,6 @@ export default {
     "triu(diagonal=1)：保留对角线及以下为 0。",
     "加到分数后再 softmax 实现单向可见。"
   ],
-  "diagram": "i\\j 0 1 2 3\n0   0 -∞ -∞ -∞\n1   0  0 -∞ -∞\n2   0  0  0 -∞\n3   0  0  0  0"
+  "diagram": "i\\j 0 1 2 3\n0   0 -∞ -∞ -∞\n1   0  0 -∞ -∞\n2   0  0  0 -∞\n3   0  0  0  0",
+  "order": 6
 };

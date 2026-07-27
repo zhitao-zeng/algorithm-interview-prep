@@ -73,5 +73,6 @@ export default {
     "Prefill 对全部输入 token 并行做矩阵乘，batch 维=n，矩阵『胖』，算力利用率高（compute-bound）；Decode 只对 1 个新 token 计算，矩阵极『瘦』（batch 维=1），算力严重闲置、访存主导（memory-bound）。两者同一套层结构，但张量形状不同，硬件利用率天差地别。",
     "LM Head 要把 d 维隐状态投影到词表 V（常 10万~20万），是 O(n·d·V) 的大矩阵乘。Decode 时 n=1 但仍要做 d×V 的整行投影，常占 Decode 可观比例（10%~20%）；故有候选集（先小模型筛 top-k 再对全 V 算）、投机解码（草稿模型先出词省去部分 LM Head）等优化。",
     "标准 MHA 每注意力头各有一对 K/V，KV Cache 与 KV 投影随头数线性增长；MQA 所有头共享一组 K/V、GQA 分组共享，把 KV 头数从 h 降到 1 或 g≪h，KV Cache 显存与读取字节降 h 倍，Decode 带宽瓶颈显著缓解，代价是少量质量损失，是长上下文推理的标配。"
-  ]
+  ],
+  "order": 5
 };

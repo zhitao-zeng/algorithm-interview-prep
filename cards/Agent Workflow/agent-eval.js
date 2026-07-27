@@ -63,5 +63,6 @@ export default {
     "judge 评正确性与过程：judge_correct 用规则或 LLM 判定最终与中间质量，累加 succ。",
     "归一化出多维指标：把累加值除以 case×runs 得到成功率/平均步数/平均 token。"
   ],
-  "diagram": "Bench -> Agent(run) -> Trajectory -> Judges -> Metrics"
+  "diagram": "Bench -> Agent(run) -> Trajectory -> Judges -> Metrics",
+  "order": 35
 };

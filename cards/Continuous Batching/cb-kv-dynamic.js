@@ -62,5 +62,6 @@ export default {
     "页表记录逻辑-物理映射。",
     "完成把页归还空闲池。"
   ],
-  "diagram": "请求页表: [b0,b1,b2] → 物理离散块\n完成 → 块归还 free pool"
+  "diagram": "请求页表: [b0,b1,b2] → 物理离散块\n完成 → 块归还 free pool",
+  "order": 6
 };

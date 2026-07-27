@@ -61,5 +61,6 @@ export default {
     "angles 用当前位置 pos 乘基频得到旋转角。",
     "对每个 (a,b) 配对用 2D 旋转公式更新，得到旋转后的向量分量。"
   ],
-  "diagram": "q_m --R(m)--> q'_m       k_n --R(n)--> k'_n\n   q'_m · k'_n = x_m W_q^T R(n-m) W_k x_n\n   (只与 n-m 有关，与绝对位置无关)"
+  "diagram": "q_m --R(m)--> q'_m       k_n --R(n)--> k'_n\n   q'_m · k'_n = x_m W_q^T R(n-m) W_k x_n\n   (只与 n-m 有关，与绝对位置无关)",
+  "order": 7
 };

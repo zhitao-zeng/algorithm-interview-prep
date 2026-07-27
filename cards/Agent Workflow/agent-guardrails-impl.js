@@ -66,5 +66,6 @@ export default {
     "leaks_pii(model_reply)：模型输出回程再过泄露扫描，发现明文敏感信息则 redact 改写后再离站。",
     "tool_call.risk=='high' 且未确认 → raise NeedApproval：高危工具动作路由到人工 gate，scoped_creds 只给最小权限凭证。"
   ],
-  "diagram": "User ─▶ [Input Guard: 审核+脱敏] ─▶ LLM ─▶ [Output Guard: 泄露扫描] ─▶ User\n                                      │\n                                      ▼\n                              [Tool Guard: 沙箱+gate] ─▶ 外部API"
+  "diagram": "User ─▶ [Input Guard: 审核+脱敏] ─▶ LLM ─▶ [Output Guard: 泄露扫描] ─▶ User\n                                      │\n                                      ▼\n                              [Tool Guard: 沙箱+gate] ─▶ 外部API",
+  "order": 33
 };

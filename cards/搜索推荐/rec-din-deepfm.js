@@ -62,5 +62,6 @@ export default {
     "与物品特征交叉入 DNN。",
     "输出多目标预估分。"
   ],
-  "diagram": "用户行为序列 ─▶ attention(候选为Q) ─▶ 兴趣向量\n                                          × 物品向量 ─▶ DNN ─▶ pCTR"
+  "diagram": "用户行为序列 ─▶ attention(候选为Q) ─▶ 兴趣向量\n                                          × 物品向量 ─▶ DNN ─▶ pCTR",
+  "order": 16
 };

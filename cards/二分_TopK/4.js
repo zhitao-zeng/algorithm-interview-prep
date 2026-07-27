@@ -63,5 +63,6 @@ export default {
     "若 L1 > R2：i 太大，right=i-1；若 L2 > R1：i 太小，left=i+1；否则已合法，计算中位数。",
     "总长奇数取 max(L1,L2)，偶数取 (max(L1,L2)+min(R1,R2))/2。"
   ],
-  "diagram": "A=[1,2]   B=[3,4]\n划分线: 左半全 ≤ 右半\nA切i=1: [1 | 2]   B切j=1: [3 | 4]\n左max=max(1,3)=3  右min=min(2,4)=2  不合法\n调 i → 直至 左max≤右min 且 右min≥左max\n中位=(2+3)/2=2.5   (二分较短数组的切分i)"
+  "diagram": "A=[1,2]   B=[3,4]\n划分线: 左半全 ≤ 右半\nA切i=1: [1 | 2]   B切j=1: [3 | 4]\n左max=max(1,3)=3  右min=min(2,4)=2  不合法\n调 i → 直至 左max≤右min 且 右min≥左max\n中位=(2+3)/2=2.5   (二分较短数组的切分i)",
+  "order": 1
 };

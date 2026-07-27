@@ -61,5 +61,6 @@ export default {
     "x̂ = x / rms。",
     "y = x̂ * weight（+ bias 若提供）。"
   ],
-  "diagram": "x=[1,2,3]\nrms = √( mean(x²) ) = √(14/3) ≈ 2.16\nx̂ = x / rms\ny = x̂ · γ + β\n(先归一化再缩放, 比 LayerNorm 少一步减均值)"
+  "diagram": "x=[1,2,3]\nrms = √( mean(x²) ) = √(14/3) ≈ 2.16\nx̂ = x / rms\ny = x̂ · γ + β\n(先归一化再缩放, 比 LayerNorm 少一步减均值)",
+  "order": 4
 };

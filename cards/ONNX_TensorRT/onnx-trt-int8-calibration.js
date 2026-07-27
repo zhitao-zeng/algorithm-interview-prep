@@ -62,5 +62,6 @@ export default {
     "build 期收集激活分布。",
     "用熵算法定 scale 并量化。"
   ],
-  "diagram": "校准样本 ─▶ 前向收集分布 ─▶ 熵选截断点 ─▶ scale ─▶ INT8 engine"
+  "diagram": "校准样本 ─▶ 前向收集分布 ─▶ 熵选截断点 ─▶ scale ─▶ INT8 engine",
+  "order": 12
 };

@@ -63,5 +63,6 @@ export default {
     "按约束从 waiting 取新请求。",
     "初始化其 block 表加入 running。"
   ],
-  "diagram": "Scheduler: free_finished → 空闲block↑\n→ admit waiting 按 block 余量 → running"
+  "diagram": "Scheduler: free_finished → 空闲block↑\n→ admit waiting 按 block 余量 → running",
+  "order": 14
 };

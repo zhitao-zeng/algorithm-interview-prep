@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "TS 在理论 regret 上通常更优且实现简单（只需采样），UCB 更直观易调参；实践中 TS 配合 Beta-Bernoulli 在推荐 EE 中更常见。",
     "可在召回/重排层注入探索流量，或用基于模型的 EE（如 LinUCB 用上下文特征预估置信区间），让探索更个性化。"
-  ]
+  ],
+  "order": 20
 };

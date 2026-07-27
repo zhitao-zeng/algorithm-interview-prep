@@ -67,5 +67,6 @@ export default {
   "followUpAnswers": [
     "隐患：重启丢失、多副本不共享、内存无限增长。应改用 Redis 等外部 KV 存会话，设 TTL 自动淘汰；多实例下 agent_loop 保持无状态、状态全在存储层，便于水平扩容。",
     "在 /chat 包一层 asyncio.wait_for(agent_loop(...), timeout=N) 防长占；用中间件（如 slowapi）按 api_key 做令牌桶限流，并对并发会话数设上限，避免资源被单用户打满。"
-  ]
+  ],
+  "order": 30
 };

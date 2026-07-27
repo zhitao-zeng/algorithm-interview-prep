@@ -61,5 +61,6 @@ export default {
     "V(s)=对各动作 Q 按策略取期望。",
     "A(s,a)=Q(s,a)−V(s) 作为相对优势基线。"
   ],
-  "diagram": "V(s) ── 平均\n  ├─ a1: Q=8 → A=+3 ✅\n  └─ a2: Q=3 → A=−2 ❌"
+  "diagram": "V(s) ── 平均\n  ├─ a1: Q=8 → A=+3 ✅\n  └─ a2: Q=3 → A=−2 ❌",
+  "order": 3
 };

@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "全量（每段都 checkpoint）显存最省但重算最多；选择性（只 checkpoint 大激活块）在二者间折中。经验上按 transformer block 级 checkpoint 即可，不必到算子级。",
     "重算用的是确定性的前向（固定输入和权重），重建的激活与原前向数学上一致，因此反向链式法则得到的梯度与“本该保存”的完全等价，只是多花了一次前向。"
-  ]
+  ],
+  "order": 2
 };

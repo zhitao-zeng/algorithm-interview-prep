@@ -62,5 +62,6 @@ export default {
     "开 FP16 flag 并 build 序列化。",
     "写入 engine 文件供运行时加载。"
   ],
-  "diagram": "ONNX ─▶ Parser ─▶ Optimizer(融合/量化) ─▶ Engine ─▶ GPU 执行"
+  "diagram": "ONNX ─▶ Parser ─▶ Optimizer(融合/量化) ─▶ Engine ─▶ GPU 执行",
+  "order": 2
 };

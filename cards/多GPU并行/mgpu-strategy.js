@@ -62,5 +62,6 @@ export default {
     "PP 跨机切层、DP 扩样本。",
     "用 1F1B/重叠压气泡与通信。"
   ],
-  "diagram": "总卡数 = TP × PP × DP (MoE:+EP)\n布局: [TP×EP 在 NVLink 单机] × [PP 跨机] × [DP 跨机]"
+  "diagram": "总卡数 = TP × PP × DP (MoE:+EP)\n布局: [TP×EP 在 NVLink 单机] × [PP 跨机] × [DP 跨机]",
+  "order": 2
 };

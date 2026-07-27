@@ -72,5 +72,6 @@ export default {
     "`return gpu_price_h * cards * hours / (tokens / 1000)`：得每千 token 成本。",
     "`cost_split`：按输入/输出不同单价分别计价，看清成本结构。"
   ],
-  "diagram": "成本 = GPU单价 × 卡时\n          ────────────────\n             产出 token 数\n  (输入/输出分项计价)"
+  "diagram": "成本 = GPU单价 × 卡时\n          ────────────────\n             产出 token 数\n  (输入/输出分项计价)",
+  "order": 17
 };

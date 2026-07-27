@@ -73,5 +73,6 @@ export default {
     "`frontier = topk(scored, beam)`：只保留高分分支，控制爆炸。",
     "`if any(is_solved(n) ...): return backtrack(frontier)`：找到解则回溯重建路径。"
   ],
-  "diagram": "root -> {a,b,c} -> score -> keep a,c -> expand ..."
+  "diagram": "root -> {a,b,c} -> score -> keep a,c -> expand ...",
+  "order": 7
 };

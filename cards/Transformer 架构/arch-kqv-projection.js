@@ -61,5 +61,6 @@ export default {
     "scores/√d_k：缩放防饱和。",
     "softmax 后加权求和得输出。"
   ],
-  "diagram": "X --W_Q--> Q\nX --W_K--> K\nX --W_V--> V\nScore = QK^T/√d_k -> softmax -> *V"
+  "diagram": "X --W_Q--> Q\nX --W_K--> K\nX --W_V--> V\nScore = QK^T/√d_k -> softmax -> *V",
+  "order": 3
 };

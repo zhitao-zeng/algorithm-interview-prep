@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "1F1B 每个设备持一段连续层，bubble 取决于 pp；interleaved 让每设备持多段不连续的薄层并交错调度，使等效流水线深度变小、关键路径更短，bubble 进一步下降，但实现与激活管理更复杂。",
     "不是零成本：异步通信仍占用网络带宽与部分计算资源，若通信量超过空闲带宽或同 stream 竞争，重叠会失效；需把通信放到独立 CUDA stream 并留足空闲带宽才算真正隐藏。"
-  ]
+  ],
+  "order": 8
 };

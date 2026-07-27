@@ -71,5 +71,6 @@ export default {
     "但请求共步/排队 → 单请求延迟升：短请求也要等本步所有请求解码完。",
     "KV Cache 限制最大 batch：显存预算反推能并发多少个请求，超过即 OOM/拒绝。"
   ],
-  "diagram": "batch=1: [req] 读权重 → 慢\nbatch=32:[req×32] 读一次权重 → 摊薄 → 快(吞吐↑)\n但: 所有 req 共一步, 互相等 → 延迟↑"
+  "diagram": "batch=1: [req] 读权重 → 慢\nbatch=32:[req×32] 读一次权重 → 摊薄 → 快(吞吐↑)\n但: 所有 req 共一步, 互相等 → 延迟↑",
+  "order": 12
 };

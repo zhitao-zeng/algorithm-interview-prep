@@ -62,5 +62,6 @@ export default {
     "生成融合大算子并接上原输入。",
     "替换原三个节点并验证数值一致。"
   ],
-  "diagram": "Conv ─ BN ─ Relu   ==>   [ConvBnRelu]   (融合: 少 2 次显存往返)"
+  "diagram": "Conv ─ BN ─ Relu   ==>   [ConvBnRelu]   (融合: 少 2 次显存往返)",
+  "order": 6
 };

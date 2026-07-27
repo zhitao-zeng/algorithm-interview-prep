@@ -61,5 +61,6 @@ export default {
     "否则若不超过 second，更新 second 阈值；已有 first<second 的递增证据仍保留。",
     "当 value 既大于 first 又大于 second 时，三元组已按扫描顺序成立，直接返回 True。",
     "循环结束仍无第三值则返回 False。"
-  ]
+  ],
+  "order": 6
 };

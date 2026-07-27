@@ -72,5 +72,6 @@ export default {
     "`loss.backward(); opt.step()`：反向更新，但 ViT 被冻结，仅投影 + LLM 参数更新。",
     "循环 batch 完成多模态 SFT，逐步对齐「按指令用图」的能力。"
   ],
-  "diagram": "图文指令 ─▶ 模板拼接(含视觉token) ─▶ 模型 ─▶ 自回归损失 ─▶ 微调"
+  "diagram": "图文指令 ─▶ 模板拼接(含视觉token) ─▶ 模型 ─▶ 自回归损失 ─▶ 微调",
+  "order": 15
 };

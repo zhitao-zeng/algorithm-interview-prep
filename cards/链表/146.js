@@ -61,5 +61,6 @@ export default {
     "_remove 直接让 node 的前后邻居相连，因为节点已知，所以是 O(1) 删除。",
     "get 命中后调用 _add_front 把节点移到头部，表示它刚刚被使用过。",
     "put 超过容量时，tail.prev 正是最久未使用的真实节点，删除它并同步从字典里 del 掉对应键。"
-  ]
+  ],
+  "order": 7
 };

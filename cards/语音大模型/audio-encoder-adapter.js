@@ -61,5 +61,6 @@ export default {
     "downsample 等距抽稀，帧率降到 LLM 可接受范围。",
     "输出作为 LLM 的前缀 token 序列。"
   ],
-  "diagram": "Encoder(50Hz) ─▶ (B,T,768)\n                    │ proj\n                    ▼\n                 (B,T,4096)\n                    │ 每4帧取1 (downsample)\n                    ▼\n              Adapter 输出 (B,50,4096) ─▶ LLM"
+  "diagram": "Encoder(50Hz) ─▶ (B,T,768)\n                    │ proj\n                    ▼\n                 (B,T,4096)\n                    │ 每4帧取1 (downsample)\n                    ▼\n              Adapter 输出 (B,50,4096) ─▶ LLM",
+  "order": 5
 };

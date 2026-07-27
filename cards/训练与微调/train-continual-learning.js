@@ -69,5 +69,6 @@ export default {
     "reg = sum(f * (t - ts)**2 for f, t, ts in zip(fisher, theta, theta_star)): 逐项累加，每个参数重要性 f 乘以其相对锚点的偏移平方，偏移越大、越重要，惩罚越重。",
     "return base_loss + lam * reg: 把正则项按强度并入总损失，反向传播时重要参数若想大幅移动就会受到梯度阻力，从而被「保护」。"
   ],
-  "diagram": "新任务梯度 ─┬─ 学新\n              └─ EWC 惩罚 ─ 护旧权重"
+  "diagram": "新任务梯度 ─┬─ 学新\n              └─ EWC 惩罚 ─ 护旧权重",
+  "order": 7
 };

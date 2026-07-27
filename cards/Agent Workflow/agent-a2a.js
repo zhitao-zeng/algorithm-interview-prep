@@ -63,5 +63,6 @@ export default {
   "followUpAnswers": [
     "不重叠、互补：MCP（Model Context Protocol）解决“Agent 如何接入工具、数据源、外部系统”，是 Agent 对资源的接口；A2A 解决“Agent 如何对接另一个 Agent”，是 Agent 对 Agent 的编排接口。简单说 MCP 接工具、A2A 接同事，一个 Agent 可以既用 MCP 接数据库、又用 A2A 调别的 Agent。",
     "至少包含 Agent 名称与描述、可提供的能力/技能列表、每个 Task 的输入输出 schema、通信端点与支持的传输方式（如 HTTP/SSE）、鉴权要求与版本号；消费方据此决定是否调用以及如何构造合法 Task。"
-  ]
+  ],
+  "order": 42
 };

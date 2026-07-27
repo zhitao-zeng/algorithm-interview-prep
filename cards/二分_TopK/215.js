@@ -60,5 +60,6 @@ export default {
     "若 pivot 排名 == k 返回；否则只在对应半边递归。",
     "堆法：heap=[]；for x in nums: push(x)；若 len(heap) > k: pop 最小；返回堆顶。"
   ],
-  "diagram": "nums=[3,2,1,5,6,4], k=2\n快排 partition: 选 pivot=4\n  <4: [3,2,1]   >4: [5,6]\nk=2 落在右半(长度2≥k) → 递归右半找第2大=5\n(或维护大小k的小根堆, 堆顶=第k大)"
+  "diagram": "nums=[3,2,1,5,6,4], k=2\n快排 partition: 选 pivot=4\n  <4: [3,2,1]   >4: [5,6]\nk=2 落在右半(长度2≥k) → 递归右半找第2大=5\n(或维护大小k的小根堆, 堆顶=第k大)",
+  "order": 4
 };

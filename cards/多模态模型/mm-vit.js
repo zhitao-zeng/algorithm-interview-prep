@@ -71,5 +71,6 @@ export default {
     "加位置嵌入保留空间：让模型知道\"这块在第几行第几列\"，维持空间结构。",
     "Transformer 编码成视觉 token：自注意力让各 patch 互相交换信息，得到语义化特征。"
   ],
-  "diagram": "图像 ─▶ 切patch(16x16) ─▶ 投影 ─▶ ViT编码 ─▶ 视觉token\n        └─ 连接器对齐到 LLM 词空间 ─▶ LLM"
+  "diagram": "图像 ─▶ 切patch(16x16) ─▶ 投影 ─▶ ViT编码 ─▶ 视觉token\n        └─ 连接器对齐到 LLM 词空间 ─▶ LLM",
+  "order": 3
 };

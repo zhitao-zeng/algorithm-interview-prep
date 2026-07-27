@@ -62,5 +62,6 @@ export default {
     "多个请求引用同一物理块。",
     "差异部分单独计算。"
   ],
-  "diagram": "SYS(512tok)\n  ├─ 请求1: 算KV, 缓存(引用1)\n  ├─ 请求2: 命中, 引用2, 跳过Prefill\n  └─ 请求3: 命中, 引用3, 跳过Prefill\n物理KV只存一份, 逻辑多引用"
+  "diagram": "SYS(512tok)\n  ├─ 请求1: 算KV, 缓存(引用1)\n  ├─ 请求2: 命中, 引用2, 跳过Prefill\n  └─ 请求3: 命中, 引用3, 跳过Prefill\n物理KV只存一份, 逻辑多引用",
+  "order": 9
 };

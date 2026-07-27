@@ -61,5 +61,6 @@ export default {
     "while fast and fast.next: 确保 fast 能安全地走两步，不会在 None 上取 .next。",
     "slow 走一步、fast 走两步；if slow is fast: return True 表示在环内相遇。",
     "循环正常结束（fast 到末尾）则返回 False，说明路径无环。"
-  ]
+  ],
+  "order": 5
 };

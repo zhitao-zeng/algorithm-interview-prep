@@ -62,5 +62,6 @@ export default {
     "按各自长度构造因果 mask。",
     "释放前确认无 kernel 仍引用其 KV。"
   ],
-  "diagram": "错误: 全局步号→A/B position 混\n正确: A.pos=5, B.pos=2 各自独立"
+  "diagram": "错误: 全局步号→A/B position 混\n正确: A.pos=5, B.pos=2 各自独立",
+  "order": 4
 };

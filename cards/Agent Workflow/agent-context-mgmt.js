@@ -72,5 +72,6 @@ export default {
     "保留最近原文 + 摘要常驻：保证\"细节+概览\"双保险,窗口内信息密度最高。",
     "需要时检索旧片段回填：把丢弃原文入向量库,按查询相关性拉回关键旧事实,避免不可逆丢失。"
   ],
-  "diagram": "[recent] + [summary(old)] + retrieved"
+  "diagram": "[recent] + [summary(old)] + retrieved",
+  "order": 10
 };

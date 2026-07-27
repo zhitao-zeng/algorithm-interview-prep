@@ -61,5 +61,6 @@ export default {
     "PPO 用 RM 作奖励优化策略。",
     "KL(π‖π_ref) 约束保持分布稳定。"
   ],
-  "diagram": "SFT ─▶ 策略 ─┐\n               │ PPO + 奖励=RM − β·KL\n人类偏好 ─▶ RM ─┘\n(参考策略π_ref 冻结作 KL 基准)"
+  "diagram": "SFT ─▶ 策略 ─┐\n               │ PPO + 奖励=RM − β·KL\n人类偏好 ─▶ RM ─┘\n(参考策略π_ref 冻结作 KL 基准)",
+  "order": 7
 };

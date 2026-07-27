@@ -62,5 +62,6 @@ export default {
     "新块号追加到 block table。",
     "释放时引用归零回池。"
   ],
-  "diagram": "空闲池: [P3][P7][P9]...\n请求A block_table: [0]→P5, [1]→P3, [2]→P9\n写满块0 → pop P3 挂为块1"
+  "diagram": "空闲池: [P3][P7][P9]...\n请求A block_table: [0]→P5, [1]→P3, [2]→P9\n写满块0 → pop P3 挂为块1",
+  "order": 4
 };

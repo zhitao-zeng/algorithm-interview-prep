@@ -64,5 +64,6 @@ export default {
     "kernel 按 block_table gather 计算。",
     "局限: 末块碎片、长序列仍增长、需调参。"
   ],
-  "diagram": "请求 -> Scheduler(选token)\n       -> BlockSpaceManager(分配/释放块,ref计数)\n       -> PagedAttention kernel(按表gather, 在线softmax)\n局限: 末块碎片 | 长序列线性增长 | block需调参"
+  "diagram": "请求 -> Scheduler(选token)\n       -> BlockSpaceManager(分配/释放块,ref计数)\n       -> PagedAttention kernel(按表gather, 在线softmax)\n局限: 末块碎片 | 长序列线性增长 | block需调参",
+  "order": 12
 };

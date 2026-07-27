@@ -71,5 +71,6 @@ export default {
     "按注册表查函数并校验参数：白名单防任意执行，schema 校验防畸形输入。",
     "执行并把结果回传模型：在沙箱内运行，observation 回灌驱动下一轮。"
   ],
-  "diagram": "Model <-> tools[schema] -> app executes -> Observation -> Model"
+  "diagram": "Model <-> tools[schema] -> app executes -> Observation -> Model",
+  "order": 13
 };

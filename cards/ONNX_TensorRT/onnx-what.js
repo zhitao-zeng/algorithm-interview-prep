@@ -62,5 +62,6 @@ export default {
     "指定 input/output 名与 opset。",
     "用推理引擎加载验证一致性。"
   ],
-  "diagram": "PyTorch/TF ─▶ ONNX(中间图) ─▶ ONNX Runtime / TensorRT\n            (解耦训练与部署)"
+  "diagram": "PyTorch/TF ─▶ ONNX(中间图) ─▶ ONNX Runtime / TensorRT\n            (解耦训练与部署)",
+  "order": 1
 };

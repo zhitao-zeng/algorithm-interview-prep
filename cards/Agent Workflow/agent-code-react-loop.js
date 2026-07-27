@@ -67,5 +67,6 @@ export default {
   "followUpAnswers": [
     "CoT 只产出推理文本不触发动作，无法获取外部实时信息；ReAct 在推理中插入 Action/Observation，让模型能调用工具并基于真实反馈继续推理，适合需要检索、计算或多步工具协作的任务。",
     "靠 max_steps 强制终止并兜底返回；同时可在提示里强调\"尽快 Finish\"、对无效循环做早停检测，或改用强结构化的 function calling 让模型以特定信令结束。"
-  ]
+  ],
+  "order": 28
 };

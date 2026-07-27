@@ -62,5 +62,6 @@ export default {
     "反向 reduce-scatter 梯度。",
     "各卡只更新自己分片。"
   ],
-  "diagram": "DP: 每卡 [参数+梯度+优化器] (冗余)\nZeRO-3: 卡0[1/8] 卡1[1/8] ... 卡7[1/8]  (按需 gather)"
+  "diagram": "DP: 每卡 [参数+梯度+优化器] (冗余)\nZeRO-3: 卡0[1/8] 卡1[1/8] ... 卡7[1/8]  (按需 gather)",
+  "order": 16
 };

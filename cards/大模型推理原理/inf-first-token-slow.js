@@ -72,5 +72,6 @@ export default {
     "当 prompt 很短，或者命中了 Prefix Cache（系统提示等公共前缀的 KV 已缓存），Prefill 只需算极少新 token 甚至几乎免费，此时 TTFT 就接近一个 Decode 步（几十毫秒）。例如 10 token 短问句，Prefill 仅 ~15ms，TTFT≈45ms ≈ TPOT。",
     "缩短/缓存前缀（Prompt Cache、系统提示复用）、用更优注意力 kernel（FlashAttention/PA）加速 Prefill、采用 Chunked Prefill 与 Decode 混排减少排队、提升算力利用率（更大 Prefill 矩阵、FP8）。若长 prompt 不可避免，可异步流式返回或先吐占位。",
     "应该。TTFT 影响『响应及时感』（用户等多久看到第一个字），TPOT 影响『生成流畅感』（逐字速度），两者瓶颈不同（Prefill vs Decode），优化手段相反，应分别设阈值与监控，否则会顾此失彼。"
-  ]
+  ],
+  "order": 8
 };

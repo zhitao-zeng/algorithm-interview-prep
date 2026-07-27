@@ -67,5 +67,6 @@ export default {
   "followUpAnswers": [
     "用 profiler（如 PyTorch Profiler、TensorRT/TRT-LLM 的层执行日志）看是否真调用了 INT8/FP8 的 kernel；或者对比『量化前后显存占用』和『量化前后时延』是否达到理论预期——如果显存没怎么降、时延几乎不变，基本就是回退了。更稳的是在部署前对照框架的 supported-ops 文档逐算子核对。",
     "主要两处：一是 INT32 累加器在长序列/大 batch 的矩阵乘里累加项数过多溢出，需做分块累加（tiled accumulation）或用更大累加类型；二是 FP8/E4M3 的动态范围仅 ±448，激活值超过就饱和成 Inf/NaN，需在量化前对激活做 clamp（如 clip 到 ±448 范围）。两者都靠『分块 + clamp』解决，并在上线前用长尾样本做溢出压测。"
-  ]
+  ],
+  "order": 16
 };

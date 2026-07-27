@@ -62,5 +62,6 @@ export default {
     "B 增 ⇒ KV 线性增。",
     "并发上限常由 KV 显存定。"
   ],
-  "diagram": "总KV = 单请求KV × B\nB=1  ─▶ 2GB\nB=16 ─▶ 32GB\nB=64 ─▶ 128GB\n并发上限 ≈ 剩余显存 / 单请求KV"
+  "diagram": "总KV = 单请求KV × B\nB=1  ─▶ 2GB\nB=16 ─▶ 32GB\nB=64 ─▶ 128GB\n并发上限 ≈ 剩余显存 / 单请求KV",
+  "order": 5
 };

@@ -52,5 +52,6 @@ export default {
   "followUpAnswers": [
     "可扩展为 AMPOPE 或在 CCEval/MMHalBenchmark 中加入属性（颜色、数量）与关系（左/右、上/下）问答；也可用 AMBER 统一测存在、属性、关系三类幻觉并区分生成与判别。",
     "准确率低可能源于模型不会而非编造；只有专项负样本测试（如 POPE 假阳性）才能隔离“编造”成分，二者需结合解读。"
-  ]
+  ],
+  "order": 25
 };

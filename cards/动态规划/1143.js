@@ -60,5 +60,6 @@ export default {
     "双重循环 i,j：若 text1[i-1]==text2[j-1]，dp[i][j]=dp[i-1][j-1]+1；else dp[i][j]=max(dp[i-1][j], dp[i][j-1])。",
     "返回 dp[m][n]。"
   ],
-  "diagram": "text1=\"abcde\" text2=\"ace\"  LCS\n  a c e\na 1 1 1\nb 1 1 1\nc 1 2 2\nd 1 2 2\ne 1 2 3\nLCS=\"ace\" 长3  (DP对角线递推)"
+  "diagram": "text1=\"abcde\" text2=\"ace\"  LCS\n  a c e\na 1 1 1\nb 1 1 1\nc 1 2 2\nd 1 2 2\ne 1 2 3\nLCS=\"ace\" 长3  (DP对角线递推)",
+  "order": 8
 };

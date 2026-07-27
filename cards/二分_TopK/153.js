@@ -64,5 +64,6 @@ export default {
     "else: right = mid（最小可能在 mid 本身，故 right 不取 mid-1）。",
     "退出时 left == right，nums[left] 即最小值。"
   ],
-  "diagram": "nums=[4,5,6,7,0,1,2]\n最小值在\"断崖\"(右<左)处\nmid=7 > right=2 → 最小值在右半 [0,1,2]\nmid=1 > right=2? 否 → 左半含最小\n→ 左指针右移, 最终 left=最小值 0"
+  "diagram": "nums=[4,5,6,7,0,1,2]\n最小值在\"断崖\"(右<左)处\nmid=7 > right=2 → 最小值在右半 [0,1,2]\nmid=1 > right=2? 否 → 左半含最小\n→ 左指针右移, 最终 left=最小值 0",
+  "order": 3
 };

@@ -72,5 +72,6 @@ export default {
     "TTFT 关注“首字前”体验，用 P50/P90/P99 从请求进入到首个 token 的延迟，按输入长度分桶；TPOT 关注“生成流畅度”，用生成阶段相邻 token 间隔的均值与 P99。两者 SLO 不同：对话类 TTFT 通常要求数百毫秒内，TPOT 要求 <50ms 级别保证不卡顿。监控要分开设告警。",
     "先确认前缀是否真的公共：把 system prompt、few-shot、固定知识库放到最前面形成稳定最长公共前缀；用细粒度“前缀树”缓存而非整段哈希以容忍尾部变化；检查是否因权重/精度频繁变动导致整池失效。若业务前缀高度个性化(如每人不同历史)，命中率天然低，应考虑其他手段(分块 prefill、量化)。",
     "会，因为同一批算力既要算 prefill 块又要算 decode step，存在竞争。缓解靠限制每步 prefill token 数(max_prefill_tokens)、给 decode 预留算力配额、以及在调度上让 prefill 与 decode 分批错峰。配比不当确实会抬升 TPOT，所以要在 TTFT 与 TPOT 之间权衡调参。"
-  ]
+  ],
+  "order": 4
 };

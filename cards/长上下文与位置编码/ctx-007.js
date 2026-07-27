@@ -60,5 +60,6 @@ export default {
     "for step：沿 ring 依次与各卡 K/V 做分块注意力。",
     "causal_mask + sum：保证因果且累加各步结果，等价于全序列注意力。"
   ],
-  "diagram": "卡0[blk0]──┐\n卡1[blk1]──┼─ Ring 交换 K/V ─> 每块看允许的历史\n卡2[blk2]──┤\n卡3[blk3]──┘  因果掩码防泄漏未来"
+  "diagram": "卡0[blk0]──┐\n卡1[blk1]──┼─ Ring 交换 K/V ─> 每块看允许的历史\n卡2[blk2]──┤\n卡3[blk3]──┘  因果掩码防泄漏未来",
+  "order": 7
 };

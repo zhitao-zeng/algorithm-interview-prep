@@ -62,5 +62,6 @@ export default {
     "每 Decode 步只算新 token 的 K/V。",
     "新 K/V 复用历史，复杂度 O(n) 每步。"
   ],
-  "diagram": "无缓存: 步k 重算前k个K/V → 总 ~O(n^3)\n有缓存: 步k 只算1个新K/V → 总 ~O(n^2)\n代价: KV 常驻显存"
+  "diagram": "无缓存: 步k 重算前k个K/V → 总 ~O(n^3)\n有缓存: 步k 只算1个新K/V → 总 ~O(n^2)\n代价: KV 常驻显存",
+  "order": 2
 };

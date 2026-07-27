@@ -61,5 +61,6 @@ export default {
     "标记 visited[(r,c)]=True，对四个方向递归 dfs(nr,nc,k+1)。",
     "无论结果如何，回溯 visited[(r,c)]=False 并据此返回。"
   ],
-  "diagram": "board:\n  A B C E\n  S F C S\n  A D E E\n找 \"ABCCED\":\nA→B→C→C→E→D  (相邻, 不重复用同格)\nvisited 标记, 此路不通则回溯取消标记"
+  "diagram": "board:\n  A B C E\n  S F C S\n  A D E E\n找 \"ABCCED\":\nA→B→C→C→E→D  (相邻, 不重复用同格)\nvisited 标记, 此路不通则回溯取消标记",
+  "order": 4
 };

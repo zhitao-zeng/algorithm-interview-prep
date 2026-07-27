@@ -66,5 +66,6 @@ export default {
     "低精度域乘加：直接整数/FP8 乘加，拿到算力与带宽双收益。",
     "否则退回 fp16_gemm：无支持时保正确性与基本的显存节省，但无加速。"
   ],
-  "diagram": "数据(INT8/FP8) ─▶ Tensor Core ─▶ 高吞吐\n无支持 ─▶ FP16 kernel ─▶ 仅省显存"
+  "diagram": "数据(INT8/FP8) ─▶ Tensor Core ─▶ 高吞吐\n无支持 ─▶ FP16 kernel ─▶ 仅省显存",
+  "order": 7
 };

@@ -62,5 +62,6 @@ export default {
     "多轮计时取 p50/p99 与吞吐。",
     "验证集确认精度对齐。"
   ],
-  "diagram": "baseline ─▶ 同条件 bench ─▶ TRT\n报告: p50/p99 / 吞吐 / 精度"
+  "diagram": "baseline ─▶ 同条件 bench ─▶ TRT\n报告: p50/p99 / 吞吐 / 精度",
+  "order": 15
 };

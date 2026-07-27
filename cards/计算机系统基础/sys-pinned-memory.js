@@ -78,5 +78,6 @@ export default {
     "用 stream 把拷贝与计算重叠。",
     "监控 Pinned 占用，防主机内存压力。"
   ],
-  "diagram": "主机 Pageable ──(驱动中转,常同步)──► GPU 显存\n主机 Pinned   ──(DMA,可异步,需stream)─► GPU 显存\nGPU 显存: Kernel 直读, 带宽最高, 容量有限"
+  "diagram": "主机 Pageable ──(驱动中转,常同步)──► GPU 显存\n主机 Pinned   ──(DMA,可异步,需stream)─► GPU 显存\nGPU 显存: Kernel 直读, 带宽最高, 容量有限",
+  "order": 14
 };

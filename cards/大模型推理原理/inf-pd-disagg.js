@@ -87,5 +87,6 @@ export default {
     "两阶段瓶颈不同（算力 vs 带宽），分开部署可针对性配卡并解耦 TTFT 与 ITL 的优化。",
     "吞吐是否提升取决于 t_kv 与两池负载匹配——分离首要优化延迟体验，而非无条件吞吐。"
   ],
-  "diagram": "PD Disaggregation:\n[Prefill GPU池](算力密集)\n    | 算 KV\n    | 网络传输 KV\n    v\n[Decode GPU池](带宽密集)\n    | 续自回归\n    v\n输出\n目标: 解耦 TTFT 与 ITL; 吞吐非必然提升"
+  "diagram": "PD Disaggregation:\n[Prefill GPU池](算力密集)\n    | 算 KV\n    | 网络传输 KV\n    v\n[Decode GPU池](带宽密集)\n    | 续自回归\n    v\n输出\n目标: 解耦 TTFT 与 ITL; 吞吐非必然提升",
+  "order": 11
 };

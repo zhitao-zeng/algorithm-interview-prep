@@ -61,5 +61,6 @@ export default {
     "队列始终按正常左→右扩展孩子，与输出方向解耦。",
     "每层结束时依 left_to_right 选择 level 或 level[::-1] 加入答案。",
     "布尔值 not 翻转，保证相邻层方向相反。"
-  ]
+  ],
+  "order": 2
 };

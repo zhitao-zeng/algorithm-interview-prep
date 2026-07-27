@@ -61,5 +61,6 @@ export default {
     "union = areaA + areaB - inter。",
     "return inter / union（union 为 0 时按约定处理）。"
   ],
-  "diagram": "预测框 A   真实框 B\n  ┌──┐\n  │  ├──┐\n  └──┤  │\n     └──┘\nIoU = |A∩B| / |A∪B|\n重叠越多 → IoU → 1"
+  "diagram": "预测框 A   真实框 B\n  ┌──┐\n  │  ├──┐\n  └──┤  │\n     └──┘\nIoU = |A∩B| / |A∪B|\n重叠越多 → IoU → 1",
+  "order": 11
 };

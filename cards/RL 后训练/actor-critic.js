@@ -61,5 +61,6 @@ export default {
     "Actor 损失 −logπ·A 更新策略。",
     "Critic 回归 V 到 TD 目标 r+γV(s′)。"
   ],
-  "diagram": "Actor(π) ──动作──▶ 环境 ──(s,a,r,s′)──┐\n   ▲                                 │\n   │ 梯度 ∝ A                        ▼\n Critic(V) ── A=r+γV(s′)−V(s) ──────┘"
+  "diagram": "Actor(π) ──动作──▶ 环境 ──(s,a,r,s′)──┐\n   ▲                                 │\n   │ 梯度 ∝ A                        ▼\n Critic(V) ── A=r+γV(s′)−V(s) ──────┘",
+  "order": 5
 };

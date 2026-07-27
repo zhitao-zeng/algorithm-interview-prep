@@ -62,5 +62,6 @@ export default {
     "生成中 L = prompt + 已生成，持续增长。",
     "长上下文成本本质来自此线性。"
   ],
-  "diagram": "L: 4k ─▶ KV 2GB\nL: 32k ─▶ KV 16GB  (×8)\nL: 128k ─▶ KV 68GB (×32)\n严格线性, 生成中还持续增长"
+  "diagram": "L: 4k ─▶ KV 2GB\nL: 32k ─▶ KV 16GB  (×8)\nL: 128k ─▶ KV 68GB (×32)\n严格线性, 生成中还持续增长",
+  "order": 6
 };

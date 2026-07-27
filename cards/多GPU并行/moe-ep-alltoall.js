@@ -85,5 +85,6 @@ export default {
     "Combine 把结果发回聚合。",
     "All-to-All 通信成潜在瓶颈。"
   ],
-  "diagram": "Expert Parallel:\n卡0:[E0,E1]  卡1:[E2,E3]  卡2:[E4,E5]\ntoken-+-Dispatch(All-to-All)-+-> 各卡算对应专家\n     |                      |\n     +------Combine--------+-> 原卡聚合\n瓶颈: All-to-All 带宽 + 负载不均气泡"
+  "diagram": "Expert Parallel:\n卡0:[E0,E1]  卡1:[E2,E3]  卡2:[E4,E5]\ntoken-+-Dispatch(All-to-All)-+-> 各卡算对应专家\n     |                      |\n     +------Combine--------+-> 原卡聚合\n瓶颈: All-to-All 带宽 + 负载不均气泡",
+  "order": 13
 };

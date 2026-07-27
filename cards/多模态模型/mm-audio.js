@@ -66,5 +66,6 @@ export default {
     "降采样成听觉 token：feat[::downsample] 抽稀控制长度，平衡信息与成本。",
     "连接器对齐入 LLM：connector 投影到词空间，与文本 token 拼同一序列。"
   ],
-  "diagram": "波形 ─▶ 梅尔谱 ─▶ 声学编码器 ─▶ 降采样 ─▶ 听觉token ─▶ LLM"
+  "diagram": "波形 ─▶ 梅尔谱 ─▶ 声学编码器 ─▶ 降采样 ─▶ 听觉token ─▶ LLM",
+  "order": 21
 };

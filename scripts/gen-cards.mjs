@@ -86,11 +86,14 @@ async function readCards() {
     }
     cards.push(mod.default);
   }
-  // stable, grouped output: category → kind → id
+  // stable, grouped output: category → kind → order → id
+  // `order` is an OPTIONAL per-card integer; when present it drives the
+  // in-category sequence (knowledge mainline), otherwise we fall back to id.
   cards.sort(
     (a, b) =>
       String(a.category).localeCompare(String(b.category)) ||
       String(a.kind).localeCompare(String(b.kind)) ||
+      ((Number(a.order) || 1e9) - (Number(b.order) || 1e9)) ||
       String(a.id).localeCompare(String(b.id))
   );
   return cards;

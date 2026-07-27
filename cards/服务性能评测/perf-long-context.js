@@ -72,5 +72,6 @@ export default {
     "记录最大并发——由显存上限反推容量。",
     "画随长度变化曲线——找拐点定 SLA 与扩容线。"
   ],
-  "diagram": "长度↑ → 输入长: prefill↑, KV↑(限并发)\n           → 输出长: decode 总时长↑"
+  "diagram": "长度↑ → 输入长: prefill↑, KV↑(限并发)\n           → 输出长: decode 总时长↑",
+  "order": 12
 };

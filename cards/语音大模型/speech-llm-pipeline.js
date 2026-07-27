@@ -61,5 +61,6 @@ export default {
     "LLM：以适配后的特征为前缀，自回归生成文本 token。",
     "Talker：把 LLM 隐状态/规划解码为语音 unit 或波形。"
   ],
-  "diagram": "波形 ─▶ Audio Encoder ─▶ Adapter ─▶ LLM ─▶ Talker ─▶ 语音\n (高帧率特征)    (下采样投影)   (理解/生成)   (合成)\n                              │\n                              └▶ 文本输出"
+  "diagram": "波形 ─▶ Audio Encoder ─▶ Adapter ─▶ LLM ─▶ Talker ─▶ 语音\n (高帧率特征)    (下采样投影)   (理解/生成)   (合成)\n                              │\n                              └▶ 文本输出",
+  "order": 1
 };

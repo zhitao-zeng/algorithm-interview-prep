@@ -64,5 +64,6 @@ export default {
     "multi_query: 生成多改写",
     "各路检索后 rrf_merge 融合"
   ],
-  "diagram": "Query ->[LLM rewrite]-> Q1,Q2,Q3 -> retrieve x3 -> RRF -> top-k\nQuery ->[LLM HyDE]-> hypothetical doc -> embed -> retrieve"
+  "diagram": "Query ->[LLM rewrite]-> Q1,Q2,Q3 -> retrieve x3 -> RRF -> top-k\nQuery ->[LLM HyDE]-> hypothetical doc -> embed -> retrieve",
+  "order": 6
 };

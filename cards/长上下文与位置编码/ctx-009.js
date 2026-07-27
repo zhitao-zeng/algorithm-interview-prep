@@ -60,5 +60,6 @@ export default {
     "fill_haystack：用无关文本填到目标长度并埋 needle。",
     "needle in ans：精确召回判通过，扫网格得热力图。"
   ],
-  "diagram": "长度\\深度  首  中  尾\n 8K       ✓   ✓   ✓\n 32K      ✓   △   ✓\n 128K     ✓   ✗   ✓   ← lost in middle"
+  "diagram": "长度\\深度  首  中  尾\n 8K       ✓   ✓   ✓\n 32K      ✓   △   ✓\n 128K     ✓   ✗   ✓   ← lost in middle",
+  "order": 9
 };

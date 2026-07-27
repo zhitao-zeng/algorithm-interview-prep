@@ -72,5 +72,6 @@ export default {
     "执行动作并把观察写入 history：obs = execute(tools, action)，state['history'].append((action, obs)) 是关键回灌。",
     "无动作（action is None）时收尾返回；超 max_steps 则截断：保证循环必然终止、成本可控。"
   ],
-  "diagram": "Goal -> Decide -> Act -> Observe -> Decide -> ... -> Done\n(状态在每轮被回灌)"
+  "diagram": "Goal -> Decide -> Act -> Observe -> Decide -> ... -> Done\n(状态在每轮被回灌)",
+  "order": 1
 };

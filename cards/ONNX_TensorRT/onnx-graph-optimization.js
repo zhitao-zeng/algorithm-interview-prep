@@ -62,5 +62,6 @@ export default {
     "离线求值并替换为常量节点。",
     "迭代至无可折叠并验证一致。"
   ],
-  "diagram": "Conv ─[BN权重(常量)]─▶ 折叠为 ─▶ Conv'(权重已含BN) "
+  "diagram": "Conv ─[BN权重(常量)]─▶ 折叠为 ─▶ Conv'(权重已含BN) ",
+  "order": 5
 };

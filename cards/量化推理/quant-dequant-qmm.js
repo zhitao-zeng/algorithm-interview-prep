@@ -66,5 +66,6 @@ export default {
     "INT32 防溢出：乘积最大约 127²，累加 k 次需 INT32 承住中间和。",
     "末端乘 scale 还原：乘 s_a⊗s_b（含广播）得真实 C；非对称再补零点项。"
   ],
-  "diagram": "A_q ─┐\n      ├─▶ INT积(INT32) ─▶ ×s_a×s_b ─▶ C\nB_q ─┘"
+  "diagram": "A_q ─┐\n      ├─▶ INT积(INT32) ─▶ ×s_a×s_b ─▶ C\nB_q ─┘",
+  "order": 3
 };

@@ -53,5 +53,6 @@ export default {
   "followUpAnswers": [
     "列并行把 Y=XA 中 A 按列切，输出需拼接；若下一层接行并行把 A 按行切，则前一个列并行的 all-gather 可与后一个的行并行输入分块抵消，中间只需一次 all-reduce，避免两次额外通信。",
     "朴素满流水要先跑完所有前向再后向，bubble 大；1F1B 在积攒够 warmup 后每完成一个前向立即安排一个后向，使后向与前向在不同 stage 重叠，把空闲降到 (pp-1)/(m+pp-1)。"
-  ]
+  ],
+  "order": 4
 };

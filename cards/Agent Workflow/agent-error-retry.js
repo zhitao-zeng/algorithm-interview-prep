@@ -73,5 +73,6 @@ export default {
     "`backoff(i); obs=...; args=llm_fix(args, obs)`：指数退避并把错误回传给模型纠正参数或换策略。",
     "循环外 `raise EscalateToHuman`：超过重试上限则升级人工，安全终止。"
   ],
-  "diagram": "call -> ok? -> yes:return / no:backoff+retry -> human"
+  "diagram": "call -> ok? -> yes:return / no:backoff+retry -> human",
+  "order": 25
 };

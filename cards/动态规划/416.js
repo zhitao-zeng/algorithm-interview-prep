@@ -61,5 +61,6 @@ export default {
     "对每个 num，j 从 target 逆序到 num：dp[j] = dp[j] or dp[j-num]。",
     "返回 dp[target]。"
   ],
-  "diagram": "nums=[1,5,11,5] sum=22, target=11\n0/1 背包: 能否凑出 11?\n11 = 11 ✓ (单个)  或 1+5+5 = 11\ndp[容量] 布尔可达 → True"
+  "diagram": "nums=[1,5,11,5] sum=22, target=11\n0/1 背包: 能否凑出 11?\n11 = 11 ✓ (单个)  或 1+5+5 = 11\ndp[容量] 布尔可达 → True",
+  "order": 7
 };

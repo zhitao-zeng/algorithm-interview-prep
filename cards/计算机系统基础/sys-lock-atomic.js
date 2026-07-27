@@ -79,5 +79,6 @@ export default {
     "无锁结构→CAS+版本号。",
     "多核高频写→查伪共享。"
   ],
-  "diagram": "Mutex      : 睡眠锁, 临界区中长, 不烧 CPU\nSpinlock   : 忙等锁, 临界区极短+多核\nAtomic     : 单变量 RMW, 无锁, 最低开销\nCAS        : 无锁原语, 防 ABA(版本号), 警惕伪共享"
+  "diagram": "Mutex      : 睡眠锁, 临界区中长, 不烧 CPU\nSpinlock   : 忙等锁, 临界区极短+多核\nAtomic     : 单变量 RMW, 无锁, 最低开销\nCAS        : 无锁原语, 防 ABA(版本号), 警惕伪共享",
+  "order": 13
 };

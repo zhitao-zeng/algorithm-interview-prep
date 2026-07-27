@@ -66,5 +66,6 @@ export default {
     "saturation(used,total)=used/total：返回 0~1 的资源占用率，是 HPA 触发扩容的核心指标。",
     "真实系统会把 saturation 接进监控告警：超过阈值（如 0.8）自动加副本，低于阈值回收，形成闭环。"
   ],
-  "diagram": "延迟\n  │        ╱← 饱和拐点\n  │      ╱\n  │    ╱\n  └──────── 负载(QPS)"
+  "diagram": "延迟\n  │        ╱← 饱和拐点\n  │      ╱\n  │    ╱\n  └──────── 负载(QPS)",
+  "order": 7
 };
