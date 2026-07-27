@@ -27,7 +27,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 382);
+  assert.equal(questions.length, 410);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -72,7 +72,7 @@ test('kind 分布与分类映射一致', () => {
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 60, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 322, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 350, '概念题数量');
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
@@ -537,6 +537,40 @@ test('子Agent模块【系统设计】全部题卡通过初学者契约', () => 
   ]);
   const matched = questions.filter((q) => ids.has(q.id));
   assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【生成式模型】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "gen-diffusion-ddpm","gen-ddim","gen-classifier-free-guidance","gen-latent-diffusion",
+    "gen-dit","gen-flow-matching","gen-video-diffusion","gen-autoregressive-video",
+    "gen-controlnet","gen-ip-adapter","gen-diffusion-distill","gen-diffusion-lora",
+    "gen-diffusion-eval","gen-aigc-product-stack",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 14, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
+    assert.ok(q.lineByLine.length >= 2, `${q.id} 应至少有两段逐行讲解`);
+    assert.ok(q.workedExample.length >= 2, `${q.id} 应至少有两步演练`);
+  }
+});
+
+test('子Agent模块【视觉与视频理解】全部题卡通过初学者契约', () => {
+  const ids = new Set([
+    "vis-object-detection","vis-detr","vis-segmentation-sam","vis-self-sup",
+    "vis-video-backbone","vis-optical-flow","vis-3d-nerf","vis-gan-review",
+    "vis-depth-3d","vis-visual-grounding","vis-data-engine","vis-augmentation",
+    "vis-model-compress","vis-video-preprocess",
+  ]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 14, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
     assert.match(q.code, /def |class |from |import /, `${q.id} 应提供完整 Python 代码`);
