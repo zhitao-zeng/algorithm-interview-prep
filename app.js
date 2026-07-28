@@ -1,4 +1,4 @@
-import { categories, questions } from './questions.js';
+import { categories, questions } from './questions.js?v=d30b35f6';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 

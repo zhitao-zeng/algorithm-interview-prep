@@ -3,9 +3,10 @@
 //  - Every run: recursively read cards/**/*.js, sort by category→kind→id, regenerate questions.js bundle.
 //  Never hand-edit questions.js. Edit a card in cards/<category>/<id>.js, then `npm run gen`.
 
-import { readdirSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
+import crypto from 'node:crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -113,6 +114,18 @@ async function main() {
     `export const questions = ${JSON.stringify(cards, null, 2)};\n`;
   writeFileSync(questionsPath, bundle);
   console.log(`wrote questions.js (${cards.length} cards, ${categories.length} categories)`);
+
+  // Cache-bust: append a content hash as a query string on the questions.js
+  // import so the browser always re-fetches after any regen (sort/edit).
+  const hash = crypto.createHash('md5').update(bundle).digest('hex').slice(0, 8);
+  const appPath = path.join(root, 'app.js');
+  const appSrc = readFileSync(appPath, 'utf8');
+  const updated = appSrc.replace(
+    /from '\.\/questions\.js(\?v=[0-9a-f]+)?'/,
+    `from './questions.js?v=${hash}'`
+  );
+  if (updated !== appSrc) writeFileSync(appPath, updated);
+  console.log(`cache-bust: app.js now imports questions.js?v=${hash}`);
 }
 
 main().catch((e) => {
