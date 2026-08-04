@@ -28,7 +28,10 @@ export const categories = [
   "推理芯片适配",
   "服务性能评测",
   "视觉与视频理解",
+  "OCR 文字检测与识别",
+  "单目深度与障碍物感知",
   "视频生成",
+  "多模态生成应用",
   "多模态数据工程",
   "多模态模型",
   "生成式模型",
@@ -46,7 +49,9 @@ export const categories = [
   "RAG",
   "长上下文与位置编码",
   "评测与对齐安全",
-  "安全红队"
+  "LLM 约束生成与自动评测",
+  "安全红队",
+  "因果推断与树模型"
 ];
 
 export const questions = [
@@ -3942,6 +3947,612 @@ export const questions = [
     "kind": "code"
   },
   {
+    "id": "asr-architecture-compare",
+    "category": "ASR 专项",
+    "difficulty": "Medium",
+    "title": "主流 ASR 架构横评与选型",
+    "prompt": "Whisper、Paraformer、Zipformer-Transducer 与 Qwen3-ASR 四类架构的核心差异是什么，如何按场景选型？",
+    "quickAnswer": "Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
+    "code": "class ASRBackbone:\n    \"\"\"统一不同架构（Whisper/Paraformer/Zipformer/Qwen3）的推理接口便于横评。\"\"\"\n    def __init__(self, arch: str):\n        self.arch = arch\n    def transcribe(self, audio):\n        return {\"whisper\": self._enc_dec,\n                \"paraformer\": self._san_parallel,\n                \"zipformer\": self._transducer,\n                \"qwen3-asr\": self._llm}.get(self.arch)(audio)",
+    "complexity": "时间 O(1)（路由）/ 推理随架构 O(N·L)，空间 O(1)",
+    "beginnerSummary": "四个“翻译官”各有绝活：Whisper 全能但慢，Paraformer 并行快，Zipformer 流式对齐好，Qwen3 大模型最聪明但最吃资源。",
+    "derivation": [
+      "为什么需要：四类架构在准确率、延迟、流式与端侧成本上权衡不同，统一接口才能公平横评并按场景选型。",
+      "怎么实现：Whisper 用 Encoder-Decoder+自回归；Paraformer 用 SAN 做非自回归并行预测；Zipformer-Transducer 做单元级流式对齐；Qwen3-ASR 走大模型化。统一 transcribe 接口横评。",
+      "有什么代价：大模型（Qwen3）准确高但显存/延迟大；Transducer 需对齐训练复杂；统一接口要适配各自前后处理。",
+      "怎么评测：在 11 语种盲测跑三层口径，按指标与端侧约束选：端侧用 Paraformer/Whisper-tiny，高准确用 Qwen3，流式用 Zipformer。"
+    ],
+    "edgeCases": [
+      "Whisper 自回归易重复解码（hallucination），长音频需 chunk。",
+      "Paraformer 非自回归对同音字易错，需语言模型兜底。",
+      "Zipformer-Transducer 训练需预测网络/对齐，调参复杂。",
+      "Qwen3-ASR 在端侧显存不足必须量化或回退。"
+    ],
+    "pitfalls": [
+      "把 Whisper 当万能，端侧硬上导致延迟爆表。",
+      "横评时前后处理不一致（归一化/采样率）导致指标不可比。"
+    ],
+    "prerequisites": [
+      "Encoder-Decoder 与自回归解码",
+      "Transducer 与 CTC 对齐",
+      "非自回归（NAR）建模"
+    ],
+    "workedExample": [
+      "步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
+      "步骤2：在盲测集跑三层口径，记录 CER 与延迟。",
+      "步骤3：端侧 200MB 选 Paraformer，高准确选 Qwen3-ASR。"
+    ],
+    "lineByLine": [
+      "class ASRBackbone: 定义统一基座封装类。",
+      "def __init__(self, arch): self.arch = arch 记录所选架构名。",
+      "def transcribe(self, audio): 对外统一推理接口。",
+      "return {...}.get(self.arch)(audio) 按架构名分发到对应内部实现。"
+    ],
+    "followUps": [
+      {
+        "question": "Paraformer 的 SAN 是什么？",
+        "answer": "SAN（Self-Attention Network）结合 CIF 预测时长，实现非自回归并行输出，去掉自回归延迟，推理快但需处理重复/漏字。"
+      },
+      {
+        "question": "Transducer 相比 CTC 好在哪？",
+        "answer": "Transducer 引入预测网络与联合网络做帧-标签单元级对齐，不要求帧独立假设，流式与长静音更稳，对齐更精细。"
+      }
+    ],
+    "followUpAnswers": [
+      "SAN（Self-Attention Network）结合 CIF 预测时长，实现非自回归并行输出，去掉自回归延迟，推理快但需处理重复/漏字。",
+      "Transducer 引入预测网络与联合网络做帧-标签单元级对齐，不要求帧独立假设，流式与长静音更稳，对齐更精细。"
+    ],
+    "invariant": "transcribe 对任意已知 arch 必分发到对应实现且返回解码文本，未知 arch 触发 KeyError 需调用方保证合法值。",
+    "walkthrough": "ASRBackbone('paraformer').transcribe(audio) → 查表命中 _san_parallel 并行解码返回文本；'qwen3-asr' → _llm 大模型解码。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-channel-robustness",
+    "category": "ASR 专项",
+    "difficulty": "Hard",
+    "title": "真实信道鲁棒性失真模拟与训练",
+    "prompt": "如何用播放链路建模（RIR、频响、AGC、Codec、Clipping）提升真实信道鲁棒性，并避免只拟合模拟失真？",
+    "quickAnswer": "按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
+    "code": "import numpy as np\n\ndef apply_rir_fft(speech: np.ndarray, rir: np.ndarray) -> np.ndarray:\n    \"\"\"用 FFT 卷积把房间脉冲响应施加到语音，比时域卷积快约 30x。\"\"\"\n    n = len(speech) + len(rir) - 1\n    nfft = 1 << (n - 1).bit_length()\n    S = np.fft.rfft(speech, nfft)\n    R = np.fft.rfft(rir, nfft)\n    return np.fft.irfft(S * R)[:len(speech)]",
+    "complexity": "时间 O(N log N)（FFT 卷积）/ 时域 O(N·M)，空间 O(N)",
+    "beginnerSummary": "就像在浴室和旷野录音声音不同，我们用数学先“装修”出各种房间和设备的声音，再让模型在“坏声音”里也听得清。",
+    "derivation": [
+      "为什么需要：真实播放链路（扬声器→房间→麦克风→Codec）引入混响、频响凹陷、增益与削波，训练集若只有 clean 语音会在真实信道上 WER 飙升。",
+      "怎么实现：按链路分阶段建模 RIR 卷积、频响曲线、AGC、Codec 量化与 Clipping，离线批量增强音频，并保留 clean/in-domain 原始数据混合训练。",
+      "有什么代价：过度增强会让模型只拟合模拟失真的“指纹”而对真实退化泛化差；RIR 时域卷积在大语音上慢，需要 FFT 加速。",
+      "怎么评测：用独立信道退化集（构造失真）与独立业务集（真实采集）双轨验证，退化集 28.66%→20.32%，业务集进一步降到 3.62%。"
+    ],
+    "edgeCases": [
+      "RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。",
+      "真实 Codec（如 Opus）引入非线性量化，线性模拟无法完全还原，需真实 Codec 重编码。",
+      "过度增强使训练分布远离真实，业务集反而退化（过拟合模拟失真）。",
+      "Clipping 阈值设错导致削波过重产生谐波，引入新伪影。"
+    ],
+    "pitfalls": [
+      "只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。",
+      "把业务集 3.62% 当成上限而忽略退化集，掩盖了增强未覆盖的信道。"
+    ],
+    "prerequisites": [
+      "卷积与 FFT",
+      "房间脉冲响应（RIR）与混响",
+      "音频 Codec 与增益控制基础"
+    ],
+    "workedExample": [
+      "步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
+      "步骤2：混合 60% clean、30% augmented、10% in-domain 真实退化数据训练。",
+      "步骤3：在独立业务集上测到 WER 3.62%，验证未过拟合模拟失真。"
+    ],
+    "lineByLine": [
+      "import numpy as np 引入数值库用于 FFT 运算。",
+      "n = len(speech) + len(rir) - 1 计算线性卷积所需输出长度。",
+      "nfft = 1 << (n - 1).bit_length() 取不小于 n 的最小 2 的幂，满足 FFT 效率。",
+      "S = np.fft.rfft(speech, nfft); R = np.fft.rfft(rir, nfft) 频域变换后逐点相乘等价于时域卷积。",
+      "return np.fft.irfft(S * R)[:len(speech)] 逆变换并裁回原语音长度。"
+    ],
+    "followUps": [
+      {
+        "question": "FFT 卷积相比时域快多少？",
+        "answer": "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。"
+      },
+      {
+        "question": "如何防止只拟合模拟失真？",
+        "answer": "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
+      }
+    ],
+    "followUpAnswers": [
+      "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。",
+      "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
+    ],
+    "invariant": "对于任意 speech 与 rir，FFT 卷积输出在 [:len(speech)] 上与时域卷积结果数值一致，且不引入循环混叠。",
+    "walkthrough": "speech 长 16000、rir 长 4000 → n=20000，nfft=32768；rfft 后 S·R 逆变换取前 16000 点，即得与时域卷积等价的混响语音。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-chinavoices",
+    "category": "ASR 专项",
+    "difficulty": "Hard",
+    "title": "ChinaVoices 竞赛消融与负收益定位",
+    "prompt": "在 ChinaVoices 竞赛中，如何通过全参 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习的消融，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰等负收益来源并拿到 CER 13.423%？",
+    "quickAnswer": "逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
+    "code": "def ablation_log(name: str, cer: float, baseline_cer: float) -> dict:\n    \"\"\"记录消融实验：对比全参/decoder-only、外部数据/RefSet、Hard Focus、多任务。\"\"\"\n    return {\"ablation\": name, \"cer\": cer,\n            \"delta\": round(cer - baseline_cer, 3),\n            \"positive\": cer < baseline_cer}",
+    "complexity": "时间 O(1)，空间 O(1)",
+    "beginnerSummary": "像做对照实验：每次只换一个配方，看哪味“药材”让成绩变好或变差，最后挑出拖后腿的并拿到第二。",
+    "derivation": [
+      "为什么需要：竞赛多策略叠加易互相吞噬收益，必须逐因素消融才能定位负收益来源。",
+      "怎么实现：系统消融全参微调 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习；用 ablation_log 记录每项 delta 与正负。",
+      "有什么代价：消融需多组训练，算力开销大；外部语料需先做正字法对齐，否则引入噪声。",
+      "怎么评测：定位外部语料正字法不一致、过采样导致遗忘、LID 梯度干扰为负收益后修正，最终 ASR CER 13.423%（第 2 名）。"
+    ],
+    "edgeCases": [
+      "外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。",
+      "过采样某域导致其他域遗忘，CER 反弹。",
+      "多任务中 LID 弱监督（67.57%）梯度干扰拉低 ASR。",
+      "decoder-only 在全参下过拟合小 RefSet。"
+    ],
+    "pitfalls": [
+      "多策略一把梭不消融，负收益被正收益掩盖。",
+      "把 Reference Set 与外部数据混用未控制变量，结论不可信。"
+    ],
+    "prerequisites": [
+      "消融实验设计",
+      "正字法归一化",
+      "多任务梯度干扰（见 asr-lid）"
+    ],
+    "workedExample": [
+      "步骤1：baseline 全参微调得 CER 基准。",
+      "步骤2：逐项加 decoder-only、外部数据、Hard Focus、多任务，ablation_log 记录 delta。",
+      "步骤3：发现外部数据负收益（正字法不一致）与多任务负收益（LID 干扰），修正后 CER 13.423% 第 2。"
+    ],
+    "lineByLine": [
+      "def ablation_log(name, cer, baseline_cer): 定义消融记录，输入实验名与本次 CER。",
+      "delta = round(cer - baseline_cer, 3) 计算相对基准的变化。",
+      "positive = cer < baseline_cer 判断该项是否正向。",
+      "返回结构化记录便于横向比较各消融。"
+    ],
+    "followUps": [
+      {
+        "question": "Hard Focus 是什么？",
+        "answer": "Hard Focus 是对难例（高错词/易混音）做聚焦采样或加权训练，提升难样本召回；但若与过采样叠加会触发遗忘需平衡。"
+      },
+      {
+        "question": "外部数据负收益怎么修？",
+        "answer": "先对外部语料做与比赛集一致的正字法归一（数字、标点、繁简），再做去重与比例控制，负收益转正向。"
+      }
+    ],
+    "followUpAnswers": [
+      "Hard Focus 是对难例（高错词/易混音）做聚焦采样或加权训练，提升难样本召回；但若与过采样叠加会触发遗忘需平衡。",
+      "先对外部语料做与比赛集一致的正字法归一（数字、标点、繁简），再做去重与比例控制，负收益转正向。"
+    ],
+    "invariant": "ablation_log 输出的 delta 恒等于 round(cer - baseline_cer, 3)，positive 为真当且仅当 cer < baseline_cer，自洽无矛盾。",
+    "walkthrough": "name='external_data', cer=14.0, baseline=13.5 → delta=0.5, positive=False 记为负收益；修正后 cer=13.2 → delta=-0.3, positive=True。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-domain-adaptation",
+    "category": "ASR 专项",
+    "difficulty": "Medium",
+    "title": "域适应与灾难性遗忘防控",
+    "prompt": "业务域 ASR 域适应时，如何用双域门禁与通用数据回放避免灾难性遗忘？",
+    "quickAnswer": "业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
+    "code": "def accept_domain_adaptation(biz_cer_before, biz_cer_after,\n                             gen_cer_before, gen_cer_after):\n    \"\"\"只有业务域 CER 下降且通用域 CER 不退化才放行。\"\"\"\n    return biz_cer_after < biz_cer_before and gen_cer_after <= gen_cer_before",
+    "complexity": "时间 O(1)，空间 O(1)",
+    "beginnerSummary": "学新口音别把普通话忘光；每次上岗前考两门：新业务变好、老本事不退化才让上线。",
+    "derivation": [
+      "为什么需要：只在业务域数据上微调会让通用域 CER 反弹（灾难性遗忘），需约束双域同时达标。",
+      "怎么实现：双域门禁在业务域损失外回放约 10% 通用数据，并以“业务降且通用不退化”作为放行准则。",
+      "有什么代价：回放通用数据占用训练 batch，延缓业务域收敛；门禁需双域验证集，增加评估成本。",
+      "怎么评测：业务域 CER 19.27%→12.24%，通用域 9.31%→9.03%，双域均满足才合并权重。"
+    ],
+    "edgeCases": [
+      "业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。",
+      "通用数据回放比例调太高，业务域提升被稀释到不显著。",
+      "两域数据分布重叠时“不退化”约束形同虚设，需确认域边界。",
+      "门禁通过但线上分布漂移，需持续监控。"
+    ],
+    "pitfalls": [
+      "只盯业务域 CER 下降就上线，通用域已悄悄退化。",
+      "回放比例拍脑袋，未以双域折中做消融。"
+    ],
+    "prerequisites": [
+      "灾难性遗忘（catastrophic forgetting）",
+      "经验回放（replay）",
+      "CER 评测"
+    ],
+    "workedExample": [
+      "步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
+      "步骤2：每轮在业务/通用双验证集测 CER。",
+      "步骤3：业务 19.27%→12.24% 且通用 9.31%→9.03% 时 accept_domain_adaptation 返回 True，合并权重。"
+    ],
+    "lineByLine": [
+      "def accept_domain_adaptation(...) 输入双域前后 CER。",
+      "return biz_cer_after < biz_cer_before 业务域必须提升（CER 下降）。",
+      "and gen_cer_after <= gen_cer_before 且通用域不退化（允许持平）。",
+      "整体返回布尔，作为权重合并闸门。"
+    ],
+    "followUps": [
+      {
+        "question": "10% 回放比例怎么来的？",
+        "answer": "以双域 CER 折中做小范围消融（5%/10%/20%），选业务提升明显且通用不退化的最小比例，定在约 10%。"
+      },
+      {
+        "question": "除了回放还有哪些防遗忘手段？",
+        "answer": "可用 LoRA/adapter 只训新增参数、EWC 正则约束重要权重，或梯度手术隔离双域梯度，回放是最直接可控的。"
+      }
+    ],
+    "followUpAnswers": [
+      "以双域 CER 折中做小范围消融（5%/10%/20%），选业务提升明显且通用不退化的最小比例，定在约 10%。",
+      "可用 LoRA/adapter 只训新增参数、EWC 正则约束重要权重，或梯度手术隔离双域梯度，回放是最直接可控的。"
+    ],
+    "invariant": "当且仅当业务域 CER 严格下降且通用域 CER 不上升时，accept_domain_adaptation 返回 True。",
+    "walkthrough": "biz 19.27→12.24（降）、gen 9.31→9.03（降）→ 返回 True 放行；若 gen 9.31→9.50（升）→ 返回 False 拒收。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-eval-metrics",
+    "category": "ASR 专项",
+    "difficulty": "Easy",
+    "title": "CER/WER 三层评测口径",
+    "prompt": "为什么 ASR 评测需要文字单元、语义质量、Translation-Aware 下游影响三层口径，各自如何计算？",
+    "quickAnswer": "ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
+    "code": "def cer(reference: str, hypothesis: str) -> float:\n    \"\"\"字符错误率：基于编辑距离统计替换/插入/删除的字符数占比。\"\"\"\n    import editdistance  # 或自实现 DP\n    dist = editdistance.eval(reference, hypothesis)\n    return dist / max(len(reference), 1)",
+    "complexity": "时间 O(|r|·|h|)（编辑距离），空间 O(min(|r|,|h|))",
+    "beginnerSummary": "改卷有三把尺：数错几个字（CER/WER）、意思对不对（语义）、翻成外语后准不准（Translation-Aware）。",
+    "derivation": [
+      "为什么需要：单看 CER/WER 会漏掉“字错但意对”或“字对但下游翻译崩”的情况，需多层口径反映真实可用性。",
+      "怎么实现：第一层用编辑距离算 CER（字符）或 WER（词）；第二层用 LLM 判等/语义相似度量意；第三层把输出喂翻译模型看 BLEU 影响。",
+      "有什么代价：语义与 Translation-Aware 需调用大模型/翻译服务，增加评测成本与抖动，需多次取平均。",
+      "怎么评测：三层同时汇报，如盲测 7 语种整体 CER 9.15%，并附语义一致率与翻译 BLEU 差。"
+    ],
+    "edgeCases": [
+      "中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。",
+      "标点/大小写未归一化，CER/WER 虚高。",
+      "语义层对 paraphrasing 宽容但可能放过事实错误。",
+      "Translation-Aware 受翻译模型自身误差干扰。"
+    ],
+    "pitfalls": [
+      "只用 WER 评中文，汉字错误被低估（应 CER）。",
+      "把 CER 数字当绝对质量，忽视语义与下游。"
+    ],
+    "prerequisites": [
+      "编辑距离",
+      "CER 与 WER 定义",
+      "语义相似度与机器翻译评测"
+    ],
+    "workedExample": [
+      "步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
+      "步骤2：语义层判“又雨”≈“有雨”，语义一致通过。",
+      "步骤3：把 hyp 喂翻译得 BLEU，与 ref 翻译 BLEU 求差，量化下游影响。"
+    ],
+    "lineByLine": [
+      "import editdistance 引入编辑距离库（或自实现 DP）。",
+      "dist = editdistance.eval(reference, hypothesis) 计算最小编辑操作数。",
+      "return dist / max(len(reference), 1) 以参考长度归一得到错误率，防除零。",
+      "函数即第一层文字单元口径的核心。"
+    ],
+    "followUps": [
+      {
+        "question": "CER 和 WER 怎么选？",
+        "answer": "中文/日文等无空格语言用 CER（字符），西/英等有词边界用 WER（词），混合语种按各自文字单元分别报。"
+      },
+      {
+        "question": "Translation-Aware 怎么落地？",
+        "answer": "固定一个翻译模型，分别翻译 ref 与 hyp 得 BLEU，差值即 ASR 错误对下游翻译的影响，差值越小越可控。"
+      }
+    ],
+    "followUpAnswers": [
+      "中文/日文等无空格语言用 CER（字符），西/英等有词边界用 WER（词），混合语种按各自文字单元分别报。",
+      "固定一个翻译模型，分别翻译 ref 与 hyp 得 BLEU，差值即 ASR 错误对下游翻译的影响，差值越小越可控。"
+    ],
+    "invariant": "cer 返回值恒在 [0, ∞)（正常 [0,1]），参考为空时返回 0 而非报错（max 防除零）。",
+    "walkthrough": "ref='abc', hyp='ab' → 编辑距离 1，len(ref)=3，返回 1/3≈0.333；ref='' → max(0,1)=1，dist=0，返回 0。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-lid",
+    "category": "ASR 专项",
+    "difficulty": "Medium",
+    "title": "语种识别 LID 的梯度干扰隔离",
+    "prompt": "在 ChinaVoices LID 仅 67.57% 的多任务学习中，LID 梯度干扰为何导致 ASR 负收益，应如何隔离？",
+    "quickAnswer": "ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
+    "code": "def project_conflict(grad_asr: list, grad_lid: list) -> list:\n    \"\"\"当 ASR 与 LID 梯度冲突时，把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。\"\"\"\n    dot = sum(a * b for a, b in zip(grad_asr, grad_lid))\n    norm2 = sum(b * b for b in grad_lid) or 1e-8\n    if dot >= 0:\n        return grad_lid\n    return [b - dot / norm2 * a for a, b in zip(grad_asr, grad_lid)]",
+    "complexity": "时间 O(d)（d 为参数维度），空间 O(d)",
+    "beginnerSummary": "两个人同时拽一根绳子往不同方向，ASR 会被 LID 带偏；把 LID 那股“反向力”拆掉，只保留不打架的部分。",
+    "derivation": [
+      "为什么需要：ChinaVoices 中 LID 仅 67.57%，弱监督 LID 头与 ASR 共享编码器，反向传播时梯度冲突拖累 ASR，造成负收益。",
+      "怎么实现：用 PCGrad 式投影，当两任务梯度内积为负（冲突）时，把 LID 梯度投影到 ASR 梯度的正交补空间，去除对抗分量。",
+      "有什么代价：每步需算梯度内积与投影，增加 O(d) 计算与额外前向/反向；投影可能削弱 LID 自身学习。",
+      "怎么评测：对比共享训练前后 ASR CER 与 LID 准确率，隔离后 ASR 不再退化且 LID 仍有正向（即便 67.57% 基线）。"
+    ],
+    "edgeCases": [
+      "梯度内积接近 0 时投影不稳定，需数值稳定项。",
+      "LID 头与 ASR 共享层极少时投影收益有限，应改路由而非投影。",
+      "多任务多于两个时成对投影组合数爆炸，需顺序或平均策略。",
+      "LID 标签本身噪声大（67.57%），弱信号被投影放大会误导。"
+    ],
+    "pitfalls": [
+      "默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。",
+      "把 LID 准确率 67.57% 当成可用，未意识到其梯度对 ASR 有害。"
+    ],
+    "prerequisites": [
+      "多任务学习与共享编码器",
+      "梯度冲突与 PCGrad",
+      "语种识别（LID）任务"
+    ],
+    "workedExample": [
+      "步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
+      "步骤2：算内积，若为负则对 grad_lid 做正交投影。",
+      "步骤3：用投影后梯度更新，验证 ASR CER 不再因 LID 任务上升。"
+    ],
+    "lineByLine": [
+      "dot = sum(a*b for ...) 计算 ASR 与 LID 梯度内积，判断冲突方向。",
+      "norm2 = sum(b*b ...) or 1e-8 求 LID 梯度模平方，加极小值防除零。",
+      "if dot >= 0: return grad_lid 不冲突时原样保留 LID 梯度。",
+      "return [b - dot/norm2*a ...] 冲突时减去沿 ASR 方向的分量，仅留正交部分。"
+    ],
+    "followUps": [
+      {
+        "question": "除了 PCGrad 投影还有别的隔离法？",
+        "answer": "可用任务特定 adapter 减少共享、梯度 surgery（如 Conflict-Averse）、或把 LID 拆为独立辅助头仅在推理用，不反向进编码器。"
+      },
+      {
+        "question": "LID 只有 67.57% 还有必要做多任务吗？",
+        "answer": "若 LID 仅用于路由可后处理独立训练；若强塞进共享损失且梯度冲突，反而伤 ASR，应先隔离或降权。"
+      }
+    ],
+    "followUpAnswers": [
+      "可用任务特定 adapter 减少共享、梯度 surgery（如 Conflict-Averse）、或把 LID 拆为独立辅助头仅在推理用，不反向进编码器。",
+      "若 LID 仅用于路由可后处理独立训练；若强塞进共享损失且梯度冲突，反而伤 ASR，应先隔离或降权。"
+    ],
+    "invariant": "project_conflict 输出的 LID 梯度与 grad_asr 的内积恒非负（去冲突），且不改变 grad_asr 本身。",
+    "walkthrough": "grad_asr=[1,0], grad_lid=[-1,1] 内积=-1<0 → 投影为 [-1,1]-(-1)/1*[1,0]=[0,1]，与 grad_asr 正交；若 grad_lid=[1,1] 内积=1≥0 → 原样返回。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-multilingual",
+    "category": "ASR 专项",
+    "difficulty": "Hard",
+    "title": "多语种 ASR 分路建模与统一评测体系",
+    "prompt": "如何为覆盖 11 个语种的多语种 ASR 设计分路建模与统一评测体系，并基于文字单元与端侧约束进行基座选型？",
+    "quickAnswer": "按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
+    "code": "def select_asr_backbone(lang: str, text_unit: str, edge_budget_mb: float) -> str:\n    \"\"\"按语种、文字单元与端侧内存约束选择 ASR 基座。\"\"\"\n    edge_friendly = {\"es\": \"paraformer\", \"en\": \"zipformer\", \"zh\": \"paraformer\"}\n    if edge_budget_mb < 200:  # 端侧硬约束\n        return edge_friendly.get(lang, \"whisper-tiny\")\n    return \"qwen3-asr\" if text_unit == \"char\" else \"whisper-large\"",
+    "complexity": "时间 O(1)（路由）/ 评测 O(N·L)（编辑距离），空间 O(1)",
+    "beginnerSummary": "不同语言像不同字母表，不能一把尺子量；把每种语言交给最擅长它的“翻译官”，再用统一考试卷打分。",
+    "derivation": [
+      "为什么需要：11 个语种文字单元差异巨大（西语词/中文字符/BPE），单模型与单指标无法公平横评，且端侧内存/算力约束要求分路选型而非统一大模型。",
+      "怎么实现：按语种路由到最合适基座（西语/中文用 Paraformer、英文用 Zipformer-Transducer、端侧硬约束用 Whisper-tiny），并用统一评测脚本对全量语种跑三层口径。",
+      "有什么代价：多基座带来部署与维护复杂度；盲测需要独立标注集，构造成本高；分路路由在语种错判时会降级。",
+      "怎么评测：以 CER/WER（文字单元）、语义质量（LLM 判等/语义相似度）、Translation-Aware（翻译下游 BLEU 影响）三层口径统一横评，盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。"
+    ],
+    "edgeCases": [
+      "语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。",
+      "文字单元为字符的中文与为词的西语编辑距离分母不同，跨语种直接比较 CER 不公平。",
+      "语料极少的低资源语种缺乏盲测集，三层口径中 Translation-Aware 无法计算。",
+      "端侧显存不足时回退 Whisper-tiny，准确率断崖式下降。"
+    ],
+    "pitfalls": [
+      "仅用 WER 横评中文会严重失真（应用 CER），必须按文字单元切换指标。",
+      "盲测集若与训练域同源则高估 9.15%，需保证盲测独立采样。"
+    ],
+    "prerequisites": [
+      "编辑距离与 CER/WER 定义",
+      "多语种文字单元（字符/BPE/词）差异",
+      "端侧推理内存与算力约束"
+    ],
+    "workedExample": [
+      "步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
+      "步骤2：把 7 语种盲测集统一送三层评测脚本，得出整体 CER 9.15% 与基线 30.77%。",
+      "步骤3：端侧 200MB 预算下路由到 Whisper-tiny，验证内存约束满足。"
+    ],
+    "lineByLine": [
+      "def select_asr_backbone(...) 定义路由函数，输入语种、文字单元与端侧预算。",
+      "if edge_budget_mb < 200: 端侧硬约束优先，低于 200MB 直接走轻量基座。",
+      "return edge_friendly.get(lang, 'whisper-tiny') 按语种查表返回端侧友好基座，未命中兜底。",
+      "return 'qwen3-asr' if text_unit == 'char' else 'whisper-large' 非端侧时按文字单元在大模型间选型。"
+    ],
+    "followUps": [
+      {
+        "question": "盲测 CER 9.15% 这个口径的分母用字符还是词？",
+        "answer": "盲测 7 语种统一按各自文字单元：中文/日等用字符（CER），西/英等用词（WER），最终以语种加权汇报，避免跨单元直接平均。"
+      },
+      {
+        "question": "端侧预算从 200MB 放宽到 1GB 时路由会变吗？",
+        "answer": "会变；预算≥200MB 不再走 edge_friendly 表，而是进入大模型分支，中文/日文进 qwen3-asr，其他进 whisper-large。"
+      },
+      {
+        "question": "Translation-Aware 层如何量化对下游的影响？",
+        "answer": "把 ASR 输出喂给固定翻译模型得到 BLEU，与用真值文本翻译的 BLEU 求差，差值越小说明 ASR 错误对下游翻译影响越可控。"
+      }
+    ],
+    "followUpAnswers": [
+      "盲测 7 语种统一按各自文字单元：中文/日等用字符（CER），西/英等用词（WER），最终以语种加权汇报，避免跨单元直接平均。",
+      "会变；预算≥200MB 不再走 edge_friendly 表，而是进入大模型分支，中文/日文进 qwen3-asr，其他进 whisper-large。",
+      "把 ASR 输出喂给固定翻译模型得到 BLEU，与用真值文本翻译的 BLEU 求差，差值越小说明 ASR 错误对下游翻译影响越可控。"
+    ],
+    "invariant": "对任意输入 (lang, text_unit, edge_budget_mb)，函数始终返回某一真实存在且与该语种文字单元兼容的基座名，不会返回空或非法值。",
+    "walkthrough": "输入 lang='es', text_unit='word', edge_budget_mb=180 → 命中 edge_budget<200 分支，edge_friendly['es']='paraformer' 返回；若 edge_budget_mb=600，则跳过端侧分支，text_unit='word' 非 'char'，返回 'whisper-large'。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-new-backbones",
+    "category": "ASR 专项",
+    "difficulty": "Medium",
+    "title": "大模型化语音基座趋势与取舍",
+    "prompt": "FireRedASR2 与 Qwen3-ASR 代表的大模型化 ASR 相比经典 Transducer，在准确率与延迟上如何取舍？",
+    "quickAnswer": "低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
+    "code": "def choose_backbone(scenario: str, latency_sla_ms: float) -> str:\n    \"\"\"大模型化 ASR 与经典 Transducer 的取舍：低延迟用 Transducer，高准确用大模型。\"\"\"\n    if latency_sla_ms < 300:\n        return \"zipformer-transducer\"\n    return \"qwen3-asr\" if scenario == \"hard-accent\" else \"fireredasr2\"",
+    "complexity": "时间 O(1)，空间 O(1)",
+    "beginnerSummary": "大模型像请专家审卷更准但慢，Transducer 像流水线工人快但偶尔错；急用选快的，难活选准的。",
+    "derivation": [
+      "为什么需要：大模型化 ASR（FireRedASR2、Qwen3-ASR）靠海量数据与参数提升准确率，但推理成本高，需与经典 Transducer 按延迟/准确率取舍。",
+      "怎么实现：以端侧延迟 SLA 与场景难度分流：低延迟走 Zipformer-Transducer，难口音/低资源走高准确大模型。",
+      "有什么代价：大模型显存与首字延迟高，需量化/蒸馏才能端侧落地；Transducer 在极难口音上准确率上限低于大模型。",
+      "怎么评测：在 11 语种盲测对比 CER 与首字延迟，大模型在难样本显著更优，Transducer 在延迟敏感场景胜出。"
+    ],
+    "edgeCases": [
+      "大模型量化过度导致难口音准确率回落，需选合适位宽。",
+      "延迟 SLA 卡在 300ms 边界，需实测而非拍阈值。",
+      "端侧无 NPU 时大模型即使量化也跑不动，必须 Transducer。",
+      "低资源语种大模型优势被数据量限制，差距缩小。"
+    ],
+    "pitfalls": [
+      "盲目上大模型忽视端侧延迟，线上超时。",
+      "用 Transducer 硬刚难口音，准确率达不到业务要求。"
+    ],
+    "prerequisites": [
+      "Transducer 与流式对齐",
+      "大模型化 ASR（LLM-based）",
+      "量化与蒸馏"
+    ],
+    "workedExample": [
+      "步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
+      "步骤2：SLA 宽松且场景为 hard-accent，选 Qwen3-ASR。",
+      "步骤3：通用高准确场景选 FireRedASR2，并在盲测验证 CER 优势。"
+    ],
+    "lineByLine": [
+      "def choose_backbone(scenario, latency_sla_ms): 输入场景与延迟上限。",
+      "if latency_sla_ms < 300: return 'zipformer-transducer' 延迟敏感走经典 Transducer。",
+      "return 'qwen3-asr' if scenario == 'hard-accent' else 'fireredasr2' 宽松场景下难口音用 Qwen3，否则 FireRedASR2。",
+      "函数即准确率/延迟取舍的路由。"
+    ],
+    "followUps": [
+      {
+        "question": "大模型化 ASR 为何更准？",
+        "answer": "借助 LLM 的强语言模型与海量多语种数据，对同音字、上下文和难口音的语言学约束更强，CER 在难样本显著低于 Transducer。"
+      },
+      {
+        "question": "Transducer 还有存在价值吗？",
+        "answer": "有；在端侧低延迟、流式硬实时场景，Zipformer-Transducer 的单元级对齐与低首字延迟仍是大模型难以替代的，尤其资源受限设备。"
+      }
+    ],
+    "followUpAnswers": [
+      "借助 LLM 的强语言模型与海量多语种数据，对同音字、上下文和难口音的语言学约束更强，CER 在难样本显著低于 Transducer。",
+      "有；在端侧低延迟、流式硬实时场景，Zipformer-Transducer 的单元级对齐与低首字延迟仍是大模型难以替代的，尤其资源受限设备。"
+    ],
+    "invariant": "choose_backbone 对任意合法输入必从 {'zipformer-transducer','qwen3-asr','fireredasr2'} 中返回一个，且延迟<300ms 时必为 zipformer-transducer。",
+    "walkthrough": "scenario='hard-accent', sla=500 → 不进低延迟分支，scenario 命中返回 'qwen3-asr'；sla=200 → 返回 'zipformer-transducer' 不论场景。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-pseudo-label",
+    "category": "ASR 专项",
+    "difficulty": "Medium",
+    "title": "带噪标签学习与伪标签质量闭环",
+    "prompt": "在西语 10k 抽样中发现 8.2% 真实标签噪声时，如何用 Qwen3-ASR 重标注构建可验证的带噪学习闭环？",
+    "quickAnswer": "在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
+    "code": "def relabel_decision(orig: str, pred: str, conf: float, threshold: float = 0.9) -> str:\n    \"\"\"以置信度与原标注一致性控制伪标签质量：高置信且一致则保留，否则回灌重训。\"\"\"\n    if conf >= threshold and pred == orig:\n        return orig\n    return pred if conf >= threshold else orig",
+    "complexity": "时间 O(1)（单条）/ O(N)（全量重标），空间 O(1)",
+    "beginnerSummary": "老师改卷也会看走眼，我们让更靠谱的“学霸模型”复查，只采纳它很有把握且和原答案一致的部分。",
+    "derivation": [
+      "为什么需要：西语 10k 抽样人工核对发现 8.2% 真实标签噪声，脏标签直接训练会污染模型，需可验证的清洗闭环。",
+      "怎么实现：用 Qwen3-ASR 对数据重标注，结合置信度、与原标注一致性决定是否采纳新标签，并把采纳样本回灌训练，形成“重标→筛选→训练”闭环。",
+      "有什么代价：重标注与置信度计算增加算力；若 Qwen3-ASR 自身在某些域有偏，会被放大进伪标签。",
+      "怎么评测：人工抽查子系统验证伪标签准确率，并以独立验证集 CER 是否稳定下降判定闭环有效。"
+    ],
+    "edgeCases": [
+      "Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。",
+      "低资源口音下置信度虚高，误把错标签当高置信采纳。",
+      "原标注一致但两者都错（系统性标注错误），回灌会固化错误。",
+      "全量重标 10k 成本，需分批回灌避免训练抖动。"
+    ],
+    "pitfalls": [
+      "阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。",
+      "把“换标签比例”当目标，忽视独立验证集 CER，可能越洗越差。"
+    ],
+    "prerequisites": [
+      "伪标签（pseudo-labeling）与自训练",
+      "模型置信度校准",
+      "带噪学习基础"
+    ],
+    "workedExample": [
+      "步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
+      "步骤2：conf≥0.9 且与原标签一致保留，conf≥0.9 但不一致采纳新标签，其余保留原标签。",
+      "步骤3：把采纳新标签的样本回灌训练，独立验证集 CER 持续下降即闭环有效。"
+    ],
+    "lineByLine": [
+      "def relabel_decision(orig, pred, conf, threshold=0.9): 定义重标决策，输入原标签、预测、置信度与阈值。",
+      "if conf >= threshold and pred == orig: 高置信且与原标注一致，原标签可信。",
+      "return orig 一致情形直接保留原标签，避免无谓改写。",
+      "return pred if conf >= threshold else orig 高置信采纳新标签，否则保留原标签以控噪。"
+    ],
+    "followUps": [
+      {
+        "question": "8.2% 噪声是怎么估计出来的？",
+        "answer": "在 10k 西语抽样上做人工核对，统计与原标注不符且经复听确认错误的比例，得到 8.2% 作为噪声上界估计。"
+      },
+      {
+        "question": "置信度从哪里来？",
+        "answer": "来自 Qwen3-ASR 解码时的 token 级对数概率归一化或内部置信模块，需先做校准再用于阈值筛选。"
+      }
+    ],
+    "followUpAnswers": [
+      "在 10k 西语抽样上做人工核对，统计与原标注不符且经复听确认错误的比例，得到 8.2% 作为噪声上界估计。",
+      "来自 Qwen3-ASR 解码时的 token 级对数概率归一化或内部置信模块，需先做校准再用于阈值筛选。"
+    ],
+    "invariant": "relabel_decision 对任意输入恒返回 orig 或 pred 之一，不会产出第三值；高置信一致时必返回 orig。",
+    "walkthrough": "输入 orig='hola', pred='hola', conf=0.95 → 命中高置信一致分支返回 'hola'；若 pred='ola'、conf=0.92 → 采纳 'ola'；若 conf=0.6 → 保留 'hola'。",
+    "kind": "code"
+  },
+  {
+    "id": "asr-streaming",
+    "category": "ASR 专项",
+    "difficulty": "Hard",
+    "title": "端侧流式 ASR 生命周期与解码",
+    "prompt": "把端侧具身短指令流式 ASR 拆为音频生命周期、VAD、DDS、解码四层后，如何修正 drain/flush、pre-roll 与常驻 session 陷阱？",
+    "quickAnswer": "把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
+    "code": "def streaming_decode(frame, session, vad, dds, fallback_to_whole=True):\n    \"\"\"端侧流式 ASR：VAD 触发、DDS 动态分块解码，force-flush 落空则回退整缓冲。\"\"\"\n    if vad.is_speech(frame):\n        session.feed(frame)\n        return dds.step(session)\n    result = dds.force_flush(session)\n    if not result and fallback_to_whole:\n        return session.decode_whole_buffer()\n    return result",
+    "complexity": "时间 O(f)（每帧）/ O(B)（解码，B 为缓冲），空间 O(B)",
+    "beginnerSummary": "像边听边写：耳朵（VAD）判断在不在说话，手写（DDS）边听边写，话停了抖一下笔（flush），写不出就整段重读（fallback）。",
+    "derivation": [
+      "为什么需要：具身短指令要求低延迟流式响应，但 drain/flush 时机错、pre-roll 丢开头、常驻 session 状态污染都会导致空结果或截断。",
+      "怎么实现：四层拆分——音频生命周期管资源、VAD 管起止、DDS 动态分块解码、解码层管 flush；force-flush 落空时回退 whole-buffer 解码。",
+      "有什么代价：常驻 session 占用端侧内存；fallback 整缓冲增加尾延迟；pre-roll 缓冲增加首字延迟。",
+      "怎么评测：在具身指令集测首字延迟与空结果率，force-flush 与 whole-buffer fallback 必须逐步回退，空结果恶化即触发回退。"
+    ],
+    "edgeCases": [
+      "静音段误判为结束触发过早 flush，丢失尾字。",
+      "pre-roll 缓冲不足，指令开头被截。",
+      "常驻 session 跨轮未重置，上轮状态污染本轮。",
+      "force-flush 返回空且 fallback 也空（极短/极噪），需兜底提示。"
+    ],
+    "pitfalls": [
+      "把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。",
+      "一味 flush 追求低延迟，空结果率上升却未接 whole-buffer 回退。"
+    ],
+    "prerequisites": [
+      "流式 ASR 与 VAD",
+      "动态解码分块（DDS）",
+      "端侧 session 生命周期管理"
+    ],
+    "workedExample": [
+      "步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
+      "步骤2：VAD 判静音，调用 force_flush 输出尾段。",
+      "步骤3：flush 为空则 decode_whole_buffer 回退，避免空结果。"
+    ],
+    "lineByLine": [
+      "if vad.is_speech(frame): 用 VAD 判定当前帧是否语音。",
+      "session.feed(frame); return dds.step(session) 语音帧喂入常驻 session 并增量解码。",
+      "result = dds.force_flush(session) 静音时强制刷新剩余缓冲。",
+      "if not result and fallback_to_whole: return session.decode_whole_buffer() flush 落空回退整缓冲。"
+    ],
+    "followUps": [
+      {
+        "question": "drain 和 flush 区别是什么？",
+        "answer": "drain 是排空解码器内部状态并复位用于停流，flush 是在不停 session 情况下强制输出当前缓冲文本；混淆二者会让常驻 session 状态残留。"
+      },
+      {
+        "question": "force-flush 空结果为什么要回退 whole-buffer？",
+        "answer": "flush 可能因分块边界出错返回空，whole-buffer 用整段重解当作兜底，避免把用户指令判成空导致误操作。"
+      }
+    ],
+    "followUpAnswers": [
+      "drain 是排空解码器内部状态并复位用于停流，flush 是在不停 session 情况下强制输出当前缓冲文本；混淆二者会让常驻 session 状态残留。",
+      "flush 可能因分块边界出错返回空，whole-buffer 用整段重解当作兜底，避免把用户指令判成空导致误操作。"
+    ],
+    "invariant": "对任意帧序列，若最终有语音内容，streaming_decode 在静音后必返回非空结果（要么 flush 成功，要么 whole-buffer 回退成功），不会静默丢指令。",
+    "walkthrough": "连续语音帧 → 每帧 feed+step 增量出字；末帧后静音 → force_flush 得尾字；若 flush 空 → decode_whole_buffer 返回整句，保证非空。",
+    "kind": "code"
+  },
+  {
     "kind": "concept",
     "id": "cb-what",
     "category": "Continuous Batching",
@@ -5820,6 +6431,714 @@ export const questions = [
     "order": 13
   },
   {
+    "id": "cg-auto-eval",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "自动评测：准确率 / TTFT / bad case",
+    "prompt": "自动评测管线应如何同时衡量准确率、TTFT 与 bad case，从而闭环驱动模型迭代？",
+    "quickAnswer": "在评测集上跑模型，统计与 gold 的准确率、记录首 token 时间 TTFT，并把错误样本自动收集为 bad case 入库，供复盘与回归。",
+    "code": "import time\n\ndef auto_eval(gen_fn, dataset: list) -> dict:\n    # 自动评测：准确率 + TTFT + bad case 收集\n    correct, ttfts, bad = 0, [], []\n    for item in dataset:\n        t0 = time.time()\n        out = gen_fn(item['input'])      # 生成\n        ttfts.append(time.time() - t0)   # 端到端耗时近似 TTFT\n        if out == item['gold']:\n            correct += 1\n        else:\n            bad.append({'input': item['input'], 'pred': out, 'gold': item['gold']})\n    return {'acc': correct / len(dataset),\n            'avg_latency': sum(ttfts) / len(ttfts),\n            'bad_cases': bad}\n",
+    "complexity": "时间 O(D*t)，空间 O(B)（D 样本数，t 单次耗时，B bad 数）",
+    "beginnerSummary": "像工厂质检：既数‘合格品比例’，也记‘出活速度’，再把‘废品’单独摆一排供师傅研究改进。",
+    "derivation": [
+      "为什么需要：人工评测慢且不可规模化，需要可重复、低成本的自动指标持续监控质量与延迟。",
+      "怎么实现：在固定评测集上跑模型，比对 gold 得准确率，计时得 TTFT，错误样本结构化入库。",
+      "有什么代价：准确率依赖 gold 质量，TTFT 受环境抖动影响，需多次取稳。",
+      "怎么评测：用人工抽标定 auto-eval 与人工结论的一致性，确认指标可信。"
+    ],
+    "edgeCases": [
+      "gold 本身有歧义或多解，严格相等会低估，需引入 LLM-judge 软匹配。",
+      "TTFT 受冷启动/排队影响，需预热与多次取中位数。",
+      "bad case 量过大需聚类避免重复分析。",
+      "流式输出时 TTFT 与完整耗时需分别统计。"
+    ],
+    "pitfalls": [
+      "只用准确率忽略延迟，上线后用户感知卡顿。",
+      "bad case 不回流，迭代失去方向。"
+    ],
+    "prerequisites": [
+      "评测集与 gold 标准",
+      "延迟与性能指标采集",
+      "bad case 管理与聚类"
+    ],
+    "workedExample": [
+      "100 条评测，82 条与 gold 一致 → acc=0.82，平均耗时 1.2s。",
+      "18 条错误进入 bad_cases，按错误类型聚类发现‘日期格式’占多数，定向修复。"
+    ],
+    "lineByLine": [
+      "import time：用于计时 TTFT。",
+      "for item in dataset：逐条跑评测集。",
+      "ttfts.append(time.time() - t0)：记录单次端到端耗时近似 TTFT。",
+      "bad.append(...)：错误样本结构化收集，返回 acc/latency/bad_cases。"
+    ],
+    "followUps": [
+      {
+        "question": "严格相等低估准确率怎么办？",
+        "answer": "对开放式答案引入 LLM-as-judge 或 embedding 相似度做软匹配，并在报告里区分硬/软指标。"
+      },
+      {
+        "question": "TTFT 抖动大如何取稳？",
+        "answer": "预热后跑多轮，去掉首尾取中位数，并区分 p50/p95 反映长尾体验。"
+      }
+    ],
+    "followUpAnswers": [
+      "对开放式答案引入 LLM-as-judge 或 embedding 相似度做软匹配，并在报告里区分硬/软指标。",
+      "预热后跑多轮，去掉首尾取中位数，并区分 p50/p95 反映长尾体验。"
+    ],
+    "explanationFocus": "是什么：自动评测是用程序在固定评测集上批量跑模型，自动统计准确率、TTFT 与 bad case 的可持续质量监控管线。",
+    "approach": "对评测集逐条生成并比对 gold 得准确率，计时得 TTFT，把错误样本结构化收集为 bad case 供迭代闭环。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-best-of-n",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "best-of-N 候选生成",
+    "prompt": "best-of-N 候选生成在‘每条 bullet 独立生成候选’时，应如何为每个 bullet 择优并保证整体一致性？",
+    "quickAnswer": "对每条 bullet 独立采样 N 个候选，用校验分数（合规+质量）逐条择优；再对选出的 bullet 集合做一次全局一致性检查与去重。",
+    "code": "import random\n\ndef best_of_n(gen_bullet, bullets: list, n: int = 4):\n    # 每条 bullet 独立生成 n 个候选，按校验分择优\n    chosen = []\n    for b in bullets:\n        cands = [gen_bullet(b) for _ in range(n)]\n        chosen.append(max(cands, key=score))  # score 含合规+质量\n    return dedupe(chosen)  # 全局去重/一致性后处理\n",
+    "complexity": "时间 O(B*N*t)，空间 O(B*N)（B bullet 数，N 候选数，t 单次耗时）",
+    "beginnerSummary": "像招聘：每个岗位先面 4 个候选人，按评分选最好的，最后再整体看看团队有没有重复或冲突。",
+    "derivation": [
+      "为什么需要：单次生成 bullet 易出格式错或事实错，独立多采样再用确定性评分择优可显著提升合规率。",
+      "怎么实现：对每条 bullet 并行采样 N 份，用统一 score（先过 Validator 再打质量分）取最大者。",
+      "有什么代价：推理成本放大 N 倍，需控制 N 与并发；质量分本身要有区分度。",
+      "怎么评测：对比 N=1 基线，看终稿通过率与人工质量分提升，权衡成本收益。"
+    ],
+    "edgeCases": [
+      "某 bullet 的 N 个候选全不合规，需回退到 repair 或标记。",
+      "不同 bullet 选出内容语义重复，需全局去重。",
+      "score 平局时要有稳定 tie-break（如首次/最短）。",
+      "bullet 间存在依赖（如序号），独立择优可能破坏顺序。"
+    ],
+    "pitfalls": [
+      "只按模型自评分择优，易被‘自信但错误’的候选骗过，必须先用硬校验过滤。",
+      "N 过大却无并发，端到端延迟成倍上涨。"
+    ],
+    "prerequisites": [
+      "采样与随机性控制",
+      "确定性评分与校验",
+      "并行推理与去重"
+    ],
+    "workedExample": [
+      "bullet ‘活动时间’采样 4 次，3 个格式错、1 个合规，score 选中合规者。",
+      "两条 bullet 都被选成相似卖点，dedupe 合并为一条避免重复。"
+    ],
+    "lineByLine": [
+      "import random：可用于候选采样时的随机种子控制。",
+      "for b in bullets：逐条 bullet 独立处理。",
+      "cands = [gen_bullet(b) for _ in range(n)]：每条采样 n 个候选。",
+      "max(cands, key=score)：按 score 择优；dedupe 做全局一致性后处理。"
+    ],
+    "followUps": [
+      {
+        "question": "score 函数应如何设计才不会被‘自信幻觉’骗？",
+        "answer": "score 先过硬校验（格式/事实）作门槛，再叠质量分；校验不过直接 0 分，避免自评分主导。"
+      },
+      {
+        "question": "N 应如何选取以平衡成本与质量？",
+        "answer": "在验证集上扫 N=1..8 看通过率拐点，选边际收益最高的 N，并对长尾 bullet 动态加大 N。"
+      }
+    ],
+    "followUpAnswers": [
+      "score 先过硬校验（格式/事实）作门槛，再叠质量分；校验不过直接 0 分，避免自评分主导。",
+      "在验证集上扫 N=1..8 看通过率拐点，选边际收益最高的 N，并对长尾 bullet 动态加大 N。"
+    ],
+    "explanationFocus": "是什么：best-of-N 候选生成是对每条 bullet 独立采样多个候选、再用确定性评分择优的约束生成策略，用‘多采样+硬筛选’提升合规率。",
+    "approach": "每条 bullet 并行采样 N 个候选，先过 Validator 过滤再用质量分择优，最后对选中集合做全局去重与一致性检查。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-constrained-decoding",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Hard",
+    "title": "约束解码：grammar / JSON 约束生成",
+    "prompt": "约束解码（constrained decoding）如何借助 grammar 或 JSON schema 在 token 级别限制生成，从而做到‘结构上不可能出错’？",
+    "quickAnswer": "在解码每一步用 grammar/JSON schema 计算合法 token 集合并屏蔽非法 token，使输出在结构上必然满足约束，无需后置修复。",
+    "code": "from outlines import models, generate\n\ndef constrained_json(schema: dict, llm):\n    # 约束解码：用 JSON schema 限制生成空间\n    model = models.transformers(llm)\n    generator = generate.json(model, schema)\n    return generator('请按要求输出')  # 输出必为合法 JSON\n",
+    "complexity": "时间 O(L*V')，空间 O(L)（L 长度，V' 受限词表）",
+    "beginnerSummary": "像填表格：每个空格只能填规定类型的内容，系统在你打字时就只让合法的字出来，根本填不出错格式。",
+    "derivation": [
+      "为什么需要：后置修复有成本且可能失败，若能在解码时屏蔽非法 token，结构正确性可由构造保证。",
+      "怎么实现：把 JSON schema/grammar 编译成状态机，每步求合法后继 token 分布并 mask 掉非法项。",
+      "有什么代价：需解码器支持 token masking，受限分布可能略降流畅度，复杂 grammar 编译有开销。",
+      "怎么评测：统计输出 100% 合法率，并对比自由生成+修复的延迟与质量。"
+    ],
+    "edgeCases": [
+      "中文等需子词拼接，mask 要作用在 token 而非字符级。",
+      "schema 含正则 pattern，状态机需能表达。",
+      "枚举值前缀相同，需读到完整 token 才定合法。",
+      "流式场景下约束状态需随增量输出维护。"
+    ],
+    "pitfalls": [
+      "解码器不支持 logit mask，只能退化成后置校验。",
+      "grammar 过严限制表达，导致模型绕写为近似合规实则偏题。"
+    ],
+    "prerequisites": [
+      "自回归解码与 logits",
+      "文法/状态机编译",
+      "tokenizer 与子词边界"
+    ],
+    "workedExample": [
+      "schema 要求 {'name':str,'age':int}，解码时 ‘age’ 后只允许数字 token，不可能吐出字符串。",
+      "自由生成偶发缺逗号，约束解码因 grammar 必补逗号，输出可直接 json.loads。"
+    ],
+    "lineByLine": [
+      "from outlines：引入支持约束解码的库。",
+      "models.transformers(llm)：包装底层模型供约束生成调用。",
+      "generate.json(model, schema)：按 JSON schema 编译合法 token 状态机。",
+      "generator(...)：在约束下解码，输出必为合法 JSON。"
+    ],
+    "followUps": [
+      {
+        "question": "约束解码与后置修复如何选？",
+        "answer": "强结构（JSON/SQL）优先约束解码保 100% 合法；软语义约束仍需后置 Validator，二者常叠加。"
+      },
+      {
+        "question": "约束解码会伤害生成质量吗？",
+        "answer": "仅在受限分布内采样，若 grammar 合理影响很小；可用约束+采样温度平衡多样性与合规。"
+      }
+    ],
+    "followUpAnswers": [
+      "强结构（JSON/SQL）优先约束解码保 100% 合法；软语义约束仍需后置 Validator，二者常叠加。",
+      "仅在受限分布内采样，若 grammar 合理影响很小；可用约束+采样温度平衡多样性与合规。"
+    ],
+    "explanationFocus": "是什么：约束解码是在自回归生成每一步用 grammar 或 JSON schema 计算合法 token 集合并屏蔽非法的技术，使输出在结构上必然满足约束。",
+    "approach": "将 schema/grammar 编译成状态机，每步对 logits 做 mask 仅保留合法 token，从而构造出不可能格式错误的输出。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-eval-design",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "LLM 评测指标与评测集设计",
+    "prompt": "设计 LLM 评测集时，如何按维度分层抽样并保证指标既能反映能力又不掩盖 bad case？",
+    "quickAnswer": "先按任务维度（格式/事实/安全/延迟）分层，每层均衡抽样覆盖边界与长尾，指标上同时报告聚合分与分项 bad case 分布，避免被平均掩盖。",
+    "code": "def build_eval_set(samples: list, dims: list, per_dim: int = 20) -> list:\n    # 评测集设计：按维度分层均衡抽样\n    buckets = {d: [s for s in samples if s['dim'] == d] for d in dims}\n    chosen = []\n    for d, items in buckets.items():\n        chosen += items[:per_dim]   # 每层取代表样本\n    return chosen\n",
+    "complexity": "时间 O(S)，空间 O(E)（S 总样本，E 评测集规模）",
+    "beginnerSummary": "像体检套餐：不只要总分，还要分项查（心/肝/肺各抽样本），哪科差一眼看得出。",
+    "derivation": [
+      "为什么需要：单一总分易掩盖某维度崩塌，分层设计能定位短板并跟踪细分能力提升。",
+      "怎么实现：定义维度标签，对每维均衡抽样，指标分别报告各维准确率与 bad case 分布。",
+      "有什么代价：标注与分层成本高，维度定义不当会错位覆盖。",
+      "怎么评测：用人工复核评测集代表性，确认各维难度与线上分布一致。"
+    ],
+    "edgeCases": [
+      "某维度样本极少，强行均分会欠代表，需针对性补充采集。",
+      "维度间重叠（既事实又安全），需主维度+标签。",
+      "分布漂移后评测集过期，需定期刷新。",
+      "长尾难例占比过低，需上采样难例。"
+    ],
+    "pitfalls": [
+      "只看总分不看分项，某维度 0 分被平均掩盖。",
+      "评测集与线上分布不一致，指标虚高。"
+    ],
+    "prerequisites": [
+      "评测维度建模",
+      "分层抽样与统计",
+      "指标设计与偏差分析"
+    ],
+    "workedExample": [
+      "维度=['format','fact','safety']，各抽 20 条，总 60 条评测集。",
+      "跑分发现 fact 维仅 0.6，其余 0.9，定位到事实一致性是短板。"
+    ],
+    "lineByLine": [
+      "def build_eval_set：接收全量样本、维度与每层数量。",
+      "buckets = {...}：按维度把样本分桶。",
+      "items[:per_dim]：每层取前 per_dim 条代表样本。",
+      "return chosen：返回均衡的多维评测集。"
+    ],
+    "followUps": [
+      {
+        "question": "如何防止评测集被‘刷分’过拟合？",
+        "answer": "评测集与训练/调参集隔离，定期用新采样本替换，并报告在未见维度上的泛化分。"
+      },
+      {
+        "question": "指标除准确率外还应报什么？",
+        "answer": "报分项准确率、bad case 类型分布、延迟分位与人工一致性，避免单一聚合掩盖问题。"
+      }
+    ],
+    "followUpAnswers": [
+      "评测集与训练/调参集隔离，定期用新采样本替换，并报告在未见维度上的泛化分。",
+      "报分项准确率、bad case 类型分布、延迟分位与人工一致性，避免单一聚合掩盖问题。"
+    ],
+    "explanationFocus": "是什么：LLM 评测集设计是按任务维度分层均衡抽样、并配套分项指标的方法，用结构化评测集暴露各能力短板而非只看总分。",
+    "approach": "先定义评测维度并分层抽样保证覆盖边界与长尾，指标上同时报告聚合分与分项 bad case 分布，避免被平均掩盖。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-factledger",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "FactLedger 事实约束双层级校验",
+    "prompt": "FactLedger 如何通过 L1 精确校验与 L2 语义忠实度两层约束，保证多模态大模型生成内容的事实一致性？",
+    "quickAnswer": "L1 用规则或字典精确校验姓名、日期、数字等可枚举事实，L2 用语义相似度或检索对齐判断整体忠实度；两层任一不过即触发修复或拦截。",
+    "code": "import re\nfrom difflib import SequenceMatcher\n\nclass FactLedger:\n    def __init__(self, facts: dict):\n        self.facts = facts  # 期望事实 {field: value}\n\n    def check_l1(self, text: str) -> list:\n        # L1: 精确校验姓名/日期/数字\n        errors = []\n        for field, truth in self.facts.items():\n            if field in ('name', 'date', 'number') and str(truth) not in text:\n                errors.append(f'L1 missing {field}={truth}')\n        return errors\n\n    def check_l2(self, text: str, ref: str) -> float:\n        # L2: 语义忠实度（用相似度作代理）\n        return SequenceMatcher(None, text, ref).ratio()\n",
+    "complexity": "时间 O(n+m)，空间 O(k)（n 生成长度，m 参考长度，k 事实数）",
+    "beginnerSummary": "像记者交稿前先核红（名字、日期、数字不能错），再交给主编看意思对不对；两关都过才发布。",
+    "derivation": [
+      "为什么需要：大模型生成常在姓名、日期、数字上出现‘看似合理但错误’的幻觉，纯靠 Prompt 软约束不可靠，需要可执行的硬校验。",
+      "怎么实现：L1 用正则或字段字典做精确包含校验，L2 用句向量或检索召回的参考句做语义对齐打分。",
+      "有什么代价：L2 需额外向量检索与打分，增加延迟与存储；阈值设定不当会误杀或漏放。",
+      "怎么评测：用带标注的事实错误样本计算 L1/L2 的精确率与召回率，并以修复后终稿准确率衡量闭环效果。"
+    ],
+    "edgeCases": [
+      "姓名同音字或别名（如‘建国’vs‘建國’）导致 L1 漏检，需先归一化。",
+      "日期格式多样（2024-01-01 / 2024年1月1日）需统一后再比对。",
+      "数字单位不一致（‘1万’vs‘10000’）直接字符串比对会误报。",
+      "长文本事实分散在多段，需先做 claim 切分再逐条校验。"
+    ],
+    "pitfalls": [
+      "只做 L1 会漏掉语义改写后的事实错误，只做 L2 会产生大量误报与高延迟。",
+      "L2 相似度阈值拍脑袋设定，未用验证集校准导致上线后分布漂移。"
+    ],
+    "prerequisites": [
+      "文本正则与结构化抽取",
+      "句向量嵌入与余弦相似度",
+      "检索增强生成（RAG）基础"
+    ],
+    "workedExample": [
+      "输入‘张三于2024年1月1日转账10000元’，事实表 name=张三 date=2024-01-01 number=10000，L1 全命中。",
+      "若生成写成‘张叁于2024/1/1转了一万元’，L1 报缺失且归一化后仍别字，触发 L2 低分并送修复。"
+    ],
+    "lineByLine": [
+      "import re / from difflib：引入正则与字符串相似度工具。",
+      "check_l1：遍历事实表，对 name/date/number 字段做精确包含校验，缺失即记录错误。",
+      "check_l2：用 SequenceMatcher 计算生成文本与参考文本的相似度，作为忠实度代理分。",
+      "__init__：保存期望事实字典，供两层校验复用。"
+    ],
+    "followUps": [
+      {
+        "question": "L1 与 L2 的报错应如何合并驱动修复？",
+        "answer": "把 L1 的精确缺失项与 L2 的低分片段拼成结构化错误清单，作为定点修复提示回注模型，避免全文重写。"
+      },
+      {
+        "question": "如何处理 L2 语义忠实但表述不同的正例？",
+        "answer": "对同义改写建立白名单或用语义相似度而非精确匹配，并把验证集上 F1 最高的阈值作为上线阈值。"
+      }
+    ],
+    "followUpAnswers": [
+      "把 L1 的精确缺失项与 L2 的低分片段拼成结构化错误清单，作为定点修复提示回注模型，避免全文重写。",
+      "对同义改写建立白名单或用语义相似度而非精确匹配，并把验证集上 F1 最高的阈值作为上线阈值。"
+    ],
+    "explanationFocus": "是什么：FactLedger 是把事实一致性拆成两层校验的机制——L1 用确定性规则精确比对姓名、日期、金额等可枚举事实，L2 用语义相似度或检索对齐判断整体忠实度。",
+    "approach": "先跑 L1 精确校验（正则/字典命中），再跑 L2 语义忠实度（embedding 余弦或 NLI），两层任一不过即进入修复或拦截。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-failure-feedback",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Hard",
+    "title": "失败原因回注与迭代闭环",
+    "prompt": "失败原因回注（failure feedback）如何把一轮生成的失败模式归纳后注入下一轮，形成可收敛的迭代闭环？",
+    "quickAnswer": "对失败样本用 judge 归纳共性原因，生成精炼的‘避坑摘要’，再 patch 进后续 prompt/约束，使同类错误在下一轮显著下降，形成收敛闭环。",
+    "code": "def failure_feedback(rollout, judge) -> str:\n    # 失败原因回注：归纳失败模式，注入下一轮\n    reasons = [judge.explain(r) for r in rollout if not r.ok]\n    summary = summarize(reasons)        # 伪调用：聚合成避坑要点\n    return patch_prompt(rollout[0].prompt, summary)\n",
+    "complexity": "时间 O(F*a)，空间 O(F)（F 失败数，a 归纳耗时）",
+    "beginnerSummary": "像复盘会：把这次翻的车归成几条教训，写进下次的操作手册，同样的坑就不再踩。",
+    "derivation": [
+      "为什么需要：单次修复只救当前样本，不提炼规律会导致同类错误反复出现，需把经验沉淀回提示。",
+      "怎么实现：用 judge 解释每处失败，聚类/摘要成共性要点，再 patch 进后续生成的 prompt 或约束。",
+      "有什么代价：归纳可能出错引入误导规则，需校验摘要不矛盾且可验证。",
+      "怎么评测：对比有无回注的同类错误率，看是否逐轮下降并收敛。"
+    ],
+    "edgeCases": [
+      "失败原因互相矛盾，摘要需去重与冲突消解。",
+      "少数长尾失败被误归纳为普遍规则，需设支持度阈值。",
+      "回注规则与原有约束冲突，需优先级裁决。",
+      "归纳产生‘禁止一切’的过严规则，需约束表述粒度。"
+    ],
+    "pitfalls": [
+      "把个别偶发错当成普遍规律，回注后误伤正常样本。",
+      "只回注不验证，错误规则累积使提示膨胀失效。"
+    ],
+    "prerequisites": [
+      "失败归因与解释",
+      "文本摘要与聚类",
+      "提示迭代与回归测试"
+    ],
+    "workedExample": [
+      "一轮 10 个失败中 6 个‘日期格式错’，归纳为‘日期统一 ISO’，回注后二轮降到 1 个。",
+      "2 个‘超长输出’被误归纳并限制长度，导致正常长文被截，经支持度阈值过滤后保留。"
+    ],
+    "lineByLine": [
+      "judge.explain(r)：对每条失败样本生成原因解释。",
+      "reasons = [...if not r.ok]：只收集失败样本的原因。",
+      "summarize(reasons)：把多条原因聚合成精炼避坑要点。",
+      "patch_prompt(...)：把摘要回注到下一轮提示形成闭环。"
+    ],
+    "followUps": [
+      {
+        "question": "如何避免错误规则累积膨胀提示？",
+        "answer": "对回注规则设支持度与有效期，定期用回归集删掉不再触发或误伤的规则。"
+      },
+      {
+        "question": "归纳错误怎么办？",
+        "answer": "回注前用小规模验证集检验规则收益，负收益规则丢弃，并对长尾失败要求更高支持度才回注。"
+      }
+    ],
+    "followUpAnswers": [
+      "对回注规则设支持度与有效期，定期用回归集删掉不再触发或误伤的规则。",
+      "回注前用小规模验证集检验规则收益，负收益规则丢弃，并对长尾失败要求更高支持度才回注。"
+    ],
+    "explanationFocus": "是什么：失败原因回注是把一轮生成的失败样本用 judge 归纳共性原因、再提炼成规则注入下一轮提示，从而形成可收敛迭代闭环的机制。",
+    "approach": "收集失败样本的解释，聚类摘要为避坑要点，patch 进后续 prompt/约束，并以回归集验证规则收益，使同类错误逐轮下降。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-hallucination",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Hard",
+    "title": "幻觉防控与事实一致性",
+    "prompt": "在多模态生成中，如何把‘检索支撑’与‘claim 级校验’结合来防控幻觉并保证事实一致性？",
+    "quickAnswer": "先把生成文本切成原子 claim，再逐条检索证据，未检索到支撑或与上下文矛盾的 claim 标记为幻觉，触发修复或附引用。",
+    "code": "def detect_hallucination(text: str, context: str, retriever) -> list:\n    # 幻觉防控：检索支撑句，未命中则标记\n    claims = split_claims(text)        # 切原子 claim\n    hallu = []\n    for c in claims:\n        ev = retriever.search(c, top_k=3)\n        if not grounded(c, ev, context):  # 无支撑或矛盾\n            hallu.append(c)\n    return hallu\n",
+    "complexity": "时间 O(C*(r+s))，空间 O(C)（C claim 数，r 检索，s 判定）",
+    "beginnerSummary": "像写论文：每句话都要有出处，查不到引用或和原文打架的句子，就标‘存疑’打回去改。",
+    "derivation": [
+      "为什么需要：多模态模型会对图像/文档‘脑补’不存在的细节，需逐句可溯源才能控幻觉。",
+      "怎么实现：claim 切分后用检索器找支撑证据，再用 NLI/匹配判断是否被支撑且与上下文一致。",
+      "有什么代价：切分与检索带来额外延迟，小模型判定器可能误判，需人工校准。",
+      "怎么评测：用人工标注幻觉数据集测查全率，并以修复后事实一致率衡量效果。"
+    ],
+    "edgeCases": [
+      "claim 含多模态指代（‘图中左侧’），需把图像区域作为证据。",
+      "正确但检索库未覆盖的新知识被误标幻觉，需白名单放行。",
+      "否定句‘未提及’需反向判定逻辑。",
+      "长 claim 含多个事实，需再细分到单事实。"
+    ],
+    "pitfalls": [
+      "只做整段相似度，漏掉句内个别幻觉事实。",
+      "检索库陈旧导致把正确新事实误判为幻觉。"
+    ],
+    "prerequisites": [
+      "claim 抽取与切分",
+      "检索增强与证据对齐",
+      "NLI / 蕴含判定"
+    ],
+    "workedExample": [
+      "生成‘发布会于 5 月举行’，检索到原文‘发布会于 5 月 20 日’，grounded 通过。",
+      "生成‘售价 999 元’，检索无此价格且上下文无提及，标记幻觉并触发修复。"
+    ],
+    "lineByLine": [
+      "split_claims(text)：把长文本切成可独立验证的原子 claim。",
+      "retriever.search(c, top_k=3)：为每条 claim 检索候选证据。",
+      "grounded(c, ev, context)：判断是否被证据支撑且与上下文不矛盾。",
+      "hallu.append(c)：未支撑的 claim 收集为幻觉列表。"
+    ],
+    "followUps": [
+      {
+        "question": "claim 切分不准会影响防控效果吗？",
+        "answer": "会，切太粗漏幻觉、切太细误报；可用微调切分器并按验证集 F1 选粒度。"
+      },
+      {
+        "question": "如何减少检索库未覆盖导致的误标？",
+        "answer": "维护可信知识白名单放行已知事实，并对低置信 claim 转人工而非直接判幻觉。"
+      }
+    ],
+    "followUpAnswers": [
+      "会，切太粗漏幻觉、切太细误报；可用微调切分器并按验证集 F1 选粒度。",
+      "维护可信知识白名单放行已知事实，并对低置信 claim 转人工而非直接判幻觉。"
+    ],
+    "explanationFocus": "是什么：幻觉防控是把生成内容切成原子 claim 并逐条检索证据、将无支撑或与上下文矛盾的 claim 标记为幻觉的事实一致性机制。",
+    "approach": "先切分 claim，再逐条检索证据并用蕴含判定判断是否被支撑，未支撑即标记幻觉并触发修复或附引用。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-llm-as-judge",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "LLM-as-judge 与人工校准",
+    "prompt": "LLM-as-judge 在自动评测中如何给出稳定评分，又为什么必须用人工标注做校准与偏差修正？",
+    "quickAnswer": "让 judge 模型按结构化 rubric 输出分数与理由，并用人工标注集计算与人工的一致性、位置/风格偏差，据此重标定或加校准提示。",
+    "code": "def llm_as_judge(candidate: str, ref: str, judge_llm) -> dict:\n    # LLM-as-judge：结构化评分 + 人工校准阈值\n    out = judge_llm.score(f'评分1-5并给理由:\\n候选:{candidate}\\n参考:{ref}')\n    return {'score': int(out['score']), 'reason': out['reason']}\n",
+    "complexity": "时间 O(1*t_j)，空间 O(1)（t_j judge 单次耗时）",
+    "beginnerSummary": "像让资深编辑打分：先给评分标准，他打分时还要写理由；再定期拿真人评分校正他的口味偏差。",
+    "derivation": [
+      "为什么需要：人工评测贵且慢，LLM-judge 可规模化，但存在位置/长度/风格偏差需校正。",
+      "怎么实现：定义 rubric 让 judge 输出分数+理由，用人工标注集算一致性并识别偏差类型。",
+      "有什么代价：强 judge 模型本身有成本，且对自家人（同系列）可能偏爱，需盲评。",
+      "怎么评测：在人工金标上算 judge 的准确率/κ 系数，目标达到可接受一致性再上线。"
+    ],
+    "edgeCases": [
+      "候选顺序影响评分（位置偏差），需双向打分取均。",
+      "长答案被偏好，需长度归一或配对比较。",
+      "风格不同但内容等价，需 rubric 弱化文风权重。",
+      "judge 与待评模型同源导致自偏爱，需异构 judge。"
+    ],
+    "pitfalls": [
+      "直接用原始分数当真理，忽略与人工的一致性。",
+      "单轮无理由评分不可解释、难校准。"
+    ],
+    "prerequisites": [
+      "评分 rubric 设计",
+      "一致性指标（准确率/κ）",
+      "偏差分析与校准"
+    ],
+    "workedExample": [
+      "judge 对两答案双向打分取均，消除位置偏差后分差 0.3。",
+      "人工标 200 条算得 κ=0.72，发现偏爱长答案，加长度归一提示后升至 0.81。"
+    ],
+    "lineByLine": [
+      "def llm_as_judge：接收候选、参考与 judge 模型。",
+      "judge_llm.score(...)：按 rubric 提示输出分数与理由。",
+      "int(out['score'])：取整数评分便于聚合。",
+      "return {...}：返回结构化评分与理由供人工校准。"
+    ],
+    "followUps": [
+      {
+        "question": "如何降低 LLM-judge 的位置偏差？",
+        "answer": "对同一对候选做正反向两次打分取平均，或在 rubric 中明确要求‘忽略顺序’，并定期用人工对拍验证。"
+      },
+      {
+        "question": "judge 与待评模型同源会有什么问题？",
+        "answer": "可能产生自偏爱导致分数虚高，应使用异构更强模型作 judge 并盲去来源信息。"
+      }
+    ],
+    "followUpAnswers": [
+      "对同一对候选做正反向两次打分取平均，或在 rubric 中明确要求‘忽略顺序’，并定期用人工对拍验证。",
+      "可能产生自偏爱导致分数虚高，应使用异构更强模型作 judge 并盲去来源信息。"
+    ],
+    "explanationFocus": "是什么：LLM-as-judge 是用一个较强的 judge 模型按结构化 rubric 对候选答案打分与给理由，并用人标校准偏差的自动评测方法。",
+    "approach": "定义 rubric 让 judge 输出分数+理由，用人工标注集计算一致性与位置/长度偏差，据此重标定或加校准提示后上线。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-patch-optimize",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Easy",
+    "title": "patch optimize 生成前约束",
+    "prompt": "patch optimize 为什么要在生成前就把硬约束 patch 进 prompt 或解码前缀，而不是生成后再修？",
+    "quickAnswer": "生成前注入约束能直接缩小解码空间、减少违规样本，从而降低后续修复与返工成本；越早约束，单位合规成本越低。",
+    "code": "def patch_optimize(prompt: str, constraints: list) -> str:\n    # 生成前把硬约束 patch 进 system prompt / 解码前缀\n    patched = prompt\n    for c in constraints:\n        patched += f'\\n[CONSTRAINT] {c}'\n    return patched  # 模型在约束下生成，减少返工\n",
+    "complexity": "时间 O(c)，空间 O(c)（c 为约束条数）",
+    "beginnerSummary": "像考试前先把答题规则写卷首：考生一开始就照规则写，比写完了再挨个改省事得多。",
+    "derivation": [
+      "为什么需要：生成后再修复成本高且可能引入新错，前置约束能从源头降低违规率。",
+      "怎么实现：把约束列表拼进 system prompt，或作为受控解码的强制前缀/grammar 注入解码器。",
+      "有什么代价：约束过多会挤占上下文、限制表达；部分约束只能靠解码层而非提示实现。",
+      "怎么评测：对比‘前置约束’与‘后置修复’的终稿通过率与平均延迟，验证前置更优。"
+    ],
+    "edgeCases": [
+      "约束之间互相矛盾，需前置做冲突检测。",
+      "约束过长超出上下文窗口，需优先级裁剪。",
+      "grammar 约束无法表达软性语义规则，需配合 L2 校验。",
+      "多语言场景约束文案需与生成语言一致。"
+    ],
+    "pitfalls": [
+      "把约束堆在 user prompt 末尾被模型忽略，应放在 system 或解码前缀。",
+      "约束与示例矛盾，反而降低遵循率。"
+    ],
+    "prerequisites": [
+      "Prompt 模板与上下文管理",
+      "受控解码与前缀约束",
+      "约束冲突检测"
+    ],
+    "workedExample": [
+      "约束‘输出严格 JSON、字段含 title/date’patch 进 system，模型首轮即产出合规 JSON。",
+      "同时 patch‘用中文’与‘保留英文术语’，冲突检测发现无冲突后合并注入。"
+    ],
+    "lineByLine": [
+      "def patch_optimize：接收原始 prompt 与约束列表。",
+      "patched = prompt：以原 prompt 为基础。",
+      "for c in constraints：逐条把约束格式化为 [CONSTRAINT] 行追加。",
+      "return patched：返回已注入硬约束的最终 prompt。"
+    ],
+    "followUps": [
+      {
+        "question": "前置约束与受控解码如何配合？",
+        "answer": "提示层放语义规则，解码层放 grammar/JSON 硬结构，两层互补：前者管‘写什么’，后者管‘长什么样’。"
+      },
+      {
+        "question": "约束过多导致遵循率下降怎么办？",
+        "answer": "按历史违规频率排序，只前置高频强约束，长尾约束交给后置 Validator 兜底。"
+      }
+    ],
+    "followUpAnswers": [
+      "提示层放语义规则，解码层放 grammar/JSON 硬结构，两层互补：前者管‘写什么’，后者管‘长什么样’。",
+      "按历史违规频率排序，只前置高频强约束，长尾约束交给后置 Validator 兜底。"
+    ],
+    "explanationFocus": "是什么：patch optimize 是在生成前把硬约束注入 prompt 或解码前缀的优化手段，从源头缩小解码空间、降低返工。",
+    "approach": "将约束列表格式化为受控指令 patch 进 system prompt 或受控解码前缀，让模型在约束下直接生成合规内容。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-repair-feedback",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "repair-with-feedback 程序化修复",
+    "prompt": "repair-with-feedback 相比直接靠 Prompt 软约束，为什么更能稳定保证生成合规？",
+    "quickAnswer": "它把‘约束’从自然语言软要求变成可执行的校验+定点修复闭环：校验器报结构化错误，模型只针对错误修复，最多迭代若干轮直到通过。",
+    "code": "def repair_with_feedback(text: str, validator, max_iter: int = 3) -> str:\n    # 以程序化校验与修复替代 Prompt 软约束\n    for _ in range(max_iter):\n        errors = validator(text)\n        if not errors:\n            return text\n        # 把错误结构化回注，定点修复而非重写\n        text = llm_fix(text, errors)  # 伪调用：仅修复报错项\n    return text\n",
+    "complexity": "时间 O(k*t)，空间 O(e)（k 迭代轮数，t 单次生成耗时，e 错误数）",
+    "beginnerSummary": "像改作文：老师用红笔标出具体错处，学生只改红笔处，改到没有红笔为止，而不是整篇重写。",
+    "derivation": [
+      "为什么需要：Prompt 软约束对复杂格式/业务规则召回不稳定，模型常‘忘记’某条约束。",
+      "怎么实现：用确定性 Validator 产出错误清单，把清单拼进修复提示，让模型针对错误改写。",
+      "有什么代价：多轮修复增加延迟与 token 成本，需设最大迭代与早停。",
+      "怎么评测：对比软约束基线，看最终通过率与修复轮次分布，确认达标且不爆延迟。"
+    ],
+    "edgeCases": [
+      "修复引入新错误，需每轮全量重新校验而非只查原错。",
+      "错误清单过长超出上下文，需截断或分批回注。",
+      "达到 max_iter 仍未通过，要有降级（标记/人工）策略。",
+      "同一条错误反复出现，需检测震荡并改用更强约束或放弃。"
+    ],
+    "pitfalls": [
+      "把整个错误原文直接拼进提示，导致模型‘照抄’错误而非修复。",
+      "不设最大迭代，极端样本陷入无限修复循环推高成本。"
+    ],
+    "prerequisites": [
+      "程序化校验与错误表示",
+      "Prompt 工程与定点修复",
+      "迭代控制与早停策略"
+    ],
+    "workedExample": [
+      "首轮生成 JSON 缺字段 'date'，Validator 报 missing date，回注‘仅补 date’后二轮通过。",
+      "某样本连续三轮都错在同一枚举，触发震荡检测后标记 bad case 转人工。"
+    ],
+    "lineByLine": [
+      "def repair_with_feedback：入口，接收文本、校验器与最大迭代。",
+      "for _ in range(max_iter)：最多迭代 max_iter 轮做修复。",
+      "errors = validator(text)：每次全量校验，拿到结构化错误。",
+      "text = llm_fix(text, errors)：若仍有错，仅针对错误清单做定点修复。"
+    ],
+    "followUps": [
+      {
+        "question": "如何避免修复轮次爆炸？",
+        "answer": "设最大迭代与每轮错误数上限，超过即降级标记 bad case，并用早停在首次全通过后退出。"
+      },
+      {
+        "question": "修复后如何保证不破坏已正确的部分？",
+        "answer": "提示中保留原正确片段并要求‘仅改动报错项’，修复后再全量校验确认无回归。"
+      }
+    ],
+    "followUpAnswers": [
+      "设最大迭代与每轮错误数上限，超过即降级标记 bad case，并用早停在首次全通过后退出。",
+      "提示中保留原正确片段并要求‘仅改动报错项’，修复后再全量校验确认无回归。"
+    ],
+    "explanationFocus": "是什么：repair-with-feedback 是一种用程序化校验器产出结构化错误、再把错误回注模型做定点修复的闭环方法，用硬校验替代 Prompt 软约束。",
+    "approach": "先校验得到错误清单，再把清单作为定点修复提示回注模型，循环至通过或达最大迭代，保证最终输出合规。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-schema-validator",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Easy",
+    "title": "Schema / 业务 Validator 校验",
+    "prompt": "在约束生成链路中，如何用一个 Schema 加业务 Validator 来保证模型输出的字段类型、必填项与枚举值都合法？",
+    "quickAnswer": "用 JSON Schema 强制字段类型、必填与枚举，再叠加业务 Validator 检查领域规则（如情感只能是 pos/neg/neu），返回结构化错误列表供修复。",
+    "code": "import json\nfrom jsonschema import validate\n\ndef validate_schema(output: dict, schema: dict) -> list:\n    # 业务 Validator：JSON Schema + 领域规则\n    errors = []\n    try:\n        validate(instance=output, schema=schema)\n    except Exception as e:\n        errors.append(str(e))\n    if output.get('sentiment') not in ('pos', 'neg', 'neu'):\n        errors.append('business rule: invalid sentiment')\n    return errors\n",
+    "complexity": "时间 O(f)，空间 O(1)（f 为字段数）",
+    "beginnerSummary": "像表单校验：先保证必填项都填、类型对，再检查下拉框选的值在允许范围内，不合规就列出来。",
+    "derivation": [
+      "为什么需要：模型常输出多余字段、漏字段或类型错误，下游解析会崩，需要可程序化拦截。",
+      "怎么实现：用 JSON Schema 描述类型/必填/枚举，validate 抛错即记录；再写业务规则函数补 Schema 表达不了的逻辑。",
+      "有什么代价：Schema 维护成本随业务演进增长，需与产品约定同步更新。",
+      "怎么评测：对一批真实输出跑 Validator，统计拦截率与误拦截率，确认不阻塞正常样本。"
+    ],
+    "edgeCases": [
+      "字段存在但为 null，JSON Schema 的 type 与 nullable 需区分清楚。",
+      "枚举值大小写或前后空格（‘Pos ’）导致精确匹配失败，需先 strip/lower。",
+      "嵌套对象深层字段缺失，Schema 需 required 逐级声明。",
+      "数组元素类型不一时，Schema items 要能表达联合类型。"
+    ],
+    "pitfalls": [
+      "只依赖 Prompt 让模型‘输出合法 JSON’，实际仍会偶发格式错误，必须程序化兜底。",
+      "业务规则写在 Schema 之外却忘了同步，导致校验与需求脱节。"
+    ],
+    "prerequisites": [
+      "JSON 与 JSON Schema 基础",
+      "Python 字典与异常处理",
+      "领域建模与枚举设计"
+    ],
+    "workedExample": [
+      "输出 {'sentiment':'good'} 但 Schema 枚举限 pos/neg/neu，validate 通过但业务规则报 invalid sentiment。",
+      "输出缺失必填字段 'summary'，validate 直接抛错并返回路径信息，定位到哪缺字段。"
+    ],
+    "lineByLine": [
+      "from jsonschema import validate：引入 Schema 校验库。",
+      "validate(instance=output, schema=schema)：按 Schema 校验类型/必填/枚举，失败抛异常。",
+      "except Exception：捕获校验错误并转成字符串存入 errors 列表。",
+      "业务规则判断 sentiment 是否在合法枚举内，否则追加错误。"
+    ],
+    "followUps": [
+      {
+        "question": "Schema 校验失败时应如何最小代价修复？",
+        "answer": "把失败路径与原因回注模型做定点补全，而不是重新生成整段，降低 token 与延迟。"
+      },
+      {
+        "question": "如何表达 Schema 难以覆盖的跨字段约束？",
+        "answer": "在业务 Validator 里写依赖校验（如 start<end），或改用更灵活的策略引擎描述规则。"
+      }
+    ],
+    "followUpAnswers": [
+      "把失败路径与原因回注模型做定点补全，而不是重新生成整段，降低 token 与延迟。",
+      "在业务 Validator 里写依赖校验（如 start<end），或改用更灵活的策略引擎描述规则。"
+    ],
+    "explanationFocus": "是什么：Schema / 业务 Validator 是用 JSON Schema 强制输出结构与类型，再叠加领域规则函数，对模型输出做程序化合法性校验的机制。",
+    "approach": "先用 validate 跑 Schema 拦类型/必填/枚举错误，再用业务规则补 Schema 表达不了的跨字段逻辑，统一返回错误列表供修复。",
+    "kind": "concept"
+  },
+  {
+    "id": "cg-semantic-guard",
+    "category": "LLM 约束生成与自动评测",
+    "difficulty": "Medium",
+    "title": "semantic guard 语义护栏",
+    "prompt": "semantic guard 语义护栏如何用向量相似度在生成前或生成后拦截偏离白名单语义的内容？",
+    "quickAnswer": "把白名单参考句编码成向量，对生成文本编码后计算最大余弦相似度，低于阈值即判定偏离语义分布并拦截或改写。",
+    "code": "from sentence_transformers import SentenceTransformer\n\nclass SemanticGuard:\n    def __init__(self, model: SentenceTransformer):\n        self.model = model\n    def guard(self, text: str, safe_refs: list, thr: float = 0.7) -> bool:\n        # 与白名单语义距离过远则拦截\n        v = self.model.encode([text] + safe_refs)\n        sims = v[0] @ v[1:].T\n        return float(sims.max()) >= thr\n",
+    "complexity": "时间 O(r*d)，空间 O(r*d)（r 白名单条数，d 向量维）",
+    "beginnerSummary": "像门禁：先录好‘自己人’的脸，陌生人脸相似度太低就拦在门外。",
+    "derivation": [
+      "为什么需要：即使格式合规，模型也可能生成偏离业务语义的离题或违规内容，需要语义层面的护栏。",
+      "怎么实现：预编码白名单参考向量，实时对生成文本编码并取最大余弦相似度，低于阈值即拦截。",
+      "有什么代价：需维护向量库与阈值，语义边界样本易误拦；跨领域需重新建库。",
+      "怎么评测：用正常/越界样本测拦截准确率与误拦率，调阈值平衡召回。"
+    ],
+    "edgeCases": [
+      "同义改写导致相似度偏低被误拦，需扩充白名单覆盖 paraphrase。",
+      "多主题混说时单向量不足以代表，需分段 guards。",
+      "阈值在长短文本上分布漂移，需按长度归一。",
+      "敌意提示注入使语义伪装，需结合关键词硬规则。"
+    ],
+    "pitfalls": [
+      "只用单一全局阈值，忽略了不同业务域的语义密度差异。",
+      "白名单过小，导致大量正常长尾被拦。"
+    ],
+    "prerequisites": [
+      "句向量编码与余弦相似度",
+      "向量库与近邻检索",
+      "阈值调参与风险评估"
+    ],
+    "workedExample": [
+      "白名单为‘订单查询/退款政策’句，生成‘如何攻击系统’相似度 0.2 < 0.7，被拦截。",
+      "生成‘查我的退款进度’相似度 0.85，放行。"
+    ],
+    "lineByLine": [
+      "from sentence_transformers：引入句向量模型。",
+      "__init__：保存预加载的编码模型。",
+      "self.model.encode([text] + safe_refs)：把待检文本与白名单一起编码。",
+      "sims.max() >= thr：取最大相似度判断是否落入白名单语义域。"
+    ],
+    "followUps": [
+      {
+        "question": "护栏误拦率高怎么降？",
+        "answer": "扩充白名单覆盖 paraphrase 与同义表述，并按业务域分别设阈值，再对边界样本引入人工复审。"
+      },
+      {
+        "question": "生成前与生成后护栏有何取舍？",
+        "answer": "生成前用前缀约束更省，生成后用向量护栏更灵活；通常两者结合，前者防结构、后者防语义。"
+      }
+    ],
+    "followUpAnswers": [
+      "扩充白名单覆盖 paraphrase 与同义表述，并按业务域分别设阈值，再对边界样本引入人工复审。",
+      "生成前用前缀约束更省，生成后用向量护栏更灵活；通常两者结合，前者防结构、后者防语义。"
+    ],
+    "explanationFocus": "是什么：semantic guard 语义护栏是用向量相似度把生成内容与白名单语义域比对，偏离即拦截的二层防护机制。",
+    "approach": "预编码白名单参考向量，对生成文本编码后取最大余弦相似度，低于阈值判定偏离语义分布并拦截或改写。",
+    "kind": "concept"
+  },
+  {
     "id": "me-aux-loss",
     "category": "MoE 架构",
     "difficulty": "Medium",
@@ -6734,6 +8053,730 @@ export const questions = [
       "不是虚的：总参数都真实存在并存储，只是每 token 仅激活一小部分，所以“容量大、单次算力小”是其本质优势，而非参数注水。"
     ],
     "kind": "concept"
+  },
+  {
+    "id": "ocr-ctc-attention",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Medium",
+    "title": "CTC 与 Attention 解码对比",
+    "prompt": "在文本识别中，CTC 与 Attention 两种解码方式各有什么优缺点，如何根据场景选择？",
+    "quickAnswer": "CTC 无需对齐、并行输出、推理快且易部署，但假设时间步条件独立、对强上下文弱；Attention 用对齐建模全局依赖、精度高，但自回归慢且易注意力漂移。",
+    "code": "import torch\nimport torch.nn.functional as F\n\ndef ctc_decode(logits, blank=0):\n    \"\"\"贪心 CTC 解码：去 blank + 去相邻重复\"\"\"\n    pred = logits.argmax(-1)            # (T,)\n    out = []\n    for t in pred:\n        if t != blank and (not out or t != out[-1]):\n            out.append(int(t))\n    return out\n\ndef attention_step(decoder, emb_t, enc_feat, hidden):\n    \"\"\"单步注意力解码，计算上下文向量\"\"\"\n    attn = F.softmax((enc_feat @ hidden[-1]) / (enc_feat.size(-1) ** 0.5), dim=0)\n    ctx = (attn.unsqueeze(-1) * enc_feat).sum(0)\n    return decoder(emb_t, ctx, hidden)\n",
+    "complexity": "CTC 时间 O(T)，空间 O(T)；Attention 时间 O(T²)（训练）/O(T·d)（推理），空间 O(T)",
+    "beginnerSummary": "CTC 像“一眼扫过去直接念”，快但容易把连着的相同字读成一个；Attention 像“边指边读”，更准但要点名字、慢一点。",
+    "derivation": [
+      "为什么需要：识别标签是字符序列，但图像特征是无对齐的时间步，需要一种从特征到序列的映射策略。",
+      "怎么实现：CTC 引入 blank 并允许任意对齐路径、用动态规划求和概率；Attention 在解码每步计算特征上的软对齐权重再生成字符。",
+      "有什么代价：CTC 忽略时间步间依赖，难以处理需要强语言模型约束的文本；Attention 推理串行、长序列易注意力逃逸到错误位置。",
+      "怎么评测：在通用基准上对比字准确率与 NED，并统计 Attention 的漏字/重复率以判断是否漂移。"
+    ],
+    "edgeCases": [
+      "连续重复字符('OO'、'll')",
+      "解码到句末注意力仍未归位",
+      "CTC 路径数爆炸的长序列",
+      "低质量模糊导致注意力发散"
+    ],
+    "pitfalls": [
+      "CTC 未去重导致重复字符",
+      "Attention 训练用 teacher forcing 推理分布偏移(exposure bias)",
+      "二者 max length 设置不一致"
+    ],
+    "prerequisites": [
+      "CTC 损失原理",
+      "注意力机制",
+      "动态规划(前向算法)"
+    ],
+    "workedExample": [
+      "logits 贪心得 [1,1,0,2,2]（blank=0）→ CTC 去重去 blank → [1,2] 即 'AB'。",
+      "Attention 解码 'apple' 时第3步注意力意外跳到第1个像素导致重复 'appple'，需用 coverage 惩罚修正。"
+    ],
+    "lineByLine": [
+      "def ctc_decode(logits, blank): CTC 贪心解码入口。",
+      "logits.argmax(-1): 取每时间步最可能字符。",
+      "if t!=blank and ...: 跳过 blank 并抑制相邻重复。",
+      "def attention_step: 计算注意力权重并聚合上下文送解码器。"
+    ],
+    "followUps": [
+      {
+        "question": "如何缓解 Attention 的注意力漂移？",
+        "answer": "加入 coverage 机制累计历史注意力、用单调注意力约束，或采用 Transformer 的局部/稀疏注意力，并在训练时对齐标签做 guided attention。"
+      },
+      {
+        "question": "工业部署为何常优先 CTC？",
+        "answer": "CTC 可整行并行解码、无需自回归、延迟低，配合轻量 backbone 易落地到端侧，且对规整打印体足够鲁棒。"
+      }
+    ],
+    "followUpAnswers": [
+      "加入 coverage 机制累计历史注意力、用单调注意力约束，或采用 Transformer 的局部/稀疏注意力，并在训练时对齐标签做 guided attention。",
+      "CTC 可整行并行解码、无需自回归、延迟低，配合轻量 backbone 易落地到端侧，且对规整打印体足够鲁棒。"
+    ],
+    "invariant": "ctc_decode 维护 out 为非空且相邻不重复的字符下标序列；注意力权重 attn 每步和为 1。",
+    "walkthrough": "logits(T=5,C=3) 贪心 argmax=[1,1,0,2,2]；遍历：t=1 入 out=[1]，t=1 相邻重复跳过，t=0 为 blank 跳，t=2 入 out=[1,2]，t=2 重复跳，最终 'AB'。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-data-synth",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Medium",
+    "title": "OCR 数据合成与增广",
+    "prompt": "在没有足量真实标注时，如何用合成数据与增广提升 OCR 模型泛化，需注意哪些分布偏差？",
+    "quickAnswer": "用渲染引擎合成多字体/多语言文本图像并叠加背景、噪声、几何扰动做增广；关键是让合成分布贴近真实(字体、颜色、模糊、透视)，避免域gap导致过拟合合成样式。",
+    "code": "import numpy as np\nimport cv2\n\ndef synth_text_image(text, font, bg, p=0.5):\n    \"\"\"合成一张含文本的图像并做随机增广\"\"\"\n    canvas = render_text(text, font, color=(0, 0, 0))\n    canvas = blend_background(canvas, bg)\n    if np.random.rand() < p:\n        canvas = cv2.GaussianBlur(canvas, (3, 3), 0)     # 运动/失焦模糊\n    if np.random.rand() < p:\n        canvas = perspective_warp(canvas, max_deg=15)     # 透视扰动\n    return canvas\n\ndef augment_batch(imgs, labels):\n    out = []\n    for im, lb in zip(imgs, labels):\n        out.append((random_color_jitter(erase_small(im)), lb))\n    return out\n",
+    "complexity": "时间 O(合成+增广样本数)，空间 O(批图像)",
+    "beginnerSummary": "没有真字帖就先“打印仿制字帖”练手：用电脑字体印在真实背景上，再故意弄模糊、歪一点，让模型见多识广，但别仿得太假否则考真卷就懵。",
+    "derivation": [
+      "为什么需要：真实标注昂贵且长尾字符稀缺，合成数据能低成本扩充规模与覆盖。",
+      "怎么实现：渲染文本到随机背景，叠加模糊、透视、颜色抖动、擦除等增广，构造接近真实分布的训练样本。",
+      "有什么代价：合成与真实存在域差距(纹理/光照/字形)，过度依赖合成会域偏移；增广过强可能破坏可读字符。",
+      "怎么评测：在真实验证集上看精度，并用合成/真实混合比例的消融实验找最佳配比。"
+    ],
+    "edgeCases": [
+      "罕见字符/符号无对应字体",
+      "增广后字符不可读",
+      "背景过于复杂淹没文本",
+      "多语言混排字体缺失"
+    ],
+    "pitfalls": [
+      "合成样式单一导致域gap",
+      "增广概率过高破坏标签一致性",
+      "直接用训练集分布外的字体"
+    ],
+    "prerequisites": [
+      "数据增广",
+      "域适应基础",
+      "字体渲染"
+    ],
+    "workedExample": [
+      "用 1000 种 Google 字体渲染英文+常见背景，模型在真实 ICDAR 上提升 4 个点。",
+      "加透视扰动后模型对斜拍照片鲁棒，但扰动>30° 时字符失真反而掉点。"
+    ],
+    "lineByLine": [
+      "def synth_text_image(text, font, bg, p): 合成入口。",
+      "render_text: 用字体渲染黑字。",
+      "blend_background: 贴到随机背景。",
+      "随机模糊/透视增广提升真实性。"
+    ],
+    "followUps": [
+      {
+        "question": "如何缩小合成与真实的域差距？",
+        "answer": "用真实图像做风格迁移/域随机化(随机光照、材质、畸变)，或在合成数据上做 GAN 精炼，再用少量真实标注微调。"
+      },
+      {
+        "question": "增广强度怎么定？",
+        "answer": "通过验证集消融，从弱到强扫描增广概率与幅度，选使真实集精度最高的配置，避免破坏字符可读性。"
+      }
+    ],
+    "followUpAnswers": [
+      "用真实图像做风格迁移/域随机化(随机光照、材质、畸变)，或在合成数据上做 GAN 精炼，再用少量真实标注微调。",
+      "通过验证集消融，从弱到强扫描增广概率与幅度，选使真实集精度最高的配置，避免破坏字符可读性。"
+    ],
+    "invariant": "每个合成样本在返回前已完成背景混合，标签 text 与渲染内容一致；增广仅在可读性阈值内随机施加。",
+    "walkthrough": "text='TikTok'，渲染黑字→贴街景背景→50% 概率高斯模糊→50% 透视旋转8°→返回图；标签仍为 'TikTok'，未因增改内容。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-det-rec-decouple",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Medium",
+    "title": "检测与识别解耦及 GT-crop Oracle 定位瓶颈",
+    "prompt": "在 OCR 系统优化中，如何用 GT-crop Oracle 实验区分检测与识别的瓶颈，避免无效升级 recognizer？",
+    "quickAnswer": "用真值框(GT)裁剪图像直接喂给识别器，得到识别性能上限；用检测器输出框裁剪识别后对比差距，差距即检测引入的错误，从而优先优化瓶颈所在模块。",
+    "code": "def gt_crop_oracle_evaluate(det_boxes, gt_boxes, images, recognizer):\n    \"\"\"用 GT 框 vs 检测框分别裁剪送识别器，量化瓶颈来源\"\"\"\n    n = len(images)\n    det_correct = gt_correct = 0\n    for img, db, gb in zip(images, det_boxes, gt_boxes):\n        det_correct += int(recognizer.predict(crop(img, db)) == img.truth)\n        gt_correct  += int(recognizer.predict(crop(img, gb)) == img.truth)\n    return {\"det_f1\": det_correct / n, \"gt_oracle_f1\": gt_correct / n}\n",
+    "complexity": "时间 O(N·T)，空间 O(1)（T 为单图识别耗时）",
+    "beginnerSummary": "就像先用“标准答案的位置”把字切出来让识字的同学读，看他最多能读对多少；如果标准位置下也读不对，是识字能力问题，否则是切位置的人框歪了。",
+    "derivation": [
+      "为什么需要：端到端 OCR 变慢变错时，难以判断是检测框不准还是识别器太弱，盲目升级识别器可能无效。",
+      "怎么实现：用真值框(ground-truth)裁剪图像作为 oracle 输入，绕过检测器直接评估识别器上限，再与检测器框裁剪结果对比。",
+      "有什么代价：需要高质量标注真值框，且 oracle 只给出理论上限，不反映检测器真实分布下的长尾错误。",
+      "怎么评测：对比 det_f1 与 gt_oracle_f1 的差距，差距大说明瓶颈在检测，差距小说明瓶颈在识别。"
+    ],
+    "edgeCases": [
+      "检测器漏检导致 det_boxes 为空",
+      "GT 框与图像分辨率缩放不一致",
+      "弯曲文本 GT 为多边形而检测输出为矩形",
+      "真值标注本身存在错误"
+    ],
+    "pitfalls": [
+      "把 GT-crop 上限当成识别器线上可达性能",
+      "仅用准确率忽略检测框错位带来的字符割裂"
+    ],
+    "prerequisites": [
+      "文本检测基础",
+      "文本识别基础",
+      "端到端评测指标"
+    ],
+    "workedExample": [
+      "取 1000 张验证集，用 GT 多边形裁剪送 CRNN，得到 gt_oracle_f1=0.95。",
+      "同一批图用 DBNet 输出框裁剪送同一 CRNN，得到 det_f1=0.82，差值 0.13 即检测瓶颈。"
+    ],
+    "lineByLine": [
+      "def gt_crop_oracle_evaluate(...): 定义对比评估函数。",
+      "for img, db, gb in zip(...): 逐图配对检测框与真值框。",
+      "recognizer.predict(crop(img, db)): 用检测框裁剪并识别，统计正确数。",
+      "return 返回检测框与 GT-crop 两种 F1，便于横向对比。"
+    ],
+    "followUps": [
+      {
+        "question": "如果 gt_oracle_f1 也很低但检测框 IoU 很高，可能是什么问题？",
+        "answer": "说明识别器本身能力不足或存在领域分布偏移（如字体/语言域不同），此时才应升级 recognizer 或做领域微调。"
+      },
+      {
+        "question": "GT-crop Oracle 能否用于训练阶段？",
+        "answer": "可作为课程学习或难例挖掘的参考——用检测框与 GT 框差异大的样本优先送识别器做对齐训练，但需注意分布偏差。"
+      },
+      {
+        "question": "弯曲文本下矩形检测框裁剪会引入背景噪声，如何改进对比？",
+        "answer": "用 GT 多边形掩膜裁剪(polygon mask crop)与检测多边形输出对齐，保证裁剪区域语义一致后再对比。"
+      }
+    ],
+    "followUpAnswers": [
+      "说明识别器本身能力不足或存在领域分布偏移（如字体/语言域不同），此时才应升级 recognizer 或做领域微调。",
+      "可作为课程学习或难例挖掘的参考——用检测框与 GT 框差异大的样本优先送识别器做对齐训练，但需注意分布偏差。",
+      "用 GT 多边形掩膜裁剪(polygon mask crop)与检测多边形输出对齐，保证裁剪区域语义一致后再对比。"
+    ],
+    "invariant": "每轮迭代后 det_correct 与 gt_correct 分别代表前 i 张图用检测框与真值框裁剪识别的正确累计数。",
+    "walkthrough": "设 3 张图真值全对：第1张检测框歪→det错 gt对；第2张都对；第3张检测框缺半字→det错 gt对。累计 det_correct=1, gt_correct=3，n=3 → det_f1=0.33, gt_oracle_f1=1.0，差距大→瓶颈在检测。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-detection",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Medium",
+    "title": "文本检测（DBNet / EAST / CTPN）",
+    "prompt": "DBNet、EAST、CTPN 在文本检测范式上有何区别，像素级与框级预测各自适合什么场景？",
+    "quickAnswer": "CTPN 基于固定宽度 anchor 序列做框级检测，适合横向文本；EAST 做像素级几何回归(旋转矩形)；DBNet 用可微分二值化做像素级概率图，边缘更精准且易部署。",
+    "code": "import torch\nimport torch.nn.functional as F\n\ndef dbnet_threshold_map(prob, adaptive_th, k=50.0):\n    \"\"\"可微分二值化：近似阶跃融合概率图与自适应阈值图\"\"\"\n    return 1.0 / (1.0 + torch.exp(-k * (prob - adaptive_th)))\n\ndef dbnet_postprocess(binary, min_area=3, thresh=0.3):\n    \"\"\"由二值图取连通域得到文本框\"\"\"\n    masks = (binary > thresh).float()\n    boxes = connected_components(masks, min_area)  # cv2/自定义连通域\n    return boxes\n",
+    "complexity": "时间 O(H·W)，空间 O(H·W)",
+    "beginnerSummary": "文本检测像是先在图上“描出所有写字的地方”。像素级方法是给每个像素打分再连成块；框级方法是直接预测一个个候选框。",
+    "derivation": [
+      "为什么需要：自然场景文字形状、方向、尺度多变，传统滑窗分类太慢，需要端到端定位文本区域。",
+      "怎么实现：CTPN 用 RNN 串联水平 anchor 预测；EAST 像素回归旋转矩形五参数；DBNet 用阈值图做可微二值化得到清晰边界。",
+      "有什么代价：像素级方法对极端长宽比和密集小字敏感，需要后处理(连通域/NMS)；框级方法对弯曲文本不友好。",
+      "怎么评测：用文本框 IoU(0.5/0.7)计算 Precision/Recall/Hmean，关注小字与多方向子集。"
+    ],
+    "edgeCases": [
+      "竖直排列的中文标题",
+      "极度细长或密集的小字",
+      "与背景对比度极低的文本",
+      "弯曲艺术字"
+    ],
+    "pitfalls": [
+      "把 DBNet 二值图阈值设死导致断笔",
+      "CTPN 直接用于竖排或弯曲文本",
+      "忽略尺度归一化造成小目标漏检"
+    ],
+    "prerequisites": [
+      "卷积网络基础",
+      "锚框(anchor)机制",
+      "图像二值化"
+    ],
+    "workedExample": [
+      "ICDAR2015 自然场景图：DBNet 输出概率图后经可微二值化得清晰文本边界。",
+      "对一张含竖排店招的图，EAST 用旋转矩形直接覆盖，CTPN 需拆成多段。"
+    ],
+    "lineByLine": [
+      "import torch: 引入深度学习框架。",
+      "def dbnet_threshold_map(prob, adaptive_th, k): 实现可微二值化近似阶跃。",
+      "torch.exp(-k*(prob-adaptive_th)): k 越大越接近硬阈值。",
+      "def dbnet_postprocess: 对二值图取连通域并过滤小区域得到最终框。"
+    ],
+    "followUps": [
+      {
+        "question": "DBNet 的可微分二值化相比固定阈值有什么训练优势？",
+        "answer": "梯度可回传到阈值图，使网络在训练时就能学出“哪里该被二值化为文本”的软边界，推理时仍能用标准二值化加速。"
+      },
+      {
+        "question": "弯曲文本检测为什么单靠旋转矩形不够？",
+        "answer": "旋转矩形无法拟合弧线，需要多边形(如 PSENet/CTPN+分割)或参数曲线表示，否则长弧文字会被截断或引入大量背景。"
+      }
+    ],
+    "followUpAnswers": [
+      "梯度可回传到阈值图，使网络在训练时就能学出“哪里该被二值化为文本”的软边界，推理时仍能用标准二值化加速。",
+      "旋转矩形无法拟合弧线，需要多边形(如 PSENet/CTPN+分割)或参数曲线表示，否则长弧文字会被截断或引入大量背景。"
+    ],
+    "invariant": "prob 与 adaptive_th 在二值化后始终保持同分辨率 H×W，逐像素独立变换。",
+    "walkthrough": "输入 640×640 概率图 prob 与阈值图 adaptive_th；k=50 时 prob-adaptive_th 经 sigmoid 近似阶跃，>0 处趋近 1；postprocess 取 >0.3 连通域，过滤面积<3 的噪声，输出文本多边形。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-direction-cls",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Easy",
+    "title": "方向分类与旋转文本处理",
+    "prompt": "OCR 中如何做文本方向分类，旋转或倒置文本应在流水线哪一步校正？",
+    "quickAnswer": "用轻量分类器(如浅 CNN)判定文本为 0/90/180/270 度，在送识别前按判定角度旋转归正，避免识别器因方向错乱而读错。",
+    "code": "import cv2\nimport numpy as np\n\nDIRECTION_ANGLES = {0: 0, 1: 90, 2: 180, 3: 270}\n\ndef correct_orientation(img, direction_cls):\n    \"\"\"按方向分类结果旋转图像到正向\"\"\"\n    angle = DIRECTION_ANGLES[int(direction_cls(img))]\n    if angle == 0:\n        return img\n    h, w = img.shape[:2]\n    m = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)\n    return cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LINEAR)\n",
+    "complexity": "时间 O(H·W)（旋转），空间 O(H·W)",
+    "beginnerSummary": "就像先把倒过来的书转正再读。方向分类器先判断这页字是头朝哪，转正后识别器才不会把字读反。",
+    "derivation": [
+      "为什么需要：拍照/扫描常出现旋转或倒置文本，识别器通常只在正向训练，方向错误会直接导致整行读错。",
+      "怎么实现：训练一个 4 类(0/90/180/270)轻量分类头，推理时输出角度，用仿射变换把图像转回正向再识别。",
+      "有什么代价：增加一次前向与旋转开销；极端角度(如 45°)不在 4 类内会误判，需后处理兜底。",
+      "怎么评测：在含旋转的样本上统计方向分类准确率，并看端到端识别率是否随校正提升。"
+    ],
+    "edgeCases": [
+      "接近 45° 的斜拍文本",
+      "近似正方形使旋转后裁切丢失信息",
+      "空白或纯背景图误分类",
+      "竖排中文被判为横排"
+    ],
+    "pitfalls": [
+      "把方向分类放在识别之后导致已读错",
+      "旋转插值引入模糊影响小字",
+      "4 类假设忽略任意角度"
+    ],
+    "prerequisites": [
+      "图像仿射变换",
+      "图像分类基础",
+      "OCR 流水线组织"
+    ],
+    "workedExample": [
+      "一张倒置 180° 的店招先被分类为 2 类，旋转回正向后 CRNN 正确读出店名。",
+      "90° 竖排标题若误判为 0°，识别器会把竖排当横排读成乱码，应优先走竖排分支。"
+    ],
+    "lineByLine": [
+      "DIRECTION_ANGLES: 映射类别到旋转角度。",
+      "def correct_orientation(img, direction_cls): 方向校正入口。",
+      "direction_cls(img): 轻量分类器输出 0-3。",
+      "cv2.warpAffine: 按角度仿射旋转回正向。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么方向分类通常放在检测之后、识别之前？",
+        "answer": "检测得到的单行/单词区域更规整、方向更单一，分类更准；在整图做方向分类会因多方向文本互相干扰而失效。"
+      },
+      {
+        "question": "任意角度旋转文本怎么处理？",
+        "answer": "可改用 STN(空间变换网络)或先做精细旋转角度回归(连续角度)，再配合检测多边形直接按框朝向送识别，避免硬分类。"
+      }
+    ],
+    "followUpAnswers": [
+      "检测得到的单行/单词区域更规整、方向更单一，分类更准；在整图做方向分类会因多方向文本互相干扰而失效。",
+      "可改用 STN(空间变换网络)或先做精细旋转角度回归(连续角度)，再配合检测多边形直接按框朝向送识别，避免硬分类。"
+    ],
+    "invariant": "旋转后图像内容与原图一致仅做刚体变换，方向类别到角度的映射在循环前后保持 0/90/180/270 之一。",
+    "walkthrough": "img 为 180° 倒置；direction_cls→类别2；DIRECTION_ANGLES[2]=180；getRotationMatrix2D 绕中心转 180°，warpAffine 输出正向图供识别。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-iou-nlcs",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Hard",
+    "title": "端到端 OCR 评测（IoU / NLCS，Judge 联合约束）",
+    "prompt": "端到端 OCR 如何同时用 IoU 与 NLCS 评测，并由 Judge 同时约束检测与识别才能保证公平？",
+    "quickAnswer": "IoU 评测文本定位框重合度，NLCS 用最长公共子序列评测识别内容正确率；Judge 同时以定位与内容阈值双重约束，只有框与文字都对才计为正确，避免单看其一虚高。",
+    "code": "def iou(box_a, box_b):\n    inter = area(intersect(box_a, box_b))\n    return inter / (area(box_a) + area(box_b) - inter)\n\ndef nlcs(pred, gt):\n    \"\"\"归一化最长公共子序列，按字符粒度\"\"\"\n    m, n = len(pred), len(gt)\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n    for i in range(1, m + 1):\n        for j in range(1, n + 1):\n            dp[i][j] = dp[i-1][j-1] + 1 if pred[i-1] == gt[j-1] else max(dp[i-1][j], dp[i][j-1])\n    return 2 * dp[m][n] / (m + n)\n\ndef judge_end2end(pred_box, pred_txt, gt_box, gt_txt, iou_t=0.5, nlcs_t=0.5):\n    return iou(pred_box, gt_box) >= iou_t and nlcs(pred_txt, gt_txt) >= nlcs_t\n",
+    "complexity": "IoU 时间 O(1)；NLCS 时间 O(m·n)，空间 O(m·n)",
+    "beginnerSummary": "评测既要看“框有没有框对位置”，也要看“字有没有读对”。Judge 像阅卷老师：位置和内容都达标才算这题对，偏科不算数。",
+    "derivation": [
+      "为什么需要：仅看检测 IoU 会放过读错字，仅看识别率会放过框错位，端到端必须同时约束两者。",
+      "怎么实现：分别算预测框与真值框 IoU、预测文本与真值文本 NLCS，Judge 以两个阈值联合判定单条是否命中。",
+      "有什么代价：NLCS 对字符级替换敏感但容忍少量插入；联合阈值选择影响严格度，需要按业务定标，否则跨模型难横向比较。",
+      "怎么评测：汇总命中数算 Precision/Recall/Hmean，并对不同 IoU/NLCS 阈值做曲线分析稳定性。"
+    ],
+    "edgeCases": [
+      "预测框与真值框部分重叠但 IoU 恰好低于阈值",
+      "文本仅标点/空格差异导致 NLCS 略低",
+      "一条真值被多个预测框覆盖",
+      "大小写或全半角不一致"
+    ],
+    "pitfalls": [
+      "用纯准确率忽略定位导致识别分虚高",
+      "IoU 阈值与 NLCS 阈值不平衡使评测偏严或偏松",
+      "多边形框直接当矩形算 IoU 失真"
+    ],
+    "prerequisites": [
+      "IoU 计算",
+      "动态规划(LCS)",
+      "PR/Recall 指标"
+    ],
+    "workedExample": [
+      "某条预测框 IoU=0.62 达标，但识别 'TikTok' 读成 'T1kTok'，NLCS=0.83 达标→判对。",
+      "另一条 IoU=0.48 不达标即使 NLCS=1.0 也判错，避免框错位被识别率掩盖。"
+    ],
+    "lineByLine": [
+      "def iou(box_a, box_b): 计算两框交并比。",
+      "def nlcs(pred, gt): 用 DP 求最长公共子序列并归一化。",
+      "dp[i][j] = ...: 字符相等则+1 否则取左/上最大值。",
+      "def judge_end2end: 同时用 IoU 与 NLCS 阈值联合判定命中。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么用 NLCS 而不是编辑距离(Levenshtein)？",
+        "answer": "NLCS 容忍无关插入、更关注核心字符顺序正确，对 OCR 中常见的少量噪声字符更稳健；编辑距离对插入删除惩罚更敏感。"
+      },
+      {
+        "question": "联合 Judge 的阈值如何标定？",
+        "answer": "在验证集上扫描 IoU/NLCS 阈值组合，选使人工评判与自动评判一致性最高(Kappa)的一组，并固定下来做跨模型对比。"
+      }
+    ],
+    "followUpAnswers": [
+      "NLCS 容忍无关插入、更关注核心字符顺序正确，对 OCR 中常见的少量噪声字符更稳健；编辑距离对插入删除惩罚更敏感。",
+      "在验证集上扫描 IoU/NLCS 阈值组合，选使人工评判与自动评判一致性最高(Kappa)的一组，并固定下来做跨模型对比。"
+    ],
+    "invariant": "dp[i][j] 始终等于 pred[:i] 与 gt[:j] 的最长公共子序列长度；judge 返回值仅当 IoU 与 NLCS 双达标才为真。",
+    "walkthrough": "pred='TikTok', gt='T1kTok'：LCS='TkTok' 长5，(2*5)/(6+6)=0.83≥0.5 通过；pred_box 与 gt_box 交并比 0.62≥0.5；judge 返回 True。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-multiline",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Hard",
+    "title": "多行合并与高 FP 陷阱",
+    "prompt": "为什么在 OCR 后处理中应放弃全局降阈值与通用多行合并，它们会带来什么高 FP 风险？",
+    "quickAnswer": "全局降阈值会整体抬高召回但成倍增加误检(FP)，通用多行合并规则在不同版式下易把无关文本块错误拼成一行；应采用局部 refinement 与窄条件 fallback 而非一刀切。",
+    "code": "def safe_merge(lines, same_line_iou=0.6, max_v_gap=10):\n    \"\"\"窄条件多行合并：仅当水平重叠且垂直间隙极小才合并\"\"\"\n    merged, dropped = [], []\n    for ln in sorted(lines, key=lambda b: b.y):\n        if merged and overlap_x(merged[-1], ln) > same_line_iou \\\n           and abs(ln.y - merged[-1].y) <= max_v_gap:\n            merged[-1] = concat(merged[-1], ln)\n        else:\n            dropped.append(ln)          # 不匹配的单独保留，不强行合并\n    return merged, dropped\n",
+    "complexity": "时间 O(N log N)，空间 O(N)",
+    "beginnerSummary": "不要“为了多抓几个字就把网撒到全图”，那样会捞上一堆不是字的东西；也别用一套合并规则硬把不相干的文字拼成一行，会读出胡话。",
+    "derivation": [
+      "为什么需要：单纯降低检测阈值虽提升召回，却让背景纹理、装饰线被误检为文本，FP 暴涨。",
+      "怎么实现：放弃全局阈值下调，改在疑似区域做局部 refinement；多行合并改为带水平重叠与垂直间隙的窄条件，避免通用合并。",
+      "有什么代价：局部 refinement 增加计算分支，窄条件可能漏掉真正跨行但间隙大的标题，需要按场景调参。",
+      "怎么评测：对比全局降阈值前后的 Precision/Recall 与 FP 数，确认窄条件在提升 F1 的同时不破坏其余样本。"
+    ],
+    "edgeCases": [
+      "标题与正文垂直间隙大却被通用规则误合并",
+      "背景花纹被低阈值误检为文本行",
+      "表格单元格误拼成一行",
+      "跨页/跨栏文本"
+    ],
+    "pitfalls": [
+      "为救少数漏检全局降阈值拖垮整体精度",
+      "用单一 IoU 阈值覆盖所有版式",
+      "合并后文本顺序错乱"
+    ],
+    "prerequisites": [
+      "检测后处理",
+      "Precision/Recall 权衡",
+      "版式分析基础"
+    ],
+    "workedExample": [
+      "全局阈值从 0.3 降到 0.1，召回 +3% 但 FP 翻倍，整页出现大量假行。",
+      "改用窄条件合并后，仅 1/54 图发生行为变化且为正向，其余输出不变，F1 由 0.6647 升至 0.7319。"
+    ],
+    "lineByLine": [
+      "def safe_merge(lines, ...): 带窄条件的合并。",
+      "sorted by b.y: 按垂直位置排序。",
+      "overlap_x>same_line_iou and 间隙<=max_v_gap: 仅当强重叠且贴近才合并。",
+      "else dropped.append: 不匹配者单独保留，避免错误拼接。"
+    ],
+    "followUps": [
+      {
+        "question": "局部 refinement 相比全局降阈值具体怎么做？",
+        "answer": "仅对检测器低分但有上下文支撑的候选区域(如邻近高分行)重新用高精度模型或更大分辨率重判，而不是全图统一降阈。"
+      },
+      {
+        "question": "如何验证合并策略改动是安全的？",
+        "answer": "在固定验证集(如 54 图)上跑回归测试，确认除目标样本外其余输出逐像素/逐字符不变，仅目标图指标提升。"
+      }
+    ],
+    "followUpAnswers": [
+      "仅对检测器低分但有上下文支撑的候选区域(如邻近高分行)重新用高精度模型或更大分辨率重判，而不是全图统一降阈。",
+      "在固定验证集(如 54 图)上跑回归测试，确认除目标样本外其余输出逐像素/逐字符不变，仅目标图指标提升。"
+    ],
+    "invariant": "merged 中相邻元素满足水平重叠>same_line_iou 且垂直间隙<=max_v_gap；未匹配元素全部进入 dropped 不被丢失。",
+    "walkthrough": "4 行按 y 排序；行1与行2水平重叠0.7、间隙8≤10→合并；行3与行2间隙40>10→进 dropped；行4独立。最终 merged 含合并行与行4，dropped 含行3。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-pp-ocrv6",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Medium",
+    "title": "PP-OCRv6 与轻量 OCR 体系",
+    "prompt": "PP-OCRv6 的轻量 OCR 体系在检测、方向、识别三个模型上做了哪些关键设计，为什么适合工业落地？",
+    "quickAnswer": "PP-OCRv6 采用更优的轻量检测/识别 backbone 与知识蒸馏、方向分类协同，端到端精度与速度平衡，提供 mobile/server 多级模型，易于训练部署与导出。",
+    "code": "from paddle import nn\n\nclass PPOCRv6Pipeline:\n    def __init__(self, det, cls, rec):\n        self.det, self.cls, self.rec = det, cls, rec\n\n    def infer(self, img):\n        boxes = self.det(img)                     # 文本检测\n        outs = []\n        for b in boxes:\n            crop = warp_by_box(img, b)\n            crop = self.cls.correct(crop)         # 方向校正\n            outs.append(self.rec(crop))           # 文本识别\n        return outs\n\ndef export_static(model, path):\n    \"\"\"导出为静态图便于端侧/服务端部署\"\"\"\n    nn.static.save_inference_model(path, model)\n",
+    "complexity": "时间 O(检测+Σ识别)，空间 O(模型权重+最大批特征)",
+    "beginnerSummary": "PP-OCRv6 像一套“检测→转正→识别”的标准流水线工具箱，官方把三个小模型调好打包，拿来就能跑，还能按手机或服务器的算力选大小。",
+    "derivation": [
+      "为什么需要：工业 OCR 既要精度又要能在端侧实时跑，单模型难兼顾，需要模块化轻量体系。",
+      "怎么实现：分别优化检测(SVTR/轻 backbone)、方向分类(浅 CNN)、识别(轻量序列模型)，并用蒸馏与量化压缩，提供统一推理接口。",
+      "有什么代价：模块化带来多次前向与后处理开销；轻量化会牺牲部分极端场景精度，需要按业务选模型档位。",
+      "怎么评测：在标准中文/英文/多语言基准上对比精度与 FPS，并测端侧 latency 与内存占用。"
+    ],
+    "edgeCases": [
+      "极长横幅文本超出识别最大宽",
+      "中英混排",
+      "低光照/运动模糊",
+      "竖排与艺术字"
+    ],
+    "pitfalls": [
+      "直接替换 backbone 而不重训识别头导致错位",
+      "忽略导出格式与运行时算子差异",
+      "未对齐三个模型的输入预处理"
+    ],
+    "prerequisites": [
+      "OCR 流水线",
+      "模型量化/蒸馏",
+      "推理部署基础"
+    ],
+    "workedExample": [
+      "对一张含中英文发票，det 出 20 框，cls 将 2 个倒置框转正，rec 输出 20 段文本。",
+      "移动端选 PP-OCRv6 mobile 模型，在骁龙上达到实时且内存可控。"
+    ],
+    "lineByLine": [
+      "class PPOCRv6Pipeline: 组装三模型流水线。",
+      "boxes=self.det(img): 先检测所有文本位置。",
+      "self.cls.correct(crop): 逐框方向校正。",
+      "self.rec(crop): 识别校正后文本；export_static 导出部署。"
+    ],
+    "followUps": [
+      {
+        "question": "PP-OCRv6 相比 v5 主要改进在哪？",
+        "answer": "在检测/识别 backbone、训练策略(更强数据增广与蒸馏)和导出链路上优化，同等算力下精度更高、延迟更低。"
+      },
+      {
+        "question": "如何从 PP-OCRv6 迁移到 TensorRT？",
+        "answer": "将检测/识别模型导出为 ONNX 再构建 TensorRT 引擎，配合固定输入尺寸与 buffer 复用可显著降延迟与峰值显存。"
+      }
+    ],
+    "followUpAnswers": [
+      "在检测/识别 backbone、训练策略(更强数据增广与蒸馏)和导出链路上优化，同等算力下精度更高、延迟更低。",
+      "将检测/识别模型导出为 ONNX 再构建 TensorRT 引擎，配合固定输入尺寸与 buffer 复用可显著降延迟与峰值显存。"
+    ],
+    "invariant": "infer 对每个检测框恰好执行一次方向校正与一次识别，输出顺序与 boxes 顺序一致。",
+    "walkthrough": "img 经 det 得 3 框；框A 直立直接识别；框B 被 cls 判 180° 旋转后识别；框C 90° 转回；最终返回 3 段文本，顺序对应原框序。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-recognition",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Medium",
+    "title": "文本识别（CRNN / Transformer seq2seq）",
+    "prompt": "CRNN 与基于 Transformer 的文本识别在建模方式上有何差异，seq2seq 如何避免固定长度输出限制？",
+    "quickAnswer": "CRNN 用 CNN 提特征+BiLSTM 建模序列+CTC 对齐，输出变长且无需对齐；Transformer 用自注意力直接做编码器-解码器 seq2seq，可建模全局依赖并支持注意力对齐。",
+    "code": "import torch.nn as nn\n\nclass CRNN(nn.Module):\n    def __init__(self, num_chars):\n        super().__init__()\n        self.cnn = CNNFeatureExtractor()\n        self.rnn = nn.LSTM(512, 256, bidirectional=True, batch_first=True)\n        self.head = nn.Linear(512, num_chars + 1)  # +1 为 CTC blank\n\n    def forward(self, x):\n        feat = self.cnn(x)            # (B, C, H, W) -> (B, W, 512)\n        seq, _ = self.rnn(feat)\n        return self.head(seq)         # 逐时间步字符分布，CTC 解码\n",
+    "complexity": "时间 O(W·d²)（序列长度×隐层维），空间 O(W·d)",
+    "beginnerSummary": "识别就像先“看一遍一整行字”再一个字一个字念出来。CRNN 像边看边记的读书人，Transformer 像能一眼看到整行并前后对照的速读者。",
+    "derivation": [
+      "为什么需要：文本长度不固定且字符间有上下文，直接用分类头无法输出变长序列。",
+      "怎么实现：CRNN 用 CNN 压成序列特征，BiLSTM 捕获上下文，CTC 处理无对齐标签；Transformer 用位置编码+自注意力做编码器-解码器生成。",
+      "有什么代价：CTC 假设时间步条件独立、难建模强上下文；Transformer 自注意力对长序列是 O(W²) 计算，推理需自回归或并行解码。",
+      "怎么评测：用归一化编辑距离(NED)/准确率，端到端用 NLCS 或字级精确匹配。"
+    ],
+    "edgeCases": [
+      "含空格与标点的混合文本",
+      "极长序列超出训练最大长度",
+      "易混淆字符(0/O、1/l)",
+      "空白或噪声行图"
+    ],
+    "pitfalls": [
+      "CTC 把相邻重复字符误合并需加 blank 处理",
+      "Transformer 解码未加 coverage 导致漏字或重复",
+      "训练/推理最大宽度不一致"
+    ],
+    "prerequisites": [
+      "CNN 特征提取",
+      "RNN/LSTM",
+      "CTC 损失与注意力机制"
+    ],
+    "workedExample": [
+      "输入 32×100 灰度行图，CRNN 输出 25 个时间步×字符分布，CTC 去 blank 与去重得 'HELLO'。",
+      "同样图送 Transformer 解码器自回归输出 'HELLO'，注意力图显示每个输出对齐到对应笔画。"
+    ],
+    "lineByLine": [
+      "class CRNN(nn.Module): 定义卷积循环识别模型。",
+      "self.cnn: 提取局部笔画特征并压缩高度。",
+      "self.rnn: 双向 LSTM 捕获左右上下文。",
+      "self.head: 每时间步映射到字符+blank 的 logits 供 CTC。"
+    ],
+    "followUps": [
+      {
+        "question": "什么时候选 CRNN 而不是 Transformer？",
+        "answer": "当部署算力受限、文本较规整且序列不长时，CRNN 参数量小、推理稳定；Transformer 在复杂版式与强上下文(如中英文混排)上更优但更重。"
+      },
+      {
+        "question": "CTC 与 Attention 解码能否结合？",
+        "answer": "可以，常见做法是二者联合训练并以 Attention 为主、CTC 作辅助正则，或蒸馏/融合两路输出提升鲁棒性。"
+      }
+    ],
+    "followUpAnswers": [
+      "当部署算力受限、文本较规整且序列不长时，CRNN 参数量小、推理稳定；Transformer 在复杂版式与强上下文(如中英文混排)上更优但更重。",
+      "可以，常见做法是二者联合训练并以 Attention 为主、CTC 作辅助正则，或蒸馏/融合两路输出提升鲁棒性。"
+    ],
+    "invariant": "feat 序列时间步数 W 与输入宽度成正比，head 在每个时间步独立输出字符分布。",
+    "walkthrough": "x(1,1,32,100) → cnn 得 (1,512,1,25) 展平为 (1,25,512)；LSTM 输出 (1,25,512)；head 映射为 (1,25,num_chars+1)；CTC 对 25 步去重去 blank 得字符串。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-refinement-fallback",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Hard",
+    "title": "局部 refinement、方向分类与窄条件 fallback",
+    "prompt": "如何通过局部 refinement、方向分类与窄条件 fallback 将端到端 F1 从 0.6647 提升到 0.7319，且保证其余 53/54 图输出不变？",
+    "quickAnswer": "仅对少数低分/疑似错误区域做局部 refinement 与方向校正，并用窄条件 fallback 规则(仅特定形态触发)替换错误预测；因改动范围极窄，54 张图中仅 1 张指标变化(正向)，其余 53 张输出完全一致。",
+    "code": "def refine_with_fallback(det_boxes, crops, rec, cls, fallback_rules):\n    \"\"\"窄条件 fallback：仅匹配规则才用 refinement 结果替换原预测\"\"\"\n    results = []\n    changed = 0\n    for box, crop in zip(det_boxes, crops):\n        pred = rec(crop)\n        ref = local_refine(crop, rec)          # 局部 refinement\n        if matches_narrow(box, pred, fallback_rules) and ref.conf > pred.conf:\n            results.append(ref.text); changed += 1\n        else:\n            results.append(pred.text)          # 默认保持原输出不变\n    return results, changed\n\ndef matches_narrow(box, pred, rules):\n    return any(rule.applies(box, pred) for rule in rules)  # 仅窄条件触发\n",
+    "complexity": "时间 O(N·R)（R 为规则数），空间 O(N)",
+    "beginnerSummary": "不要大改，只“给个别考砸的题单独重做并只在确定更对时才替换答案”，这样全班 54 份卷子 53 份原样不动，只有那 1 份分数变高，整体平均分上升。",
+    "derivation": [
+      "为什么需要：全局策略易引入回归；只修正明确错误的少数样本可在不破坏多数结果的前提下提升整体 F1。",
+      "怎么实现：对低分/方向异常区域做局部 refinement 与方向校正，仅当命中窄条件 fallback 且置信度更高才替换原预测。",
+      "有什么代价：规则需精细设计避免误触发；refinement 增加少量计算；极端长尾错误可能不在窄条件覆盖内。",
+      "怎么评测：在固定 54 图集回归：确认 53/54 输出逐字符不变，仅目标图 F1 由 0.6647 升至 0.7319。"
+    ],
+    "edgeCases": [
+      "窄条件误触发改坏原本正确的图",
+      "refinement 置信度估计不准导致错误替换",
+      "方向异常但非倒置的斜文本",
+      "多个规则同时命中的优先级"
+    ],
+    "pitfalls": [
+      "fallback 条件过宽引入新回归",
+      "只看目标图提升忽略其余图回归",
+      "refinement 与原始识别预处理不一致"
+    ],
+    "prerequisites": [
+      "局部 refinement",
+      "方向分类",
+      "回归测试与窄条件规则"
+    ],
+    "workedExample": [
+      "54 图回归：53 图输出哈希完全一致，仅图#27 经方向校正+refinement 后 F1 0.6647→0.7319。",
+      "若将 fallback 条件放宽(去掉窄条件)，出现 6 图回归变动且其中 2 图变坏，证明窄条件必要。"
+    ],
+    "lineByLine": [
+      "def refine_with_fallback(...): 窄条件替换入口。",
+      "pred=rec(crop): 先取原预测。",
+      "local_refine: 仅对候选做局部精修。",
+      "if matches_narrow and ref.conf>pred.conf: 命中且更可信才替换，否则保持原样。"
+    ],
+    "followUps": [
+      {
+        "question": "如何证明改动是安全无回归的？",
+        "answer": "在固定全集(54 图)做输出哈希对比，确认除目标样本外其余完全一致，并对目标样本展示前后指标差异。"
+      },
+      {
+        "question": "窄条件 fallback 与全局后处理如何配合？",
+        "answer": "全局后处理负责通用稳定规则，窄条件 fallback 仅兜底少数明确错误，二者都应先在全集回归验证再加到流水线。"
+      }
+    ],
+    "followUpAnswers": [
+      "在固定全集(54 图)做输出哈希对比，确认除目标样本外其余完全一致，并对目标样本展示前后指标差异。",
+      "全局后处理负责通用稳定规则，窄条件 fallback 仅兜底少数明确错误，二者都应先在全集回归验证再加到流水线。"
+    ],
+    "invariant": "changed 计数等于实际替换的样本数；未被窄条件命中的样本其输出严格等于原始 pred.text。",
+    "walkthrough": "遍历 54 框：53 个不匹配窄条件→保持原预测(changed=0)；图#27 命中(倒置+低分)→local_refine 置信更高→替换，changed=1；最终仅 1 图变化且 F1 提升。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-scene-spotting",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Hard",
+    "title": "场景文本 spotting（检测+识别联合）",
+    "prompt": "场景文本 spotting 如何把检测与识别联合训练，相比两阶段分离有什么优势与难点？",
+    "quickAnswer": "spotting 用统一网络(如基于实例分割或 Transformer)同时输出文本位置与内容，共享特征、端到端优化；优势是特征复用与上下文一致，难点是任务平衡与长尾字符标注。",
+    "code": "import torch\nimport torch.nn as nn\n\nclass TextSpotter(nn.Module):\n    def __init__(self, backbone, det_head, rec_head):\n        super().__init__()\n        self.backbone = backbone\n        self.det_head = det_head          # 输出文本实例掩膜/框\n        self.rec_head = rec_head          # 基于实例特征做识别\n\n    def forward(self, x):\n        feat = self.backbone(x)\n        det_out = self.det_head(feat)\n        rec_out = self.rec_head(feat, det_out[\"instances\"])  # 共享特征+实例\n        return {\"det\": det_out, \"rec\": rec_out}\n\ndef spotter_loss(det_out, rec_out, det_gt, rec_gt):\n    return det_loss(det_out, det_gt) + 1.0 * rec_loss(rec_out, rec_gt)\n",
+    "complexity": "时间 O(骨干+两 Head)，空间 O(共享特征+实例缓存)",
+    "beginnerSummary": "spotting 像一个“边指边读”的高手：看到字的同时就说出它是什么、在哪，而不是先找再读两个人分工，信息更连贯。",
+    "derivation": [
+      "为什么需要：分离两阶段存在误差累积与重复计算，端到端 spotting 可利用共享特征提升一致性与效率。",
+      "怎么实现：共享 backbone，检测头出实例，识别头在实例特征上解码；联合损失端到端训练。",
+      "有什么代价：两任务梯度需平衡，训练更复杂；对未出现过的字符/语言域泛化更难，标注成本更高。",
+      "怎么评测：用端到端指标(IoU+内容)算 Hmean，并分子集看检测与识别各自贡献。"
+    ],
+    "edgeCases": [
+      "遮挡/部分可见文本",
+      "极密集文本实例重叠",
+      "未见字符或新语种",
+      "旋转与弯曲文本实例"
+    ],
+    "pitfalls": [
+      "检测与识别损失权重失衡导致一方塌缩",
+      "实例特征对齐错误使识别读错实例",
+      "训练数据偏置使 spotting 退化成纯检测"
+    ],
+    "prerequisites": [
+      "实例分割",
+      "检测+识别联合建模",
+      "多任务损失平衡"
+    ],
+    "workedExample": [
+      "基于 Mask TextSpotter：实例分割出每个字区域，mask 特征送识别头输出字符。",
+      "对比两阶段：spotter 在弯曲文本上因共享上下文少一次特征提取，端到端快且更一致。"
+    ],
+    "lineByLine": [
+      "class TextSpotter: 联合检测识别模型。",
+      "self.backbone: 共享特征提取。",
+      "det_head 出实例、rec_head 在实例上识别。",
+      "spotter_loss: 检测+识别联合损失端到端回传。"
+    ],
+    "followUps": [
+      {
+        "question": "spotting 与 detection+recognition 解耦如何取舍？",
+        "answer": "追求一致性与速度是选 spotting；需要单独替换/升级识别器或做 GT-crop Oracle 分析时，解耦更灵活可控。"
+      },
+      {
+        "question": "联合训练如何防止识别头拖累检测？",
+        "answer": "用梯度裁剪、任务权重调度或在识别头加 stop-gradient 早期冻结，先稳定检测再放开识别。"
+      }
+    ],
+    "followUpAnswers": [
+      "追求一致性与速度是选 spotting；需要单独替换/升级识别器或做 GT-crop Oracle 分析时，解耦更灵活可控。",
+      "用梯度裁剪、任务权重调度或在识别头加 stop-gradient 早期冻结，先稳定检测再放开识别。"
+    ],
+    "invariant": "rec_head 使用的实例特征来自 det_out['instances']，每个识别输出与唯一检测实例一一对应。",
+    "walkthrough": "x→backbone 得 feat；det_head 输出 3 个实例掩膜；rec_head 对每个实例 crop 特征并解码，返回 3 段文本；spotter_loss 将检测与识别误差求和反传。",
+    "kind": "code"
+  },
+  {
+    "id": "ocr-tensorrt-mnn",
+    "category": "OCR 文字检测与识别",
+    "difficulty": "Hard",
+    "title": "端侧 OCR（TensorRT / MNN）",
+    "prompt": "将 PP-OCRv6 small 从 CPU MNN 迁移到 TensorRT 时，如何在加速约 3.1 倍的同时把峰值显存降低约 220 MiB？",
+    "quickAnswer": "用固定输入尺寸构建 TensorRT 引擎并启用 FP16；通过输入输出 buffer 复用(预分配并跨推理周期复用同一块显存)避免重复分配，从而降低 HWM 约 220 MiB，整体较 CPU MNN 加速约 3.1 倍。",
+    "code": "import pycuda.driver as cuda\nimport tensorrt as trt\n\nclass TRTOCREngine:\n    def __init__(self, engine_path):\n        self.runtime = trt.Runtime(trt.Logger())\n        with open(engine_path, \"rb\") as f:\n            self.engine = self.runtime.deserialize_cuda_engine(f.read())\n        self.context = self.engine.create_execution_context()\n        # 预分配并复用 buffer，避免每次推理重新分配\n        self.buffers = [cuda.mem_alloc(self.engine.get_binding_shape(i).numel() * 4)\n                        for i in range(self.engine.num_bindings)]\n\n    def infer(self, host_in):\n        cuda.memcpy_htod(self.buffers[0], host_in)\n        self.context.execute_v2(self.buffers)      # 复用同一组 buffer\n        cuda.memcpy_dtoh(self.host_out, self.buffers[1])\n        return self.host_out\n",
+    "complexity": "时间 O(引擎固定计算)，空间 O(预分配 buffer 总量，复用不变)",
+    "beginnerSummary": "把 OCR 从“手机 CPU 上慢慢算”搬到“显卡专用加速通道”；buffer 复用就像复用同一个托盘而不是每单都新买托盘，省下约 220 MiB 临时占用的显存。",
+    "derivation": [
+      "为什么需要：端侧实时 OCR 对延迟与显存敏感，CPU MNN 在某些设备上达不到实时，且反复分配显存抬高峰值。",
+      "怎么实现：用 ONNX 构建 TensorRT 引擎开 FP16，预分配输入输出 cuda buffer 并在多次推理间复用，消除 per-infer 的 malloc/free。",
+      "有什么代价：TensorRT 引擎与硬件/驱动绑定、构建耗时；FP16 在极端动态范围上略有精度损失，需要校准验证。",
+      "怎么评测：对比 CPU MNN 与 TensorRT 的端到端延迟，统计峰值显存(HWM)，确认加速约 3.1× 且 HWM 降约 220 MiB 且精度无回退。"
+    ],
+    "edgeCases": [
+      "输入尺寸与引擎构建尺寸不一致导致推理失败",
+      "多线程并发复用同一 buffer 引发竞争",
+      "动态 batch 超出引擎最大 batch",
+      "显存碎片化"
+    ],
+    "pitfalls": [
+      "每次推理都重新分配 buffer 抵消优化收益",
+      "FP16 未校准造成小字精度下降",
+      "忽略引擎与驱动版本绑定"
+    ],
+    "prerequisites": [
+      "TensorRT 基础",
+      "CUDA 内存管理",
+      "模型导出(ONNX)"
+    ],
+    "workedExample": [
+      "同张图 CPU MNN 推理 310ms，TensorRT FP16 约 100ms，加速约 3.1×。",
+      "启用 buffer 复用后，连续推理 HWM 由 ~520 MiB 降至 ~300 MiB，约省 220 MiB。"
+    ],
+    "lineByLine": [
+      "class TRTOCREngine: TensorRT OCR 推理封装。",
+      "deserialize_cuda_engine: 加载预构建引擎。",
+      "cuda.mem_alloc(...): 预分配每个 binding 的 buffer。",
+      "self.context.execute_v2(self.buffers): 每次推理复用同一组 buffer 省去分配。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么 buffer 复用能降低峰值显存？",
+        "answer": "每次推理若临时分配再释放，分配器在并发/碎片下会保留更高水位；预分配并长期复用使显存占用稳定在上界，HWM 明显下降。"
+      },
+      {
+        "question": "TensorRT 与 MNN 该如何选型？",
+        "answer": "有 NVIDIA GPU/算力允许时选 TensorRT 拿更高吞吐；无 GPU 的嵌入式 ARM 选 MNN 等 CPU/NPU 推理框架更合适。"
+      }
+    ],
+    "followUpAnswers": [
+      "每次推理若临时分配再释放，分配器在并发/碎片下会保留更高水位；预分配并长期复用使显存占用稳定在上界，HWM 明显下降。",
+      "有 NVIDIA GPU/算力允许时选 TensorRT 拿更高吞吐；无 GPU 的嵌入式 ARM 选 MNN 等 CPU/NPU 推理框架更合适。"
+    ],
+    "invariant": "self.buffers 在多次 infer 调用间保持不变且容量足以容纳最大绑定张量，execute_v2 始终使用同一组指针。",
+    "walkthrough": "加载引擎→预分配 2 个 buffer(输入/输出)；infer 时仅做 host→device 拷贝、execute_v2 复用 buffer、device→host 拷贝；连续 100 次推理不重新分配，HWM 稳定在预分配值。",
+    "kind": "code"
   },
   {
     "kind": "concept",
@@ -15950,6 +17993,480 @@ export const questions = [
     "kind": "code"
   },
   {
+    "id": "depth-endside",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Hard",
+    "title": "端侧深度与实时候选筛选",
+    "prompt": "如何在 Jetson 上做实时单目深度，并用其作为障碍物候选筛选的'证据'？给出算力与延迟权衡思路？",
+    "quickAnswer": "选轻量 metric 深度网（蒸馏 DAv2/Depth Anything 或混合 ViT），TensorRT FP16/INT8 量化 + 多分辨率切换；把深度图近距像素计数作为'候选证据'先做粗筛，再对候选区跑重检测，平衡算力与召回。本地下游实测 8.38 FPS。",
+    "code": "import time\n\ndef jetson_candidate_filter(rgb, depth_net, fps_budget=8.0, depth_thr=1.0):\n    t0 = time.time()\n    depth = depth_net.infer(rgb)                 # 轻量 metric 深度 (TensorRT)\n    dt = time.time() - t0\n    fps = 1.0 / max(dt, 1e-9)\n    near_mask = depth < depth_thr                # 近距像素即候选证据\n    candidates = int(near_mask.sum())\n    # 仅当存在近距证据才触发昂贵的实例分割\n    trigger = candidates > 0\n    return dict(candidates=candidates, fps=round(fps, 2),\n                meets_budget=fps >= fps_budget, trigger_heavy=trigger)",
+    "complexity": "时间 O(H·W)，空间 O(H·W)",
+    "beginnerSummary": "端侧像小马拉车，不能每帧都全力。先用轻深度图'扫一眼'有没有近的东西，有才叫醒重物检测，这样既省电又保安全。实测约 8.38 FPS。",
+    "derivation": [
+      "为什么需要：Jetson 算力有限，全分辨率重模型难实时，需用深度做廉价粗筛保留安全余量。",
+      "怎么实现：轻量深度网量化部署，近距像素计数作证据，超预算则降分辨率/跳帧。",
+      "有什么代价：量化与降分辨率损精度，粗筛阈值不当会漏近距或误触重模型。",
+      "怎么评测：看端上 FPS、近距召回与功耗，以 meets_budget 与 F1 双达标为准。"
+    ],
+    "edgeCases": [
+      "突发近距物体需跳帧补偿，否则漏检。",
+      "INT8 量化在低纹理区误差放大。",
+      "高温降频使 FPS 跌破预算，需动态分辨率。"
+    ],
+    "pitfalls": [
+      "重模型每帧全跑，FPS 不达标整体失效。",
+      "粗筛阈值过高，近距证据被忽略。",
+      "只报平均 FPS 不报长尾延迟，实时性虚高。"
+    ],
+    "prerequisites": [
+      "模型量化与 TensorRT",
+      "实时系统延迟预算",
+      "轻量网络设计"
+    ],
+    "workedExample": [
+      "Jetson 上跑量化轻深度网：单帧 0.12 s ≈ 8.38 FPS。",
+      "仅当 near 像素>0 才触发 YOLO 分割，省下 60% 重推理。"
+    ],
+    "lineByLine": [
+      "depth = depth_net.infer(rgb) TensorRT 量化轻深度推理。",
+      "fps = 1.0/max(dt,1e-9) 由单帧耗时算实时帧率。",
+      "near_mask = depth < depth_thr 近距像素即候选证据。",
+      "trigger = candidates>0 有证据才触发昂贵的实例分割。"
+    ],
+    "followUps": [
+      {
+        "question": "FPS 不达标时优先降分辨率还是跳帧？",
+        "answer": "优先动态降分辨率保每帧都有输出（避免漏检突发障碍），跳帧作为温度降频时的兜底，二者结合并以长尾延迟为硬约束。"
+      },
+      {
+        "question": "深度粗筛如何避免漏掉小近距障碍？",
+        "answer": "对近距区域做形态学膨胀保留边界，并设最小连通域面积阈值过滤噪点，确保小目标仍有候选证据触发重检测。"
+      }
+    ],
+    "followUpAnswers": [
+      "优先动态降分辨率保每帧都有输出（避免漏检突发障碍），跳帧作为温度降频时的兜底，二者结合并以长尾延迟为硬约束。",
+      "对近距区域做形态学膨胀保留边界，并设最小连通域面积阈值过滤噪点，确保小目标仍有候选证据触发重检测。"
+    ],
+    "invariant": "每次推理后 candidates 始终等于当前帧 near_mask 的近距像素计数，且 trigger 与该计数单调一致（>0 为真）。",
+    "walkthrough": "在 Jetson 上对 90 图本地集跑 jetson_candidate_filter，量化轻深度网单帧 0.12 s 得 8.38 FPS、满足预算；近距证据触发 YOLO 后整体 F1 0.91。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-eval",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Medium",
+    "title": "深度评测：F1/RMSE/相对误差",
+    "prompt": "在仅 6 个近距正例、90 张本地图的障碍物评测中，为什么单纯用 RMSE 不够，应如何组合 F1、RMSE 与相对误差？",
+    "quickAnswer": "RMSE 对全局距离敏感但掩盖近距漏检，近距正例极少时准确率无意义。应同时报告：近距 1 m 阈值的 F1（查召回/假阳）、整体 RMSE（度量精度）、相对误差（尺度鲁棒性），并以 F1 为主指标、RMSE 为辅。",
+    "code": "import numpy as np\n\ndef eval_obstacle(pred_metric, gt_depth, gt_mask, thr=1.0):\n    pred_pos = pred_metric < thr                 # 近距预测为正\n    gt_pos = gt_mask.bool()\n    tp = int((pred_pos & gt_pos).sum())\n    fp = int((pred_pos & ~gt_pos).sum())\n    fn = int((~pred_pos & gt_pos).sum())\n    precision = tp / (tp + fp + 1e-9)\n    recall = tp / (tp + fn + 1e-9)\n    f1 = 2 * precision * recall / (precision + recall + 1e-9)\n    rmse = float(np.sqrt(((pred_metric - gt_depth) ** 2).mean()))\n    rel = float((np.abs(pred_metric - gt_depth) / (gt_depth + 1e-9)).mean())\n    return dict(f1=f1, rmse=rmse, rel=rel)",
+    "complexity": "时间 O(H·W)，空间 O(H·W)",
+    "beginnerSummary": "RMSE 像'平均偏差'，但少数近距障碍被海量远处像素淹没；F1 像'查没查到障碍'的体检，正例少时比准确率靠谱。三者搭配：F1 看安全、RMSE 看精度、相对误差看稳不稳。",
+    "derivation": [
+      "为什么需要：障碍物任务是安全相关二分类，仅看 RMSE 会忽略近距漏检，需匹配任务目标的指标。",
+      "怎么实现：以 1 m 阈值把深度图二值化，与 GT 掩码算 TP/FP/FN 得 F1，并附带 RMSE 与相对误差。",
+      "有什么代价：阈值选定敏感、正例稀少时 F1 方差大，需交叉验证与置信区间。",
+      "怎么评测：用消融对照各模块对 F1/RMSE 的贡献，以 F1 为主选模型。"
+    ],
+    "edgeCases": [
+      "近距正例仅 6 个，单个漏检使 F1 大幅波动。",
+      "GT 掩码边界模糊，TP/FP 边界像素争议。",
+      "全图无正例帧，recall 分母为 0 需特殊处理。"
+    ],
+    "pitfalls": [
+      "只用 RMSE 选模型，上线后近距障碍仍漏检。",
+      "正例稀少却用准确率，模型全预测负即得高分。",
+      "阈值固定不随场景校准，跨域 F1 崩。"
+    ],
+    "prerequisites": [
+      "精确率/召回率/F1 定义",
+      "RMSE 与相对误差",
+      "不平衡数据评估"
+    ],
+    "workedExample": [
+      "90 图本地集：模型 A RMSE 0.9 但近距漏检，F1=0.6。",
+      "模型 B RMSE 1.03 但近距全中，F1=0.91——选 B 更安全。"
+    ],
+    "lineByLine": [
+      "pred_pos = pred_metric < thr 用 1 m 阈值产预测正例。",
+      "tp/fp/fn 统计与 GT 掩码的交集、误检、漏检。",
+      "precision/recall/f1 由混淆统计得出近距障碍质量。",
+      "rmse/rel 补充全局度量精度与尺度鲁棒性。"
+    ],
+    "followUps": [
+      {
+        "question": "正例极少时如何给出可信的 F1？",
+        "answer": "用 Bootstrap 重采样估计 F1 的置信区间，或做留一法，并同时报告 PR 曲线下面积以免单点阈值偏差。"
+      },
+      {
+        "question": "RMSE 与相对误差哪个更适合跨域比较？",
+        "answer": "相对误差对尺度偏移不敏感更适合跨域；RMSE 受绝对尺度影响，跨域前需统一校准或改用尺度不变指标。"
+      }
+    ],
+    "followUpAnswers": [
+      "用 Bootstrap 重采样估计 F1 的置信区间，或做留一法，并同时报告 PR 曲线下面积以免单点阈值偏差。",
+      "相对误差对尺度偏移不敏感更适合跨域；RMSE 受绝对尺度影响，跨域前需统一校准或改用尺度不变指标。"
+    ],
+    "invariant": "统计 tp/fp/fn 时，pred_pos 与 gt_pos 始终基于同一 1 m 阈值与同一 GT 掩码，未参与像素不计入分母。",
+    "walkthrough": "对 90 图本地集调用 eval_obstacle：因仅 6 近距正例，RMSE 仅从 1.10 微降到 1.03，但 F1 从 0.78 升到 0.91 才真实反映障碍召回改善。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-fusion-seg",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Medium",
+    "title": "深度与分割/检测融合方案",
+    "prompt": "深度图与实例分割/检测结果如何融合，以提升近距障碍物召回且不引入假阳性？",
+    "quickAnswer": "把 metric 深度投影到每个实例掩码内取统计（均值/分位）作为该实例距离，结合分割置信度得到融合置信，仅当距离<thr 且置信>η 才判障碍。深度补分割的'距离'维度、分割补深度的'实例边界'，互相校正降假阳。",
+    "code": "import numpy as np\n\ndef fuse_depth_segment(metric_depth, seg_masks, thr=1.0, conf_min=0.5):\n    fused = []\n    for mask, label, score in seg_masks:     # (bool mask, 类别, 分割置信)\n        region = metric_depth[mask]\n        if region.size == 0:\n            continue\n        mean_d = float(region.mean())\n        # 距离越近置信越高，乘分割分数得融合置信\n        conf = float(np.clip(1.0 - mean_d / (thr * 3), 0, 1)) * score\n        fused.append(dict(label=label, depth=round(mean_d, 3),\n                          conf=round(conf, 3),\n                          hit=(mean_d < thr) and (conf >= conf_min)))\n    return fused",
+    "complexity": "时间 O(H·W + M)，M 为实例数，空间 O(H·W)",
+    "beginnerSummary": "深度图知道'多远'但分不清'是啥'，分割知道'是啥'但不知'多远'。把两者叠起来：每个被圈出的物体都带上距离，近且可信才报警，远或不可信就忽略。",
+    "derivation": [
+      "为什么需要：纯深度阈值易把远墙/地面误判障碍，纯分割缺距离无法定'近距危险'，融合互补。",
+      "怎么实现：实例掩码内聚合深度得距离，融合分割置信成综合得分，双阈值判定。",
+      "有什么代价：掩码边界误差污染深度统计，需稳健聚合（分位而非均值）。",
+      "怎么评测：看近距召回提升与假阳下降，对比单模态基线的 F1 差。"
+    ],
+    "edgeCases": [
+      "实例跨近远（如斜停车），均值深度失真，宜用近分位。",
+      "分割边界溢出到背景，深度被拉偏。",
+      "低分割置信的小物体，融合后被误过滤。"
+    ],
+    "pitfalls": [
+      "直接对全图深度阈值不结合实例，假阳高。",
+      "用均值而非分位，大实例距离被稀释。",
+      "忽略分割置信，低质掩码仍触发障碍。"
+    ],
+    "prerequisites": [
+      "实例分割后处理",
+      "深度图投影与掩码索引",
+      "置信度融合"
+    ],
+    "workedExample": [
+      "YOLO 圈出车实例，掩码内深度均值 0.8 m、分割分 0.9。",
+      "融合置信≈0.73>0.5 且距离<1 m，判为近距障碍。"
+    ],
+    "lineByLine": [
+      "for mask,label,score in seg_masks: 遍历每个实例。",
+      "region = metric_depth[mask] 取该实例覆盖的深度像素。",
+      "mean_d = region.mean() 以均值（或更稳的分位）作代表距离。",
+      "conf = clip(1-mean_d/(thr*3),0,1)*score 距离近且分割可信才高置信。",
+      "hit = (mean_d<thr) and (conf>=conf_min) 双阈值判定障碍。"
+    ],
+    "followUps": [
+      {
+        "question": "实例跨近远时如何聚合深度更稳？",
+        "answer": "用近分位（如 10% 分位）而非均值代表'最近危险距离'，并对掩码做形态学腐蚀去边界噪声，避免被远处像素稀释。"
+      },
+      {
+        "question": "融合置信如何随场景自适应？",
+        "answer": "用验证集标定 thr 与 conf_min，或在线以深度方差/分割熵作不确定性，动态调高阈值抑制高不确定区域假阳。"
+      }
+    ],
+    "followUpAnswers": [
+      "用近分位（如 10% 分位）而非均值代表'最近危险距离'，并对掩码做形态学腐蚀去边界噪声，避免被远处像素稀释。",
+      "用验证集标定 thr 与 conf_min，或在线以深度方差/分割熵作不确定性，动态调高阈值抑制高不确定区域假阳。"
+    ],
+    "invariant": "遍历每个实例时，fused 仅收录 region 非空且距离<thr 并满足置信阈值的实例，空区域被显式跳过不计入。",
+    "walkthrough": "对 90 图本地集融合 ZipDepth 深度与 YOLO 分割：用近分位聚合使 6 个近距正例全部命中，融合置信过滤掉远处墙面假阳，F1 达 0.91、RMSE 1.03。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-mono-estimation",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Medium",
+    "title": "单目深度估计三大家族横评",
+    "prompt": "简述 DAv2、Depth Anything 与 ZipDepth 在单目深度估计上的核心差异、各自擅长的场景，以及如何按业务做选型？",
+    "quickAnswer": "DAv2 是带 metric head 的度量深度回归（输出带物理尺度，适合需要真实距离的场景）；Depth Anything 是大规模弱监督的相对深度（零样本泛化强、相对序好但绝对尺度需校准）；ZipDepth 用扩散先验做室内 metric 深度，在遮挡与弱纹理处更稳。选型：端上实时选轻量 DAv2/Depth Anything 蒸馏版，室内结构化场景用 ZipDepth，跨域零样本用 Depth Anything。",
+    "code": "def compare_models(estimators, samples, metric=\"f1\"):\n    # estimators: {name: model}; samples: [{rgb, gt}]\n    report = {}\n    for name, est in estimators.items():\n        preds = [est.infer(s[\"rgb\"]) for s in samples]\n        report[name] = evaluate(preds, [s[\"gt\"] for s in samples])\n    # 按下游指标排序而非公开榜\n    return sorted(report.items(), key=lambda kv: kv[1][metric], reverse=True)",
+    "complexity": "时间 O(k·n)，k 为模型数、n 为样本数，空间 O(k)",
+    "beginnerSummary": "三模型像三种'估算距离'的方法：DAv2 直接给米数，Depth Anything 给'谁近谁远'的排名（需校准才有米数），ZipDepth 用'想象补全'在杂乱室内更稳。业务要米数就选带尺度的，要泛化就选相对深度的。",
+    "derivation": [
+      "为什么需要：单目相机无基线，深度本质病态，需用先验/数据驱动模型估计距离，选型直接决定下游障碍物判断与算力。",
+      "怎么实现：按训练信号分——metric 回归（DAv2/ZipDepth 含尺度监督）、相对深度（Depth Anything 用离散排序/仿射不变损失）。",
+      "有什么代价：metric 对域偏移敏感、需标定尺度；相对深度零样本强但绝对尺度需校准；扩散类 ZipDepth 推理更慢。",
+      "怎么评测：用 RMSE、相对误差、δ<1.25 与下游障碍物 F1，以业务指标为准而非单看排行榜。"
+    ],
+    "edgeCases": [
+      "纹理缺失的纯色墙面/天空，深度易塌缩到中位值。",
+      "训练域外的极端光照、透明或镜面物体，误差骤增。",
+      "近距离大物体超出模型感受野，边缘深度抖动严重。"
+    ],
+    "pitfalls": [
+      "把相对深度当 metric 距离直接做 1 m 阈值判定会全盘出错。",
+      "跨域直接迁移而不重标定尺度，RMSE 虚高。",
+      "只看公开榜不看下游 F1，线上仍可能 F1=0。"
+    ],
+    "prerequisites": [
+      "相机成像与透视几何基础",
+      "相对深度与度量深度的区别",
+      "Transformer/扩散模型基本概念"
+    ],
+    "workedExample": [
+      "场景：室内机器人避障，输入单张 RGB。",
+      "步骤：用 ZipDepth 出 metric 深度图，再用 1 m 阈值团状区域作为候选障碍，交并求 F1 评测。"
+    ],
+    "lineByLine": [
+      "def compare_models(estimators, samples, metric=\"f1\"): 定义对多个模型做横向对比的入口。",
+      "for name, est in estimators.items(): 逐个模型推理深度图并收集预测。",
+      "report[name] = evaluate(...) 计算每个模型的 RMSE/F1 等指标并汇总。",
+      "return sorted(..., key=lambda kv: kv[1][metric], reverse=True) 按下游 F1 降序给出选型。"
+    ],
+    "followUps": [
+      {
+        "question": "零样本泛化与 metric 精度为何难以兼得？",
+        "answer": "metric 需要尺度监督，监督域与目标域分布不一致时尺度漂移；相对深度放弃绝对尺度换取泛化，二者存在权衡，可用稀疏 LiDAR 或已知物体尺寸做在线校准桥接。"
+      },
+      {
+        "question": "ZipDepth 的扩散先验在端侧如何降本？",
+        "answer": "用少步蒸馏/一致性采样把扩散降为几步，或仅对低分辨率深度残差去噪后再上采样，配合 TensorRT 量化部署到 Jetson。"
+      }
+    ],
+    "followUpAnswers": [
+      "metric 需要尺度监督，监督域与目标域分布不一致时尺度漂移；相对深度放弃绝对尺度换取泛化，二者存在权衡，可用稀疏 LiDAR 或已知物体尺寸做在线校准桥接。",
+      "用少步蒸馏/一致性采样把扩散降为几步，或仅对低分辨率深度残差去噪后再上采样，配合 TensorRT 量化部署到 Jetson。"
+    ],
+    "invariant": "遍历每个估算器时，report 始终保存已评测模型的指标，且未被评测的模型不在 report 中。",
+    "walkthrough": "输入 90 张本地图，依次用 DAv2/Depth Anything/ZipDepth 推理；ZipDepth 在 6 个近距正例与室内场景拿到 F1 0.91、RMSE 1.03，依下游 F1 排在首位。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-obstacle",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Hard",
+    "title": "障碍物感知：F1=0 的拆解与分路",
+    "prompt": "你的深度模型在障碍物任务上 F1=0，应如何拆解根因？给出 indoor ZipDepth + vehicle YOLO 的深度/分割分路方案？",
+    "quickAnswer": "F1=0 不能直接归咎深度网络，要拆成四问：相对排序对不对、1 m 阈值是否合理、尺度校准做了没、实例分割是否漏检。分路方案：室内用 ZipDepth 出 metric 深度，车辆用 YOLO 出 depth/segmentation 两路，深度作尺度校准证据、分割作实例边界，二者交并得障碍。",
+    "code": "import numpy as np\n\ndef obstacle_pipeline(rgb, depth_model, yolo, depth_thr=1.0):\n    rel = depth_model.infer(rgb)                     # 相对/度量深度\n    sparse = yolo.size_priors(rgb)                   # 车辆尺寸->稀疏度量点\n    a, b = calibrate_scale(rel, sparse)              # 在线仿射校准\n    metric = a * rel + b\n    masks = yolo.segment(rgb)                        # 实例分割\n    obstacles = []\n    for m in masks:\n        d = float(metric[m.bool()].mean())           # 实例内平均深度\n        if d < depth_thr:                            # 1 m 阈值判定\n            obstacles.append((m.label, round(d, 3)))\n    return obstacles",
+    "complexity": "时间 O(H·W + M)，M 为实例数，空间 O(H·W)",
+    "beginnerSummary": "F1=0 像考试不及格，不能怪'脑子不行'，要查是排序错、分数线定错、单位没换还是根本没圈出目标。分两路：深度负责'量距离'，YOLO 负责'圈目标'，合起来才判定障碍。",
+    "derivation": [
+      "为什么需要：深度模型 F1=0 往往是多因素叠加，盲目调参无效，需结构化拆解定位真因。",
+      "怎么实现：四问法（排序/阈值/尺度/分割）+ 分路：ZipDepth 出 metric 深度，YOLO 出分割与尺寸先验双路。",
+      "有什么代价：双路增加推理与后处理，阈值与校准不当会引入假阳性/假阴性。",
+      "怎么评测：逐项消融——只排序、加阈值、加校准、加分割，看 F1 递增定位瓶颈。"
+    ],
+    "edgeCases": [
+      "仅 6 个近距正例，正样本极少导致阈值敏感、F1 抖动大。",
+      "车辆部分出框，YOLO 尺寸先验失效、校准偏。",
+      "重叠/遮挡实例，分割边界错导致平均深度失真。"
+    ],
+    "pitfalls": [
+      "深度网络输出的是相对深度却直接套 1 m 阈值。",
+      "把 F1=0 全怪深度模型，忽略 YOLO 漏检。",
+      "用全局尺度而非按帧在线校准，跨场景漂移。"
+    ],
+    "prerequisites": [
+      "单目深度估计基础",
+      "目标检测与实例分割",
+      "尺度校准(见 Card2)"
+    ],
+    "workedExample": [
+      "现象：端到端 F1=0，但目视深度图近大远小正确。",
+      "拆解：相对序 OK→阈值用错(相对深度)→加在线校准→再加 YOLO 分割，F1 升至 0.91。"
+    ],
+    "lineByLine": [
+      "rel = depth_model.infer(rgb) 得到相对或度量深度图。",
+      "sparse = yolo.size_priors(rgb) 由车辆尺寸反推稀疏度量点。",
+      "a,b = calibrate_scale(rel, sparse) 在线仿射校准消除尺度模糊。",
+      "for m in masks: d = metric[m.bool()].mean() 取实例内平均深度作代表。",
+      "if d < depth_thr: 用 1 m 阈值判定为障碍并收集。"
+    ],
+    "followUps": [
+      {
+        "question": "近距正例只有 6 个，如何避免过拟合与评估不稳？",
+        "answer": "用 F1 而非准确率（正例稀少时准确率无意义），做留一/交叉验证，并报告置信区间；正例难增时用难例挖掘与合成近距样本扩充。"
+      },
+      {
+        "question": "ZipDepth 与 YOLO 两路如何保证时间同步？",
+        "answer": "两路共享同一帧输入，YOLO 轻量先行出候选与尺寸先验，ZipDepth 只对该帧推理，后处理融合，整体控制在实时预算内。"
+      }
+    ],
+    "followUpAnswers": [
+      "用 F1 而非准确率（正例稀少时准确率无意义），做留一/交叉验证，并报告置信区间；正例难增时用难例挖掘与合成近距样本扩充。",
+      "两路共享同一帧输入，YOLO 轻量先行出候选与尺寸先验，ZipDepth 只对该帧推理，后处理融合，整体控制在实时预算内。"
+    ],
+    "invariant": "遍历每个实例掩码时，obstacles 列表只收录平均深度小于阈值的实例，且每个被收录实例都带有有效标签与深度。",
+    "walkthrough": "对 90 图本地集跑四问消融：仅相对序 F1≈0.3，加 1 m 阈值≈0.5，加在线校准≈0.78，加 YOLO 分割≈0.91，最终 RMSE 1.03、8.38 FPS，仅 6 近距正例。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-relative-metric",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Medium",
+    "title": "相对深度 vs 度量深度建模",
+    "prompt": "相对深度与度量深度在监督信号与损失函数上有何本质区别？给出尺度不变对数损失与仿射不变损失的写法？",
+    "quickAnswer": "相对深度只用排序/尺度无关信号，常用尺度不变对数损失（SILog）避免学出任意缩放；度量深度用带物理尺度的 GT，直接 L1/RMSE 回归。仿射不变损失先对预测做最小二乘对齐再算误差，兼顾二者优势。",
+    "code": "import torch\n\ndef scale_invariant_loss(pred, gt):\n    # pred, gt: Bx1xHxW，输入为 log 深度\n    diff = pred - gt\n    n = diff.numel()\n    # 对整体缩放不变：减去均值再求方差\n    loss = (diff ** 2).mean() - (diff.sum() ** 2) / (n ** 2)\n    return 0.5 * loss\n\ndef affine_invariant_loss(pred, gt):\n    # 每样本用最小二乘把 pred 仿射对齐到 gt 再算 L1\n    a = (pred * gt).mean(dim=(-1,-2,-3)) / (pred * pred).mean(dim=(-1,-2,-3))\n    b = gt.mean(dim=(-1,-2,-3)) - a * pred.mean(dim=(-1,-2,-3))\n    aligned = a.view(-1,1,1,1) * pred + b.view(-1,1,1,1)\n    return (aligned - gt).abs().mean()",
+    "complexity": "时间 O(B·H·W)，空间 O(B·H·W)",
+    "beginnerSummary": "相对深度像学'排队次序'，用对缩放不敏感的损失防止模型随意放大缩小；度量深度像学'报米数'，用真实距离直接算误差。仿射不变损失先对齐再比，两全其美。",
+    "derivation": [
+      "为什么需要：单目尺度模糊使绝对回归难泛化，而下游有时只需相对序、有时需米数，损失要匹配目标。",
+      "怎么实现：SILog 对预测减去均值消除缩放因子；仿射不变损失先最小二乘对齐 (a,b) 再算 L1。",
+      "有什么代价：SILog 不约束绝对尺度，无法直接得 metric；仿射对齐增加计算且对离群敏感。",
+      "怎么评测：metric 看 RMSE/δ，相对看排序指标（Spearman），端到端看下游 F1。"
+    ],
+    "edgeCases": [
+      "GT 含无效像素（天空/镜面）需掩码，否则均值被污染。",
+      "极近/极远深度对数差巨大，SILog 被 outlier 主导。",
+      "batch 内尺度分布差异大，逐样本对齐更稳。"
+    ],
+    "pitfalls": [
+      "对相对深度用普通 L1，模型会塌缩到预测常数均值。",
+      "仿射对齐前未去无效像素，a、b 失真。",
+      "把 SILog 训练的模型直接当 metric 用而不校准。"
+    ],
+    "prerequisites": [
+      "对数深度与尺度不变性",
+      "回归损失函数基础",
+      "掩码与无效像素处理"
+    ],
+    "workedExample": [
+      "同一场景相对深度训练用 SILog，预测只保证近处比远处小。",
+      "下游需 1 m 阈值时再接 Card2 的仿射校准得到 metric。"
+    ],
+    "lineByLine": [
+      "diff = pred - gt 计算对数深度残差。",
+      "loss = (diff**2).mean() - (diff.sum()**2)/(n**2) 减去均值平方项实现缩放不变。",
+      "affine_invariant_loss 中先算每样本最优 a、b 对齐预测。",
+      "return (aligned-gt).abs().mean() 对齐后算 L1 作为最终损失。"
+    ],
+    "followUps": [
+      {
+        "question": "SILog 与仿射不变损失能否联合使用？",
+        "answer": "可以，常用 λ·SILog + (1−λ)·仿射对齐后 L1 的组合，前者保相对序、后者拉回尺度，λ 按下游是否需要 metric 调。"
+      },
+      {
+        "question": "相对深度如何转度量而不重训？",
+        "answer": "用稀疏度量点或已知尺寸物体做 Card2 的在线仿射校准，无需改动权重即可获得 metric 深度。"
+      }
+    ],
+    "followUpAnswers": [
+      "可以，常用 λ·SILog + (1−λ)·仿射对齐后 L1 的组合，前者保相对序、后者拉回尺度，λ 按下游是否需要 metric 调。",
+      "用稀疏度量点或已知尺寸物体做 Card2 的在线仿射校准，无需改动权重即可获得 metric 深度。"
+    ],
+    "invariant": "计算 diff 后，SILog 与仿射对齐都只在有效像素集合上统计，未纳入的无效像素不进入均值/方差。",
+    "walkthrough": "对 90 图本地集分别用 SILog 与仿射不变损失训练，后者因对齐了尺度，在 6 个近距正例上 F1 显著提升且 RMSE 收敛到 1.03。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-scale-ambiguity",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Medium",
+    "title": "尺度模糊与尺度校准",
+    "prompt": "单目深度为何存在尺度模糊？给定相对深度图与少量稀疏度量点，如何用最小二乘求得仿射尺度并完成校准？",
+    "quickAnswer": "单目无基线，深度只能确定到乘性常数加偏移（仿射模糊）。用稀疏度量点 (i,j,d_gt) 拟合 d_metric = a·d_rel + b 的最小二乘解，再对全图施加 a·d_rel+b 即完成从相对到度量的校准。",
+    "code": "import numpy as np\n\ndef calibrate_scale(rel_depth, sparse_metric):\n    # rel_depth: HxW 相对深度; sparse_metric: [(i,j,metric), ...]\n    A, b = [], []\n    for i, j, m in sparse_metric:\n        A.append([rel_depth[i, j], 1.0])  # d_metric = a*s + b\n        b.append(m)\n    A = np.array(A); b = np.array(b)\n    a, b_scale = np.linalg.lstsq(A, b, rcond=None)[0]\n    return float(a), float(b_scale)\n\ndef apply_scale(rel_depth, a, b):\n    return a * rel_depth + b",
+    "complexity": "时间 O(p·d + d³)，p 为稀疏点数、d 为参数维(2)，空间 O(p)",
+    "beginnerSummary": "单目像一只眼，只能判断'谁前谁后'却不知道'差几米'，这叫尺度模糊。给几处已知真实距离的点，就能反推出整体放缩与偏移，把'排名'翻译成'米数'。",
+    "derivation": [
+      "为什么需要：单目无双目视差，深度估计只能确定到仿射等价类，绝对尺度缺失会直接毁掉 1 m 阈值判定。",
+      "怎么实现：用稀疏度量点构造超定方程组 d_gt = a·d_rel + b，最小二乘求 (a,b)，全图仿射变换即得 metric 深度。",
+      "有什么代价：校准依赖稀疏点质量，点少或含噪时 a、b 抖动，外推区误差放大。",
+      "怎么评测：用校准后 RMSE 与近距 F1 验证，对比未校准时的尺度漂移量。"
+    ],
+    "edgeCases": [
+      "稀疏点少于 2 个或共线，最小二乘无唯一解。",
+      "稀疏点含离群（漏检/错标），a、b 被严重带偏。",
+      "标定域与测试域光照/季节变化，仿射关系失效。"
+    ],
+    "pitfalls": [
+      "对整图用单一全局尺度，忽略尺度随距离非线性变化。",
+      "用 YOLO 估计的车辆尺寸作先验时未扣除透视投影误差。",
+      "把相对深度直接当米数用而不校准，阈值全错。"
+    ],
+    "prerequisites": [
+      "最小二乘与线性代数基础",
+      "单目相机尺度不确定性",
+      "仿射变换概念"
+    ],
+    "workedExample": [
+      "输入：相对深度图 + 3 个由已知车长反推的近距度量点。",
+      "拟合得 a=4.2, b=0.1，全图 d_metric=4.2·d_rel+0.1，近距区域从 0.23 变为约 1.07 m。"
+    ],
+    "lineByLine": [
+      "for i,j,m in sparse_metric: 遍历每个已知真实距离的点。",
+      "A.append([rel_depth[i,j],1.0]) 构造仿射方程的两列（斜率项与偏置项）。",
+      "np.linalg.lstsq(A,b,rcond=None) 解超定方程得最优 (a,b)。",
+      "return a*rel_depth+b 将全图相对深度映射到度量空间。"
+    ],
+    "followUps": [
+      {
+        "question": "稀疏点不足时如何稳定尺度？",
+        "answer": "可用 RANSAC 剔除离群点后拟合，或借助已知尺寸物体（车长/人体高）的密度先验做贝叶斯校准，再对结果做时序平滑。"
+      },
+      {
+        "question": "为何不直接回归 metric 而要校准相对深度？",
+        "answer": "相对深度训练信号更易大规模获取、泛化更好；metric 受域偏移敏感，在线用少量先验校准比重训更省且更稳。"
+      }
+    ],
+    "followUpAnswers": [
+      "可用 RANSAC 剔除离群点后拟合，或借助已知尺寸物体（车长/人体高）的密度先验做贝叶斯校准，再对结果做时序平滑。",
+      "相对深度训练信号更易大规模获取、泛化更好；metric 受域偏移敏感，在线用少量先验校准比重训更省且更稳。"
+    ],
+    "invariant": "每处理一个稀疏点，矩阵 A、向量 b 始终包含此前所有点的 (s,1) 行与对应度量值，且未加入的点不出现。",
+    "walkthrough": "取 6 个近距正例的车身尺寸先验点，拟合 a、b 后把相对深度转 metric；在 90 图本地集上 RMSE 由未校准的 3.7 降到 1.03。",
+    "kind": "code"
+  },
+  {
+    "id": "depth-vit",
+    "category": "单目深度与障碍物感知",
+    "difficulty": "Medium",
+    "title": "深度估计中的视觉 Transformer",
+    "prompt": "Vision Transformer 如何改造用于单目深度估计？DPT 的多尺度特征融合解码器起什么作用？",
+    "quickAnswer": "ViT 把图像切成 patch 经自注意力编码为含全局上下文的 token；DPT 解码器把这些多层级 token 通过卷积 refinenet 上采样并跳跃融合，恢复空间分辨率输出稠密深度。全局注意力补偿了 CNN 局部感受野的不足，对遮挡/大物体更鲁棒。",
+    "code": "import torch.nn as nn\nimport torch.nn.functional as F\n\nclass DPTDecoder(nn.Module):\n    def __init__(self, feat_dims=(64, 128, 256, 512), out_ch=256):\n        super().__init__()\n        self.refinenets = nn.ModuleList(\n            [nn.Conv2d(d, out_ch, 3, padding=1) for d in feat_dims])\n        self.head = nn.Conv2d(out_ch, 1, 3, padding=1)\n\n    def forward(self, vit_features):\n        # vit_features: 由浅到深的多尺度 token 列表\n        x = None\n        for f, ref in zip(reversed(vit_features), self.refinenets):\n            if x is not None:\n                x = F.interpolate(x, scale_factor=2, mode=\"bilinear\") + ref(f)\n            else:\n                x = ref(f)\n        return self.head(x)",
+    "complexity": "时间 O(N²·L + H·W·C)，L 为 token 数，空间 O(N·L)",
+    "beginnerSummary": "CNN 像用放大镜局部看，ViT 像把整张图拼成拼图后全局比对，更懂'谁被挡'；DPT 解码器再把拼图细节一层层放大补齐，输出每个像素的距离。",
+    "derivation": [
+      "为什么需要：CNN 感受野有限，难以建模长程遮挡与全局尺度，ViT 的全局注意力更适合深度这种结构化任务。",
+      "怎么实现：图像分 patch 编码为 token，DPT 用多级 refinenet 上采样并跳跃融合恢复分辨率。",
+      "有什么代价：自注意力 O(N²) 算力高，需大量数据预训练，端侧部署成本高。",
+      "怎么评测：看 δ<1.25、RMSE 与下游 F1，对比 CNN 基线验证长程建模收益。"
+    ],
+    "edgeCases": [
+      "输入分辨率非 patch 整数倍，需 padding 或插值对齐。",
+      "高分辨率使 token 数 N 暴涨，注意力显存爆炸。",
+      "小数据下 ViT 易过拟合，需强 aug/蒸馏。"
+    ],
+    "pitfalls": [
+      "直接套分类 ViT 不改解码器，输出无空间细节。",
+      "忽略位置编码，打乱 patch 顺序深度崩。",
+      "端侧硬上大模型不量化，FPS 不达标。"
+    ],
+    "prerequisites": [
+      "自注意力与 Transformer",
+      "CNN 编码器/解码器",
+      "位置编码与 patch 嵌入"
+    ],
+    "workedExample": [
+      "输入 518×518 图，切为 14×14 token 经 ViT 编码。",
+      "DPT 四级 refinenet 逐级 2× 上采样融合，输出 1 通道深度图。"
+    ],
+    "lineByLine": [
+      "self.refinenets = ... 为每级特征建卷积 refinenet 统一通道。",
+      "for f, ref in zip(reversed(vit_features), self.refinenets): 由深到浅遍历。",
+      "x = F.interpolate(x, scale_factor=2) + ref(f) 上采样并与同级特征跳跃融合。",
+      "return self.head(x) 1×1 卷积输出单通道深度。"
+    ],
+    "followUps": [
+      {
+        "question": "ViT 的全局注意力对深度有何特殊收益？",
+        "answer": "能利用图像远端线索（如地平线、已知物体）推断近处遮挡区深度，缓解 CNN 因局部感受野导致的结构断裂。"
+      },
+      {
+        "question": "端侧如何用 ViT 类深度模型？",
+        "answer": "用轻量混合架构（如 MobileViT）、蒸馏到 CNN、或仅对低分辨率深度残差用 ViT，再 TensorRT 量化部署 Jetson。"
+      }
+    ],
+    "followUpAnswers": [
+      "能利用图像远端线索（如地平线、已知物体）推断近处遮挡区深度，缓解 CNN 因局部感受野导致的结构断裂。",
+      "用轻量混合架构（如 MobileViT）、蒸馏到 CNN、或仅对低分辨率深度残差用 ViT，再 TensorRT 量化部署 Jetson。"
+    ],
+    "invariant": "由深到浅遍历特征级时，x 在每级结束都已是上一级融合结果，且未被遍历的更浅级尚未加入 x。",
+    "walkthrough": "将 ViT+DPT 用于 90 图本地集，相对深度序质量优于 CNN 基线，配合校准后 RMSE 1.03；但原始 ViT 在 Jetson 仅约 3 FPS，需蒸馏才能达到 8.38 FPS。",
+    "kind": "code"
+  },
+  {
     "id": "sy-data-flywheel",
     "category": "合成数据",
     "difficulty": "Hard",
@@ -16594,6 +19111,381 @@ export const questions = [
       "常规 CoT 微调用固定的专家推理链；STaR 用模型自己生成、再由答案正确性筛选的链，是自我 bootstrap，不依赖外部推理标注。",
       "当问题极难、模型几乎采不到正确链时，筛选集为空无法训练；或答案自动判定不可靠时，会把噪声注入监督信号。"
     ],
+    "kind": "concept"
+  },
+  {
+    "id": "ml-auc-eval",
+    "category": "因果推断与树模型",
+    "difficulty": "Medium",
+    "title": "分类模型评测：AUC 与 ROC 曲线",
+    "prompt": "如何用 Wilcoxon-Mann-Whitney 视角从排序计算 AUC，并解释 ROC 曲线与 AUC 在类别不平衡下的局限？",
+    "quickAnswer": "AUC 等价于随机抽一正一负样本、正样本得分更高的概率：AUC=(∑rank_pos - n_pos(n_pos+1)/2)/(n_pos·n_neg)。ROC 是不同阈值下 TPR 对 FPR 的轨迹，AUC 是其下面积。类别极不平衡时 AUC 仍稳但 PR 曲线/AUPRC 更能反映稀有正类表现。",
+    "code": "import numpy as np\n\ndef roc_auc(y_true, y_score):\n    y_true = np.asarray(y_true)\n    y_score = np.asarray(y_score)\n    order = np.argsort(y_score)\n    ranks = np.empty(len(y_score), dtype=float)\n    ranks[order] = np.arange(1, len(y_score) + 1)\n    ties = np.isclose(y_score[order][1:], y_score[order][:-1])\n    ranks[order][1:][ties] = (ranks[order][1:][ties] + ranks[order][:-1][ties]) / 2.0\n    n_pos = y_true.sum()\n    n_neg = len(y_true) - n_pos\n    return float((ranks[y_true == 1].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))\n\ndef compute_roc(y_true, y_score, n=100):\n    thr = np.linspace(0, 1, n)\n    fpr = [float(((y_score >= t) & (y_true == 0)).mean()) for t in thr]\n    tpr = [float(((y_score >= t) & (y_true == 1)).mean()) for t in thr]\n    return fpr, tpr",
+    "complexity": "时间 O(n log n)（排序），空间 O(n)",
+    "beginnerSummary": "AUC 就像给模型打分：随便抓一个会出险的和一个不会出险的，看模型能不能把“会出险”排得更靠前，排对的概率就是 AUC。",
+    "derivation": [
+      "为什么需要：单一阈值准确率在不平衡数据上会失真，需要衡量模型整体排序能力而不依赖截断点。",
+      "怎么实现：按得分排序赋秩，正类秩和减去最小可能秩和再除以正负对数得 AUC；ROC 遍历阈值记录 (FPR,TPR)。",
+      "有什么代价：AUC 对得分绝对值与校准不敏感，且极不平衡时高 AUC 也可能漏掉多数正类，需配 PR 曲线。",
+      "怎么评测：报告 AUC 及置信区间，结合 KS、Gini（=2·AUC-1）与 PR-AUC，在业务阈值处看精确率/召回。"
+    ],
+    "edgeCases": [
+      "所有得分相同时秩取平均，AUC 退化为 0.5。",
+      "正类为 0 或全为正时分母为零，AUC 无定义须报错或跳过。",
+      "存在并列得分需平均秩，否则 AUC 有偏。",
+      "样本量极小导致 AUC 置信区间极宽，需 bootstrap。"
+    ],
+    "pitfalls": [
+      "类别不平衡时只看 AUC 忽略 AUPRC，会高估稀有事件模型。",
+      "用准确率替代 AUC，在 99% 负类时模型全预测负即得 99% 却无排序力。",
+      "把训练集 AUC 当泛化能力，未做验证集评估。"
+    ],
+    "prerequisites": [
+      "混淆矩阵（TP/FP/TN/FN）",
+      "真正率 TPR 与假正率 FPR",
+      "排序与秩次统计基础"
+    ],
+    "workedExample": [
+      "精算赔付标签中正类（出险）仅占 3%，模型输出概率得分。",
+      "按 roc_auc 算得 AUC=0.914，说明随机抽一出一险一不出险，模型 91.4% 概率把出险者排前。",
+      "但 AUPRC 仅 0.21，提示稀有正类绝对识别仍有限，需配合阈值调优。"
+    ],
+    "lineByLine": [
+      "np.argsort(y_score)：得升序索引，作为赋秩基础。",
+      "ranks[order]=arange(1..n)：把样本按得分从低到高赋 1..n 秩。",
+      "ties 平均秩处理：并列得分取平均秩避免偏差。",
+      "n_pos/n_neg 统计正负样本数，构造 AUC 分母。",
+      "rank_pos 求和减最小秩和后除以正负对数，得到 Mann-Whitney 式 AUC。",
+      "compute_roc：遍历阈值输出 FPR/TPR 序列供画 ROC。"
+    ],
+    "followUps": [
+      {
+        "question": "Gini 系数和 AUC 的关系是什么，精算为何常用 Gini？",
+        "answer": "精算 Gini = 2·AUC - 1，把随机 0.5 映射到 0，更直观表示区分度提升；监管与再保常用 Gini 报告模型排序力。"
+      },
+      {
+        "question": "什么情况下 AUC 高但业务价值低？",
+        "answer": "当正类极稀有且业务关注绝对召回时，AUC 高只说明排序好，若top分段覆盖不足正类，实际捕获率低，需看 PR 曲线与lift。"
+      }
+    ],
+    "followUpAnswers": [
+      "精算 Gini = 2·AUC - 1，把随机 0.5 映射到 0，更直观表示区分度提升；监管与再保常用 Gini 报告模型排序力。",
+      "当正类极稀有且业务关注绝对召回时，AUC 高只说明排序好，若top分段覆盖不足正类，实际捕获率低，需看 PR 曲线与lift。"
+    ],
+    "explanationFocus": "是什么：AUC 是 ROC 曲线下面积，等价于随机抽一个正样本和一个负样本、模型把正样本排在负样本之前的概率；它衡量的是排序质量而非绝对概率，对阈值选择不敏感。",
+    "approach": "核心思路是把样本按预测得分排序并赋秩，用正类秩和公式 (∑rank_pos - n_pos(n_pos+1)/2)/(n_pos·n_neg) 直接计算 AUC，同时遍历阈值得到 ROC；类别不平衡时辅以 PR-AUC 与 Gini=2AUC-1。",
+    "kind": "concept"
+  },
+  {
+    "id": "ml-causal",
+    "category": "因果推断与树模型",
+    "difficulty": "Medium",
+    "title": "因果推断基础：干预、反事实与相关性的区别",
+    "prompt": "为什么相关性不等于因果，因果推断中的干预（intervention）与反事实（counterfactual）分别指什么，如何估计平均处理效应 ATE？",
+    "quickAnswer": "相关只描述 P(Y|X) 的联合统计，因果关心 do(X) 带来的分布改变；干预 do(X=x) 是主动设定处理并切断其原有父节点，反事实是在已观测结果下设想“若当时选了另一处理”的结果。ATE 在可忽略性成立时可用 E[Y|T=1]-E[Y|T=0] 或倾向得分加权估计。",
+    "code": "import numpy as np\nimport pandas as pd\n\ndef naive_ate(df, treat=\"treatment\", out=\"outcome\"):\n    treated = df.loc[df[treat] == 1, out].mean()\n    control = df.loc[df[treat] == 0, out].mean()\n    return float(treated - control)\n\ndef ips_ate(df, ps, treat=\"treatment\", out=\"outcome\"):\n    w = np.where(df[treat] == 1, 1.0 / ps, 1.0 / (1.0 - ps))\n    num = (w * (df[treat] == 1) * df[out]).sum() - (w * (df[treat] == 0) * df[out]).sum()\n    den = (w * (df[treat] == 1)).sum() - (w * (df[treat] == 0)).sum()\n    return float(num / den)",
+    "complexity": "时间 O(n)，空间 O(n)（n 为样本数）",
+    "beginnerSummary": "冰淇淋销量和溺水人数都随天气升高而上升，但吃冰淇淋不会让人溺水——这是相关非因果。干预像是主动给病人吃药并切掉其他干扰，反事实是设想“若当初没吃这药会怎样”。",
+    "derivation": [
+      "为什么需要：仅靠观测相关会受混杂变量（如天气）影响，导致错误地归因，业务决策需知道“做了 X 会带来什么改变”。",
+      "怎么实现：用 do-演算定义干预 P(Y|do(X=x))，反事实借助结构方程与已观测噪声重建；ATE 在可忽略性下用组间差或逆概率加权估计。",
+      "有什么代价：因果识别依赖不可验证的假设（可忽略性、重叠），需敏感性分析与协变量平衡检验，否则估计有偏。",
+      "怎么评测：用协变量平衡（SMD<0.1）、重叠图、安慰剂检验与 RCT 子样本验证外推有效性。"
+    ],
+    "edgeCases": [
+      "倾向得分接近 0 或 1 时逆概率加权出现极端权重，须截断或改用 DR。",
+      "未观测混杂（U）存在时 ATE 不可识别，需要工具变量或断点设计。",
+      "处理非二值（多剂量）时需改用剂量-响应曲线 g-computation。",
+      "样本量小导致组间协变量不平衡，ATE 方差很大需 bootstrap。"
+    ],
+    "pitfalls": [
+      "把观测到的条件差 (Y|T=1)-(Y|T=0) 直接当因果，忽略选择偏差。",
+      "过度依赖 p 值判断因果，忽略可识别性假设是否成立。",
+      "反事实与干预混淆：干预是群体层面的 do，反事实是个体层面的假设。"
+    ],
+    "prerequisites": [
+      "条件概率与贝叶斯公式",
+      "混杂（confounding）与有向无环图 DAG",
+      "期望、方差与无偏估计基本概念"
+    ],
+    "workedExample": [
+      "发优惠券（T=1/0）给两组用户，观测购买额 Y，但活跃老用户更可能被发券形成混杂。",
+      "朴素差 naive_ate 给出 12 元，但老用户本就多买，存在上偏。",
+      "用倾向得分做 ips_ate 后估计降到 5 元，更接近真实因果效应。"
+    ],
+    "lineByLine": [
+      "import numpy/pandas：载入数值与表格处理库。",
+      "naive_ate：直接计算处理组与控制组结果均值差，未校正混杂。",
+      "treated/control 用 df.loc 按处理列筛选并求均值。",
+      "ips_ate：构造逆概率权重 w，处理组权重 1/ps、控制组 1/(1-ps)。",
+      "num/den 用加权差分做 Horvitz-Thompson 式估计，返回 ATE 点估计。"
+    ],
+    "followUps": [
+      {
+        "question": "可忽略性（ignorability）假设在实践里怎么检验？",
+        "answer": "它本质上不可直接验证，只能检验已观测协变量在两组间平衡（SMD、重叠权重后分布），并用敏感性分析（如 E-value）量化未观测混杂需多大才推翻结论。"
+      },
+      {
+        "question": "双鲁棒（Doubly Robust）估计为什么更稳？",
+        "answer": "DR 同时建模倾向得分与结果回归，只要其中之一正确即可得到无偏 ATE，因此相比纯 IPS 或纯回归更抗模型误设。"
+      }
+    ],
+    "followUpAnswers": [
+      "它本质上不可直接验证，只能检验已观测协变量在两组间平衡（SMD、重叠权重后分布），并用敏感性分析（如 E-value）量化未观测混杂需多大才推翻结论。",
+      "DR 同时建模倾向得分与结果回归，只要其中之一正确即可得到无偏 ATE，因此相比纯 IPS 或纯回归更抗模型误设。"
+    ],
+    "explanationFocus": "是什么：因果推断研究“若主动改变某变量（干预）会带来什么结果”，而非仅观测变量如何共同变化；它用 do-算子与反事实框架把相关提升到因果层面，关键在于处理变量是被外部设定而非被其他变量决定。",
+    "approach": "核心思路是区分观测分布 P(Y|X) 与干预分布 P(Y|do(X))：通过 DAG 识别可忽略性后，用组间差、逆概率加权或 g-computation 估计 ATE，并以协变量平衡与敏感性分析保证可识别性。",
+    "kind": "concept"
+  },
+  {
+    "id": "ml-feature-eng",
+    "category": "因果推断与树模型",
+    "difficulty": "Medium",
+    "title": "特征工程与数据链路（Python/SQL/Snowflake，处理效率 +40%）",
+    "prompt": "如何在 Snowflake + Python 数据链路上做特征工程，使批量特征处理效率提升 40% 并保证特征可复现？",
+    "quickAnswer": "链路分三层：SQL/Snowflake 做聚合与窗口特征下沉到仓库减少传输，Python 做轻量变换与目标编码，并用特征字典与版本化视图保证可复现。关键是用 Snowflake 的物化视图/结果缓存做预聚合、用批量向量化 pandas 替代逐行循环，从而整体吞吐 +40%。",
+    "code": "import numpy as np\nimport pandas as pd\n\ndef build_features(df: pd.DataFrame) -> pd.DataFrame:\n    df = df.copy()\n    df[\"tenure_months\"] = (df[\"end_date\"] - df[\"start_date\"]).dt.days / 30.0\n    df[\"log_premium\"] = np.log1p(df[\"premium\"])\n    df[\"region_freq\"] = df.groupby(\"region\")[\"user_id\"].transform(\"count\")\n    df[\"avg_claim_by_region\"] = df.groupby(\"region\")[\"claim\"].transform(\"mean\")\n    return df.drop(columns=[\"start_date\", \"end_date\"])\n\n-- Snowflake SQL: 预聚合下沉，减少 Python 端计算\nCREATE OR REPLACE VIEW fct_user_features AS\nSELECT user_id, region,\n       COUNT(*) OVER (PARTITION BY region) AS region_freq,\n       AVG(claim) OVER (PARTITION BY region) AS avg_claim_by_region,\n       DATEDIFF('day', start_date, end_date) / 30.0 AS tenure_months\nFROM raw_policies;",
+    "complexity": "时间 O(n) 向量化，空间 O(n)；SQL 端依赖仓库算力",
+    "beginnerSummary": "特征工程像做饭备菜：尽量在仓库（大厨房）里把菜洗切好，只把半成品端到 Python（灶台）快速翻炒，比每道菜都从头在灶台处理快得多。",
+    "derivation": [
+      "为什么需要：原始日志海量且脏，逐行 Python 处理慢且易出错，需把重计算下沉到列式仓库并标准化。",
+      "怎么实现：Snowflake 用窗口函数/物化视图做聚合下沉，Python 只做数值变换与编码，特征用字典与 Git 版本管理保证可复现。",
+      "有什么代价：仓库计算有 credit 成本，视图过多易 stale，需调度刷新与血缘记录；复杂变换仍须在 Python 端。",
+      "怎么评测：对比端到端耗时与特征一致性校验（哈希/行数对账），以 +40% 吞吐与目标分布漂移监控衡量成效。"
+    ],
+    "edgeCases": [
+      "NULL 日期导致 tenure_months 为 NaN，需填充或剔除。",
+      "高基数类别目标编码需做交叉验证防泄漏，避免训练集信息泄入。",
+      "Snowflake 时区与本地不一致，窗口按天聚合会错位。",
+      "增量更新时新地区 region_freq 为 1，需平滑避免极端值。"
+    ],
+    "pitfalls": [
+      "在 Python 里逐行 apply 做聚合，放弃向量化导致慢数十倍。",
+      "特征在训练/推断用不同 SQL 造成训练-服务偏斜（train-serving skew）。",
+      "目标编码未做折叠（out-of-fold）引入泄漏，线上效果崩塌。"
+    ],
+    "prerequisites": [
+      "SQL 聚合与窗口函数",
+      "pandas 向量化与 groupby/transform",
+      "训练-服务一致性（特征泄漏）概念"
+    ],
+    "workedExample": [
+      "原链路在 Python 逐行算地区频次，1000 万行耗时 25 分钟。",
+      "改写为 Snowflake 视图预聚合 + Python 仅做 log/premium 等轻变换，耗时降到 15 分钟（约 +40%）。",
+      "特征字典登记字段含义与版本，离线重跑得到完全一致结果，保证可复现。"
+    ],
+    "lineByLine": [
+      "import numpy/pandas：载入数值与表格库。",
+      "df.copy()：避免修改入参原表。",
+      "tenure_months：向量化算保单时长（月），替代逐行循环。",
+      "log_premium=np.log1p：对右偏保费做 log1p 稳定模型。",
+      "groupby(region).transform(count/mean)：在仓库思想下做地区级聚合特征。",
+      "Snowflake VIEW：用窗口函数把聚合下沉到仓库，减少 Python 传输与计算。"
+    ],
+    "followUps": [
+      {
+        "question": "如何避免特征工程中的训练-服务偏斜（train-serving skew）？",
+        "answer": "把同一套 SQL/Python 特征逻辑封装成共享函数或物化视图，训练与线上推断都调用同一入口，并用特征哈希对账两侧输出，定期做分布一致性校验。"
+      },
+      {
+        "question": "目标编码怎么做才不泄漏？",
+        "answer": "用 K 折或留一法（out-of-fold）计算编码：每条样本的地区均值来自排除自身的其他样本，或加平滑 (Σ+α·glob)/(n+α)，从根源阻断标签泄漏。"
+      }
+    ],
+    "followUpAnswers": [
+      "把同一套 SQL/Python 特征逻辑封装成共享函数或物化视图，训练与线上推断都调用同一入口，并用特征哈希对账两侧输出，定期做分布一致性校验。",
+      "用 K 折或留一法（out-of-fold）计算编码：每条样本的地区均值来自排除自身的其他样本，或加平滑 (Σ+α·glob)/(n+α)，从根源阻断标签泄漏。"
+    ],
+    "explanationFocus": "是什么：特征工程是把原始日志转化为模型可学信号的过程，数据链路指从 Snowflake 仓库 SQL 预聚合到 Python 轻量变换的管线；核心是“重计算下沉仓库、轻变换留在 Python”，并以特征字典与版本化保证可复现。",
+    "approach": "核心思路是用 Snowflake 窗口函数/物化视图把聚合特征在列式仓库算好减少传输，Python 仅做向量化数值变换与目标编码，配合特征版本管理与训练-服务一致性校验，使批处理效率提升约 40%。",
+    "kind": "concept"
+  },
+  {
+    "id": "ml-glm-trees",
+    "category": "因果推断与树模型",
+    "difficulty": "Hard",
+    "title": "GLM Trees 在保险定价与因果推断中的应用",
+    "prompt": "GLM Trees 如何把广义线性模型与决策树结合，用于保险费率厘定与异质性处理效应估计？",
+    "quickAnswer": "GLM Trees 在树的每个叶子拟合一个 GLM（如 Gamma+Log 链接、带 exposure 偏移），先递归按偏差减小分裂，再在叶内做可解释回归。保险上每片叶子给出费率乘数，因果上每片叶子对应一个子群体，其系数即该群体的条件处理效应（CATE）。",
+    "code": "import numpy as np\nimport statsmodels.api as sm\n\ndef fit_glm_leaf(X, y, exposure):\n    Xd = sm.add_constant(X)\n    model = sm.GLM(y, Xd,\n                   family=sm.families.Gamma(),\n                   var_weights=exposure,\n                   link=sm.families.links.Log())\n    res = model.fit()\n    return res.params, res.predict(Xd)\n\ndef deviance_reduction(y, exposure, left_idx, right_idx):\n    def dev(idx):\n        mu = y[idx].sum() / exposure[idx].sum()\n        return -2 * (np.log(mu) * y[idx].sum() - mu * exposure[idx].sum()).sum()\n    return dev(np.concatenate([left_idx, right_idx])) - dev(left_idx) - dev(right_idx)",
+    "complexity": "时间 O(n·d·L)，空间 O(n)（n 样本、d 特征、L 叶子）",
+    "beginnerSummary": "普通 GLM 给所有人一套公式，GLM Tree 先把客户按风险切成几堆，每堆各自算一套费率公式，既像树一样能抓差异，又像回归一样可解释。",
+    "derivation": [
+      "为什么需要：纯 GLM 假设全局线性且交互有限，纯树对连续目标噪声大；保险需要可解释的费率且要处理异质性效应。",
+      "怎么实现：在树节点用 GLM 偏差作分裂准则，叶子内拟合带 exposure 的 Gamma/Log GLM，逐层递归得到分段 GLM。",
+      "有什么代价：分裂-拟合交替使调参复杂，叶子 GLM 在样本少时不稳定，需限制最小叶子 exposure 与树深。",
+      "怎么评测：对比全局 GLM 的偏差残差、看叶子费率单调性是否合理，并以外样本赔付比（actual/expected）校验校准。"
+    ],
+    "edgeCases": [
+      "某叶子 exposure 过小会导致 Gamma GLM 无法收敛，须设最小曝光阈值。",
+      "连续特征严格单调性（如年龄越大费率越高）可能被树切出违反业务规则的叶子，需后处理约束。",
+      "零膨胀赔付（多数 0 小额）建议改用 Tweedie 族而非 Gamma。",
+      "高基数类别需先分箱，否则分裂过碎。"
+    ],
+    "pitfalls": [
+      "把叶子预测当独立模型，忽略 exposure 加权导致小样本叶子误导全局费率。",
+      "用普通 MSE 分裂而非偏差，对右偏赔付不敏感。",
+      "误把树深度当可解释性保证，深层叶子系数仍难向精算师解释。"
+    ],
+    "prerequisites": [
+      "广义线性模型（连接函数、指数族）",
+      "偏差（deviance）与似然比",
+      "决策树递归分裂"
+    ],
+    "workedExample": [
+      "车险数据含车龄、地区、NCD 等级，目标为年赔付额、exposure 为 exposed-years。",
+      "GLM Tree 先按地区分两堆，再按车龄细分，每片叶子拟合 Log-Gamma GLM 得到费率乘数。",
+      "对比全局 GLM 偏差降低 8%，且高风险子群体 CATE 明显更高，用于差异化定价。"
+    ],
+    "lineByLine": [
+      "import numpy/statsmodels：载入数值与 GLM 拟合库。",
+      "sm.add_constant(X)：为 GLM 加入截距项。",
+      "sm.GLM(..., family=Gamma(), var_weights=exposure, link=Log)：用曝光作方差权重、对数链接建模右偏赔付。",
+      "model.fit()：IRWLS 迭代求极大似然系数与预测。",
+      "deviance_reduction：按叶子 GLM 偏差下降决定最优二分点，dev 用对数似然近似偏差。"
+    ],
+    "followUps": [
+      {
+        "question": "GLM Trees 与 GBDT 在保险定价上如何取舍？",
+        "answer": "GBDT 预测更准但黑盒、难满足监管可解释与单调性；GLM Tree 精度略低却每片叶子可写成费率公式，便于精算师复核与合规，常做主模型+树模型对照。"
+      },
+      {
+        "question": "怎么用 GLM Tree 做异质性处理效应（CATE）估计？",
+        "answer": "把处理×协变量交互纳入叶子 GLM，每片叶子系数即该子群体的条件平均处理效应，树结构自动发现效应差异最大的细分人群。"
+      }
+    ],
+    "followUpAnswers": [
+      "GBDT 预测更准但黑盒、难满足监管可解释与单调性；GLM Tree 精度略低却每片叶子可写成费率公式，便于精算师复核与合规，常做主模型+树模型对照。",
+      "把处理×协变量交互纳入叶子 GLM，每片叶子系数即该子群体的条件平均处理效应，树结构自动发现效应差异最大的细分人群。"
+    ],
+    "explanationFocus": "是什么：GLM Trees 是一种混合模型——它在决策树的每个叶子节点拟合一个广义线性模型，而非常数预测；这样既保留树的异质性分割能力，又让每片叶子输出可解释、带 Exposure 加权的回归系数，常用于保险费率厘定。",
+    "approach": "核心思路是用 GLM 的偏差（deviance）作为树分裂准则，自顶向下递归把样本切到不同子群体，再在叶内用 Gamma/Log 等族拟合带曝光权重的回归，最终得到“分段可解释 GLM”，并可把处理交互纳入叶子以估计 CATE。",
+    "kind": "concept"
+  },
+  {
+    "id": "ml-uplift",
+    "category": "因果推断与树模型",
+    "difficulty": "Hard",
+    "title": "Uplift 建模与转化率提升（+15%）",
+    "prompt": "uplift 建模如何估计个体处理效应（ITE）并用 Qini 曲线衡量效果，从而把转化率提升 15%？",
+    "quickAnswer": "Uplift 模型预测 P(Y=1|T=1)-P(Y=1|T=0) 的条件差，常用双模型、变形建模（transformed outcome）或因果树。Qini 曲线按 uplift 预测降序分组，横轴累计人群、纵轴两组累计转化差，曲线下面积（Qini 系数）量化增量价值；据此只对高 uplift 人群投放可使整体转化 +15%。",
+    "code": "import numpy as np\n\ndef uplift_score(df, treat=\"treatment\", conv=\"converted\"):\n    tr = df.loc[df[treat] == 1, conv].mean()\n    ct = df.loc[df[treat] == 0, conv].mean()\n    return float(tr - ct)\n\ndef qini_curve(df, score=\"uplift_pred\", treat=\"treatment\", conv=\"converted\", n_bins=10):\n    df = df.sort_values(score, ascending=False).reset_index(drop=True)\n    df[\"bucket\"] = np.floor(np.arange(len(df)) / len(df) * n_bins).astype(int)\n    rows = []\n    n_t = (df[treat] == 1).sum()\n    n_c = (df[treat] == 0).sum()\n    for b in range(n_bins):\n        sub = df[df[\"bucket\"] <= b]\n        tr = sub.loc[sub[treat] == 1, conv].mean()\n        ct = sub.loc[sub[treat] == 0, conv].mean()\n        rows.append((b + 1) / n_bins, float(tr - ct))\n    return rows",
+    "complexity": "时间 O(n log n)（排序）+ O(n)，空间 O(n)",
+    "beginnerSummary": "普通模型预测“谁会买”，uplift 预测“谁的购买是被这波优惠‘逼’出来的”；只给最可能被优惠打动的人发券，转化提升更多且省钱。",
+    "derivation": [
+      "为什么需要：整体投放券会浪费在“不给也会买”的人身上，uplift 找出净增量最高人群才能把转化 +15% 且控成本。",
+      "怎么实现：用双模型分别估 P(Y|T=1)、P(Y|T=0) 相减，或因果树按异质性分裂，变形建模把标签改成 (Y·(2T-1)) 直接回归 uplift。",
+      "有什么代价：需同时有处理/对照数据，uplift 信号弱、方差大，需大样本与校准，错误定向反而损转化。",
+      "怎么评测：用 Qini 曲线与 Qini 系数、AUUC 在保持集上比较随机投放基线与模型策略的增量。"
+    ],
+    "edgeCases": [
+      "处理组与对照组样本量严重失衡时 Qini 估计方差大，须分层或加权。",
+      "uplift 近 0 的人群定向无意义，应设阈值只投放正 uplift。",
+      "存在“负 uplift”（优惠引发反感）人群，需识别并排除。",
+      "标签延迟（转化滞后）时要做时间窗口对齐，否则训练标签失真。"
+    ],
+    "pitfalls": [
+      "用普通转化率模型排序再投放，优化的是 propensity 而非 uplift，浪费预算。",
+      "Qini 横轴用人数比例而非随机分配比例，会高估实际增益。",
+      "把训练集 Qini 当最终效果，未做时间外样本验证导致过拟合。"
+    ],
+    "prerequisites": [
+      "因果推断与 ATE（见 ml-causal）",
+      "分类模型与概率校准",
+      "ROC/AUC 评测基础"
+    ],
+    "workedExample": [
+      "对 50 万用户随机发券（T=1）或不发（T=0），记录是否转化 Y。",
+      "训练 uplift 模型输出每用户增量分，按降序取前 30% 人群定向发券。",
+      "对比全量发券，转化提升 15% 且券成本下降，验证集 Qini 系数 0.12。"
+    ],
+    "lineByLine": [
+      "import numpy：载入数值计算。",
+      "uplift_score：算处理组与对照组整体转化差，即群体层面 uplift。",
+      "sort_values(score, ascending=False)：按模型 uplift 预测从高到低排，准备累计评估。",
+      "np.floor(.../len*n_bins)：把样本切为 n_bins 个等份桶用于累积曲线。",
+      "循环每桶算累计 tr-ct，返回 (人群比例, 增量转化) 序列即 Qini 曲线点。"
+    ],
+    "followUps": [
+      {
+        "question": "双模型法与变形建模（Transformed Outcome）各有什么优劣？",
+        "answer": "双模型直观但两端概率相减放大方差；变形建模把标签转为 Y·(2T-1)/p 直接回归 uplift，偏差更小但依赖倾向得分准确，实践中常两者对照。"
+      },
+      {
+        "question": "上线后如何持续监测 uplift 模型是否失效？",
+        "answer": "保留小流量随机对照做真值校准，定期重算 Qini 与 AUUC，监控高分段实际增量是否衰减，并做特征漂移与概念漂移检测后重训。"
+      }
+    ],
+    "followUpAnswers": [
+      "双模型直观但两端概率相减放大方差；变形建模把标签转为 Y·(2T-1)/p 直接回归 uplift，偏差更小但依赖倾向得分准确，实践中常两者对照。",
+      "保留小流量随机对照做真值校准，定期重算 Qini 与 AUUC，监控高分段实际增量是否衰减，并做特征漂移与概念漂移检测后重训。"
+    ],
+    "explanationFocus": "是什么：Uplift 建模估计的是“干预带来的净增量”（个体处理效应 ITE = P(Y|T=1)-P(Y|T=0)），而非预测结果本身；目标是找到最容易被干预改变行为的人群，从而把营销预算只投向高增量用户。",
+    "approach": "核心思路是用双模型/因果树/变形建模输出每个样本的条件 uplift，再按 Qini 或 AUUC 曲线在保持集上评估增量价值，只向高分段定向投放，实现转化 +15% 且控制成本。",
+    "kind": "concept"
+  },
+  {
+    "id": "ml-xgboost",
+    "category": "因果推断与树模型",
+    "difficulty": "Hard",
+    "title": "XGBoost 与 Random Forest 原理及精算建模应用",
+    "prompt": "XGBoost 在精算赔付预测中把 AUC 做到 0.914，请说明它的目标函数、与 Random Forest 的核心差异，以及工程上如何调参防止过拟合？",
+    "quickAnswer": "XGBoost 是加法模型，目标函数含可微损失 + 二阶泰勒近似的正则化项（叶子权重与叶子数惩罚）；Random Forest 靠 Bagging 与随机特征子空间降低方差。XGBoost 通过 max_depth、min_child_weight、subsample、eta 与早停控制复杂度，精算场景常用小树深 + 小 eta 配合 early_stopping 稳定到 AUC≈0.914。",
+    "code": "import xgboost as xgb\nfrom sklearn.model_selection import train_test_split\nfrom sklearn.metrics import roc_auc_score\n\ndef train_xgb(X, y, params=None):\n    X_tr, X_val, y_tr, y_val = train_test_split(X, y, test_size=0.2, random_state=42)\n    dtrain = xgb.DMatrix(X_tr, label=y_tr)\n    dval = xgb.DMatrix(X_val, label=y_val)\n    p = params or {\"max_depth\": 4, \"eta\": 0.05,\n                   \"subsample\": 0.8, \"colsample_bytree\": 0.8,\n                   \"objective\": \"binary:logistic\", \"eval_metric\": \"auc\"}\n    bst = xgb.train(p, dtrain, num_boost_round=600,\n                    evals=[(dval, \"val\")], early_stopping_rounds=40, verbose_eval=False)\n    pred = bst.predict(dval)\n    return bst, roc_auc_score(y_val, pred)",
+    "complexity": "时间 O(n·k·d·log n)，空间 O(n·d)（n 样本数，k 棵树，d 树深）",
+    "beginnerSummary": "Random Forest 像很多专家各自看一部分资料后投票，稳但偏保守；XGBoost 像新手逐个修正前人的错误，学到更精细的规律，所以 AUC 更高但也要管住别学过头。",
+    "derivation": [
+      "为什么需要：精算赔付高度非线性且类别不平衡，线性模型与单棵深树都难兼顾偏差与方差，需要可加、可正则、可并行的强学习器。",
+      "怎么实现：以加法模型迭代加入回归树，目标函数用二阶泰勒展开近似损失，解析求得每片叶子最优权重，并加 λ·||w||² 与 γ·T 作正则。",
+      "有什么代价：树深与轮数过大会过拟合，需靠 max_depth、min_child_weight、subsample、eta 与早停约束，训练成本也高于单棵 RF。",
+      "怎么评测：用验证集 AUC 与早停监控，精算上还可看 Gini、KS 与校准后的赔付分布，确保 0.914 在样本外稳定。"
+    ],
+    "edgeCases": [
+      "类别极不平衡时正样本占比 <1%，需设 scale_pos_weight 或分层抽样。",
+      "缺失值 XGBoost 原生支持但 RF 需先 impute，否则 sklearn 会报错。",
+      "特征含高基数类别（保单号）须先做目标编码或 hash，避免树分裂过碎。",
+      "样本量巨大时要用 sparse DMatrix 与 GPU hist 直方图树方法降内存。"
+    ],
+    "pitfalls": [
+      "把 early_stopping 的验证集同时用于选超参，会造成乐观偏差。",
+      "eta 过小但 num_boost_round 不足会让模型欠拟合，需二者联动调。",
+      "精算常误用准确率评测，赔付稀有事件下 AUC 比准确率更能反映排序能力。"
+    ],
+    "prerequisites": [
+      "决策树分裂准则（信息增益 / Gini）",
+      "梯度下降与泰勒二阶展开",
+      "Bagging 与 Boosting 方差-偏差权衡"
+    ],
+    "workedExample": [
+      "取 100 万条车险保单，标签为是否发生赔款，特征含车龄、地区、历史出险。",
+      "设 max_depth=4、eta=0.05、subsample=0.8，训练 600 轮早停在 360 轮，验证集 AUC=0.914。",
+      "对比 Random Forest 同数据 AUC 约 0.895，说明 boosting 在此非线性精算任务更优。"
+    ],
+    "lineByLine": [
+      "import xgboost / sklearn 工具：载入训练与评测依赖。",
+      "train_test_split(test_size=0.2)：划分训练与验证，固定 random_state 保证可复现。",
+      "xgb.DMatrix(...)：把 ndarray 转成 XGBoost 高效内部格式，支持缺失标记。",
+      "params 中 max_depth/eta/subsample/colsample_bytree：控制单树复杂度与随机性防过拟合。",
+      "xgb.train(..., early_stopping_rounds=40)：在验证集 AUC 不再提升 40 轮后停，返回最优轮模型。",
+      "roc_auc_score(y_val, pred)：用 AUC 量化排序能力，对应精算 0.914 指标。"
+    ],
+    "followUps": [
+      {
+        "question": "XGBoost 的二阶展开相比只用一阶梯度（如 SGB）好在哪？",
+        "answer": "二阶项给出损失的曲率信息，使每片叶子权重有解析最优解 w*=-G/(H+λ)，收敛更快、对尺度更稳，也更易处理自定义可微损失。"
+      },
+      {
+        "question": "精算场景如何防止 XGBoost 预测赔付概率被校准偏移？",
+        "answer": "用 Platt/Isotonic 在校验集上做概率校准，并以可靠性图检查；业务上再用单德维特平滑或暴露加权修正尾部，避免极端保单概率失真。"
+      }
+    ],
+    "followUpAnswers": [
+      "二阶项给出损失的曲率信息，使每片叶子权重有解析最优解 w*=-G/(H+λ)，收敛更快、对尺度更稳，也更易处理自定义可微损失。",
+      "用 Platt/Isotonic 在校验集上做概率校准，并以可靠性图检查；业务上再用单德维特平滑或暴露加权修正尾部，避免极端保单概率失真。"
+    ],
+    "explanationFocus": "是什么：XGBoost 是一种梯度提升树实现，以加法方式逐棵加入回归树，并在目标函数中显式加入正则项，兼具高准确率与防过拟合能力；它把损失用二阶泰勒展开，使每片叶子权重可解析求解。",
+    "approach": "核心思路是把预测写成 K 棵树的和 f(x)=Σ_k f_k(x)，每轮拟合上一轮残差的二阶近似梯度方向，用 max_depth/subsample/eta/早停控制复杂度，最终以验证集 AUC（精算场景 0.914）衡量排序质量。",
     "kind": "concept"
   },
   {
@@ -21968,6 +24860,670 @@ export const questions = [
       "初期只训轻量连接器可低成本建立图文对齐，避免随机初始化的视觉映射破坏已学的语言知识；对齐稳后再联合解冻提升上限。"
     ],
     "order": 32
+  },
+  {
+    "id": "gen-aigc-pipeline",
+    "category": "多模态生成应用",
+    "difficulty": "Hard",
+    "title": "AIGC 内容系统设计与评测闭环",
+    "prompt": "设计一个 AIGC 内容系统时，如何打通生成—评测—回流闭环以保证持续提质？",
+    "quickAnswer": "系统分生成、评测、回流三层：生成产出内容并入库，评测用质量/安全/多样性打分，回流把低分项与人工标注喂回训练或提示优化，形成可量化、可迭代的闭环。",
+    "code": "from typing import List\n\nclass EvalLoop:\n    def __init__(self):\n        self.buffer: List[dict] = []\n\n    def produce(self, content: dict) -> dict:\n        self.buffer.append(content)\n        return content\n\n    def evaluate(self, scorer) -> float:\n        # 评测闭环: 用打分器回流质量信号\n        scores = [scorer(c) for c in self.buffer]\n        return sum(scores) / max(1, len(scores))\n",
+    "complexity": "生成 O(steps)、评测 O(N·M)、回流 O(feedback)",
+    "beginnerSummary": "AIGC 系统像带质检的工厂：生产→打分→把次品原因反馈回车间改工艺，越改越好。",
+    "derivation": [
+      "为什么需要：一次性生成难保长期质量与合规，需要数据驱动持续迭代而非手工调参。",
+      "怎么实现：生成层产出并缓冲，评测层用多维度打分器量化，回流层把低分与标注写入改进队列（重训/提示/过滤）。",
+      "有什么代价：评测与回流引入额外管线与存储，错误打分会误导回流方向，需要人机协同兜底。",
+      "怎么评测：看闭环前后质量分均值、违规率与多样性趋势，以及低分回流后的修复率是否上升。"
+    ],
+    "edgeCases": [
+      "评测器本身有偏，回流会放大偏差，需要定期人工校准。",
+      "爆款与平庸内容同批，回流若只看低分会丢良性样本。",
+      "合规红线内容必须拦截而非只打分，需硬过滤前置。",
+      "多模态指标口径不一，跨模态汇总需加权归一。"
+    ],
+    "pitfalls": [
+      "只做生成不做评测，质量问题上线才暴露。",
+      "回流直接用模型自评低分重训，易陷入自证循环。"
+    ],
+    "prerequisites": [
+      "生成管线与数据存储",
+      "多维度评测（质量/安全/多样）",
+      "反馈学习与数据闭环"
+    ],
+    "workedExample": [
+      "上线首周收集 1 万条内容，评测器标出 800 条低分，回流提示优化后二轮低分降到 300 条。",
+      "把 200 条人工标注的违规样本加入硬过滤，违规率从 1.2% 降到 0.3%。"
+    ],
+    "lineByLine": [
+      "class EvalLoop：封装生成—评测闭环。",
+      "self.buffer=[]：缓冲生成内容供评测。",
+      "def produce：产出内容并入库缓冲。",
+      "def evaluate：用打分器算平均质量分。",
+      "scores=[scorer(c) for c in self.buffer]：逐条打分。",
+      "return 均值：返回批次质量信号供回流决策。"
+    ],
+    "followUps": [
+      {
+        "question": "评测器不够准时怎么敢回流？",
+        "answer": "先用人工标注小样本校准评测器，回流只采纳高置信低分，并保留人工抽检兜底。"
+      },
+      {
+        "question": "闭环和单纯 A/B 测试区别？",
+        "answer": "A/B 比的是当前两版，闭环把信号持续喂回改进，是纵向进化而非横向比较。"
+      },
+      {
+        "question": "多模态指标怎么聚合？",
+        "answer": "对各模态分数 min-max 归一后按业务权重求和，安全指标设为硬门槛一票否决。"
+      }
+    ],
+    "followUpAnswers": [
+      "先用人工标注小样本校准评测器，回流只采纳高置信低分，并保留人工抽检兜底。",
+      "A/B 比的是当前两版，闭环把信号持续喂回改进，是纵向进化而非横向比较。",
+      "对各模态分数 min-max 归一后按业务权重求和，安全指标设为硬门槛一票否决。"
+    ],
+    "explanationFocus": "是什么：AIGC 内容系统是把生成、自动评测与反馈回流打通的工程体系，用数据闭环替代手工调参，实现质量与合规的持续可迭代提升。",
+    "approach": "分层设计生成—评测—回流，评测用质量/安全/多样多维打分，回流把低分与人工标注导向提示优化或重训，并以安全硬过滤前置守住红线。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-audio-video",
+    "category": "多模态生成应用",
+    "difficulty": "Hard",
+    "title": "音频驱动视频 / Talking Head 与消融定版",
+    "prompt": "做音频驱动 talking head 视频（如 LongCat 音频驱动视频）时，如何通过 v6–v16 的消融实验定版模型结构？",
+    "quickAnswer": "以音频特征为条件驱动面部运动网络，逐版消融音频编码器、时序模块、姿态解耦与后处理（如超分/唇形强化），用唇形同步率、身份保持与视频质量指标在验证集上选 v6–v16 中最优组合定版。",
+    "code": "import torch\nimport torch.nn as nn\n\nclass AudioToMotion(nn.Module):\n    def __init__(self, audio_dim: int, motion_dim: int, hidden: int = 256):\n        super().__init__()\n        self.net = nn.Sequential(\n            nn.Linear(audio_dim, hidden), nn.ReLU(),\n            nn.Linear(hidden, motion_dim))\n\n    def forward(self, audio_feat, n_frames: int):\n        # 把音频特征上采样到帧率后驱动面部运动\n        feat = audio_feat.unsqueeze(1).repeat(1, n_frames, 1)\n        return self.net(feat)\n",
+    "complexity": "前向 O(T·(audio_dim→motion_dim))、训练 O(epoch·N)；推理实时逐帧",
+    "beginnerSummary": "音频驱动视频像对口型机器人：听声音算出嘴巴每帧怎么动，再贴回脸上；消融就是逐个关掉零件看哪个真的有用。",
+    "derivation": [
+      "为什么需要：Talking head 需让嘴型跟语音对齐且不丢身份，结构选择多，需要系统消融避免拍脑袋定版。",
+      "怎么实现：把音频特征上采样到帧率驱动运动网络，逐版开关音频编码器/注意力/后处理，固定训练集与指标对比 v6–v16。",
+      "有什么代价：每版都要重训与评测，算力开销大；版本间超参耦合，单独消融可能忽略交互效应。",
+      "怎么评测：用唇形同步指标（如 SyncNet 置信/偏移）、ArcFace 身份保持、FID/情感一致性打分综合排序定版。"
+    ],
+    "edgeCases": [
+      "静音段或停顿会让运动网络输出静止脸，需加眨眼/微表情兜底。",
+      "高语调或笑声超出训练分布，嘴型会抽搐。",
+      "长视频跨段身份漂移，需要锚点帧对齐。",
+      "多语种/口音改变音素-嘴型映射，需补数据。"
+    ],
+    "pitfalls": [
+      "只看唇形同步率定版，忽略身份保持，导致嘴对但人不像。",
+      "消融时改了学习率等超参，无法归因到结构本身。"
+    ],
+    "prerequisites": [
+      "音频特征（mel/wav2vec）与序列建模",
+      "人脸关键点 / 渲染与身份特征",
+      "消融实验与多指标权衡"
+    ],
+    "workedExample": [
+      "v10 加入时序注意力后 SyncNet 偏移从 4.2 降到 2.1，但 FID 升 3 点，说明更同步但略糊。",
+      "v16 在 v10 基础上加轻量超分与唇形强化，FID 回落后综合第一，定为上线版本。"
+    ],
+    "lineByLine": [
+      "class AudioToMotion(nn.Module)：定义音频到面部运动的映射网络。",
+      "self.net：两层线性把音频维映射到运动维，中间 ReLU。",
+      "def forward：接收音频特征与目标帧数。",
+      "feat=audio_feat.unsqueeze(1).repeat(1,n_frames,1)：把音频沿时间复制成逐帧条件。",
+      "return self.net(feat)：输出每帧面部运动参数。"
+    ],
+    "followUps": [
+      {
+        "question": "音频特征该用 mel 还是 wav2vec？",
+        "answer": "mel 轻量且与声学对齐好，适合实时；wav2vec 语义更鲁棒但对齐唇形需额外对齐层，v 系列常做两者消融。"
+      },
+      {
+        "question": "如何防止长视频身份漂移？",
+        "answer": "每隔若干秒用首帧 anchor 做身份特征回注或插值约束，并对 latent 做跨段一致性损失。"
+      },
+      {
+        "question": "后处理超分为什么放最后消融？",
+        "answer": "超分只改清晰度不改同步语义，放后处理可独立评估其对 FID 的贡献，避免干扰主结构判断。"
+      }
+    ],
+    "followUpAnswers": [
+      "mel 轻量且与声学对齐好，适合实时；wav2vec 语义更鲁棒但对齐唇形需额外对齐层，v 系列常做两者消融。",
+      "每隔若干秒用首帧 anchor 做身份特征回注或插值约束，并对 latent 做跨段一致性损失。",
+      "超分只改清晰度不改同步语义，放后处理可独立评估其对 FID 的贡献，避免干扰主结构判断。"
+    ],
+    "explanationFocus": "是什么：音频驱动视频（talking head）是以语音信号为条件生成与之口型、表情同步的人脸视频，LongCat 音频驱动视频即此类管线，通过多版消融选定最终结构。",
+    "approach": "固定训练数据与评测指标，逐版开关音频编码器、时序注意力与后处理模块，用唇形同步率+身份保持+画质三指标在 v6–v16 中做 Pareto 比较定版。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-comfyui",
+    "category": "多模态生成应用",
+    "difficulty": "Medium",
+    "title": "ComfyUI 工作流工程：队列、取消恢复与长视频拼接",
+    "prompt": "用 ComfyUI 做工程化生成时，如何设计任务队列、取消恢复、历史追踪与长视频分段拼接？",
+    "quickAnswer": "用队列管理异步任务并支持取消与从断点恢复，执行历史落盘便于追溯与复用，长视频按时间窗切段分别生成后再拼接；关键是把工作流图与中间 latent 持久化，使中断可续跑。",
+    "code": "from collections import deque\nfrom typing import Callable, List\n\nclass WorkflowQueue:\n    def __init__(self):\n        self.tasks: deque = deque()\n        self.history: List[str] = []\n\n    def enqueue(self, job: Callable):\n        self.tasks.append(job)\n\n    def run(self):\n        while self.tasks:\n            job = self.tasks.popleft()\n            out = job()\n            self.history.append(out)\n\n    def resume(self, segments: List[str]) -> str:\n        # 长视频分段拼接, 失败可从历史续跑\n        return ''.join(segments)\n",
+    "complexity": "队列 O(1) 入出、拼接 O(segments)，历史 O(N) 存储",
+    "beginnerSummary": "ComfyUI 工程像工厂流水线：任务排队、可随时喊停并从断点接上，做过的活留档，长片先分段拍再拼成完整片。",
+    "derivation": [
+      "为什么需要：交互式单图不够，产品化要并发、可中断、可复现，长视频超出显存需分段。",
+      "怎么实现：用 deque 维护任务队列，history 记录输出；取消时保存当前 latent，恢复时从断点续；长视频按段生成后拼接。",
+      "有什么代价：持久化 latent 与历史占存储；队列调度不当会饿死长任务或抢占显存。",
+      "怎么评测：压测并发吞吐与中断恢复成功率，长视频拼接处无跳变、帧率一致即为达标。"
+    ],
+    "edgeCases": [
+      "取消发生在某段中间，恢复需从该段首帧 latent 而非整任务头。",
+      "多参考图/视频/音频条件混用时图尺寸不一致导致节点报错。",
+      "历史无限增长撑爆磁盘，需要滚动清理策略。",
+      "拼接段间色彩/光照不一致出现可见接缝。"
+    ],
+    "pitfalls": [
+      "只存最终图不存工作流图，恢复时无法复现参数。",
+      "长视频不分段的拼接在显存峰值崩，误以为是模型问题。"
+    ],
+    "prerequisites": [
+      "ComfyUI 节点图与 API 调度",
+      "队列/异步任务与持久化",
+      "视频编解码与拼接"
+    ],
+    "workedExample": [
+      "提交 5 个参考图条件任务进队列，第 3 个跑到一半取消，恢复时从历史读 latent 续跑成功。",
+      "一段 60s 视频按 10s 分段生成 6 段，拼接后检查接缝无跳变、帧率恒定 24fps。"
+    ],
+    "lineByLine": [
+      "class WorkflowQueue：封装任务队列与历史。",
+      "self.tasks=deque()：用双端队列存待跑任务。",
+      "self.history=[]：记录已完成输出便于追溯。",
+      "def enqueue：把 callable 任务入队。",
+      "def run：循环取任务执行并写历史。",
+      "def resume：接收分段列表拼接成长视频。",
+      "return ''.join(segments)：按顺序合并分段。"
+    ],
+    "followUps": [
+      {
+        "question": "取消恢复为什么要存 latent 而不是只存图？",
+        "answer": "图是解码后的像素，恢复要重编码且损质量；存 latent 可直接续扩散，省算力且无缝。"
+      },
+      {
+        "question": "多条件（图/视频/音频）如何统一入图？",
+        "answer": "分别走编码器节点映射到同维 latent 再 concat/相加，注意尺寸与帧率对齐，否则节点报 shape 错。"
+      },
+      {
+        "question": "长视频分段怎么选窗口？",
+        "answer": "按显存与运动连续性选 8–15s，段间留 1–2 帧重叠做交叉淡入，消除接缝。"
+      }
+    ],
+    "followUpAnswers": [
+      "图是解码后的像素，恢复要重编码且损质量；存 latent 可直接续扩散，省算力且无缝。",
+      "分别走编码器节点映射到同维 latent 再 concat/相加，注意尺寸与帧率对齐，否则节点报 shape 错。",
+      "按显存与运动连续性选 8–15s，段间留 1–2 帧重叠做交叉淡入，消除接缝。"
+    ],
+    "explanationFocus": "是什么：ComfyUI 工作流工程是把节点图生成能力产品化，涵盖参考图/视频/音频多条件、任务队列、取消恢复、历史追踪与长视频分段拼接等系统能力。",
+    "approach": "用队列调度异步任务并把工作流图与中间 latent 持久化，支持取消后从断点恢复；长视频按时间窗分段生成再平滑拼接，历史落盘保证可复现。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-diffusion-vs-flow",
+    "category": "多模态生成应用",
+    "difficulty": "Hard",
+    "title": "Diffusion 与 Flow Matching 的原理差异与取舍",
+    "prompt": "在图像/视频生成中，Diffusion 与 Flow Matching 在训练目标和推理效率上分别如何权衡？",
+    "quickAnswer": "Diffusion 以逐步去噪的变分下界训练、采样步数多但稳定；Flow Matching 直接回归直线/最优传输速度场，可用少量步数（甚至 1 步）采样，训练更简洁、对噪声调度不敏感。",
+    "code": "import torch\nimport torch.nn.functional as F\n\ndef flow_matching_loss(model, x1, x0, t, noise):\n    # x1: 数据, x0: 噪声, 构造直线路径 x_t = (1-t)*x0 + t*x1\n    xt = (1 - t) * x0 + t * x1\n    vt = model(xt, t)                 # 预测速度场\n    target = x1 - x0                  # 直线 OT 路径真值速度\n    return F.mse_loss(vt, target)\n",
+    "complexity": "训练时间 O(N·T)、空间 O(B·C·H·W)；推理 Diffusion 约 O(T)、Flow Matching 约 O(1~T)",
+    "beginnerSummary": "Diffusion 像一层层擦掉粉笔灰还原画；Flow Matching 像直接学会从噪声到画面的最短搬运路线，所以能一步到位。",
+    "derivation": [
+      "为什么需要：扩散模型需要很多步去噪、推理慢；团队希望用更少步数拿到可用画质，于是出现了直接拟合向量场的 Flow Matching。",
+      "怎么实现：FM 构造从噪声 x0 到数据 x1 的路径 x_t=(1-t)x0+t·x1，让网络预测目标速度 v=x1−x0 并用 MSE 监督；Diffusion 则拟合各噪声水平的 score/ε。",
+      "有什么代价：FM 在极少先验下对路径选择敏感，直线路径偶有模式崩塌；Diffusion 步数多带来稳定但慢，且对采样调度依赖强。",
+      "怎么评测：固定步数下对比 FID/IS 与 CLIP 一致性，并测端到端延迟与显存峰值，确认取舍是否值得。"
+    ],
+    "edgeCases": [
+      "t=0 或 t=1 边界处速度场梯度爆炸，需要 clip 或加小扰动。",
+      "数据分布有多模态时直线路径会穿越低概率区，导致模糊样本。",
+      "CFG 与 FM 结合时条件/无条件速度混合比例需重新标定。",
+      "视频场景里跨帧一致性需要额外时序约束，单帧 FM 会闪烁。"
+    ],
+    "pitfalls": [
+      "把 Diffusion 的 ε 预测 head 直接复用到 FM 会训飞，因为监督目标是速度不是噪声。",
+      "误以为 FM 一定 1 步可用，实际小模型仍需 4~8 步保画质。"
+    ],
+    "prerequisites": [
+      "概率生成模型与 score matching 基础",
+      "最优传输与常微分方程（ODE）直觉",
+      "U-Net / DiT 骨干网络"
+    ],
+    "workedExample": [
+      "用 CIFAR-10 训练一个 FM 模型，监督目标为 x1−x0，验证 8 步采样 FID 接近 50 步 DDPM。",
+      "把同一 backbone 切换为 ε 预测的 DDPM，对比相同算力下 1000 步的 FID，确认 FM 提速收益。"
+    ],
+    "lineByLine": [
+      "import torch, F：引入张量与 MSE 损失，用于回归速度场。",
+      "def flow_matching_loss(...)：定义 FM 训练损失函数，输入数据 x1、噪声 x0、时间 t 与采样噪声。",
+      "xt=(1-t)*x0+t*x1：按时间 t 在噪声与数据间线性插值得到中间状态。",
+      "vt=model(xt,t)：网络在时刻 t 预测速度场。",
+      "target=x1-x0：直线 OT 路径的真值速度即两端之差。",
+      "return F.mse_loss(vt,target)：用均方误差把预测速度拉向真值。"
+    ],
+    "followUps": [
+      {
+        "question": "Flow Matching 能否和 CFG 一起用？",
+        "answer": "可以，把条件/无条件速度分别预测后按 v=ν_uncond+cfg*(ν_cond−ν_uncond) 混合，但 scale 通常比 Diffusion 小，需要重新搜索。"
+      },
+      {
+        "question": "为什么 FM 对噪声调度不敏感？",
+        "answer": "因为路径由 t 的线性插值固定，损失只依赖数据配对，不再像 Diffusion 那样依赖 β 调度与 SNR 权重。"
+      },
+      {
+        "question": "视频生成里 FM 怎么保证时序一致？",
+        "answer": "在 backbone 加入时序注意力或在速度场监督上叠加跨帧一致性损失，并对 latent 做光流对齐。"
+      }
+    ],
+    "followUpAnswers": [
+      "可以，把条件/无条件速度分别预测后按 v=ν_uncond+cfg*(ν_cond−ν_uncond) 混合，但 scale 通常比 Diffusion 小，需要重新搜索。",
+      "因为路径由 t 的线性插值固定，损失只依赖数据配对，不再像 Diffusion 那样依赖 β 调度与 SNR 权重。",
+      "在 backbone 加入时序注意力或在速度场监督上叠加跨帧一致性损失，并对 latent 做光流对齐。"
+    ],
+    "explanationFocus": "是什么：Flow Matching 是一类直接学习从噪声到数据的连续变换向量场（速度场）的生成范式，相比 Diffusion 省略了逐步加噪的马尔可夫假设。",
+    "approach": "核心思路是用直线或最优传输路径构造样本轨迹，让网络回归轨迹切线方向（速度），推理时解一个 ODE 即可在极少步内生成样本。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-diversity-check",
+    "category": "多模态生成应用",
+    "difficulty": "Medium",
+    "title": "Schema 与多样性校验及 repair-with-feedback",
+    "prompt": "批量生成内容后，如何用 Schema/字段一致性、bigram 与 Jaccard 做多样性校验，并以 repair-with-feedback 修复？",
+    "quickAnswer": "先校验每条是否满足 Schema 字段与类型，再用 bigram 重叠与 Jaccard 集合相似度度量批次内重复，超阈值则把缺失字段/重复项作为反馈回写生成器重生成，形成校验—修复闭环。",
+    "code": "from typing import List, Set\n\ndef jaccard(a: Set[str], b: Set[str]) -> float:\n    return len(a & b) / max(1, len(a | b))\n\ndef diversity_report(items: List[str], n: int = 2) -> float:\n    grams = [set(items[i:i+n]) for i in range(len(items)-n+1)]\n    sim = sum(jaccard(grams[i], grams[j]) for i in range(len(grams)) for j in range(i+1, len(grams)))\n    pairs = max(1, len(grams)*(len(grams)-1)//2)\n    return 1 - sim / pairs\n\ndef repair_with_feedback(item, schema_fields):\n    # 字段缺失则回写反馈让生成器补字段\n    missing = [f for f in schema_fields if f not in item]\n    return item, missing\n",
+    "complexity": "字段校验 O(N·F)、Jaccard 对 O(N²·G)、修复 O(repairs)",
+    "beginnerSummary": "校验像编辑审稿：先查每篇格式对不对，再看彼此是不是换汤不换药，重复或残缺的就打回重写。",
+    "derivation": [
+      "为什么需要：批量生成易出字段缺失、内容雷同，需自动拦住不合格项并保证批次多样。",
+      "怎么实现：按 Schema 校验字段，用 bigram 重叠估相似、Jaccard 估集合多样，低于阈值触发 repair。",
+      "有什么代价：N² 相似度在海量批次会变慢，需要分桶或采样；反馈重写增加额外生成成本。",
+      "怎么评测：修复后批次字段完整率 100%、平均 Jaccard 多样性高于目标线，重复项归零。"
+    ],
+    "edgeCases": [
+      "字段为 null 但类型对，Schema 校验通过却语义空，需加非空规则。",
+      "短文本 bigram 过少，相似度估计噪声大，需要最小长度门槛。",
+      "全部雷同时 Jaccard 趋于 0，修复应换 seed/换 prompt 而非仅补字段。",
+      "嵌套 Schema 字段路径写错导致漏检。"
+    ],
+    "pitfalls": [
+      "只看字段存在不看类型，字符串错填数字下游崩。",
+      "repair 只补字段不解决雷同，批次仍像复制。"
+    ],
+    "prerequisites": [
+      "JSON Schema 与数据校验",
+      "集合相似度（Jaccard）与 n-gram",
+      "反馈循环与重试策略"
+    ],
+    "workedExample": [
+      "100 条文案校验出 7 条缺 tag 字段、12 对 bigram 重叠>0.8，触发 repair。",
+      "把缺失字段与重复对作为 feedback 回写生成器换 seed 重生成，二轮 Jaccard 多样性从 0.31 升到 0.58。"
+    ],
+    "lineByLine": [
+      "def jaccard：计算两集合交并比作为相似度。",
+      "def diversity_report：对条目取 n-gram 集合算两两 Jaccard。",
+      "sim=sum(jaccard(...))：累加所有对的相似度。",
+      "return 1−sim/pairs：转成多样性分数，越高越多样。",
+      "def repair_with_feedback：比对 Schema 找缺失字段。",
+      "missing=[f for f in schema_fields if f not in item]：列出缺字段。",
+      "return item, missing：把缺失作为反馈交回生成器。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么用 bigram 而不用整句嵌入？",
+        "answer": "bigram 轻量、可解释、能直接指出重复短语，嵌入虽准但贵且难定位，校验阶段更看重速度与可反馈。"
+      },
+      {
+        "question": "repair 重试几次该停？",
+        "answer": "设最大重试（如 3 次），仍超阈值则降级标记人工审核，避免无限循环烧算力。"
+      },
+      {
+        "question": "Jaccard 阈值怎么定？",
+        "answer": "在人工标好的够多样批次上统计分布，取分位（如 0.4）作上线阈值，并按内容长度分段校准。"
+      }
+    ],
+    "followUpAnswers": [
+      "bigram 轻量、可解释、能直接指出重复短语，嵌入虽准但贵且难定位，校验阶段更看重速度与可反馈。",
+      "设最大重试（如 3 次），仍超阈值则降级标记人工审核，避免无限循环烧算力。",
+      "在人工标好的够多样批次上统计分布，取分位（如 0.4）作上线阈值，并按内容长度分段校准。"
+    ],
+    "explanationFocus": "是什么：多样性校验是在批量生成后用 Schema 字段一致性、bigram 重叠与 Jaccard 集合相似度识别残缺与雷同，repair-with-feedback 把问题作为反馈回写生成器重生成。",
+    "approach": "先结构化校验拦掉字段错误，再用 n-gram/Jaccard 量化批次多样，超阈值项携带缺失字段与重复信号回写生成器换种子重生成，形成闭环。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-image-studio",
+    "category": "多模态生成应用",
+    "difficulty": "Medium",
+    "title": "多模型工作台架构：FastAPI + React + ComfyUI",
+    "prompt": "多模型图像工作台（FastAPI + React + ComfyUI）应如何分层，才能同时服务算法实验与产品化？",
+    "quickAnswer": "前端 React 负责交互与可视化，FastAPI 做鉴权、任务编排与统一 API，ComfyUI 作为生成执行后端；算法实验改工作流图即可上线，产品化通过同一 API 暴露，做到实验即生产。",
+    "code": "from fastapi import FastAPI\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass GenRequest(BaseModel):\n    model: str\n    prompt: str\n    ref_image: str | None = None\n\n@app.post('/generate')\ndef generate(req: GenRequest):\n    # 算法实验与产品化统一载体: 透传模型名给 ComfyUI 后端\n    return {'status': 'queued', 'model': req.model, 'prompt': req.prompt}\n",
+    "complexity": "请求 O(1) 入队、生成 O(steps)，前端渲染 O(images)",
+    "beginnerSummary": "工作台像一家照相馆：React 是前台点单屏，FastAPI 是店长调度，ComfyUI 是后厨相机；算法师调好参数前台就能直接卖。",
+    "derivation": [
+      "为什么需要：算法同学要快速试不同模型/工作流，产品要稳定 API，分离前后端与执行层可各司其职。",
+      "怎么实现：React 发请求到 FastAPI，FastAPI 做校验与队列后调 ComfyUI API 生成，结果回传前端展示。",
+      "有什么代价：三层带来部署与联调成本，ComfyUI 版本漂移会让实验结果难复现。",
+      "怎么评测：用接口延迟、并发上限与实验到上线耗时衡量；同一请求在实验/生产环境结果一致即达标。"
+    ],
+    "edgeCases": [
+      "大模型 OOM 时 FastAPI 需降级返回排队而非 500。",
+      "前端传非预期模型名，后端要校验白名单防注入。",
+      "ComfyUI 后端重启后队列丢失，需要持久化任务状态。",
+      "参考图过大超出请求体限制需走对象存储。"
+    ],
+    "pitfalls": [
+      "把生成逻辑写进 FastAPI 路由，导致和 ComfyUI 耦合难以替换。",
+      "前后端共享一份工作流 JSON 但不同步版本，实验与生产结果对不上。"
+    ],
+    "prerequisites": [
+      "REST API 与前后端分离",
+      "ComfyUI API 与异步任务",
+      "鉴权与任务队列"
+    ],
+    "workedExample": [
+      "算法在 Studio 调好一个换脸工作流，保存为模板，产品前端直接以同 API 调用上线。",
+      "压测下 FastAPI 把 200 并发请求排队，ComfyUI 顺序消费，P95 延迟稳定在 1.2s 内。"
+    ],
+    "lineByLine": [
+      "from fastapi import FastAPI：引入 Web 框架。",
+      "class GenRequest(BaseModel)：定义请求体的模型名/提示/参考图字段。",
+      "@app.post('/generate')：暴露生成接口。",
+      "def generate：校验请求并透传模型名给 ComfyUI 后端。",
+      "return {...}：返回排队状态，交给异步执行。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么不直接让前端调 ComfyUI？",
+        "answer": "缺鉴权、队列与统一契约，且 ComfyUI 内部结构会变；FastAPI 做隔离层更稳更易治理。"
+      },
+      {
+        "question": "实验与生产如何保证一致？",
+        "answer": "工作流图与模型版本入版本库，API 按版本号加载，前端与算法共用同一份制品。"
+      },
+      {
+        "question": "多模型怎么路由？",
+        "answer": "在请求带 model 字段，FastAPI 映射到对应 ComfyUI 工作流与 GPU 池，避免互相抢占。"
+      }
+    ],
+    "followUpAnswers": [
+      "缺鉴权、队列与统一契约，且 ComfyUI 内部结构会变；FastAPI 做隔离层更稳更易治理。",
+      "工作流图与模型版本入版本库，API 按版本号加载，前端与算法共用同一份制品。",
+      "在请求带 model 字段，FastAPI 映射到对应 ComfyUI 工作流与 GPU 池，避免互相抢占。"
+    ],
+    "explanationFocus": "是什么：多模型图像工作台是以 FastAPI 为调度层、React 为交互层、ComfyUI 为生成执行层的系统，既是算法试错载体也是产品化出口。",
+    "approach": "前后端分离并把生成能力收敛到 ComfyUI 后端，FastAPI 统一鉴权/队列/版本，使算法修改的工作流可一键作为生产 API 暴露。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-lip-sync",
+    "category": "多模态生成应用",
+    "difficulty": "Hard",
+    "title": "唇形同步与 Audio Guidance 的工程取舍",
+    "prompt": "做唇形同步时，CFG、蒸馏与 INT8 量化各有什么取舍，短句分段与响度归一又该怎么配？",
+    "quickAnswer": "CFG 提升嘴型对齐但翻倍算力，蒸馏可少步推理但伤细节，INT8 省显存却引入轻微不同步；工程上先用 clean vocal、归一化到 −20 LUFS、按 50 steps 配短句分段，单卡约 23 min/段、CP4 约 6–8 min/段。",
+    "code": "import torch\nimport pyloudnorm as pyln\nimport torch.nn.functional as F\n\ndef normalize_loudness(wav, sr: int, target_lufs: float = -20.0):\n    meter = pyln.Meter(sr)\n    loudness = meter.integrated_loudness(wav)\n    return pyln.normalize.loudness(wav, loudness, target_lufs)\n\ndef cfg_step(model, latents, audio_cond, t, cfg_scale: float = 2.0):\n    uncond = model(latents, t, audio_cond=None)\n    cond = model(latents, t, audio_cond=audio_cond)\n    return uncond + cfg_scale * (cond - uncond)\n",
+    "complexity": "CFG 推理 O(2·steps)、蒸馏 O(steps/K)、INT8 省约 2–4× 显存；单段耗时 O(minutes)",
+    "beginnerSummary": "唇形同步像给配音演员对口型：CFG 让嘴更准但更慢，蒸馏是速成版略糙，INT8 是压缩包更省地方；先修音再定响度最稳。",
+    "derivation": [
+      "为什么需要：原始音频含混响/噪声会让嘴型抖，需要 clean vocal 与统一响度；同时要在质量与速度间取舍上线。",
+      "怎么实现：音频先去噪并 LUFS 归一化到 −20，按短句切段用 50 steps 生成；CFG 控条件强度，蒸馏减步，INT8 压模型。",
+      "有什么代价：CFG 双倍前向；蒸馏损高频唇齿细节；INT8 在边界帧偶有不同步，需要后校验。",
+      "怎么评测：用 SyncNet 偏移与置信、人工唇形评分，并统计单段耗时与显存，确认 CP4 提速不破质量线。"
+    ],
+    "edgeCases": [
+      "气声/耳语缺少浊音，模型易低估嘴张度。",
+      "强背景乐未剥离，LUFS 归一后语音被压，嘴型偏弱。",
+      "超长句分段切在词中导致段间嘴型跳变。",
+      "INT8 在首帧 warmup 不准，需丢弃前几帧。"
+    ],
+    "pitfalls": [
+      "直接拿原始录音跑同步，噪声让嘴型抽搐还不报错。",
+      "为提速把 CFG 和蒸馏一起开，细节崩坏且难归因。"
+    ],
+    "prerequisites": [
+      "音频预处理与响度（LUFS）标准",
+      "Classifier-Free Guidance 与模型量化",
+      "唇形同步评测（SyncNet）"
+    ],
+    "workedExample": [
+      "一段 30s 旁白先分离人声、归一化到 −20 LUFS，按标点切 3 段各 50 steps，单卡共约 23×3 min。",
+      "同段在 CP4 集群上跑约 6–8 min/段，SyncNet 偏移仍 <2 帧，确认量化未破同步线。"
+    ],
+    "lineByLine": [
+      "import pyloudnorm as pyln：引入响度计量与归一工具。",
+      "def normalize_loudness：把音频规整到目标 LUFS。",
+      "meter.integrated_loudness(wav)：测当前整体响度。",
+      "pyln.normalize.loudness：按差值把响度拉到 −20 LUFS。",
+      "def cfg_step：实现条件/无条件引导融合。",
+      "uncond=model(...,audio_cond=None)：算无条件分支。",
+      "cond=model(...,audio_cond)：算带音频条件分支。",
+      "return uncond+cfg_scale*(cond−uncond)：按 scale 强化嘴型对齐。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么定 −20 LUFS 而不是更响？",
+        "answer": "−20 是语音内容常用播客/配音基准，过高会削波、过低模型感知弱，能稳定唇形幅度且不破音。"
+      },
+      {
+        "question": "CP4 提速度的原理是什么？",
+        "answer": "CP4 通常指 4 卡/4 路并行或专门推理优化，把分段并行化，单段从 23 min 降到 6–8 min，需保证段间一致。"
+      },
+      {
+        "question": "蒸馏和 INT8 能叠加吗？",
+        "answer": "可以叠加进一步提速，但要先分别验证质量底线，叠加后重点查边界帧不同步与齿音丢失。"
+      }
+    ],
+    "followUpAnswers": [
+      "−20 是语音内容常用播客/配音基准，过高会削波、过低模型感知弱，能稳定唇形幅度且不破音。",
+      "CP4 通常指 4 卡/4 路并行或专门推理优化，把分段并行化，单段从 23 min 降到 6–8 min，需保证段间一致。",
+      "可以叠加进一步提速，但要先分别验证质量底线，叠加后重点查边界帧不同步与齿音丢失。"
+    ],
+    "explanationFocus": "是什么：唇形同步（lip sync）是让生成人脸的口型与输入语音逐帧对齐，audio guidance 指用 CFG、蒸馏、量化等手段在质量—推理速度—显存三角中做工程取舍。",
+    "approach": "先 clean vocal 并 LUFS 归一化，短句分段后以 50 steps + CFG 保对齐，按需引入蒸馏减步、INT8 省显存，并用 SyncNet 偏移守住同步底线。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-lora",
+    "category": "多模态生成应用",
+    "difficulty": "Medium",
+    "title": "LoRA 微调扩散模型与适配器状态恢复坑",
+    "prompt": "用 diffusers 微调扩散模型时，为什么直接恢复 Lightning LoRA 的 adapter 状态会让加速失效，应如何排查与恢复？",
+    "quickAnswer": "diffusers 的 adapter 状态保存/恢复若命中 Lightning 自定义模块会错位，导致 LoRA 权重未真正挂载；应改用 set_adapters 的 scale 切换，并在恢复前用 32 步无 LoRA 的 anchor 图重建基准，再加载 LoRA。",
+    "code": "import torch\nimport torch.nn as nn\n\nclass LoRALinear(nn.Module):\n    def __init__(self, base: nn.Linear, r: int = 4, alpha: float = 8.0):\n        super().__init__()\n        self.base = base\n        self.base.weight.requires_grad_(False)\n        self.lora_a = nn.Parameter(torch.randn(r, base.in_features) * 0.01)\n        self.lora_b = nn.Parameter(torch.zeros(base.out_features, r))\n        self.scale = alpha / r\n\n    def forward(self, x):\n        return self.base(x) + (x @ self.lora_a.T @ self.lora_b.T) * self.scale\n\ndef safe_recover(pipe, lora_path, anchor_steps: int = 32):\n    # 不用 adapter 状态恢复, 改用 scale 切换, 并先用 32 步无 LoRA anchor 恢复基准\n    pipe.set_adapters(['default'], adapter_weights=[0.0])\n    base_latents = pipe('', num_inference_steps=anchor_steps).images\n    pipe.load_lora_weights(lora_path)\n    pipe.set_adapters(['default'], adapter_weights=[1.0])\n    return base_latents\n",
+    "complexity": "注入 LoRA 额外时间 O(r·(in+out))、空间 O(r·(in+out))；恢复为 O(1) 元数据操作",
+    "beginnerSummary": "LoRA 像给大模型贴两张轻薄便利贴来改笔迹；恢复时若贴歪了，加速贴纸就白贴，要先撕掉重贴并对齐基准。",
+    "derivation": [
+      "为什么需要：全量微调扩散模型显存高、易遗忘，LoRA 用低秩增量只训小矩阵，便于多风格切换。",
+      "怎么实现：在 Linear 上并联 A·B 低秩分支并以 α/r 缩放，冻结原权重；切换风格只换 adapter 及其 scale。",
+      "有什么代价：LoRA rank 过小会欠拟合，过大又接近全量；Lightning 等加速 LoRA 依赖特定模块名，状态恢复易错位。",
+      "怎么评测：对比恢复前后同 seed 出图与无 LoRA baseline 的相似度，确认加速 LoRA 生效且画质不漂移。"
+    ],
+    "edgeCases": [
+      "多个 LoRA 同时挂载时 adapter 名冲突会被静默覆盖。",
+      "Lightning LoRA 与基础 LoRA 的模块命名空间不同，直接 load 会 KeyError。",
+      "scale 设为 0 不等于卸载，仍需 set_adapters 显式切换避免残差。",
+      "恢复时 pipeline 已缓存 latent 会导致 anchor 图不一致。"
+    ],
+    "pitfalls": [
+      "用 save_pretrained 后直接 load_lora_weights 恢复 Lightning 状态，会因模块名不匹配使加速失效还无报错。",
+      "误以为 adapter_weights=[0.0] 等同于卸载 LoRA，实际分支仍在计算图里。"
+    ],
+    "prerequisites": [
+      "低秩分解与微调基础",
+      "diffusers 的 adapter / pipeline 机制",
+      "扩散模型采样与步数调度"
+    ],
+    "workedExample": [
+      "复现故障：加载 Lightning LoRA 后出图与无加速版本无异，定位到 adapter 状态未挂载。",
+      "按 safe_recover 先用 32 步无 LoRA 生成 anchor 基线，再 load + scale=1.0，确认加速生效且身份一致。"
+    ],
+    "lineByLine": [
+      "class LoRALinear(nn.Module)：在原有 Linear 上定义低秩包装层。",
+      "self.base.weight.requires_grad_(False)：冻结原权重，只训增量。",
+      "self.lora_a/lora_b：定义 r×in 与 out×r 两个小矩阵作为低秩分支。",
+      "self.scale=alpha/r：用 α/r 控制低秩增量幅度。",
+      "forward：输出原分支 + 低秩分支缩放结果。",
+      "def safe_recover：恢复函数，先用 scale=0 走 32 步无 LoRA anchor。",
+      "pipe.load_lora_weights + set_adapters scale=1.0：最后挂载并打开 LoRA。"
+    ],
+    "followUps": [
+      {
+        "question": "如何验证 Lightning LoRA 真的生效而不是被忽略？",
+        "answer": "固定 seed 对比开启/关闭加速的延迟与单步耗时，并比对 latent 轨迹，若耗时与画质都无差异说明未挂载。"
+      },
+      {
+        "question": "为什么要用 32 步无 LoRA 的 anchor？",
+        "answer": "anchor 提供稳定的基准分布，恢复后以此为参照校验 LoRA 是否引入预期偏移，避免把 baseline 漂移误判为成功。"
+      },
+      {
+        "question": "多 LoRA 组合时 scale 怎么设？",
+        "answer": "按风格权重给每个 adapter 单独 adapter_weights，并确保总权和不溢出，必要时归一化。"
+      }
+    ],
+    "followUpAnswers": [
+      "固定 seed 对比开启/关闭加速的延迟与单步耗时，并比对 latent 轨迹，若耗时与画质都无差异说明未挂载。",
+      "anchor 提供稳定的基准分布，恢复后以此为参照校验 LoRA 是否引入预期偏移，避免把 baseline 漂移误判为成功。",
+      "按风格权重给每个 adapter 单独 adapter_weights，并确保总权和不溢出，必要时归一化。"
+    ],
+    "explanationFocus": "是什么：LoRA 是向预训练权重并联低秩矩阵、只训练小增量参数的高效微调方法；在扩散模型里它通过 adapter 机制实现多风格热切换。",
+    "approach": "排查加速失效时放弃 adapter 状态整体恢复，改为 scale 切换 + 无 LoRA anchor 重建基准，再加载并开启 LoRA，从而隔离 Lightning 模块命名错位问题。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-music-planning",
+    "category": "多模态生成应用",
+    "difficulty": "Medium",
+    "title": "音乐生成的两级规划：专辑与单曲蓝图",
+    "prompt": "做专辑级音乐生成时，CollectionPlanner 与 TrackPlanner 两级规划分别负责什么，如何衔接？",
+    "quickAnswer": "CollectionPlanner 在专辑级定主题、曲目数量与情绪曲线，输出每首的粗蓝图；TrackPlanner 接收单首蓝图细化 BPM、调式、段落结构与配器，二者通过蓝图数据结构衔接，保证整专连贯又各有辨识度。",
+    "code": "from dataclasses import dataclass\nfrom typing import List\n\n@dataclass\nclass TrackBlueprint:\n    title: str\n    bpm: int\n    key: str\n    mood: str\n\nclass CollectionPlanner:\n    def __init__(self, theme: str):\n        self.theme = theme\n        self.tracks: List[TrackBlueprint] = []\n\n    def add_track(self, bp: TrackBlueprint):\n        self.tracks.append(bp)\n\n    def plan(self) -> 'TrackPlanner':\n        # 专辑级规划后, 把单首蓝图交给 TrackPlanner 细化\n        return TrackPlanner(self.tracks)\n\nclass TrackPlanner:\n    def __init__(self, tracks: List[TrackBlueprint]):\n        self.tracks = tracks\n\n    def blueprint(self, idx: int) -> TrackBlueprint:\n        return self.tracks[idx]\n",
+    "complexity": "规划阶段 O(tracks)；生成阶段每首 O(steps)，整体 O(tracks·steps)",
+    "beginnerSummary": "两级规划像先写歌单大纲（专辑基调），再给每首写分镜脚本（单曲细节），大纲管整体统一，分镜管每首好听。",
+    "derivation": [
+      "为什么需要：一次性生成整专容易风格漂移、曲目雷同，需要上层约束主题一致、下层保多样。",
+      "怎么实现：CollectionPlanner 产出带主题/数量的曲目蓝图列表，TrackPlanner 逐首细化 BPM/调式/情绪并回写。",
+      "有什么代价：两级带来额外编排逻辑与接口，蓝图字段不一致会断链；过度约束会牺牲即兴感。",
+      "怎么评测：用整专风格聚类看连贯性，用曲间相似度看多样性，人工听审情绪曲线是否起伏自然。"
+    ],
+    "edgeCases": [
+      "曲目数过多时情绪曲线需防止中段疲软，插入高能曲。",
+      "相邻曲同调式易听感疲劳，需自动转调错开。",
+      "蓝图字段缺失导致 TrackPlanner 取默认，风格跑偏。",
+      "用户改专辑主题后需级联重规划，避免脏蓝图。"
+    ],
+    "pitfalls": [
+      "把 TrackPlanner 当独立生成器用，丢掉专辑级约束导致听起来像拼盘。",
+      "蓝图用可变对象共享，修改一首污染整专状态。"
+    ],
+    "prerequisites": [
+      "音乐理论（BPM/调式/曲式）",
+      "层次化生成与状态管理",
+      "多样性与一致性度量"
+    ],
+    "workedExample": [
+      "CollectionPlanner 规划 8 首夏日治愈专辑，情绪从舒缓到欢快再回落，输出 8 个 TrackBlueprint。",
+      "TrackPlanner 把第 3 首定为 120 BPM、C 大调、轻快，生成后其风格聚类中离群度适中，既连贯又有辨识。"
+    ],
+    "lineByLine": [
+      "@dataclass class TrackBlueprint：定义单曲蓝图字段。",
+      "class CollectionPlanner：专辑级规划器，持有主题与曲目列表。",
+      "def add_track：向专辑追加一首粗蓝图。",
+      "def plan：把蓝图列表交给 TrackPlanner 细化。",
+      "class TrackPlanner：接收曲目蓝图做单首细化。",
+      "def blueprint：按索引返回细化后的单曲蓝图。"
+    ],
+    "followUps": [
+      {
+        "question": "两级规划相比端到端生成优势在哪？",
+        "answer": "上层控连贯、下层保多样，且便于人工在蓝图层编辑，不必重训生成模型。"
+      },
+      {
+        "question": "如何让曲间不过于相似？",
+        "answer": "在 CollectionPlanner 层对相邻蓝图做调式/BPM 约束错开，并用 Jaccard 比结构相似度超阈值则重采样。"
+      },
+      {
+        "question": "蓝图用什么格式传递最稳？",
+        "answer": "用不可变 dataclass/JSON Schema，TrackPlanner 只读不写回原对象，避免级联污染。"
+      }
+    ],
+    "followUpAnswers": [
+      "上层控连贯、下层保多样，且便于人工在蓝图层编辑，不必重训生成模型。",
+      "在 CollectionPlanner 层对相邻蓝图做调式/BPM 约束错开，并用 Jaccard 比结构相似度超阈值则重采样。",
+      "用不可变 dataclass/JSON Schema，TrackPlanner 只读不写回原对象，避免级联污染。"
+    ],
+    "explanationFocus": "是什么：两级音乐规划把生成拆成专辑层（CollectionPlanner 定主题与曲目蓝图）与单曲层（TrackPlanner 细化 BPM/调式/段落），用蓝图数据结构衔接。",
+    "approach": "先由上向下产出约束性蓝图保证整专连贯，再由下向上细化每首细节保证辨识度，通过不可变蓝图在两级间安全传参。",
+    "kind": "concept"
+  },
+  {
+    "id": "gen-person-consistency",
+    "category": "多模态生成应用",
+    "difficulty": "Hard",
+    "title": "人物一致性：ArcFace 身份相似度与锚点检索去重",
+    "prompt": "做人物一致性生成时，如何用 ArcFace 量化身份相似度并通过几何归一化与分散锚点做 embedding 检索去重？",
+    "quickAnswer": "先用 ArcFace 取归一化身份向量，按人脸几何（眼距/角度）归一化对齐后算余弦相似度；再用 FPS 抽帧 + k-means++ 选分散锚点，对候选图做近邻检索与去重，保证同一角色跨镜头一致。",
+    "code": "import numpy as np\nfrom sklearn.cluster import KMeans\n\ndef identity_similarity(emb_a, emb_b):\n    # ArcFace 输出已是归一化特征, 余弦即可度量身份相似度\n    a = emb_a / np.linalg.norm(emb_a)\n    b = emb_b / np.linalg.norm(emb_b)\n    return float(np.dot(a, b))\n\ndef select_anchors(embs, fps: int, k: int):\n    # 按 FPS 均匀抽帧 + k-means++ 选分散锚点做检索去重\n    sampled = embs[::fps]\n    km = KMeans(n_clusters=k, init='k-means++', n_init=4).fit(sampled)\n    return km.cluster_centers_\n",
+    "complexity": "相似度 O(d)、空间 O(d)；k-means++ 选 k 锚点约 O(k·n·d)",
+    "beginnerSummary": "ArcFace 像给每张脸发一张身份证向量，向量越近越像同一个人；先摆正脸再比对，并用几个分散的样板脸快速找重复。",
+    "derivation": [
+      "为什么需要：多镜头/多角色生成容易出现脸变样或同人重复，需要客观度量身份一致并去重。",
+      "怎么实现：ArcFace 输出单位球上特征，几何归一化消除姿态偏差后用余弦度量；FPS 均匀抽帧后用 k-means++ 选最分散的 k 个锚点代表该角色。",
+      "有什么代价：ArcFace 对遮挡/大角度仍会降分，几何归一化本身有误差；k-means++ 随机性需固定 seed 保证可复现。",
+      "怎么评测：在同人不同图间算平均相似度应高于阈值，跨人应低于阈值；去重后保留集重复率应接近 0。"
+    ],
+    "edgeCases": [
+      "侧脸/遮挡导致 ArcFace 向量落入错误簇，相似度骤降。",
+      "两人长相接近时余弦阈值难以区分，需要配合属性校验。",
+      "k-means++ 随机种子不同会选到不同锚点，去重结果不稳定。",
+      "视频帧率变化使 FPS 抽帧密度不均，锚点覆盖偏差。"
+    ],
+    "pitfalls": [
+      "直接用原始像素算相似度而非归一化 ArcFace 向量，姿态一变就误判。",
+      "把 k-means 默认 init 当确定性结果，复现时锚点漂移引发评测抖动。"
+    ],
+    "prerequisites": [
+      "人脸检测与 ArcFace / 度量学习",
+      "余弦相似度与向量检索",
+      "聚类与 k-means++ 初始化"
+    ],
+    "workedExample": [
+      "对某角色 200 帧抽 10 fps 得 20 张，算两两 ArcFace 余弦，平均 0.62 高于 0.5 阈值判定一致。",
+      "用 k-means++ 选 3 个锚点，对候选新图做近邻检索，余弦>0.55 的判为重复并剔除，保留 5 张多样图。"
+    ],
+    "lineByLine": [
+      "def identity_similarity：计算两张脸身份相似度。",
+      "a=emb_a/norm；b=emb_b/norm：ArcFace 特征再归一化到单位向量。",
+      "return dot(a,b)：返回余弦相似度作为身份得分。",
+      "def select_anchors：按 FPS 与 k-means++ 选分散锚点。",
+      "sampled=embs[::fps]：每隔 fps 帧取一帧降低冗余。",
+      "KMeans(init='k-means++')：用分散初始化选 k 个代表锚点。",
+      "return km.cluster_centers_：返回锚点 embedding 供检索。"
+    ],
+    "followUps": [
+      {
+        "question": "几何归一化具体怎么做？",
+        "answer": "用关键点（双眼、鼻尖）做人脸仿射对齐到标准模板，再送 ArcFace，消除旋转缩放带来的向量偏差。"
+      },
+      {
+        "question": "k-means++ 相比 random 好在哪？",
+        "answer": "它按距离概率选初始中心，使锚点彼此分散，避免聚到同一密集区，去重覆盖更均匀。"
+      },
+      {
+        "question": "锚点数量 k 怎么定？",
+        "answer": "按角色表情/光照跨度经验取 3~8，k 太小覆盖不全、太大检索成本升高，可用肘部法在验证集上选。"
+      }
+    ],
+    "followUpAnswers": [
+      "用关键点（双眼、鼻尖）做人脸仿射对齐到标准模板，再送 ArcFace，消除旋转缩放带来的向量偏差。",
+      "它按距离概率选初始中心，使锚点彼此分散，避免聚到同一密集区，去重覆盖更均匀。",
+      "按角色表情/光照跨度经验取 3~8，k 太小覆盖不全、太大检索成本升高，可用肘部法在验证集上选。"
+    ],
+    "explanationFocus": "是什么：ArcFace 是一种加角度间隔的人脸识别损失训练的骨干，输出位于单位超球面的高判别性身份 embedding，可直接用余弦距离度量是否为同一人。",
+    "approach": "先几何归一化对齐姿态再取 ArcFace 向量，FPS 抽帧降冗余后用 k-means++ 选分散锚点，以锚点为代表做近邻检索与阈值去重，兼顾一致性与多样性。",
+    "kind": "concept"
   },
   {
     "id": "inf-why-slow",
@@ -42285,6 +45841,755 @@ export const questions = [
     "order": 7
   },
   {
+    "id": "tts-codeswitch",
+    "category": "语音合成",
+    "difficulty": "Hard",
+    "title": "中英 code-switching 混读控制",
+    "prompt": "中英混读 TTS 中常见的\"混读偏移\"是什么，如何在前端与模型两侧控制其分布？",
+    "quickAnswer": "混读偏移指模型在夹杂英文时音素/韵律向某一方言或语言倾斜(如中文词带英文腔或反之)；需在前端按语言精确切分 G2P，并在训练/微调时控制 code-switch 比例与语言边界平滑。",
+    "code": "def detect_lang_spans(text):\n    # 检测中英混读边界，分别走不同 G2P\n    spans = []\n    for tok in text:\n        spans.append(\"en\" if is_english(tok) else \"zh\")\n    return merge_consecutive(spans)",
+    "complexity": "时间 O(n)，空间 O(n)（n 为字符数）",
+    "beginnerSummary": "像双语者切换语言时偶尔\"串味\"；我们要让中英文各归各的味，切换点自然不突兀。",
+    "derivation": [
+      "为什么需要：混读是自然场景常态，偏移会让某语言发音失真、听感怪异。",
+      "怎么实现：前端 detect_lang_spans 分语言段→各自 G2P→边界处做韵律平滑；训练控制混读比例。",
+      "有什么代价：语言切分错误会放大偏移；过度控制会削弱自然语码转换。",
+      "怎么评测：逐词语言正确率、混读自然度 MOS、偏移的声学距离度量。"
+    ],
+    "edgeCases": [
+      "中英夹杂无空格(如\"这个API\")的切分。",
+      "英文缩写大小写/数字混合(如\"GPT4\")。",
+      "中文词内夹英文术语(如\"transformer模型\")。",
+      "方言口音下的英文读法差异需适配。"
+    ],
+    "pitfalls": [
+      "切分按字符而非语义，把\"API\"拆散读错。",
+      "微调时混读比例失衡导致单向偏移。"
+    ],
+    "prerequisites": [
+      "语言识别与分词",
+      "多语言音素体系"
+    ],
+    "workedExample": [
+      "\"我用了 GPT 模型\"→切分[中:我用了][英:GPT][中:模型]。",
+      "各段走对应 G2P，边界加短停与音高过渡。"
+    ],
+    "lineByLine": [
+      "def detect_lang_spans(text)：混读边界检测入口。",
+      "spans.append(\"en\" if is_english(tok) else \"zh\")：逐字符打语言标签。",
+      "return merge_consecutive(spans)：合并连续同语言段便于分段 G2P。"
+    ],
+    "followUps": [
+      {
+        "question": "边界韵律平滑具体怎么做？",
+        "answer": "在语言切换处插入短停、并做基频与能量插值，避免突兀跳变，使混读更自然。"
+      },
+      {
+        "question": "训练数据缺乏混读怎么办？",
+        "answer": "用平行语料构造混读样本、控制比例，并用强前端切分保证标注一致。"
+      }
+    ],
+    "followUpAnswers": [
+      "在语言切换处插入短停、并做基频与能量插值，避免突兀跳变，使混读更自然。",
+      "用平行语料构造混读样本、控制比例，并用强前端切分保证标注一致。"
+    ],
+    "explanationFocus": "是什么：code-switching(语码转换)指一句话中中英文交替；混读偏移是模型在切换时把某语言的发音/韵律错误地带入另一方。本课关注其控制方法。",
+    "approach": "前端用语言切分把文本按段分语言并各自 G2P，在边界做韵律平滑；训练/微调侧控制混读比例与边界一致性，抑制向单一语言偏移。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-dialect-finetune",
+    "category": "语音合成",
+    "difficulty": "Hard",
+    "title": "方言声线微调与崩坏归因",
+    "prompt": "对北京话/河南话/天津话等方言做声线微调时，常见的崩坏原因有哪些，如何用统一数据与回归流程控制稳定性？",
+    "quickAnswer": "崩坏多源于训练数据被噪声/混响污染、采样率与响度混杂、以及 code-switching 分布偏移；应统一采样率与响度、控制混读比例，并建立音色相似度/自然度/韵律/稳定性的回归流程。",
+    "code": "def finetune_dialect(base_ckpt, dialect_data, config):\n    # 统一采样率 24k、统一响度 -23 LUFS 后再微调\n    data = normalize(dialect_data, sr=24000, lufs=-23)\n    model = load(base_ckpt)\n    return train(model, data, control_codeswitch=config[\"code_switch_prob\"])",
+    "complexity": "时间 O(epochs·N)，空间 O(model)（N 为样本数）",
+    "beginnerSummary": "就像教一个普通话老师学方言，若录音环境嘈杂、音量不一、还夹带太多普通话，就会\"学歪\"；统一条件再系统验收才能学好。",
+    "derivation": [
+      "为什么需要：方言数据稀缺且脏，直接微调易崩坏、音色漂移。",
+      "怎么实现：统一重采样与响度归一化，控制 code-switch 比例，在基模型上低学习率微调。",
+      "有什么代价：统一处理会损失部分自然方言特征；低资源下易过拟合。",
+      "怎么评测：回归流程覆盖音色相似度(ECAPA)、自然度 MOS、韵律偏差与稳定性(崩坏率)。"
+    ],
+    "edgeCases": [
+      "方言中夹杂普通话词比例过高导致偏移。",
+      "录音自发混响/底噪未清洗污染模型。",
+      "不同说话人音高范围差异大需归一化。",
+      "小语种样本极少导致过拟合崩坏。"
+    ],
+    "pitfalls": [
+      "直接用原始脏数据微调导致音色污染与尖叫。",
+      "只看 MOS 忽略稳定性，线上偶发崩坏未被发现。"
+    ],
+    "prerequisites": [
+      "说话人自适应与微调基础",
+      "音频预处理(重采样/响度归一化)"
+    ],
+    "workedExample": [
+      "收集天津话音频→统一 24k、响度 -23 LUFS→基模型低 lr 微调。",
+      "回归集上跑相似度/自然度/韵律/稳定性四维打分验收。"
+    ],
+    "lineByLine": [
+      "data = normalize(dialect_data, sr=24000, lufs=-23)：统一数据条件。",
+      "model = load(base_ckpt)：加载通用基模型。",
+      "train(model, data, control_codeswitch=...)：控制混读比例训练。"
+    ],
+    "followUps": [
+      {
+        "question": "如何量化\"混响污染\"的影响？",
+        "answer": "在回归集对比有无去混响的崩坏率与自然度，统计混响强度与 MOS 的相关性，定位污染样本。"
+      },
+      {
+        "question": "稳定性回归流程包含哪些指标？",
+        "answer": "音色相似度(ECAPA 余弦)、自然度 MOS、韵律偏差(基频/时长 KL)、崩坏率(异常 loss 比例)四维综合。"
+      }
+    ],
+    "followUpAnswers": [
+      "在回归集对比有无去混响的崩坏率与自然度，统计混响强度与 MOS 的相关性，定位污染样本。",
+      "音色相似度(ECAPA 余弦)、自然度 MOS、韵律偏差(基频/时长 KL)、崩坏率(异常 loss 比例)四维综合。"
+    ],
+    "explanationFocus": "是什么：方言声线微调是在通用 TTS 基模型上用方言数据做自适应，使音色与口音方言化。本课关注崩坏归因与稳定化流程。",
+    "approach": "先统一数据条件(采样率/响度/去噪去混响)、控制 code-switching 分布，再用低学习率微调，并以\"音色相似度+自然度+韵律+稳定性\"四维回归验收。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-emotion",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "情感与韵律控制",
+    "prompt": "如何在 TTS 中注入情感与韵律控制，使合成语音表达不同情绪？",
+    "quickAnswer": "将情感标签或参考音频编码为韵律嵌入(全局/局部条件)，注入解码器或后验；可用离散情感分类、连续维度(效价-唤醒)或参考编码器三种方式控制。",
+    "code": "import torch\n\ndef emotion_tts(text, emotion_label):\n    # 将情感标签映射为韵律嵌入并注入解码器\n    e = emotion_encoder(emotion_label)  # (1, D)\n    return decoder(text, global_cond=e)",
+    "complexity": "时间 O(n)，空间 O(model)（n 为文本长度）",
+    "beginnerSummary": "像给同一句话选\"开心/悲伤\"的语气滤镜，情绪不同声音的高低快慢就不同。",
+    "derivation": [
+      "为什么需要：中性语音缺乏表现力，情感控制拓展有声书、客服等场景。",
+      "怎么实现：情感标签→embedding(或参考音频编码)→作为全局条件注入解码器/流。",
+      "有什么代价：标签体系有限难覆盖细微情绪；参考编码易泄露说话人身份。",
+      "怎么评测：情感识别准确率、情绪相似度 MOS、自然度是否下降。"
+    ],
+    "edgeCases": [
+      "中性与微情绪边界模糊难标注。",
+      "参考音频含强噪声影响编码。",
+      "多情感混合表达需插值。",
+      "不同说话人同一情绪音色差异大。"
+    ],
+    "pitfalls": [
+      "把说话人信息当情绪控制，导致变声而非变情绪。",
+      "离散标签过粗丢失细腻情绪层次。"
+    ],
+    "prerequisites": [
+      "说话人嵌入与条件生成",
+      "情感维度理论(效价/唤醒)"
+    ],
+    "workedExample": [
+      "标签\"开心\"→emotion_encoder→向量 e。",
+      "解码器在文本隐变量上叠加 e，生成上扬基频的开心语音。"
+    ],
+    "lineByLine": [
+      "def emotion_tts(text, emotion_label)：情感合成入口。",
+      "e = emotion_encoder(emotion_label)：把标签编码为韵律向量。",
+      "return decoder(text, global_cond=e)：向量作为全局条件注入解码器。"
+    ],
+    "followUps": [
+      {
+        "question": "参考编码器方式与标签方式各有什么取舍？",
+        "answer": "参考方式零样本、细腻但易混说话人；标签方式可控但覆盖有限，需按场景选择。"
+      },
+      {
+        "question": "如何解耦情感与说话人？",
+        "answer": "用独立编码器+对抗分类器去除说话人信息，或正交约束两嵌入空间。"
+      }
+    ],
+    "followUpAnswers": [
+      "参考方式零样本、细腻但易混说话人；标签方式可控但覆盖有限，需按场景选择。",
+      "用独立编码器+对抗分类器去除说话人信息，或正交约束两嵌入空间。"
+    ],
+    "explanationFocus": "是什么：情感 TTS 通过韵律嵌入控制语音的情绪表达，控制粒度可为离散标签、连续维度或参考音频。本课关注情感与韵律的注入方式。",
+    "approach": "将情感标签/参考音频编码为全局或局部韵律条件，注入解码器或归一化流，并用解耦训练避免与说话人身份混淆。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-eval",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "TTS 主客观评测",
+    "prompt": "如何对 TTS 系统做全面评测，覆盖 MOS、说话人相似度与自然度等主客观指标？",
+    "quickAnswer": "主观用 MOS/相似度/自然度人工打分与 AB 测试；客观用说话人编码器余弦相似度、STOI/PESQ、音素错误率与稳定性指标，二者结合判断优劣。",
+    "code": "def compute_mos(scores: list) -> float:\n    # 主观打分平均，过滤异常评分\n    scores = remove_outliers(scores)\n    return sum(scores) / len(scores)\n\ndef speaker_similarity(a, b):\n    return cosine(encoder(a), encoder(b))",
+    "complexity": "时间 O(N)，空间 O(1)（N 为样本数）",
+    "beginnerSummary": "像餐厅评分既看食客打分(主观)也看营养检测(客观)，主客观结合才可靠。",
+    "derivation": [
+      "为什么需要：自然度/相似度单看指标会失真，需主客观互补。",
+      "怎么实现：主观 MOS+相似度打分与 ABX；客观用 ECAPA 余弦、PESQ/STOI、WER。",
+      "有什么代价：人工评测贵且慢、方差大；客观指标与听感不完全一致。",
+      "怎么评测：用评测集给出各指标均值与置信区间，跨系统 AB 显著性检验。"
+    ],
+    "edgeCases": [
+      "评测员疲劳导致打分漂移。",
+      "参考音频与合成域不匹配拉低相似度。",
+      "短句 MOS 方差大需增大样本。",
+      "客观指标高但听感差的特例需人工复检。"
+    ],
+    "pitfalls": [
+      "只用客观指标(如 PESQ)误判自然度。",
+      "样本量小导致 MOS 无统计意义。"
+    ],
+    "prerequisites": [
+      "说话人验证/编码器",
+      "语音质量客观指标"
+    ],
+    "workedExample": [
+      "收集 50 句合成音频，20 人打 MOS 与相似度(1-5)。",
+      "客观算 ECAPA 余弦与 PESQ，综合排序。"
+    ],
+    "lineByLine": [
+      "def compute_mos(scores)：主观 MOS 计算入口。",
+      "scores = remove_outliers(scores)：剔除异常评分保证稳健。",
+      "return sum(scores) / len(scores)：返回平均 MOS。",
+      "cosine(encoder(a), encoder(b))：说话人余弦相似度。"
+    ],
+    "followUps": [
+      {
+        "question": "客观相似度与主观相似度不一致怎么办？",
+        "answer": "检查编码器域偏置，补充 ABX 与细粒度聚类分析定位偏差来源。"
+      },
+      {
+        "question": "如何用稳定性指标补充 MOS？",
+        "answer": "加崩坏率/异常 loss 占比，避免高 MOS 掩盖偶发崩溃。"
+      }
+    ],
+    "followUpAnswers": [
+      "检查编码器域偏置，补充 ABX 与细粒度聚类分析定位偏差来源。",
+      "加崩坏率/异常 loss 占比，避免高 MOS 掩盖偶发崩溃。"
+    ],
+    "explanationFocus": "是什么：TTS 评测用主观(人听打分)与客观(自动指标)共同衡量自然度、相似度与稳定性。本课给出可落地的指标组合。",
+    "approach": "主观以 MOS/相似度/ABX 为主，客观以说话人余弦、PESQ/STOI、WER 与稳定性指标为辅，跨系统做显著性检验综合判定。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-fastspeech",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "非自回归 TTS 与并行生成（FastSpeech / Matcha）",
+    "prompt": "为什么非自回归 TTS（如 FastSpeech、Matcha-TTS）能做到实时并行合成，它和自回归 TTS 在时长建模上有什么根本区别？",
+    "quickAnswer": "自回归 TTS 逐帧生成、速度受序列长度限制；非自回归 TTS 通过显式时长预测（length regulator）把音素一次性展开成帧序列再并行声学/波形合成，推理延迟与长度解耦，易于流式与端侧落地（如简历中的 Matcha / Melo）。",
+    "code": "import torch\n\ndef length_regulator(x, dur):\n    # x: [B, T_text, D], dur: [B, T_text]\n    out = []\n    for i in range(x.size(1)):\n        out.append(x[:, i, :].repeat_interleave(dur[:, i], dim=1))\n    return torch.cat(out, dim=1)",
+    "complexity": "时长展开 O(sum(dur))，并行声学模型 O(1) 步前向，整体与文本长度相关、与音频长度解耦。",
+    "beginnerSummary": "自回归 TTS 像一字一字念，非自回归 TTS 先规划好每个字念多长（时长预测），再把整句话一次性画出来，因此更快。",
+    "derivation": [
+      "为什么需要：自回归逐帧生成使推理时延随音频长度线性增长，难以满足实时/流式与端侧需求。",
+      "怎么实现：用时长预测器给出每个音素/词的帧数，length regulator 把文本表征按帧数展开，再并行过声学模型与声码器。",
+      "有什么代价：时长预测可能不准导致节奏异常，且并行生成弱化了上下文依赖，需要额外对齐或知识蒸馏（teacher 自回归）辅助。",
+      "怎么评测：用 RTF（实时率）、MOS、相似度与 ASR 回测 WER 衡量速度与质量权衡。"
+    ],
+    "edgeCases": [
+      "静音/停顿时长估计偏差导致节奏怪异。",
+      "多音字展开后音素序列错误。",
+      "极长短文本时并行收益有限。",
+      "低资源方言缺少对齐数据训练时长模型。"
+    ],
+    "pitfalls": [
+      "直接用自回归模型做 teacher 未做长度匹配，蒸馏失效。",
+      "忽略时长预测的方差，推理时取 argmax 丢失韵律多样性。"
+    ],
+    "prerequisites": [
+      "自回归 TTS（如 Tacotron/VITS）",
+      "时长建模与对齐（forced alignment）"
+    ],
+    "workedExample": [
+      "FastSpeech 用自回归 teacher 提供的时长作为监督，训练并行时长预测器。",
+      "简历中 Matcha-TTS / Melo 以非自回归流式结构交付中英混读与多方言，正是该思路的工程化。"
+    ],
+    "lineByLine": [
+      "def length_regulator(x, dur)：定义把文本表征按预测时长展开的函数。",
+      "for i in range(x.size(1))：遍历每个文本帧（音素/词）。",
+      "out.append(x[:, i, :].repeat_interleave(dur[:, i], dim=1))：按预测帧数重复该帧表征。",
+      "return torch.cat(out, dim=1)：拼接得到与音频等长的声学表征序列。"
+    ],
+    "followUps": [
+      {
+        "question": "非自回归 TTS 如何保证可懂度？",
+        "answer": "通常用自回归 teacher 做序列级知识蒸馏，并辅以时长对齐与 ASR 回测 WER 监控，避免并行带来的信息丢失。"
+      },
+      {
+        "question": "时长预测不准怎么办？",
+        "answer": "可用 variance adaptor（pitch/energy/duration）联合建模，或在推理时做轻量时长搜索与韵律控制。"
+      }
+    ],
+    "followUpAnswers": [
+      "通常用自回归 teacher 做序列级知识蒸馏，并辅以时长对齐与 ASR 回测 WER 监控，避免并行带来的信息丢失。",
+      "可用 variance adaptor（pitch/energy/duration）联合建模，或在推理时做轻量时长搜索与韵律控制。"
+    ],
+    "explanationFocus": "是什么：非自回归 TTS 通过显式时长预测把文本一次性展开为声学帧序列再并行合成，从而把推理时延与音频长度解耦，是实现实时、流式与端侧 TTS（如 FastSpeech、Matcha、Melo）的关键思路。",
+    "approach": "核心思路是先预测时长、再并行生成：时长预测器 + length regulator 负责把音素映射成帧数，声学模型与声码器并行前向；训练时常借助自回归 teacher 蒸馏来补偿并行带来的上下文弱化。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-frontend-prosody",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "中文 TTS 前端与韵律建模",
+    "prompt": "中文 TTS 前端如何建模韵律边界、停顿与重音，使合成语音自然不\"机器人\"？",
+    "quickAnswer": "前端先做分词与词性标注，再基于标点、韵律词/韵律短语层级预测停顿等级，并用重音模型标记焦点位置；这些韵律标签作为条件注入声学模型。",
+    "code": "import re\n\ndef predict_pause(text: str) -> list:\n    # 基于标点与韵律词规则预测停顿等级\n    boundaries = []\n    for tok in text:\n        if tok in \"，、\":\n            boundaries.append((\"breath\", 1))\n        elif tok in \"；：\":\n            boundaries.append((\"phrase\", 2))\n        elif tok in \"。！？\":\n            boundaries.append((\"sentence\", 3))\n    return boundaries",
+    "complexity": "时间 O(n)，空间 O(1)（n 为字符数）",
+    "beginnerSummary": "就像人说话会在逗号处短停、句号处长停，并强调重点词；前端给机器标出这些\"呼吸点\"和\"重音点\"，读起来才自然。",
+    "derivation": [
+      "为什么需要：无韵律边界的逐字朗读会平铺直叙、缺乏节奏，听感机械不自然。",
+      "怎么实现：分词后按\"韵律词-韵律短语-句子\"三级结构预测停顿等级，重音模型标注焦点词。",
+      "有什么代价：规则法覆盖有限、统计法需标注语料；层级越多标注成本越高。",
+      "怎么评测：用人工自然度评分与停顿位置一致性（与专家标注对齐率）衡量。"
+    ],
+    "edgeCases": [
+      "连续标点（如\"？！\"）的停顿叠加处理。",
+      "无标点的长句需要靠句法切分补边界。",
+      "列举项（\"甲、乙、丙\"）之间的短停建模。",
+      "引号内外的停顿归属容易错位。"
+    ],
+    "pitfalls": [
+      "仅按标点定停顿会忽略语义边界，导致断句奇怪。",
+      "重音过密等于无重音，反而打乱整体节奏。"
+    ],
+    "prerequisites": [
+      "中文分词与句法分析",
+      "韵律学基本层级（词/短语/句）"
+    ],
+    "workedExample": [
+      "输入\"今天天气好，我们去公园吧。\"→逗号处标等级 1、句号处等级 3。",
+      "\"我们『去公园』\"中\"去公园\"被标为重音焦点，基频上扬。"
+    ],
+    "lineByLine": [
+      "import re：引入正则（示意扩展用）。",
+      "for tok in text：逐字符扫描文本。",
+      "if tok in \"，、\"：轻标点映射为呼吸级停顿（等级 1）。",
+      "elif tok in \"。！？\"：句末映射为句子级长停（等级 3）。"
+    ],
+    "followUps": [
+      {
+        "question": "韵律边界如何与 VITS 等端到端模型结合？",
+        "answer": "将停顿等级与重音标签编码为时长/音高条件，或在文本编码器侧作为额外 embedding 注入，引导潜变量对齐的节奏。"
+      },
+      {
+        "question": "端到端模型是否还需要显式韵律标注？",
+        "answer": "可弱监督：用标点规则生成粗标签做预训练，再用少量精细标注微调，既保留端到端优势又获得可控韵律。"
+      }
+    ],
+    "followUpAnswers": [
+      "将停顿等级与重音标签编码为时长/音高条件，或在文本编码器侧作为额外 embedding 注入，引导潜变量对齐的节奏。",
+      "可弱监督：用标点规则生成粗标签做预训练，再用少量精细标注微调，既保留端到端优势又获得可控韵律。"
+    ],
+    "explanationFocus": "是什么：TTS 前端负责把文本转成\"带韵律信息的语言表征\"，包括分词、读音与韵律边界/重音标注。韵律建模决定语音的节奏与重点。",
+    "approach": "在分词基础上构建\"韵律词-韵律短语-句子\"层级，结合标点与句法预测停顿等级，并用重音模型标注焦点，将结果作为条件注入声学模型。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-g2p",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "G2P 前端与多音字三级回退",
+    "prompt": "在中文 TTS 前端中，如何用双层词典、G2PW 与 pypinyin 三级回退处理多音字与低置信词组，保证中英混读稳定？",
+    "quickAnswer": "采用 split_by_lang 先按语言切分，中文段优先查双层词典（多音字特殊词+常规词典），再调用 G2PW 模型；当 G2PW 置信度低于阈值时用 pypinyin 兜底，英文段走英文 G2P，从而保证混读稳定。",
+    "code": "def g2p_with_fallback(text: str) -> list:\n    # 第一级：split_by_lang 按语言切分\n    segs = split_by_lang(text)\n    phonemes = []\n    for lang, seg in segs:\n        if lang == \"zh\":\n            # 第二级：G2PW 模型，低置信回退 pypinyin\n            res, conf = g2pw.predict(seg)\n            if conf < 0.6:\n                res = pypinyin.lazy_pinyin(seg)\n            phonemes.extend(res)\n        else:\n            phonemes.extend(english_g2p(seg))\n    return phonemes",
+    "complexity": "时间 O(n)，空间 O(n)（n 为字符数）",
+    "beginnerSummary": "就像遇到不认识的字先查小字典、再查大字典、最后用拼音规则猜，三级兜底保证每个字都能读对，不会卡壳。",
+    "derivation": [
+      "为什么需要：中文多音字（如\"重\"）与未登录词无法靠规则唯一确定读音，G2PW 虽好但对低频词置信度低，必须回退。",
+      "怎么实现：split_by_lang 切分语言→双层词典命中→否则 G2PW 预测，置信度低于 0.6 时用 pypinyin 兜底。",
+      "有什么代价：三级回退增加推理分支与词典维护成本，回退可能引入音错，需要评测低置信词组覆盖率。",
+      "怎么评测：在带读音标注的多音字测试集上统计准确率与混读崩溃率，并离线拟合轻量 G2P 服务替代 G2PW。"
+    ],
+    "edgeCases": [
+      "多音字在专有名词中读错（如\"重庆\"的\"重\"）。",
+      "G2PW 对数字/字母混合串（如\"GPT4\"）置信度低。",
+      "中英混读边界切分错误导致整句重读。",
+      "轻声与儿化音（如\"花儿\"）规则缺失时丢失韵律。"
+    ],
+    "pitfalls": [
+      "把 pypinyin 当主模型用会丢失上下文消歧能力，多音字全错。",
+      "置信度阈值设得过高会频繁回退、过低会放过错误读音。"
+    ],
+    "prerequisites": [
+      "中文分词与语言识别基础",
+      "拼音与音素表示（pinyin/phoneme）",
+      "模型置信度与阈值策略"
+    ],
+    "workedExample": [
+      "输入\"他重(chóng)新读了 GPT 论文\"，split_by_lang 切成中文段\"他重新读了\"与英文段\"GPT 论文\"。",
+      "\"重\"命中多音字词典得 chóng；\"GPT\"走英文 G2P；低置信词组回退 pypinyin 保证不崩。"
+    ],
+    "lineByLine": [
+      "def g2p_with_fallback(text)：定义入口，接收原始混合语言文本。",
+      "segs = split_by_lang(text)：按语言切成若干段，分离中英文。",
+      "res, conf = g2pw.predict(seg)：G2PW 预测中文读音并返回置信度。",
+      "if conf < 0.6: res = pypinyin.lazy_pinyin(seg)：低置信时回退到 pypinyin 兜底。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么要把读音标签从 8 类扩展到 18 类？",
+        "answer": "8 类无法覆盖轻声、儿化、变调等细分韵律需求，18 类能更精细地驱动韵律建模与多方言适配，提升自然度与方言区分度。"
+      },
+      {
+        "question": "轻量 G2P 服务如何拟合 G2PW？",
+        "answer": "用 G2PW 的批量输出作伪标签，蒸馏到一个小模型或规则服务，降低线上延迟与对 G2PW 重模型的依赖，同时保留三级回退兜底。"
+      }
+    ],
+    "followUpAnswers": [
+      "8 类无法覆盖轻声、儿化、变调等细分韵律需求，18 类能更精细地驱动韵律建模与多方言适配，提升自然度与方言区分度。",
+      "用 G2PW 的批量输出作伪标签，蒸馏到一个小模型或规则服务，降低线上延迟与对 G2PW 重模型的依赖，同时保留三级回退兜底。"
+    ],
+    "explanationFocus": "是什么：G2P（Grapheme-to-Phoneme）把文字转为拼音或音素序列；本课关注中文多音字与中英混读场景下的三级回退策略。它是 TTS 前端最易出错、最影响自然度的环节。",
+    "approach": "以 split_by_lang 做语言切分，中文走\"双层词典→G2PW→pypinyin\"三级回退，英文走英文 G2P，并用轻量服务拟合 G2PW、把读音标签从 8 类扩到 18 类以支撑多方言与韵律。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-matcha-melo",
+    "category": "语音合成",
+    "difficulty": "Hard",
+    "title": "Matcha-TTS 与 Melo-TTS 原理",
+    "prompt": "Matcha-TTS 的非自回归流式合成与 Melo-TTS 的多语言/方言设计分别如何解决延迟与跨语言问题？",
+    "quickAnswer": "Matcha-TTS 用基于流的时长模型一次前向产出梅尔，天然支持帧级流式输出、降低首包延迟；Melo-TTS 以共享底层+语言相关适配器实现多语言/方言零样本克隆，控制混读分布。",
+    "code": "import torch\n\ndef matcha_inference(text, spk_emb):\n    # 非自回归：一次前向得到梅尔谱，支持流式分块\n    dur = duration_predictor(text)\n    mel = decoder(text, spk_emb)\n    return mel  # 可逐帧流式输出\n\ndef melo_inference(text, lang=\"en\"):\n    # 多语言/方言共享底层，顶层语言相关适配器\n    return adapter[lang](text)",
+    "complexity": "时间 O(n)，空间 O(n)（n 为文本长度）",
+    "beginnerSummary": "Matcha 像一次性把整段乐谱写好再逐页演奏（流式）；Melo 像同一个人会多国口音，换语言只换\"口音模块\"。",
+    "derivation": [
+      "为什么需要：自回归 TTS 延迟高、难流式；多语言需避免为每语种各训一个模型。",
+      "怎么实现：Matcha 用非自回归 flow 预测梅尔并分块流式；Melo 共享编码器+每语言适配器，配合说话人嵌入做零样本。",
+      "有什么代价：非自回归需良好时长预测；多语言共享易互相干扰，需控制 code-switch 分布。",
+      "怎么评测：首包延迟、流式稳定性、各语言 MOS 与跨语言相似度。"
+    ],
+    "edgeCases": [
+      "流式截断导致句末拖音或截断。",
+      "方言内 code-switch 到普通话的比例失衡。",
+      "罕见口音数据不足导致适配器欠拟合。",
+      "长句流式缓冲溢出需分段边界处理。"
+    ],
+    "pitfalls": [
+      "把 Matcha 当纯离线用会浪费其流式低延迟优势。",
+      "Melo 多语言共享过强导致方言特色被\"普通话化\"。"
+    ],
+    "prerequisites": [
+      "非自回归生成(如 Flow/Glow)",
+      "说话人嵌入与零样本克隆"
+    ],
+    "workedExample": [
+      "Matcha 输入文本→duration 预测→一次解码梅尔→逐帧推流到声码器。",
+      "Melo 选 lang=\"en\" 适配器，同一说话人嵌入生成英文口音语音。"
+    ],
+    "lineByLine": [
+      "def matcha_inference(text, spk_emb)：非自回归合成的入口。",
+      "dur = duration_predictor(text)：预测各音素时长用于分块。",
+      "mel = decoder(text, spk_emb)：一次前向得到全句梅尔谱。",
+      "return adapter[lang](text)：Melo 按语言选择适配器生成对应口音。"
+    ],
+    "followUps": [
+      {
+        "question": "Matcha 如何实现流式而非等整句？",
+        "answer": "解码器按预测时长分块产出梅尔帧，前端在固定 chunk 内边生成边送声码器，降低首包延迟。"
+      },
+      {
+        "question": "Melo 如何防止方言被普通话同化？",
+        "answer": "在微调时控制混读分布、统一数据条件，并对各语言适配器做独立的韵律约束，保留方言特色。"
+      }
+    ],
+    "followUpAnswers": [
+      "解码器按预测时长分块产出梅尔帧，前端在固定 chunk 内边生成边送声码器，降低首包延迟。",
+      "在微调时控制混读分布、统一数据条件，并对各语言适配器做独立的韵律约束，保留方言特色。"
+    ],
+    "explanationFocus": "是什么：Matcha-TTS 是基于梯度流的非自回归流式 TTS；Melo-TTS 是多语言/多方言 TTS，支持零样本声音克隆。二者分别面向低延迟与跨语言能力。",
+    "approach": "Matcha 用流模型一次产出梅尔并分块流式；Melo 以共享底层+语言相关适配器实现多语言/方言统一建模，并控制混读分布。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-onnx-deploy",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "sherpa-onnx 量化与端侧部署",
+    "prompt": "如何把 TTS 模型用 sherpa-onnx 做 INT8 量化、打包并在端侧运行交付？",
+    "quickAnswer": "将训练好的模型/声码器导出为 ONNX，用 sherpa-onnx 的量化工具做 INT8 校准量化，打包为端侧资源(模型+词典+配置)，通过 OfflineTts API 在 CPU/移动端推理。",
+    "code": "import sherpa_onnx\n\ndef export_int8(model, path):\n    # INT8 量化后由 sherpa-onnx 加载，端侧交付\n    sess = sherpa_onnx.OfflineTts(\n        model=path, num_threads=4,\n        provider=\"coreml\"  # 或 \"cpu\"\n    )\n    return sess  # 端侧 INT8 推理",
+    "complexity": "时间 O(inference)，空间 O(model_size)",
+    "beginnerSummary": "像把大冰箱压缩成小冰柜还能用——量化让模型变小变快，端侧手机也能跑得动。",
+    "derivation": [
+      "为什么需要：原始浮点模型体积大、端侧算力有限，需压缩与统一运行时。",
+      "怎么实现：导出 ONNX→校准 INT8 量化→封装资源→sherpa-onnx 加载推理。",
+      "有什么代价：INT8 可能引入轻微音质损失，需校准集代表性强。",
+      "怎么评测：对比量化前后 MOS 与崩坏率、测端侧延迟与内存占用。"
+    ],
+    "edgeCases": [
+      "校准集不含方言导致量化后方言崩坏。",
+      "移动端算子不支持需替换实现。",
+      "多说话人配置打包遗漏导致缺音色。",
+      "不同芯片(ARM/x86)数值差异需验证。"
+    ],
+    "pitfalls": [
+      "校准集太小导致量化误差大、音质明显下降。",
+      "忘记关闭训练态(BN/dropout)再导出，推理结果漂移。"
+    ],
+    "prerequisites": [
+      "ONNX 导出与推理基础",
+      "模型量化(INT8)概念"
+    ],
+    "workedExample": [
+      "导出 VITS+HiFi-GAN 为 ONNX→量化工具生成 int8 模型。",
+      "端侧用 OfflineTts 加载，num_threads 调优跑通推理。"
+    ],
+    "lineByLine": [
+      "import sherpa_onnx：引入端侧推理库。",
+      "sherpa_onnx.OfflineTts(model=path, ...)：构建离线 TTS 会话。",
+      "provider=\"coreml\"：选择端侧后端(或 cpu/NPU)。"
+    ],
+    "followUps": [
+      {
+        "question": "INT8 量化为何需要校准集？",
+        "answer": "校准确定激活值动态范围(scale/zero-point)，代表性不足会截断分布致精度下降、崩坏增多。"
+      },
+      {
+        "question": "sherpa-onnx 相比直接用 PyTorch 部署的优势？",
+        "answer": "跨平台统一、无 Python 依赖、体积小、支持移动/嵌入式，便于端侧交付与集成。"
+      }
+    ],
+    "followUpAnswers": [
+      "校准确定激活值动态范围(scale/zero-point)，代表性不足会截断分布致精度下降、崩坏增多。",
+      "跨平台统一、无 Python 依赖、体积小、支持移动/嵌入式，便于端侧交付与集成。"
+    ],
+    "explanationFocus": "是什么：sherpa-onnx 是基于 ONNX Runtime 的跨平台语音工具链，支持把 TTS 模型量化并在端侧(手机/嵌入式)离线运行。本课关注 INT8 量化与打包交付。",
+    "approach": "将模型导出 ONNX，用校准集做 INT8 量化以压缩体积、降低延迟，再与词典/配置打包，通过 OfflineTts API 在 CPU 或 NPU 后端推理。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-patent",
+    "category": "语音合成",
+    "difficulty": "Easy",
+    "title": "中英混读 TTS 前端专利要点",
+    "prompt": "若在中文及中英混读 TTS 前端方向申请发明专利，核心权利要求与独创点应如何组织？",
+    "quickAnswer": "专利应围绕\"混合语言切分→分语言 G2P→韵律标注\"的前端流程，突出多音字三级回退、混读边界平滑与低置信兜底等独创点，并给出具体实施例与效果数据。",
+    "code": "def claim_frontend(text):\n    # 权利要求：混合语言切分 -> 分语言 G2P -> 韵律标注\n    spans = split_by_lang(text)\n    return [g2p(s, lang) for s, lang in spans]",
+    "complexity": "时间 O(n)，空间 O(1)（n 为字符数）",
+    "beginnerSummary": "像写一份\"独门配方\"说明书：把切分、分语言读音、韵律标注三步作为核心 claim，证明它比别人读得准。",
+    "derivation": [
+      "为什么需要：前端多音字与混读是中文 TTS 痛点，可专利化保护技术方案。",
+      "怎么实现：把语言切分、分语言 G2P、韵律标注串成方法权利要求，附装置与介质权利要求。",
+      "有什么代价：需公开足够细节、做查新与效果对比，撰写与审查周期长。",
+      "怎么评测：以对比基线(如纯 pypinyin)在准确率/自然度上的提升作为创造性支撑。"
+    ],
+    "edgeCases": [
+      "权利要求过宽被驳回需缩范围。",
+      "实施例缺数据削弱创造性论证。",
+      "与现有 G2P 专利的边界需区分。",
+      "多设备/介质权利要求的一致性要保持。"
+    ],
+    "pitfalls": [
+      "只写系统不写方法，保护面过窄。",
+      "实施例与 claim 不对应，审查受阻。"
+    ],
+    "prerequisites": [
+      "专利权利要求撰写基础",
+      "前端 G2P 与韵律流程"
+    ],
+    "workedExample": [
+      "独立权利要求：获取文本→split_by_lang→分语言 G2P→输出带韵律音素序列。",
+      "从属权利要求：多音字三级回退、低置信 pypinyin 兜底、混读边界平滑。"
+    ],
+    "lineByLine": [
+      "def claim_frontend(text)：专利方法入口示意。",
+      "spans = split_by_lang(text)：按语言切分文本。",
+      "return [g2p(s, lang) for s, lang in spans]：逐段按语言做 G2P 输出音素序列。"
+    ],
+    "followUps": [
+      {
+        "question": "如何证明前端方案的创造性？",
+        "answer": "与基线对比多音字准确率与混读自然度 MOS 的提升，并给出统计显著结果作为创造性支撑。"
+      },
+      {
+        "question": "方法/装置/介质三类权利要求如何布局？",
+        "answer": "方法为核心独立权项，装置(模块)与计算机可读介质为其等价实现，扩大保护面。"
+      }
+    ],
+    "followUpAnswers": [
+      "与基线对比多音字准确率与混读自然度 MOS 的提升，并给出统计显著结果作为创造性支撑。",
+      "方法为核心独立权项，装置(模块)与计算机可读介质为其等价实现，扩大保护面。"
+    ],
+    "explanationFocus": "是什么：本课把\"中文及中英混读 TTS 前端\"整理为可专利化的技术方案，核心是语言切分→分语言 G2P→韵律标注的流程及其独创点。",
+    "approach": "以方法权利要求覆盖\"混合语言切分+分语言 G2P+韵律标注\"主流程，用从属权利要求保护多音字三级回退、低置信兜底与混读边界平滑，并配实施例与对比数据支撑创造性。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-phoneme-prosody",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "音素与韵律时长建模",
+    "prompt": "TTS 中如何基于音素建模时长与韵律，使朗读节奏符合语言习惯？",
+    "quickAnswer": "用时长预测器依据音素上下文预测每个音素占的帧数，再配合韵律模型(基频/能量曲线)塑造节奏与轻重；非自回归模型常把时长作为显式条件。",
+    "code": "import torch.nn as nn\n\nclass DurationPredictor(nn.Module):\n    def forward(self, x):\n        # 基于音素上下文预测每个音素帧数\n        return self.conv(x).squeeze(-1).exp()  # 时长(帧)",
+    "complexity": "时间 O(n)，空间 O(n)（n 为音素数）",
+    "beginnerSummary": "像给每个字分配\"演唱时长\"，再按旋律起伏决定轻重缓急，朗读才像人说话。",
+    "derivation": [
+      "为什么需要：均匀时长听感机械，需按音素/语境分配时长与重音。",
+      "怎么实现：时长预测器输出每音素帧数→上采样对齐；韵律模型给基频/能量轮廓。",
+      "有什么代价：时长预测误差会累积导致对齐抖动；需与声码器节奏匹配。",
+      "怎么评测：时长 Pearson 相关、韵律自然度 MOS、与真值的帧对齐误差。"
+    ],
+    "edgeCases": [
+      "停顿符号被当成音素分配了时长。",
+      "多音字时长随具体读音变化。",
+      "韵律词边界处时长需压缩。",
+      "长元音/辅音簇有特殊时长规律。"
+    ],
+    "pitfalls": [
+      "直接指数化输出未裁剪导致时长过长爆炸。",
+      "忽略上下文使重音位置错乱。"
+    ],
+    "prerequisites": [
+      "音素与声学特征",
+      "序列预测基础"
+    ],
+    "workedExample": [
+      "文本\"你好\"→音素[n i x ao]→预测帧数[8,6,10,12]。",
+      "上采样后送入解码器，长音素占更多帧形成节奏。"
+    ],
+    "lineByLine": [
+      "class DurationPredictor(nn.Module)：定义时长预测网络。",
+      "x = self.conv(x)：卷积提取音素上下文特征。",
+      "return self.conv(x).squeeze(-1).exp()：输出取指数保证正值时长(帧)。"
+    ],
+    "followUps": [
+      {
+        "question": "时长预测误差如何缓解？",
+        "answer": "用真实对齐(MFA)蒸馏、加方差约束，并在推理做局部平滑抑制抖动。"
+      },
+      {
+        "question": "韵律模型与时长模型如何协同？",
+        "answer": "时长决定\"何时说\"，韵律模型决定\"怎么说\"，二者共享文本编码并在解码端拼接条件。"
+      }
+    ],
+    "followUpAnswers": [
+      "用真实对齐(MFA)蒸馏、加方差约束，并在推理做局部平滑抑制抖动。",
+      "时长决定\"何时说\"，韵律模型决定\"怎么说\"，二者共享文本编码并在解码端拼接条件。"
+    ],
+    "explanationFocus": "是什么：音素级建模把文本映射到音素序列并预测每个音素的持续时长与韵律(基频/能量)，决定朗读的节奏与轻重。本课聚焦时长与韵律模型。",
+    "approach": "用时长预测器依据音素上下文估计每音素帧数并上采样对齐，配合韵律模型生成基频/能量轮廓，共同作为声学模型的条件。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-stability",
+    "category": "语音合成",
+    "difficulty": "Hard",
+    "title": "TTS 稳定性与崩坏归因",
+    "prompt": "TTS 合成中\"崩坏\"与 KL loss 爆炸通常如何归因，怎样用回归评测尽早发现并抑制？",
+    "quickAnswer": "崩坏常来自对齐失败、后验坍塌、训练数据噪声与学习率过大导致 KL 爆炸；应监控逐句 KL/重构损失、设阈值报警，并用稳定性回归集统计崩坏率与异常样本。",
+    "code": "import torch\n\ndef stability_score(model, testset, THRESH=5.0):\n    # kloss 监控 + 崩坏率统计\n    crash = 0\n    for text in testset:\n        loss = model.kl_loss(text)\n        if loss > THRESH or torch.isnan(loss):\n            crash += 1\n    return 1.0 - crash / len(testset)",
+    "complexity": "时间 O(N)，空间 O(1)（N 为测试句数）",
+    "beginnerSummary": "像工厂质检：给每句话打分，分数异常(过高/NaN)的就判为\"残次品\"，统计残次率盯住产线稳定。",
+    "derivation": [
+      "为什么需要：线上偶发崩坏(重复/尖叫/静音)严重影响体验，需可量化归因。",
+      "怎么实现：实时监控 KL/对抗损失，异常即标记；用稳定性回归集测崩坏率。",
+      "有什么代价：逐句评测有算力成本；阈值需随模型迭代调整。",
+      "怎么评测：崩坏率、异常 loss 占比、自然度 MOS 在低置信子集上的衰减。"
+    ],
+    "edgeCases": [
+      "极短文本(单字)易重复崩坏。",
+      "含大量标点/符号的异常输入触发失稳。",
+      "未见领域术语触发对齐失败。",
+      "推理温度偏高导致尖叫音。"
+    ],
+    "pitfalls": [
+      "只看平均 loss 掩盖个别崩坏句。",
+      "阈值固定不变，模型迭代后误报/漏报。"
+    ],
+    "prerequisites": [
+      "KL 散度与变分训练",
+      "异常检测基础"
+    ],
+    "workedExample": [
+      "对回归集每句算 KL，>THRESH 或 NaN 计为崩溃。",
+      "崩坏率 = 崩溃句数/总数，趋势上升即回退模型版本。"
+    ],
+    "lineByLine": [
+      "def stability_score(model, testset, THRESH=5.0)：定义稳定性评分入口。",
+      "loss = model.kl_loss(text)：取该句 KL 损失。",
+      "if loss > THRESH or torch.isnan(loss)：异常(爆炸或数值溢出)判定。",
+      "return 1.0 - crash / len(testset)：返回稳定性分数(1-崩坏率)。"
+    ],
+    "followUps": [
+      {
+        "question": "KL 爆炸与后验坍塌有何关系？",
+        "answer": "学习率过大或流容量不足时后验被先验拉垮，KL 骤增且生成退化，是坍塌前兆，应早停或降 lr。"
+      },
+      {
+        "question": "如何在训练中抑制崩坏？",
+        "answer": "加 KL 退火、梯度裁剪，用稳定性子集做早停与正则，并对异常样本重采样。"
+      }
+    ],
+    "followUpAnswers": [
+      "学习率过大或流容量不足时后验被先验拉垮，KL 骤增且生成退化，是坍塌前兆，应早停或降 lr。",
+      "加 KL 退火、梯度裁剪，用稳定性子集做早停与正则，并对异常样本重采样。"
+    ],
+    "explanationFocus": "是什么：TTS 稳定性指模型在多样输入下不出现重复/尖叫/静音等\"崩坏\"的能力；KL loss 爆炸是变分模型训练失稳的典型信号。本课关注归因与回归评测。",
+    "approach": "以逐句 KL/重构损失监控结合阈值报警捕捉异常，并用覆盖疑难句的稳定性回归集统计崩坏率，辅以 KL 退火与梯度裁剪从源头抑制。",
+    "kind": "concept"
+  },
+  {
+    "id": "tts-vocoder",
+    "category": "语音合成",
+    "difficulty": "Medium",
+    "title": "神经声码器 HiFi-GAN 原理",
+    "prompt": "以 HiFi-GAN 为例，神经声码器如何把梅尔谱高效还原为波形，兼顾质量与速度？",
+    "quickAnswer": "HiFi-GAN 用多周期判别器(MPD)与多尺度判别器(MSD)对抗训练，生成器通过一维转置卷积逐级上采样梅尔到波形，推理极快且保真度高。",
+    "code": "import torch.nn as nn\n\nclass HiFiGANGenerator(nn.Module):\n    def __init__(self, upsample_rates=(8, 8, 2, 2)):\n        self.ups = nn.ModuleList([\n            nn.ConvTranspose1d(1024, 512, k, k) for k in upsample_rates\n        ])\n    def forward(self, mel):\n        x = mel\n        for up in self.ups:\n            x = torch.tanh(up(x))\n        return x  # 波形",
+    "complexity": "时间 O(t·r)，空间 O(t)（t 帧，r 上采样率）",
+    "beginnerSummary": "声码器像把\"乐谱\"(梅尔谱)快速演奏成真实声音，HiFi-GAN 用多个评委(判别器)逼着它奏得更像真人。",
+    "derivation": [
+      "为什么需要：Griffin-Lim 等传统方法音质差、有相位问题，需神经声码器还原细节。",
+      "怎么实现：生成器转置卷积上采样，MPD+MSD 多视角对抗；加特征匹配损失稳定训练。",
+      "有什么代价：对抗训练易模式崩塌；上采样率乘积需等于总倍数。",
+      "怎么评测：MOS、PESQ/STOI 客观指标与逐层特征匹配误差。"
+    ],
+    "edgeCases": [
+      "静音段产生的底噪需要抑制。",
+      "高采样率(48k)下高频伪影更明显。",
+      "输入梅尔缺失高频能量导致发闷。",
+      "训练数据分布外的音色易失真。"
+    ],
+    "pitfalls": [
+      "上采样率乘积算错导致输出长度与音频不匹配。",
+      "只用 MSD 忽略周期结构，高频容易糊。"
+    ],
+    "prerequisites": [
+      "梅尔谱与短时傅里叶变换",
+      "GAN 与判别器设计"
+    ],
+    "workedExample": [
+      "输入 80 维梅尔(帧×80)→生成器逐级上采样到波形。",
+      "判别器对真实/生成波形打分，反向更新生成器逼近真实分布。"
+    ],
+    "lineByLine": [
+      "class HiFiGANGenerator(nn.Module)：定义生成器。",
+      "self.ups = nn.ModuleList([...])：按上采样率堆叠转置卷积。",
+      "x = torch.tanh(up(x))：逐级上采样并激活。",
+      "return x：输出时域波形。"
+    ],
+    "followUps": [
+      {
+        "question": "MPD 与 MSD 有什么区别与作用？",
+        "answer": "MPD 在不同周期上切分序列捕捉周期结构，MSD 在多分辨率上捕捉整体结构，二者互补提升音质。"
+      },
+      {
+        "question": "如何把 HiFi-GAN 部署到端侧？",
+        "answer": "转 ONNX 并做 INT8 量化，配合轻量推理后端如 sherpa-onnx 在 CPU/移动端运行。"
+      }
+    ],
+    "followUpAnswers": [
+      "MPD 在不同周期上切分序列捕捉周期结构，MSD 在多分辨率上捕捉整体结构，二者互补提升音质。",
+      "转 ONNX 并做 INT8 量化，配合轻量推理后端如 sherpa-onnx 在 CPU/移动端运行。"
+    ],
+    "explanationFocus": "是什么：神经声码器把声学模型输出的梅尔谱还原成时域波形；HiFi-GAN 以生成器+多判别器对抗训练实现高保真、低延迟合成。",
+    "approach": "用一维转置卷积生成器逐级上采样梅尔，配合多周期与多尺度判别器的对抗损失与特征匹配损失，逼近真实波形分布。",
+    "kind": "concept"
+  },
+  {
     "kind": "concept",
     "id": "speech-llm-pipeline",
     "category": "语音大模型",
@@ -42811,6 +47116,470 @@ export const questions = [
     ],
     "diagram": "输入 ─▶ [Thinker 慢思考] ─▶ 语义向量 ─▶ [Talker 快说] ─▶ 语音\n            (重/少调用)              │条件        (轻/流式)\n                                     └──────────┘",
     "order": 8
+  },
+  {
+    "id": "slm-audio-encoder-adapter",
+    "category": "语音大模型",
+    "difficulty": "Medium",
+    "title": "音频编码器与适配器",
+    "prompt": "Whisper/HuBERT 这类音频编码器如何接入 LLM？适配器（adapter）的作用与常见结构是什么？",
+    "quickAnswer": "音频编码器（Whisper/HuBERT）先抽取帧级表征，再用适配器（如线性投影、Q-Former、或轻量 MLP）把变长序列压缩并投影到 LLM 隐空间，作为前缀软 token 接入。适配器还能缓解模态 gap 并降低序列长度。",
+    "code": "from torch import nn\n\nclass AudioAdapter(nn.Module):\n    def __init__(self, d_enc, d_llm, n=32):\n        self.proj = nn.Linear(d_enc, d_llm)        # 维度对齐\n        self.down = nn.Conv1d(1, 1, 4, stride=4)   # 4倍下采样\n    def forward(self, feat):\n        x = self.down(feat).squeeze(0)             # 压缩帧率\n        return self.proj(x)                        # 投到 LLM 空间",
+    "complexity": "时间 O(T*d)，空间 O(params)",
+    "beginnerSummary": "编码器像翻译把声音变成'外语笔记'，适配器像字典把笔记翻成大模型看得懂的'母语'，并顺手把长篇笔记压缩成要点。",
+    "derivation": [
+      "为什么需要：音频编码器输出维度与帧率都与 LLM 隐空间不同，需适配器做对齐与压缩。",
+      "怎么实现：在 encoder 后接线性/MLP/Q-Former，将帧级特征投影到 LLM 维度并下采样，作为前缀 token 拼入。",
+      "有什么代价：适配器引入额外参数，下采样过猛会丢信息，训练需与 LLM 对齐避免表征漂移。",
+      "怎么评测：用下游 ASR/WER 与语音问答准确率，及适配后特征与文本空间的对齐度（如零样本检索）。"
+    ],
+    "edgeCases": [
+      "长音频下采样后关键信息丢失，需自适应池化或注意力下采样。",
+      "编码器与 LLM 维度差过大时单层线性不够，需多层 MLP。",
+      "冻结编码器只训适配器时容量受限，难学复杂对齐。",
+      "多采样率输入需重采样到编码器期望 16k/24k。"
+    ],
+    "pitfalls": [
+      "直接把 encoder 输出无下采样拼入 LLM，序列过长撑爆显存与上下文。",
+      "适配器与 LLM 一起从头训导致编码器表征被破坏，应先冻编码器。"
+    ],
+    "prerequisites": [
+      "CNN / Transformer 音频编码器",
+      "投影层与表征对齐"
+    ],
+    "workedExample": [
+      "Whisper encoder 输出 1500 帧 1280 维，经 4 倍下采样+线性投影成 375 个 4096 维 LLM 前缀 token。",
+      "仅训 adapter 冻结 HuBERT，在语音问答上 zero-shot 达 72% 准确率。"
+    ],
+    "lineByLine": [
+      "self.proj = nn.Linear(d_enc, d_llm)：构建维度对齐投影。",
+      "self.down = nn.Conv1d(..., stride=4)：用卷积做 4 倍帧率下采样。",
+      "x = self.down(feat).squeeze(0)：压缩时间维减少 token 数。",
+      "return self.proj(x)：投影到 LLM 隐空间作为前缀。"
+    ],
+    "followUps": [
+      {
+        "question": "Q-Former 适配器相比线性投影好在哪儿？",
+        "answer": "Q-Former 用可学习查询做交叉注意力，把变长音频压缩为固定数量语义 token，既降序列又保留关键信息，适合长音频与多任务。"
+      },
+      {
+        "question": "Whisper 与 HuBERT encoder 怎么选？",
+        "answer": "Whisper 偏识别、对 ASR 友好；HuBERT 自监督、语义表征更通用且适合做语义 token 源，按任务选或二者融合。"
+      }
+    ],
+    "followUpAnswers": [
+      "Q-Former 用可学习查询做交叉注意力，把变长音频压缩为固定数量语义 token，既降序列又保留关键信息，适合长音频与多任务。",
+      "Whisper 偏识别、对 ASR 友好；HuBERT 自监督、语义表征更通用且适合做语义 token 源，按任务选或二者融合。"
+    ],
+    "explanationFocus": "是什么：音频编码器（如 Whisper/HuBERT）负责把波形抽取成帧级表征，适配器是把这些表征投影并压缩到 LLM 隐空间的桥梁模块，使音频能作为前缀 token 接入语言模型。",
+    "approach": "在 encoder 后接投影/下采样/交叉注意力类适配器，做维度对齐与序列压缩，再作为软前缀拼入 LLM，从而以最小改动把听觉能力注入现成大模型。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-continuous-discrete",
+    "category": "语音大模型",
+    "difficulty": "Medium",
+    "title": "连续与离散语音表征取舍",
+    "prompt": "在语音大模型里，连续表征和离散 token 各有什么优劣？什么场景该选哪种？",
+    "quickAnswer": "连续表征保真度高、训练信号平滑但难直接接入自回归 LLM 词表且序列长；离散 token 可复用文本 LLM 训练范式、序列紧凑但量化有损。实践中常以离散为主、连续作辅助对齐。",
+    "code": "import torch\n\ndef pick_repr(z_cont, z_disc, task):\n    if task == 'synthesize':            # 合成要保真\n        return z_cont                   # 用连续表征\n    if task == 'reason':                # 推理要词表对齐\n        return z_disc                   # 用离散 token\n    return torch.cat([z_disc, z_cont])  # 混合",
+    "complexity": "时间 O(d)，空间 O(seq*d)",
+    "beginnerSummary": "连续表征像高清照片细节多但占地方，离散 token 像压缩表情包省空间却丢细节；要保真用连续，要接大模型推理用离散。",
+    "derivation": [
+      "为什么需要：语音既是连续信号又有可符号化的语义，单一表示无法兼顾保真与可学习性。",
+      "怎么实现：连续用 encoder 隐向量直接接入适配器，离散用 VQ/codec 量化成 token 接入词表，也可两者拼接。",
+      "有什么代价：连续表征序列长、难定义生成目标；离散量化不可逆有损、训练码本易坍缩。",
+      "怎么评测：保真度看 STOI/PESQ，可学习性看下游 WER/准确率，综合看端到端 MOS。"
+    ],
+    "edgeCases": [
+      "码本坍缩时离散表征多样性不足，需用码本重置或 kmeans 初始化。",
+      "连续表征直接进 LLM 词表维度不匹配需 adapter 投影。",
+      "混合表征拼接会增加序列长度与注意力开销。",
+      "超低比特率下离散重建音质崩塌需提升码率或层数。"
+    ],
+    "pitfalls": [
+      "把连续向量当作词表 token 直接做 cross-entropy，维度与语义都不对。",
+      "只用语义离散 token 做 TTS，忽略声学细节导致音色丢失。"
+    ],
+    "prerequisites": [
+      "表征学习与降维",
+      "矢量量化与 codec"
+    ],
+    "workedExample": [
+      "情感识别任务用连续 HuBERT 表征，比离散 token 高 3 个点。",
+      "对话生成任务用离散 token，可直接套用 LLM 下一 token 预测损失。"
+    ],
+    "lineByLine": [
+      "if task == 'synthesize'：合成任务优先保真。",
+      "return z_cont：返回连续隐表征给声码器类解码器。",
+      "if task == 'reason'：推理任务需要词表对齐。",
+      "return torch.cat([z_disc, z_cont])：混合场景拼接两者取长补短。"
+    ],
+    "followUps": [
+      {
+        "question": "有没有既保真又离散的方案？",
+        "answer": "可用更细的 RVQ 层数或更高码率 codec 逼近连续保真，或用结构化离散（如语音 token + 连续 prosody embedding）混合表示。"
+      },
+      {
+        "question": "连续表征如何接入 LLM？",
+        "answer": "通过线性 adapter 把连续向量投影到 LLM 隐空间并作为软 token 拼接，或用 Q-Former 压缩序列长度后再接入。"
+      }
+    ],
+    "followUpAnswers": [
+      "可用更细的 RVQ 层数或更高码率 codec 逼近连续保真，或用结构化离散（如语音 token + 连续 prosody embedding）混合表示。",
+      "通过线性 adapter 把连续向量投影到 LLM 隐空间并作为软 token 拼接，或用 Q-Former 压缩序列长度后再接入。"
+    ],
+    "explanationFocus": "是什么：连续语音表征是 encoder 输出的稠密向量，保真度高；离散语音 token 是经矢量量化得到的符号序列，可对齐 LLM 词表。两者在保真度与可学习性上互补。",
+    "approach": "以任务目标选择：需保真与细粒度控制用连续表征，需复用自回归 LLM 训练范式用离散 token，必要时混合拼接两者以取长补短。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-embodied-judge",
+    "category": "语音大模型",
+    "difficulty": "Hard",
+    "title": "具身短指令音频 Judge",
+    "prompt": "如何设计一个评测语音大模型'具身短指令'执行质量的 Judge？四层（音频生命周期 / VAD / DDS / 解码）分别起什么作用？",
+    "quickAnswer": "该 Judge 把评测拆成四层：音频生命周期层校验指令是否被完整播放、VAD 层校验用户指令起止是否被正确检测、DDS 层校验对话状态/打断处理、解码层校验语义与动作是否正确。四层加权使 mean 评分从 0.6703 提升到 0.7648。",
+    "code": "def embodied_judge(audio, hyp, ref, layers):\n    score = 0.0\n    for layer in layers:                      # 生命周期/VAD/DDS/解码\n        s = layer.score(audio, hyp, ref)      # 每层独立打分\n        score += layers.w[layer] * s          # 加权求和\n    return score / sum(layers.w.values())     # mean ≈ 0.7648",
+    "complexity": "时间 O(4*T)，空间 O(T)",
+    "beginnerSummary": "就像考一场口语操作题，不只看'答没答对'，还看你'听没听清、说没说全、中途有没有正确处理打断'，四关都过才给高分。",
+    "derivation": [
+      "为什么需要：单一整体评分无法定位语音助手在具身短指令上的失败环节，需分层诊断。",
+      "怎么实现：建四层 Judge——音频生命周期校验播放完整性、VAD 校验端点检测、DDS 校验对话/打断状态、解码层校验语义动作，分别打分后加权。",
+      "有什么代价：需构造带层标注的评测集与每层打分模型，四层权重需调参，标注成本较高。",
+      "怎么评测：用分层一致性与人工评分相关性校验 Judge 本身，目标 mean 从基线 0.6703 提升到 0.7648。"
+    ],
+    "edgeCases": [
+      "指令被部分播放（生命周期层不完整）需判低分而非归零。",
+      "用户指令与背景音乐重叠使 VAD 层误检，需鲁棒阈值。",
+      "DDS 层在多次打断后状态错乱，需状态轨迹回放校验。",
+      "解码层语义对但动作参数错（如开错灯）需细粒度槽位比对。"
+    ],
+    "pitfalls": [
+      "只用整体 mean 评分，无法解释为何低分、无法针对性优化。",
+      "四层权重随意设导致某一层主导，掩盖真实短板。"
+    ],
+    "prerequisites": [
+      "评测指标设计与加权融合",
+      "VAD 与对话状态管理（DDS）"
+    ],
+    "workedExample": [
+      "指令'打开客厅灯'：生命周期层确认播报完整、解码层确认槽位正确，得 0.81。",
+      "基线整体评分 mean=0.6703，引入四层 Judge 后对齐人工标注 mean 升至 0.7648。"
+    ],
+    "lineByLine": [
+      "for layer in layers：遍历四层 Judge 模块。",
+      "s = layer.score(audio, hyp, ref)：每层对假设输出与参考独立打分。",
+      "score += layers.w[layer] * s：按层权重累加分数。",
+      "return score / sum(layers.w.values())：归一化得到加权 mean 评分。"
+    ],
+    "followUps": [
+      {
+        "question": "DDS 层具体校验什么？",
+        "answer": "DDS（Dialogue/Dialogue State）层校验对话状态机是否正确维护意图与槽位、是否能正确处理打断与多轮修正，是连接'听懂'与'做对'的关键层。"
+      },
+      {
+        "question": "如何进一步提升 0.7648？",
+        "answer": "可加入动作执行结果反馈（具身回报）、细化槽位级 F1、并对难例重标注，或引入 LLM-as-Judge 做语义一致性复核。"
+      }
+    ],
+    "followUpAnswers": [
+      "DDS（Dialogue/Dialogue State）层校验对话状态机是否正确维护意图与槽位、是否能正确处理打断与多轮修正，是连接'听懂'与'做对'的关键层。",
+      "可加入动作执行结果反馈（具身回报）、细化槽位级 F1、并对难例重标注，或引入 LLM-as-Judge 做语义一致性复核。"
+    ],
+    "explanationFocus": "是什么：具身短指令 Judge 是一个分层评测器，用于给语音大模型执行'具身短指令'（如开灯、播放）的质量打分，由音频生命周期、VAD、DDS、解码四层组成，加权 mean 从 0.6703 提升到 0.7648。",
+    "approach": "把整体评分拆解为可诊断的四层独立打分并加权融合，既给出可解释的总分，又能定位失败环节，从而把评测 mean 从 0.6703 提升到 0.7648。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-pipeline",
+    "category": "语音大模型",
+    "difficulty": "Medium",
+    "title": "语音大模型端到端 Pipeline",
+    "prompt": "请描述语音大模型（Speech LLM）的端到端 pipeline，并说明 audio encoder、token 化、LLM、audio decoder 各自的作用？",
+    "quickAnswer": "语音 LLM 把音频经 encoder 抽取表征并离散化为 token，与文本 token 拼接进 LLM 做自回归推理，输出 token 再经 audio decoder 还原为波形。端到端让语义理解与语音生成在同一框架内完成。",
+    "code": "from dataclasses import dataclass\n\ndef speech_llm_step(audio, encoder, llm, decoder):\n    feat = encoder(audio)            # 1. 音频编码器抽取连续表征\n    tokens = encoder.quantize(feat)  # 2. 量化成离散语音 token\n    out = llm(tokens)                # 3. LLM 自回归生成 token\n    wav = decoder(out)               # 4. audio decoder 合成波形\n    return wav",
+    "complexity": "时间 O(T*d + N*C)，空间 O(T + N)（T 音频帧数，N 生成 token 数）",
+    "beginnerSummary": "就像先把你说的话转成一种'密码本里的编号'，大模型读编号思考后写出新编号，再由合成器把编号变回声音，全程只走这一条流水线。",
+    "derivation": [
+      "为什么需要：纯文本 LLM 无法直接吃音频，需要一个统一接口把声音变成模型能处理的 token，从而支持语音理解与生成。",
+      "怎么实现：用 audio encoder 抽取表征并量化成离散 token，与文本 token 拼进 LLM，生成端再用 audio decoder 还原波形。",
+      "有什么代价：量化会损失声学细节，且自回归生成逐 token 延迟高，长音频的 encoder 计算量随时长线性增长。",
+      "怎么评测：用语音识别词错率 WER、语音合成 MOS、以及端到端任务准确率综合衡量整条链路质量。"
+    ],
+    "edgeCases": [
+      "输入静音或极短音频时 encoder 输出为空，需补 <pad> 或 <silent> 特殊 token。",
+      "多说话人重叠音频会让 token 混淆，需要说话人分离或流式分轨预处理。",
+      "生成 token 出现 <eos> 提前触发会导致语音截断，需配置最小生成长度。",
+      "长音频超出上下文窗口需分块并保留 chunk 边界的语义连续。"
+    ],
+    "pitfalls": [
+      "把 audio decoder 当作普通 vocoder 直接接 LLM 输出，忽略 token 与声学帧率不匹配会导致节奏错乱。",
+      "混淆连续表征与离散 token，直接把连续向量拼进 LLM 会破坏词表对齐。"
+    ],
+    "prerequisites": [
+      "Transformer 与自回归语言模型基础",
+      "音频特征（Mel 谱/codec）与矢量量化原理"
+    ],
+    "workedExample": [
+      "用户说'今天天气如何' → Whisper encoder 输出 50 帧特征 → 量化为 32 个语义 token。",
+      "LLM 生成回复 token 序列 → audio decoder 以 25Hz 帧率合成 1.8s 波形回答。"
+    ],
+    "lineByLine": [
+      "feat = encoder(audio)：调用音频编码器把原始波形抽取成连续隐表征。",
+      "tokens = encoder.quantize(feat)：用码本把连续特征离散化成语音 token 序列。",
+      "out = llm(tokens)：把语音 token 送进 LLM 做自回归生成得到回复 token。",
+      "wav = decoder(out)：audio decoder 把回复 token 还原成可播放的波形。"
+    ],
+    "followUps": [
+      {
+        "question": "如何处理流式场景下的 audio token 生成？",
+        "answer": "采用 chunk-wise streaming encoder 与 LLM 的 KV-cache，按固定帧块增量编码并在收到部分 token 即触发 decoder 预热。"
+      },
+      {
+        "question": "为什么不直接用连续表征而要用离散 token？",
+        "answer": "离散 token 能复用文本 LLM 的词表与交叉熵训练范式，且便于做 next-token 预测，连续向量拼接则破坏词表对齐并难以定义生成目标。"
+      }
+    ],
+    "followUpAnswers": [
+      "采用 chunk-wise streaming encoder 与 LLM 的 KV-cache，按固定帧块增量编码并在收到部分 token 即触发 decoder 预热。",
+      "离散 token 能复用文本 LLM 的词表与交叉熵训练范式，且便于做 next-token 预测，连续向量拼接则破坏词表对齐并难以定义生成目标。"
+    ],
+    "explanationFocus": "是什么：语音大模型端到端 pipeline 指从原始音频输入到合成音频输出的一条统一链路，核心是 audio encoder 把声音编码为 token、LLM 负责语义推理、audio decoder 再把 token 还原成声音。",
+    "approach": "核心思路是把音频和文本统一到离散 token 空间，使同一个自回归 LLM 既能理解语音又能生成语音，从而用一个模型覆盖听、想、说三个环节。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-semantic-acoustic-token",
+    "category": "语音大模型",
+    "difficulty": "Hard",
+    "title": "语义 token 与声学 token",
+    "prompt": "语义 token 和声学 token 有什么区别？RVQ 残差矢量量化的层级结构如何同时表达两者？",
+    "quickAnswer": "语义 token（如 HuBERT 第 2 层聚类）承载内容与说话人无关的高层语义；声学 token（如 EnCodec/SoundStream 的 RVQ 多层残差）逐层补全音高、音色、韵律等细节。RVQ 第 1 层近似语义，后续层为声学残差。",
+    "code": "import torch\n\ndef rvq_levels(z, codebooks):\n    tokens, residual = [], z\n    for book in codebooks:                # 逐层码本\n        idx = (book - residual).pow(2).sum(-1).argmin(0)\n        tokens.append(idx)                # 每层一个 token\n        residual = residual - book[idx]   # 残差送下一层\n    return tokens                         # [lv0语义, lv1..声学残差]",
+    "complexity": "时间 O(L*K*d)，空间 O(L*K*d)（L 层数，K 码本大小，d 维度）",
+    "beginnerSummary": "语义 token 像'这句话说了什么'，声学 token 像'这句话怎么说的'；RVQ 第一层记大意，后面几层不断补细节，叠起来就能完整还原声音。",
+    "derivation": [
+      "为什么需要：单一种 token 要么丢了音色细节、要么训练不易对齐语义，分离语义与声学可兼顾内容可控性与音质。",
+      "怎么实现：用 RVQ 把音频表征依次量化，第 1 层粗量化捕捉语义，残差继续被后续层量化得到声学细节。",
+      "有什么代价：RVQ 层数越多码本越大、训练越难；语义层与声学层若用不同模型需额外对齐，推理要拼接多层 token。",
+      "怎么评测：用重建音频的 STOI/PESQ 衡量声学保真，用语义相似度（如句嵌入余弦）衡量内容一致性。"
+    ],
+    "edgeCases": [
+      "第 1 层量化过粗会丢失重音与情绪，需要更高层补偿。",
+      "极低码率下残差层不足会导致明显音质下降与金属感。",
+      "多语言混合语音在语义层可能错聚到错误簇，需多语言码本。",
+      "静音段 RVQ 仍会占用 token，需要 VAD 过滤或静音特殊码。"
+    ],
+    "pitfalls": [
+      "把 EnCodec 全部层都当成语学 token 喂给 LLM，导致词表过大、训练发散。",
+      "用同一码本同时做语义与声学，忽略残差结构会使得高层语义被低层噪声污染。"
+    ],
+    "prerequisites": [
+      "矢量量化（VQ）与码本训练",
+      "自监督语音表征（HuBERT / wav2vec2）"
+    ],
+    "workedExample": [
+      "同一句话不同人说：语义层 token 几乎一致，声学残差层 token 差异显著。",
+      "只保留 RVQ 第 1 层重建语音可懂但音色中性，叠加 8 层后接近原音。"
+    ],
+    "lineByLine": [
+      "tokens, residual = [], z：初始化输出列表与待量化残差。",
+      "for book in codebooks：遍历每一层码本做一级量化。",
+      "idx = ...argmin(0)：在码本中找与当前残差最近的向量下标。",
+      "residual = residual - book[idx]：减去已量化部分，残差留给下一层。"
+    ],
+    "followUps": [
+      {
+        "question": "语义 token 一般取自哪种模型？",
+        "answer": "常用 HuBERT 第 6~9 层或 wav2vec2 聚类得到，也可用语义 codec（如 SpeechTokenizer 的语义层），目标是内容相关而说话人无关。"
+      },
+      {
+        "question": "RVQ 层数如何取舍？",
+        "answer": "层数越多保真度越高但词表与序列长度增大、推理变慢；语音 LLM 常取前 1~2 层做语义、保留 7~8 层做声学，按音质与延迟需求折中。"
+      }
+    ],
+    "followUpAnswers": [
+      "常用 HuBERT 第 6~9 层或 wav2vec2 聚类得到，也可用语义 codec（如 SpeechTokenizer 的语义层），目标是内容相关而说话人无关。",
+      "层数越多保真度越高但词表与序列长度增大、推理变慢；语音 LLM 常取前 1~2 层做语义、保留 7~8 层做声学，按音质与延迟需求折中。"
+    ],
+    "explanationFocus": "是什么：语义 token 编码'说了什么'的高层内容与语言信息，声学 token 编码'怎么说的'的音色、音高与韵律细节；RVQ 通过分层残差量化在同一码本体系中同时表达两者。",
+    "approach": "用残差矢量量化的第 1 层逼近语义，后续层量化逐层残差逼近声学细节，从而在统一 token 空间里分离并重建内容与音色。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-streaming-duplex",
+    "category": "语音大模型",
+    "difficulty": "Hard",
+    "title": "流式全双工语音交互",
+    "prompt": "什么是流式全双工语音交互架构？相比半双工轮次式对话它要解决哪些核心问题？",
+    "quickAnswer": "全双工指模型可同时收听与发声、随时打断；流式指音频分块低延迟处理。核心是用流式 encoder、增量 KV-cache 与打断检测（barge-in）让用户可在模型说话时插话。",
+    "code": "from collections import deque\n\ndef duplex_step(stream, state, enc, llm, dec, vad):\n    chunk = stream.read(0.2)          # 200ms 音频块\n    if vad(chunk):                    # 检测到用户插话\n        state.playing.stop()          # 打断当前播报\n        state.buffer = deque()\n    feat = enc(chunk, state.cache)    # 流式增量编码\n    tok = llm.generate(feat, state.kv)# 增量自回归\n    return dec.decode(tok)            # 边生成边播放",
+    "complexity": "时间 O(B*d) 每块，空间 O(cache) 流式常数级",
+    "beginnerSummary": "半双工像对讲机按完说、说完听；全双工像真人打电话，你随时能插嘴，对方也会立刻闭嘴听你说。",
+    "derivation": [
+      "为什么需要：轮次式语音助手延迟高、不能打断，体验不自然，全双工才能像人与人对话。",
+      "怎么实现：音频按 100~300ms 分块，encoder 与 LLM 用增量 KV-cache 流式处理，并加 VAD/barge-in 检测用户打断。",
+      "有什么代价：并行收发需状态管理与回声消除，打断会导致未播完文本浪费，流式对小模型实时性要求高。",
+      "怎么评测：用首包延迟、打断响应时间、对话回合成功率与用户主观自然度评分。"
+    ],
+    "edgeCases": [
+      "用户咳嗽或环境噪声误触发打断，需要 VAD 阈值与去抖。",
+      "模型正在播放时用户只说半句，需要缓冲与句尾判断再决策。",
+      "双向同讲（双方同时说）需回声消除与优先级策略。",
+      "网络抖动导致音频块乱序需重排与缓存。"
+    ],
+    "pitfalls": [
+      "忽略回声消除，模型把自身播放声当作用户输入造成自激。",
+      "流式分块过大导致首包延迟超标，过小则 encoder 上下文不足。"
+    ],
+    "prerequisites": [
+      "流式推理与 KV-cache 机制",
+      "VAD 与语音端点检测"
+    ],
+    "workedExample": [
+      "用户问天气，模型播报中用户说'不用了' → barge-in 停止播放并清空缓冲。",
+      "200ms 分块 + 增量 KV-cache 使首包延迟控制在 400ms 内。"
+    ],
+    "lineByLine": [
+      "chunk = stream.read(0.2)：每次读取 200ms 音频块模拟流式输入。",
+      "if vad(chunk)：检测到用户新语音则判定为打断。",
+      "state.playing.stop()：立即停止当前正在播放的语音。",
+      "feat = enc(chunk, state.cache)：用缓存做增量编码而非整段重算。"
+    ],
+    "followUps": [
+      {
+        "question": "如何处理回声消除？",
+        "answer": "在输入端用播放参考信号做线性回声消除（AEC）并配合 WebRTC 类模块，必要时在特征层做掩码避免自声进入 LLM。"
+      },
+      {
+        "question": "全双工下如何保证语义不被打断破坏？",
+        "answer": "维护对话状态机，打断时保留已确认意图、丢弃未播完内容，并用短上下文重跑理解，必要时向用户确认。"
+      }
+    ],
+    "followUpAnswers": [
+      "在输入端用播放参考信号做线性回声消除（AEC）并配合 WebRTC 类模块，必要时在特征层做掩码避免自声进入 LLM。",
+      "维护对话状态机，打断时保留已确认意图、丢弃未播完内容，并用短上下文重跑理解，必要时向用户确认。"
+    ],
+    "explanationFocus": "是什么：流式全双工语音交互指系统以低延迟分块处理音频，且能在播放自身语音的同时监听并响应用户插话，实现像真人通话一样的双向自然对话。",
+    "approach": "以流式分块 + 增量 KV-cache 保障低延迟，以 VAD/barge-in 检测打断并即时切换收发状态，从而兼顾'边听边说'与'随时打断'。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-thinker-talker",
+    "category": "语音大模型",
+    "difficulty": "Hard",
+    "title": "Thinker-Talker 双模型架构",
+    "prompt": "Thinker-Talker（思考-表达分离）架构的核心思想是什么？相比单模型它有什么优势？",
+    "quickAnswer": "Thinker 专注高层语义推理产出语义 token/plan，Talker 专注把这些语义流畅地转成语音。两者解耦后推理与发音可独立优化、并发执行，降低延迟并提升自然度（如 Mini-Omni2、GLM-4-Voice 思路）。",
+    "code": "def thinker_talker(user_tok, thinker, talker, state):\n    plan = thinker.forward(user_tok, state.kv)  # 1. 思考：语义规划\n    state.semantic = plan.tokens                # 2. 共享语义表征\n    for s in talker.stream(state.semantic):     # 3. 表达：逐段合成\n        yield s                                 # 4. 边思考边说话",
+    "complexity": "时间 O(N_think + N_talk)，空间 O(kv_think + kv_talk)",
+    "beginnerSummary": "Thinker 像大脑想'该说什么'，Talker 像嘴巴负责'怎么说得好听'，两者分开后想和说可以同时进行，不用想完整句才开口。",
+    "derivation": [
+      "为什么需要：单模型既要推理又要管声学细节，目标冲突且难以并行，导致延迟高、表达不自然。",
+      "怎么实现：拆成 Thinker（自回归语义规划）与 Talker（流式声学合成），Thinker 产出语义 token，Talker 消费并并发发声。",
+      "有什么代价：双模型参数量与显存翻倍，需设计两者接口与同步；Talker 依赖 Thinker 输出，错误会传导。",
+      "怎么评测：分别测 Thinker 任务准确率与 Talker 的 MOS/实时率 RTF，再测端到端延迟与打断恢复。"
+    ],
+    "edgeCases": [
+      "Thinker 输出语义 token 为空（无内容）时 Talker 需生成静音或礼貌填充。",
+      "两者节奏不一致导致 Talker 等待，需要预取与流式对齐。",
+      "Thinker 中途改主意（修正语义）需 Talker 支持回退或重说。",
+      "低资源设备无法同时驻留双模型需量化或卸载。"
+    ],
+    "pitfalls": [
+      "让 Talker 直接吃 LLM 原始 logits 而非语义 token，接口耦合导致无法独立训练。",
+      "忽视双模型同步，Talker 等不到语义而空转浪费算力。"
+    ],
+    "prerequisites": [
+      "自回归生成与流式合成",
+      "模型解耦与模块接口设计"
+    ],
+    "workedExample": [
+      "用户问'讲个笑话'，Thinker 先产出笑话文本语义 token，Talker 边接收边用不同语调合成。",
+      "Thinker 输出 10 个语义 token 后 Talker 已播完前 4 个，实现思考与表达并行。"
+    ],
+    "lineByLine": [
+      "plan = thinker.forward(user_tok, state.kv)：Thinker 做语义推理得到规划。",
+      "state.semantic = plan.tokens：把语义 token 存入共享状态供 Talker 使用。",
+      "for s in talker.stream(...)：Talker 以流式方式逐段合成语音。",
+      "yield s：边生成边外抛音频，实现边想边说。"
+    ],
+    "followUps": [
+      {
+        "question": "Thinker 与 Talker 如何训练？",
+        "answer": "常先独立预训练（Thinker 用文本/语义语料，Talker 用语音合成），再用对齐数据做联合微调，必要时加适配器弥合表征 gap。"
+      },
+      {
+        "question": "与单模型 speech LLM 比，延迟真的更低吗？",
+        "answer": "Talker 可在 Thinker 出首个语义 token 后即开始合成，首包延迟显著降低，但双模型推理并行带来更高峰值算力，需看是否 batch 友好。"
+      }
+    ],
+    "followUpAnswers": [
+      "常先独立预训练（Thinker 用文本/语义语料，Talker 用语音合成），再用对齐数据做联合微调，必要时加适配器弥合表征 gap。",
+      "Talker 可在 Thinker 出首个语义 token 后即开始合成，首包延迟显著降低，但双模型推理并行带来更高峰值算力，需看是否 batch 友好。"
+    ],
+    "explanationFocus": "是什么：Thinker-Talker 架构把语音模型拆成负责高层语义推理的 Thinker 与负责声学表达的 Talker 两个模型，语义与发音解耦、可并发执行。",
+    "approach": "让 Thinker 先产出紧凑的语义 token/规划，Talker 流式消费并合成语音，从而实现'边思考边说话'，降低首包延迟并分别优化理解与表达。",
+    "kind": "concept"
+  },
+  {
+    "id": "slm-training-stages",
+    "category": "语音大模型",
+    "difficulty": "Medium",
+    "title": "语音模型续训阶段",
+    "prompt": "语音大模型常见的续训（continual training）阶段有哪些？ASR、STS、TTS 各阶段分别让模型学到什么？",
+    "quickAnswer": "典型三阶段：ASR 阶段学'听'（语音→文本），STS 阶段学'懂/想'（语音语义对齐与推理），TTS 阶段学'说'（文本/语义→语音）。逐阶段冻结与解冻，避免灾难性遗忘。",
+    "code": "def train_stage(model, stage, loader, opt):\n    freeze = {'asr': model.decoder,        # 听：只训 encoder\n              'sts': model.encoder,        # 懂：只训 LLM 主干\n              'tts': model.encoder}[stage] # 说：训 decoder\n    for batch in loader:\n        loss = model(batch, freeze=freeze)\n        opt.step(loss)",
+    "complexity": "时间随数据量线性，空间 O(params)",
+    "beginnerSummary": "就像先练听力（ASR）、再练理解（STS）、最后练口语（TTS），三阶段逐步把模型培养成既能听又能说的人。",
+    "derivation": [
+      "为什么需要：单阶段同时学听说是多任务冲突，分阶段可稳定对齐模态、降低训练难度。",
+      "怎么实现：先 ASR 对齐语音-文本，再 STS 做语义推理续训，最后 TTS 学语音生成，逐阶段解冻相关模块。",
+      "有什么代价：阶段间需保存检查点、调学习率，顺序不当易灾难性遗忘，总训练时长更长。",
+      "怎么评测：每阶段分别用 WER（ASR）、任务准确率（STS）、MOS/RTF（TTS）监控，端到端再测整体。"
+    ],
+    "edgeCases": [
+      "ASR 数据不足导致 STS 阶段语义对齐差，需要数据配比平衡。",
+      "TTS 阶段若解冻 encoder 可能破坏已学听觉表征，需谨慎选层。",
+      "低资源语言缺少平行语料，需用自监督弥补。",
+      "阶段切换时优化器状态需重置避免冲击。"
+    ],
+    "pitfalls": [
+      "所有阶段全参数同学习率训练，导致前期能力被后期覆盖（遗忘）。",
+      "用纯文本数据做 STS 而忽略语音对齐，模型退化为文本 LLM。"
+    ],
+    "prerequisites": [
+      "多任务与迁移学习",
+      "ASR / TTS 基础管线"
+    ],
+    "workedExample": [
+      "阶段1用 10k 小时 ASR 数据微调 encoder，WER 从 8% 降到 4%。",
+      "阶段3用 TTS 配对数据训 decoder，MOS 从 3.2 提升到 4.0。"
+    ],
+    "lineByLine": [
+      "freeze = {...}[stage]：按阶段决定冻结哪部分模块。",
+      "for batch in loader：遍历该阶段的数据批次。",
+      "loss = model(batch, freeze=freeze)：前向计算时冻结指定模块。",
+      "opt.step(loss)：仅对未冻结参数做反向更新。"
+    ],
+    "followUps": [
+      {
+        "question": "如何缓解阶段间的灾难性遗忘？",
+        "answer": "采用参数高效微调（LoRA/adapter）、阶段间 replay 少量旧数据、或使用 EWC 等正则约束重要参数。"
+      },
+      {
+        "question": "是否一定要三阶段，能否两阶段？",
+        "answer": "可以合并，如把 ASR 与 STS 合并为'听+懂'联合训练，但分离更易定位问题与调参，实践中按数据与时间预算取舍。"
+      }
+    ],
+    "followUpAnswers": [
+      "采用参数高效微调（LoRA/adapter）、阶段间 replay 少量旧数据、或使用 EWC 等正则约束重要参数。",
+      "可以合并，如把 ASR 与 STS 合并为'听+懂'联合训练，但分离更易定位问题与调参，实践中按数据与时间预算取舍。"
+    ],
+    "explanationFocus": "是什么：语音模型续训阶段指在一个基础模型上分阶段注入听、懂、说能力，典型为 ASR（听）、STS（语义理解与推理）、TTS（说）三阶段，逐段解冻相关模块。",
+    "approach": "以'先对齐再生成'的顺序分阶段训练，每阶段只放开最相关的子模块并复用前阶段检查点，从而在稳定收敛的同时逐步获得完整语音对话能力。",
+    "kind": "concept"
   },
   {
     "kind": "concept",

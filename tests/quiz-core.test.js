@@ -27,7 +27,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 682);
+  assert.equal(questions.length, 761);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -66,13 +66,13 @@ test('每张题卡都有合法 kind 且通过自身 kind 校验', () => {
 });
 
 test('kind 分布与分类映射一致', () => {
-  const codeCats = new Set(['链表', '二叉树', '数组/窗口', '二分/TopK', '搜索/图', '动态规划', '模型手写', 'ASR 专项']);
+  const codeCats = new Set(['链表', '二叉树', '数组/窗口', '二分/TopK', '搜索/图', '动态规划', '模型手写', 'ASR 专项', 'OCR 文字检测与识别', '单目深度与障碍物感知']);
   for (const q of questions) {
     const expect = codeCats.has(q.category) ? 'code' : 'concept';
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
-  assert.equal(questions.filter((q) => q.kind === 'code').length, 113, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 569, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'code').length, 143, '代码题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 618, '概念题数量');
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
@@ -947,5 +947,72 @@ test('子Agent模块【多模态数据工程】全部题卡通过初学者契约
     assert.match(q.code, /def |class |from |import /, q.id + ' 应提供完整 Python 代码');
     assert.ok(q.lineByLine.length >= 3, q.id + ' 应至少有三段逐行讲解');
     assert.ok(q.workedExample.length >= 2, q.id + ' 应至少有两步演练');
+  }
+});
+
+
+// ---- 简历补强批次模块校验 (auto-generated) ----
+test('子Agent模块【ASR 专项(深化补强)】全部题卡通过初学者契约', () => {
+  const ids = new Set(["asr-multilingual", "asr-channel-robustness", "asr-pseudo-label", "asr-domain-adaptation", "asr-lid", "asr-streaming", "asr-eval-metrics", "asr-architecture-compare", "asr-chinavoices", "asr-new-backbones"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【语音合成(深化补强)】全部题卡通过初学者契约', () => {
+  const ids = new Set(["tts-g2p", "tts-frontend-prosody", "tts-fastspeech", "tts-matcha-melo", "tts-vocoder", "tts-dialect-finetune", "tts-onnx-deploy", "tts-stability", "tts-codeswitch", "tts-phoneme-prosody", "tts-emotion", "tts-eval", "tts-patent"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 13, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【语音大模型(深化补强)】全部题卡通过初学者契约', () => {
+  const ids = new Set(["slm-pipeline", "slm-semantic-acoustic-token", "slm-streaming-duplex", "slm-thinker-talker", "slm-training-stages", "slm-continuous-discrete", "slm-embodied-judge", "slm-audio-encoder-adapter"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 8, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【OCR 文字检测与识别】全部题卡通过初学者契约', () => {
+  const ids = new Set(["ocr-det-rec-decouple", "ocr-detection", "ocr-recognition", "ocr-ctc-attention", "ocr-iou-nlcs", "ocr-direction-cls", "ocr-multiline", "ocr-pp-ocrv6", "ocr-tensorrt-mnn", "ocr-scene-spotting", "ocr-data-synth", "ocr-refinement-fallback"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 12, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【单目深度与障碍物感知】全部题卡通过初学者契约', () => {
+  const ids = new Set(["depth-mono-estimation", "depth-scale-ambiguity", "depth-relative-metric", "depth-obstacle", "depth-eval", "depth-vit", "depth-endside", "depth-fusion-seg"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 8, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【多模态生成应用】全部题卡通过初学者契约', () => {
+  const ids = new Set(["gen-diffusion-vs-flow", "gen-lora", "gen-person-consistency", "gen-audio-video", "gen-lip-sync", "gen-music-planning", "gen-diversity-check", "gen-comfyui", "gen-image-studio", "gen-aigc-pipeline"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【LLM 约束生成与自动评测】全部题卡通过初学者契约', () => {
+  const ids = new Set(["cg-factledger", "cg-schema-validator", "cg-repair-feedback", "cg-best-of-n", "cg-patch-optimize", "cg-semantic-guard", "cg-auto-eval", "cg-hallucination", "cg-constrained-decoding", "cg-eval-design", "cg-failure-feedback", "cg-llm-as-judge"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 12, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+test('子Agent模块【因果推断与树模型】全部题卡通过初学者契约', () => {
+  const ids = new Set(["ml-xgboost", "ml-causal", "ml-glm-trees", "ml-uplift", "ml-auc-eval", "ml-feature-eng"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 6, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
   }
 });
