@@ -2,6 +2,8 @@
   "type": "module",
   "scripts": {
     "gen": "node scripts/gen-cards.mjs",
+    "build": "node scripts/build-standalone.mjs",
+    "prepublish": "node scripts/gen-cards.mjs && node scripts/build-standalone.mjs",
     "pretest": "node scripts/gen-cards.mjs",
     "test": "node --test"
   }
