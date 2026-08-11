@@ -10,7 +10,7 @@ export default {
   "explanationFocus": "是什么：Arithmetic Intensity（AI，算术强度）= 每次内存访问所对应的浮点运算数 = FLOPs / Bytes（单位 FLOPs/Byte）。它衡量一个任务是『算得多还是搬得多』。AI 高于硬件拐点（峰值算力 ÷ 峰值带宽）即 Compute Bound，低于即 Memory Bound。它是判断 GPU 推理/计算瓶颈的核心、统一指标。",
   "quickAnswer": "Arithmetic Intensity = FLOPs / Bytes（每搬 1 字节能做多少运算）。对照硬件拐点 = 峰值算力 / 峰值带宽：AI 高于拐点 → Compute Bound（受算力限制，加算力/更优 kernel）；低于 → Memory Bound（受带宽限制，量化/压缩/大 batch）。是判断推理瓶颈的核心指标，配合 Roofline 图使用。",
   "beginnerSummary": "Arithmetic Intensity 像『性价比』：每从仓库搬 1 单位资料，你能完成多少计算？搬很多却算很少（性价比低）→ 卡在取资料（Memory Bound）；算很多只搬一点（性价比高）→ 卡在自己算得慢（Compute Bound）。硬件有个『拐点』，超过它才算得赢搬。Decode 的性价比极低（≈1），几乎必在带宽屋顶。",
-  "walkthrough": "A100：FP16 峰值 312 TFLOPS、HBM 带宽 2 TB/s → 拐点 ≈ 312/2 = 156 FLOPs/Byte。Decode 一个 d=4096 线性层：FLOPs=33.6M，搬 33.6MB → AI≈1，远低于 156 → memory-bound。Prefill 一次算 n=512 token 的矩阵：FLOPs≈1.7T，有效 AI≈512，远超拐点 → compute-bound。同模型两阶段因 AI 不同而处不同屋顶。",
+  "walkthrough": "A100：FP16 峰值 312 TFLOPS、HBM 带宽 2 TB/s → 拐点 ≈ 312/2 = 156 FLOPs/Byte。Decode 一个 d=4096 线性层：FLOPs=33.6M，搬 33.6MB → AI≈1，远低于 156 → memory-bound。Prefill 一次算 n=512 token 的矩阵：FLOPs≈1.7×10^10（约 17 GFLOPs），有效 AI≈512，远超拐点 → compute-bound。同模型两阶段因 AI 不同而处不同屋顶。",
   "approach": "AI = FLOPs / Bytes；对照硬件拐点判断 compute vs memory bound。先估算 kernel 的 FLOPs 与访存字节（含权重+激活+KV），算 AI，查硬件规格得拐点，下结论；再用 Roofline 图（x=AI, y=可达 FLOPs）直观确认落在带宽屋顶还是算力屋顶。",
   "bruteForce": "只盯 FLOPs 总量——比如看到『这个任务有 1 TFLOPs』就以为算力瓶颈，却忽略了它要搬 2GB 数据（AI=0.5，实是 memory-bound）。只看 FLOPs 无法区分算/搬，必然误判优化方向。",
   "invariant": "硬件拐点 = peak_FLOPS / peak_BW，是硬件固有属性；AI 高于它 compute-bound，低于它 memory-bound。拐点和 AI 都随精度变化（FP8/INT8 抬升算力也抬拐点）。同一任务在不同精度下可能跨越拐点切换 bound。",

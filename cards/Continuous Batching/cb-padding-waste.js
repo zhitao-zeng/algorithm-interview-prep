@@ -16,7 +16,7 @@ export default {
     "怎么评测：统计 pad token 占比下降，以及相同算力下有效 token 吞吐提升。"
   ],
   "invariant": "连续批内无 pad token，每个位置的算力都对应真实 token。",
-  "walkthrough": "长度 [10, 500, 20]，静态 pad 到 500 → 980 个 pad token 空算；连续批各算各的，0 padding。",
+  "walkthrough": "长度 [10, 500, 20]，静态 pad 到 500 → 970 个 pad token 空算；连续批各算各的，0 padding。",
   "edgeCases": [
     "极长短混合：padding 浪费最严重，连续收益最大。",
     "几乎等长：padding 本来就少，收益有限。",
@@ -54,7 +54,7 @@ export default {
   ],
   "workedExample": [
     "长度 [10,500,20] pad 到 500。",
-    "980 个 pad 空算；连续批 0 padding。"
+    "970 个 pad 空算；连续批 0 padding。"
   ],
   "lineByLine": [
     "找批内最大长度。",
@@ -62,6 +62,6 @@ export default {
     "累加得到 pad 总数。",
     "连续批取消该步骤。"
   ],
-  "diagram": "静态: 10,500,20 → 全 pad 到 500 (浪费980)\n连续: 各算各的真实长度, 0 pad",
+  "diagram": "静态: 10,500,20 → 全 pad 到 500 (浪费970)\n连续: 各算各的真实长度, 0 pad",
   "order": 11
 };

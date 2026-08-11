@@ -25,7 +25,7 @@ export default {
   "code": "# Python (概念)\ndef tp_gemm_col(x, W_col_shard):        # 列切: 免通信\n    return x @ W_col_shard              # 各卡结果直接 concat\ndef tp_gemm_row(x, W_row_shard, world): # 行切: 需 all-reduce\n    return all_reduce_sum(x @ W_row_shard, world)",
   "codeNotes": [
     "列切输出沿特征维拼接。",
-    "行切输出沿 batch 维求和。"
+    "行切输出沿输出特征(隐藏)维 all-reduce 求和。"
   ],
   "complexity": "单卡 GEMM 规模 1/tp；行切额外一次 all-reduce。",
   "followUps": [

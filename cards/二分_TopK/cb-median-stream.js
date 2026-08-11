@@ -10,7 +10,7 @@ export default {
   "bruteForce": "每次插入后全排序取中，时间 O(n^2 log n) 或每步 O(n)。",
   "invariant": "lo 中所有元素 <= hi 中所有元素；且 |len(lo)-len(hi)|<=1，lo 至多比 hi 多一个；中位数可由两堆顶直接得出。",
   "walkthrough": "插入 1：lo=[1]。插入 2：2> -lo[0]=1 压 hi，hi=[2]，平衡后 lo=[1],hi=[2]，中位(1+2)/2=1.5。插入 3：3>1 压 hi=[2,3]，失衡 len(hi)=2>1，把 2 移到 lo，lo=[2,1](堆顶2),hi=[3]，中位=2。",
-  "code": "import heapq\n\ndef running_medians(stream):\n    lo = []\n    hi = []\n    medians = []\n    for x in stream:\n        if not lo or x <= -lo[0]:\n            heapq.heappush(lo, -x)\n        else:\n            heapq.heappush(hi, x)\n        if len(lo) > len(hi) + 1:\n            heapq.heappush(hi, -heapq.heappop(lo))\n        elif len(hi) > len(lo):\n            heapq.heappush(lo, -heapq.heappop(hi))\n        medians.append(-lo[0] if len(lo) >= len(hi) else hi[0])\n    return medians",
+  "code": "import heapq\n\ndef running_medians(stream):\n    lo = []\n    hi = []\n    medians = []\n    for x in stream:\n        if not lo or x <= -lo[0]:\n            heapq.heappush(lo, -x)\n        else:\n            heapq.heappush(hi, x)\n        if len(lo) > len(hi) + 1:\n            heapq.heappush(hi, -heapq.heappop(lo))\n        elif len(hi) > len(lo):\n            heapq.heappush(lo, -heapq.heappop(hi))\n        medians.append(-lo[0] if len(lo) > len(hi) else (-lo[0] + hi[0]) / 2)\n    return medians",
   "complexity": "O(n log n) / O(n)",
   "beginnerSummary": "像把人群按身高分成两拨，左边一拨站着最矮里最高的，右边一拨站着最高里最矮的；两拨人数差不超过一人，中间那个人（或两人平均）就是中位数。",
   "diagram": "lo(大顶):  1 2      hi(小顶): 3\n       中位 = lo顶 = 2\n两堆人数差 <= 1",

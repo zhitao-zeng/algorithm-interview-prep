@@ -32,7 +32,7 @@ export default {
   ],
   "workedExample": [
     "两个视频：A 曝光100次均值0.8，B 曝光5次均值0.6；n_total=105，c=1。",
-    "UCB_A≈0.8+√(ln106/100)≈0.829，UCB_B≈0.6+√(ln106/5)≈0.954，选 B 探索，因为 B 不确定性高。"
+    "UCB_A≈0.8+√(ln106/100)≈1.016，UCB_B≈0.6+√(ln106/5)≈1.566，选 B 探索，因为 B 不确定性高。"
   ],
   "lineByLine": [
     "def ucb_score：计算单个物品的 UCB 分数。",

@@ -10,7 +10,7 @@ export default {
   "explanationFocus": "是什么：QLoRA（Quantized LoRA）是 LoRA 的显存优化版——它把预训练底座权重用 4-bit NormalFloat(NF4) 量化并冻结，仅以 fp16/bf16 训练插入的 LoRA 低秩适配器（Adapter），并配合『双重量化（double quantization）』与『分页优化器（paged optimizer）』进一步压低显存，使 65B 模型可在单张 48G 显卡、7B 模型可在 24G 甚至 16G 消费级显卡上微调，而质量接近全精度 LoRA。",
   "quickAnswer": "QLoRA 用 bitsandbytes 把底座量化为 4-bit NF4 并冻结，前向时反量化为高精度计算；仅 LoRA 适配器保持 fp16/bf16 可训；再加双重量化（把量化所用的 scale 常数也量化）与分页优化器（用 NVMe 分页防峰值 OOM），把显存压到单卡可训。相对 16-bit LoRA 质量损失通常 <0.5%，但显存降到约 1/4。",
   "beginnerSummary": "QLoRA 先把大模型『压成 4-bit 缩略图』冻住不动，再在上面训练一个很小的 LoRA 外挂（像给冻住的巨人贴几张便利贴）。因为主体不训，显存砍到 1/4，单张游戏显卡也能微调巨模型。双重量化是把『记录压缩方式的便签』再压缩一次，分页优化器是显存不够时先借硬盘顶一下，防训练中途爆显存。",
-  "walkthrough": "以 Mistral-7B 为例：fp16 底座 14.5GB → 4-bit NF4 底座 3.6GB；LoRA 适配器约 0.03GB 可训；激活值 2-4GB；优化器状态（Adam，仅 LoRA 部分）约 0.06GB；CUDA 上下文 ~1GB；双重量化再省约 0.4GB/1B 参数。合计约 7-9GB，可放进单张 16GB 显卡（如 4060 Ti 16G）微调。若是 65B 模型，fp16 需 ~130GB（多卡），QLoRA 4-bit 底座 ~48GB + 适配器与开销，单张 48G A6000 即可。",
+  "walkthrough": "以 Mistral-7B 为例：fp16 底座 14.5GB → 4-bit NF4 底座 3.6GB；LoRA 适配器约 0.03GB 可训；激活值 2-4GB；优化器状态（Adam，仅 LoRA 部分）约 0.06GB；CUDA 上下文 ~1GB；双重量化再省约 0.4GB/1B 参数。合计约 7-9GB，可放进单张 16GB 显卡（如 4060 Ti 16G）微调。若是 65B 模型，fp16 底座需 ~130GB（多卡）；QLoRA 4-bit 底座本身 ≈32.5GB（65B×0.5B/param）+ 适配器/优化器/激活/CUDA 等开销 ≈48GB 合计，单张 48G A6000 即可。",
   "approach": "① 用 BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4', bnb_4bit_compute_dtype=bf16, bnb_4bit_use_double_quant=True) 加载冻结底座；② 前向时 bitsandbytes 在算子内反量化到 compute_dtype 计算；③ 用 PEFT 注入 LoRA（通常 target 到 q_proj/v_proj 等），仅适配器参数 requires_grad=True；④ 分页优化器在显存峰值超限时把优化器状态分页到 CPU/NVMe，防止 OOM。训练循环与普通 HF Trainer 一致。",
   "bruteForce": "直接用 fp16 加载并全参数微调 65B 需约 780GB 显存（权重 130G + 优化器动量/方差 2×130G + 梯度 130G + 激活），远超单卡；纯 LoRA（fp16 底座）仍需 ~130G 底座 + 少量适配器，依然要多卡。两者都把巨量显存花在『底座』上，而底座在微调时本不该变。",
   "invariant": "底座恒为 4-bit 冻结、仅 LoRA 适配器可训；NF4 是针对零均值正态权重分布最优的 4-bit 数据类型（比 INT4 信息损失更小）；compute_dtype 必须与硬件支持匹配（老卡不支持 bf16 则退 fp16），否则前向出现 NaN。凡把底座设为可训或 compute_dtype 不匹配，都会破坏显存优势或数值稳定。",
@@ -40,7 +40,7 @@ export default {
   ],
   "workedExample": [
     "例 1（7B 单卡）：Mistral-7B fp16 底座 14.5G → 4-bit NF4 3.6G；+ LoRA 0.03G + 激活 3G + 优化器 0.06G + CUDA 1G + 双重量化省 ~0.4G ≈ 7-8G，放 16G 卡可行。",
-    "例 2（65B 单卡）：LLaMA-65B fp16 需 ~130G 底座，QLoRA 4-bit 底座 ~48G + 适配器与开销 ≈ 可放单张 48G A6000，而全微调需 8×A100。",
+    "例 2（65B 单卡）：LLaMA-65B fp16 底座需 ~130G；QLoRA 4-bit 底座本身 ≈32.5G（65B×0.5B/param）+ 适配器/优化器/激活/CUDA 等开销 ≈48G 合计，可放单张 48G A6000，而全微调需 8×A100。",
     "例 3（质量对比）：在 GSM8K 上 16-bit LoRA 得 62.3%，QLoRA 得 61.9%，差距 0.4% < 0.5%，验证『几乎无感』。"
   ],
   "lineByLine": [

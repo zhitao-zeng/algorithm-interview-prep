@@ -31,7 +31,7 @@ export default {
   "followUps": [
     {
       "question": "INT8 为什么需要校准？",
-      "answer": "要确定每层激活的量化范围(scale/zero-point)，否则截断误差大、精度崩。"
+      "answer": "要确定每层激活的量化范围（INT8 对称量化，只需 scale，zero-point 隐式为 0），否则截断误差大、精度崩。"
     },
     {
       "question": "FP16 要校准吗？",

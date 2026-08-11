@@ -25,7 +25,7 @@ export default {
   ],
   "code": "# Python (选择 kernel 伪代码)\ndef pick_gemm(dtype):\n    if dtype == 'int8' and gpu_has('tensor_core'): return int8_tc_gemm\n    if dtype == 'fp8'  and gpu_has('fp8'):         return fp8_gemm\n    return fp16_gemm                                    # 否则退回",
   "codeNotes": [
-    "Tensor Core 吞吐随精度翻倍（8→4→2 字节对应 INT8→FP8→FP16 的密度变化）。",
+    "Tensor Core 吞吐随精度翻倍（FP16=2B、FP8 与 INT8 均=1B；FP16→FP8/INT8 字节减半、吞吐约翻倍）。",
     "带宽节省与字节数成正比：权重越小搬得越快，这是量化的另一半收益。",
     "真实部署需配合量化校准与 kernel 选择，伪代码只是路由逻辑。"
   ],

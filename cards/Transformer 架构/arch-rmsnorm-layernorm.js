@@ -35,7 +35,7 @@ export default {
     },
     {
       "question": "RMSNorm 对输入平移不变吗？",
-      "answer": "不变，它只对尺度不变；平移会改变输出，而 LayerNorm 对平移也不变（减均值后）。"
+      "answer": "不再不变，RMSNorm 仅对「缩放」不变（乘以常数其比例不变）；对「平移」不再不变——加常数会改变均方根，从而改变输出；LayerNorm 因先减均值，对平移才是不变的。"
     }
   ],
   "followUpAnswers": [

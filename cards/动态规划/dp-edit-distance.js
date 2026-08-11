@@ -13,7 +13,7 @@ export default {
   "code": "def edit_distance(a, b):\n    m, n = len(a), len(b)\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n    for i in range(m + 1):\n        dp[i][0] = i\n    for j in range(n + 1):\n        dp[0][j] = j\n    for i in range(m):\n        for j in range(n):\n            if a[i] == b[j]:\n                dp[i+1][j+1] = dp[i][j]\n            else:\n                dp[i+1][j+1] = 1 + min(dp[i][j+1], dp[i+1][j], dp[i][j])\n    return dp[m][n]",
   "complexity": "时间 O(|a|*|b|)，空间 O(|a|*|b|)（可压一维）。",
   "beginnerSummary": "像把一篇草稿改成定稿：可以加一个字、删一个字、或把一个字改成另一个，每改一次记一分，目标是用最少次数改完。",
-  "diagram": "    '' r o s\n''   0 1 2 3\nh    1 1 2 3\no    2 1 2 3\nr    3 2 2 3\ns    4 3 3 3\ne    5 4 4 3",
+  "diagram": "    '' r o s\n''   0 1 2 3\nh    1 1 2 3\no    2 2 1 2\nr    3 2 2 2\ns    4 3 3 2\ne    5 4 4 3",
   "derivation": [
     "为什么需要：拼写纠错、模糊搜索、DNA 比对都依赖编辑距离。",
     "怎么实现：二维 DP，三操作取最小 +1，匹配则继承。",

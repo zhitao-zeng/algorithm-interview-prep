@@ -40,7 +40,7 @@ export default {
   ],
   "workedExample": [
     "例 1（Decode memory-bound）：d=4096 线性层，FLOPs=33.6M，搬 33.6MB，AI≈1 < A100 拐点 156 → memory-bound → 量化权重到 INT8 让字节减半、AI 翻倍，利用率近似翻倍。",
-    "例 2（Prefill compute-bound）：一次算 n=512 token 的 [n,d]×[d,d] 矩阵，FLOPs≈2·512·4096²≈1.7T，访存约 2·512·4096·2≈8.4MB 权重 + 复用，AI≈512 > 拐点 → compute-bound → 用更优大 kernel/FP8 提算力。",
+    "例 2（Prefill compute-bound）：一次算 n=512 token 的 [n,d]×[d,d] 矩阵，FLOPs≈2·512·4096²≈1.7×10^10（约 17 GFLOPs），访存约 2·512·4096·2≈8.4MB 权重 + 复用，AI≈512 > 拐点 → compute-bound → 用更优大 kernel/FP8 提算力。",
     "例 3（误判代价）：对某 memory-bound 的 Decode 服务直接加 4 张卡，实测吞吐仅 +8%，因为瓶颈在单卡带宽，加卡不解决取权重问题。"
   ],
   "lineByLine": [

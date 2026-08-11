@@ -9,7 +9,7 @@ export default {
   "explanationFocus": "是什么：loss突刺（spike）指相邻step间loss数量级暴涨，NaN则是出现非有限值；二者都是训练不稳定信号，说明前向或反向的数值在某处失效。",
   "bruteForce": "每步把整个模型权重dump成numpy逐元素检查是否含inf/nan，再人工比对哪一层最先出现，成本极高且无法复现长训练。",
   "invariant": "稳定训练下：前向输出、梯度、权重更新量都应保持有限（finite）且梯度范数在一个合理区间（如<10）。一旦某层输出非有限，后继层必被污染。",
-  "walkthrough": "8卡A100（每卡80GB），global batch=2048，peak grad_norm正常约2.3。第31250步grad_norm从2.3跳到1.7e9，loss变NaN。回滚到第31200步checkpoint，在embedding后接hook：发现某token id=50257（越界）查表得全0向量，下游layernorm除0得NaN。",
+  "walkthrough": "8卡A100（每卡80GB），global batch=2048，peak grad_norm正常约2.3。第31250步grad_norm从2.3跳到1.7e9，loss变NaN。回滚到第31200步checkpoint，在embedding后接hook：发现某token id=50257（越界）查表得到非有限/异常值（或触发越界），污染后续 softmax/log 产生 NaN；LayerNorm 因 eps>0 不会自身除零得 NaN。",
   "code": "import torch\n\ndef detect_nonfinite_hook(module, inp, out):\n    if isinstance(out, torch.Tensor) and not torch.isfinite(out).all():\n        raise RuntimeError(f\"NaN/Inf in {module.__class__.__name__}\")\n    return out\n\n# 怀疑的层注册hook\nsuspect_layer.register_forward_hook(detect_nonfinite_hook)\n\ntorch.autograd.set_detect_anomaly(True)  # 反向时定位首个NaN出处\n",
   "complexity": "hook监控 O(1) 每步常数开销；detect_anomaly 使反向约慢1.5-2倍；全量dump权重 O(参数量)，仅在本地复现时使用。",
   "beginnerSummary": "训练像烧一锅汤，突然溢出来（NaN）说明某个原料坏了或火太大。做法是先把锅退回上一锅还能喝的状态，然后一勺勺尝，找到第一勺坏掉的原料。",

@@ -8,8 +8,8 @@ export default {
   "approach": "先决定目标global batch，按显存上限算micro batch与累积步数；每个micro step loss.backward()累加梯度，不调optimizer.step()；累积结束后统一clip_grad_norm_再step并zero_grad。",
   "explanationFocus": "是什么：梯度裁剪是把参数梯度整体范数限制在某阈值内（超出的按比例缩放）；梯度累积是把K个micro-batch的梯度求和当作一个大batch的梯度，从而用micro batch显存跑出global batch效果。",
   "bruteForce": "直接放大global batch到目标值，单卡一次性前向反向——显存不够直接OOM，且大batch对LR调度更敏感。",
-  "invariant": "累积K步后等效梯度 = 各micro step梯度的算术和（即均值的K倍），clip与step在累积完成后只做一次。",
-  "walkthrough": "目标global batch=2048，单卡显存只够micro batch=128，故累积K=16步。每micro step梯度范数约1.8，累积后约28.7；设clip=5.0，则整体缩放到5.0再更新，等效学习率被合理约束。",
+  "invariant": "累积K步后等效梯度 = 各micro step梯度的算术平均（loss 已除以 accum 归一），clip与step在累积完成后只做一次。",
+  "walkthrough": "目标global batch=2048，单卡显存只够micro batch=128，故累积K=16步。每micro step梯度范数约1.8，累积（取均值）后约1.8；设clip=5.0 给出梯度范数上限，等效学习率被合理约束。",
   "code": "import torch\n\ndef train_step(model, opt, batches, accum=16, clip=5.0):\n    opt.zero_grad()\n    for i, (x, y) in enumerate(batches):\n        loss = model(x, y) / accum        #  loss按K归一，等效大batch均值\n        loss.backward()                    #  梯度累加到 .grad\n        if (i + 1) % accum == 0:\n            torch.nn.utils.clip_grad_norm_(model.parameters(), clip)\n            opt.step(); opt.zero_grad()\n",
   "complexity": "时间：与总样本数线性相关，累积不增加前向次数；空间：显存仅存1个micro batch激活，省下(K-1)倍，复杂度 O(micro_batch激活)。",
   "beginnerSummary": "梯度裁剪像给车速装限速器，防止某一下踩太猛翻车；梯度累积像分几次搬砖，凑够一趟的量再一起装车，省力气。",
@@ -37,7 +37,7 @@ export default {
   ],
   "workedExample": [
     "micro batch=128、accum=16，单卡跑出global batch=2048。",
-    "loss=loss/16后backward，累积16步grad_norm约28.7，clip=5.0缩放到5.0。",
+    "loss=loss/16后backward，累积16步grad_norm约1.8（取均值），clip=5.0 提供上限保护。",
     "每16步opt.step一次，显存占用仅为单micro batch的1.2倍。"
   ],
   "lineByLine": [

@@ -6,7 +6,7 @@ export default {
   "difficulty": "Hard",
   "prompt": "NeRF 与 3D 高斯泼溅（3DGS）如何实现新视角合成？它们与多视图几何有何关系？",
   "quickAnswer": "NeRF 用神经网络把 5D 坐标（位置+视角）映射为颜色与密度，通过体渲染从多视角图像学习连续辐射场，新视角即重新积分射线。3DGS 改用可微光栅化的各向异性高斯点云，渲染更快更清晰。二者都基于多视图几何的一致性约束（极几何/光度一致），但把显式几何换成可优化表示。",
-  "code": "import torch\n\ndef volume_render(rgb, sigma, t):\n    # rgb:[N,3], sigma:[N], t:[N] 采样点沿射线\n    delta = t[1:] - t[:-1]\n    alpha = 1 - torch.exp(-sigma[:-1] * delta)\n    weights = alpha * torch.cumprod(1 - alpha, 0)\n    return (weights[:, None] * rgb[:-1]).sum(0)",
+  "code": "import torch\n\ndef volume_render(rgb, sigma, t):\n    # rgb:[N,3], sigma:[N], t:[N] 采样点沿射线\n    delta = t[1:] - t[:-1]\n    alpha = 1 - torch.exp(-sigma[:-1] * delta)\n    T = torch.cat([torch.ones(1, device=alpha.device), torch.cumprod(1 - alpha, 0)[:-1]]); weights = alpha * T\n    return (weights[:, None] * rgb[:-1]).sum(0)",
   "complexity": "O(N_samples·Rays) 体渲染",
   "beginnerSummary": "想从几张照片生成任意角度的新照片？NeRF 像是把一个场景\"烤\"进神经网络，3DGS 则像撒一把会发光的小椭球来拼场景。",
   "explanationFocus": "是什么：NeRF 以神经网络表示连续体积辐射场，3DGS 以可微高斯点云表示场景，二者目标都是多视图一致的新视角合成。",
@@ -39,7 +39,7 @@ export default {
     "def volume_render(rgb, sigma, t)：体渲染合成射线颜色。",
     "delta = t[1:]-t[:-1]：相邻采样点间距。",
     "alpha = 1-exp(-sigma*delta)：各段不透明度。",
-    "weights = alpha * cumprod(1-alpha)：透射累乘得到合成权重，加权 rgb 求和。"
+    "weights = alpha * T：T 为透射率（首项=1，其后逐段乘(1-alpha)），加权 rgb 求和。"
   ],
   "followUps": [
     {

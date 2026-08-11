@@ -31,7 +31,7 @@ export default {
   ],
   "workedExample": [
     "YOLO 圈出车实例，掩码内深度均值 0.8 m、分割分 0.9。",
-    "融合置信≈0.73>0.5 且距离<1 m，判为近距障碍。"
+    "融合置信≈0.66>0.5 且距离<1 m，判为近距障碍。"
   ],
   "lineByLine": [
     "for mask,label,score in seg_masks: 遍历每个实例。",

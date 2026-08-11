@@ -9,7 +9,7 @@ export default {
   "explanationFocus": "是什么：显存OOM指激活+参数+优化器状态超出GPU显存；重计算（gradient checkpointing）是反向时丢弃中间激活、需要时再前向重算，以计算换显存的技术。",
   "bruteForce": "直接减小batch到1甚至micro batch=1，虽不OOM但吞吐极低、batch统计失真，收敛变差。",
   "invariant": "重计算前后参数梯度在数学上完全一致：丢弃的激活在反向时通过同输入重新前向精确重建，梯度结果不变，只是多花前向算力。",
-  "walkthrough": "13B模型、seq_len=4096、micro batch=4，单卡80GB：不重计算激活占58GB OOM；用checkpoint每1层后激活降到19GB，可放下；代价是反向多一次前向，单step时间从1.8s升到2.4s（约+33%）。",
+  "walkthrough": "13B模型、seq_len=4096、micro batch=4：激活（随层数×序列线性增长）是主要瓶颈，不重计算约58GB；用checkpoint每1层后激活降到19GB，省下约2/3。参数+优化器状态约130GB（bf16权重26GB + fp32 Adam m/v 104GB）需靠 ZeRO 分片到多卡，每卡只持有一份分片；重计算后单卡激活19GB + 分片状态即可放下。代价是反向多一次前向，单step时间约+33%。",
   "code": "import torch\nfrom torch.utils.checkpoint import checkpoint\n\ndef block_forward(block, x):\n    return checkpoint(block, x, use_reentrant=False)  # 不保存中间激活\n\ndef transformer_stack(blocks, x):\n    for blk in blocks:\n        x = block_forward(blk, x)   # 每层边界才存激活\n    return x\n",
   "complexity": "空间：激活显存从 O(L) 降到 O(√(或边界数))，可省数倍；时间：反向需重算前向，总算力约增30%-40%。",
   "beginnerSummary": "重计算像做菜不把每道工序半成品都摆桌上，用完就收，需要时用同样原料重做一遍——费点功夫但桌面（显存）清爽了。",
@@ -36,8 +36,8 @@ export default {
     "Transformer结构"
   ],
   "workedExample": [
-    "profile显示激活占58GB、参数+优化器22GB，确认激活是瓶颈。",
-    "对12层transformer每1层checkpoint，激活降到19GB，80GB卡可跑micro batch=4。",
+    "profile显示激活占58GB（参数+优化器约130GB 靠 ZeRO 分片到多卡），确认激活是瓶颈。",
+    "对12层transformer每1层checkpoint，激活降到19GB，配合 ZeRO 分片后单卡可跑 micro batch=4。",
     "单step从1.8s升到2.4s，吞吐降33%但换来临batch翻倍。"
   ],
   "lineByLine": [

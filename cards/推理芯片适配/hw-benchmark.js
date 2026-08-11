@@ -10,7 +10,7 @@ export default {
   "bruteForce": "只报告端到端 QPS，不拆解算力与带宽占用，无法判断优化方向，易被 launch 开销误导。",
   "invariant": "在相同输入 shape、精度与软件栈版本下，重复测量的吞吐应保持稳定(方差可控)，否则数据不可比。",
   "walkthrough": "某卡峰值 256 TFLOPS(FP16)，带宽 1TB/s。实测 ResNet50 batch=64 吞吐 9800 img/s，单次 2.2 GFLOP，实测 9800*2.2e9≈21.6 TFLOPS，利用率仅 8.4%。Roofline 显示算术强度低，属访存-bound，优化数据流水线后利用率升到 19%。",
-  "code": "def compute_utilization(peak_tflops, imgs_per_s, gflop_per_img):\n    measured = imgs_per_s * gflop_per_img * 1e3  # TFLOPS\n    return measured / peak_tflops\n\nutil = compute_utilization(256, 9800, 2.2)  # -> 0.084",
+  "code": "def compute_utilization(peak_tflops, imgs_per_s, gflop_per_img):\n    measured = imgs_per_s * gflop_per_img * 1e-3  # TFLOPS\n    return measured / peak_tflops\n\nutil = compute_utilization(256, 9800, 2.2)  # -> 0.084",
   "complexity": "测量本身 O(样本数)，分析 O(1)；为得到稳定值需多轮预热与统计，时间随重复次数线性增长。",
   "beginnerSummary": "像测一台机器实际产出 vs 满负荷产能，算出开工率；再查是机器转得慢还是上料跟不上。",
   "diagram": "峰值 256 TFLOPS\n实测  21.6 TFLOPS (8.4%)\nRoofline: 低算术强度 -> 访存墙\n 优化数据通路 -> 48 TFLOPS (19%)",
@@ -39,7 +39,7 @@ export default {
     "某卷积因未对齐 32 字节，DMA 效率差，带宽利用率仅 40%，重排后到 85%。"
   ],
   "lineByLine": [
-    "imgs_per_s * gflop_per_img 得到每秒实际浮点运算次数(转为 TFLOPS 需 ×1e3)。",
+    "imgs_per_s * gflop_per_img 得到每秒 GFLOP 数，再 ÷1000（×1e-3）得到 TFLOP/s。",
     "除以峰值得到计算利用率，反映硬件被用满的程度。",
     "若利用率低且算术强度低，结合 Roofline 判定为访存瓶颈而非算力不足。"
   ],

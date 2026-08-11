@@ -5240,7 +5240,7 @@ export const questions = [
       "怎么评测：统计 pad token 占比下降，以及相同算力下有效 token 吞吐提升。"
     ],
     "invariant": "连续批内无 pad token，每个位置的算力都对应真实 token。",
-    "walkthrough": "长度 [10, 500, 20]，静态 pad 到 500 → 980 个 pad token 空算；连续批各算各的，0 padding。",
+    "walkthrough": "长度 [10, 500, 20]，静态 pad 到 500 → 970 个 pad token 空算；连续批各算各的，0 padding。",
     "edgeCases": [
       "极长短混合：padding 浪费最严重，连续收益最大。",
       "几乎等长：padding 本来就少，收益有限。",
@@ -5278,7 +5278,7 @@ export const questions = [
     ],
     "workedExample": [
       "长度 [10,500,20] pad 到 500。",
-      "980 个 pad 空算；连续批 0 padding。"
+      "970 个 pad 空算；连续批 0 padding。"
     ],
     "lineByLine": [
       "找批内最大长度。",
@@ -5286,7 +5286,7 @@ export const questions = [
       "累加得到 pad 总数。",
       "连续批取消该步骤。"
     ],
-    "diagram": "静态: 10,500,20 → 全 pad 到 500 (浪费980)\n连续: 各算各的真实长度, 0 pad",
+    "diagram": "静态: 10,500,20 → 全 pad 到 500 (浪费970)\n连续: 各算各的真实长度, 0 pad",
     "order": 11
   },
   {
@@ -7679,7 +7679,7 @@ export const questions = [
     "complexity": "说明：共享专家带来固定额外 O(d_ff·d_model) 计算（每 token 一次），但允许减少路由专家数或 k，整体往往在同等效果下更稳、通信更可控。",
     "beginnerSummary": "入门概览：把“大家都懂的常识”交给一个共享专家统一处理，路由专家只管“个性化”的部分。这样路由不用每次都从头拼通用知识，负担轻、还更稳。",
     "diagram": "        token x\n        /      \\\n shared expert   router -> top-k experts\n   (always on)        (sparse)\n        \\      /\n         add (h_shared + h_route)\n          |\n        output",
-    "code": "import torch\nimport torch.nn as nn\n\nclass MoEWithShared(nn.Module):\n    def __init__(self, d_model, d_ff, num_experts, k=1):\n        super().__init__()\n        self.shared = nn.Linear(d_model, d_ff)        # 对所有 token 激活\n        self.experts = nn.ModuleList(\n            [nn.Linear(d_model, d_ff) for _ in range(num_experts)]\n        )\n        self.gate = nn.Linear(d_model, num_experts)\n\n    def forward(self, x):\n        h_shared = self.shared(x)                     # 共享专家, 每 token 必过\n        gate = torch.softmax(self.gate(x), dim=-1)    # 路由权重 [B, E]\n        idx = torch.topk(gate, k, dim=-1).indices     # 每 token 选中的 k 个专家 [B, k]\n        # 把所有专家输出堆成 [E, B, d_ff], 再用整数下标张量选取, 避免 ModuleList 张量索引\n        all_out = torch.stack([expert(x) for expert in self.experts])  # [E, B, d_ff]\n        h_route = torch.zeros_like(h_shared)\n        for r in range(k):\n            w = gate.gather(-1, idx[..., r:r+1])      # 第 r 槽路由权重 [B, 1]\n            h_route = h_route + w * all_out[idx[..., r]]   # 选中专家输出(带权重)累加\n        return h_shared + h_route",
+    "code": "import torch\nimport torch.nn as nn\n\nclass MoEWithShared(nn.Module):\n    def __init__(self, d_model, d_ff, num_experts, k=1):\n        super().__init__()\n        self.shared = nn.Linear(d_model, d_ff)        # 对所有 token 激活\n        self.experts = nn.ModuleList(\n            [nn.Linear(d_model, d_ff) for _ in range(num_experts)]\n        )\n        self.gate = nn.Linear(d_model, num_experts)\n\n    def forward(self, x):\n        h_shared = self.shared(x)                     # 共享专家, 每 token 必过\n        gate = torch.softmax(self.gate(x), dim=-1)    # 路由权重 [B, E]\n        idx = torch.topk(gate, k, dim=-1).indices     # 每 token 选中的 k 个专家 [B, k]\n        # 把所有专家输出堆成 [E, B, d_ff], 再用整数下标张量选取, 避免 ModuleList 张量索引\n        all_out = torch.stack([expert(x) for expert in self.experts])  # [E, B, d_ff]\n        b_idx = torch.arange(x.size(0), device=x.device).unsqueeze(1).expand(-1, k)  # [B, k] 批量下标\n        h_route = torch.zeros_like(h_shared)\n        for r in range(k):\n            w = gate.gather(-1, idx[..., r:r+1])      # 第 r 槽路由权重 [B, 1]\n            h_route = h_route + w * all_out[idx[:, r], b_idx[:, r]]   # 选中专家输出(带权重)累加\n        return h_shared + h_route",
     "derivation": [
       "为什么需要：纯路由 MoE 让通用知识在多个专家间重复学习、路由负担重且易不稳，需要把通用与专用解耦。",
       "怎么实现：固定一组共享专家对所有 token 执行，路由专家只负责差异性；最终输出为共享输出加路由输出之和。",
@@ -9482,7 +9482,7 @@ export const questions = [
     "followUps": [
       {
         "question": "INT8 为什么需要校准？",
-        "answer": "要确定每层激活的量化范围(scale/zero-point)，否则截断误差大、精度崩。"
+        "answer": "要确定每层激活的量化范围（INT8 对称量化，只需 scale，zero-point 隐式为 0），否则截断误差大、精度崩。"
       },
       {
         "question": "FP16 要校准吗？",
@@ -12960,7 +12960,7 @@ export const questions = [
       "怎么评测：在 >L_train 的困惑度与长程检索任务上对比 base 调整前后的表现。"
     ],
     "invariant": "不变量：旋转角 = 位置 × 基频；外推失败等价于『高频维角度超出可区分周期』，增大 base 等效降低所有 θ_i。",
-    "walkthrough": "d=4096,base=10000：θ_1≈1，位置 1000 时角度 1000rad 已绕多圈；把 base 调大到 100000，θ_1 变小，外推到 32k 仍不混叠。",
+    "walkthrough": "d=4096,base=10000：θ_1=base^{0}=1（与 base 无关），位置 1000 时角度 1000rad 已绕多圈；把 base 调大到 100000，i≥2 的高频维基频 θ_i 整体下降（θ_1 恒为 1），外推到 32k 仍不混叠。",
     "edgeCases": [
       "仅调 base 不配合位置插值，仍可能需少量微调。",
       "NTK-aware 缩放对不同维施加不同缩放率，比统一调 base 更细。",
@@ -12998,7 +12998,7 @@ export const questions = [
     ],
     "workedExample": [
       "θ_1 对应高频：位置 1000 已绕多圈。",
-      "base 10000→100000：θ_1 缩小 10 倍，外推更稳。"
+      "base 10000→100000：i≥2 高频维基频 θ_i 整体下降（θ_1=base^0 恒为 1），外推更稳。"
     ],
     "lineByLine": [
       "inv[i]：第 i 个 2D 子空间基频，i 小则大。",
@@ -13569,7 +13569,7 @@ export const questions = [
       },
       {
         "question": "RMSNorm 对输入平移不变吗？",
-        "answer": "不变，它只对尺度不变；平移会改变输出，而 LayerNorm 对平移也不变（减均值后）。"
+        "answer": "不再不变，RMSNorm 仅对「缩放」不变（乘以常数其比例不变）；对「平移」不再不变——加常数会改变均方根，从而改变输出；LayerNorm 因先减均值，对平移才是不变的。"
       }
     ],
     "followUpAnswers": [
@@ -14758,7 +14758,7 @@ export const questions = [
     ],
     "workedExample": [
       "nums=[4,5,6,7,0,1,2], target=0。left=0,right=6,mid=3（值7）。nums[left]=4 <= 7，说明 [left,mid] 升序；target=0 不在 [4,7] 内 → 目标在另一半，令 left=mid+1=4。",
-      "新区间 [0,1,2]，mid=5（值1）。nums[left]=0 <= 1，[0,1] 升序；0 不在 [0,1] 内 → left=6；mid=6 命中 0，返回 6。",
+      "新区间 [0,1,2]（下标 4–6），mid=5（值1）。nums[left]=0 <= 1，[4,5] 升序；0 在 [0,1] 内 → right=mid-1=4；mid=4 命中 0，返回 4。",
       "若 target=5：第一轮 [4,7] 升序且 5∈[4,7]，令 right=mid-1 砍左半，继续二分最终命中索引 1。"
     ],
     "lineByLine": [
@@ -15249,7 +15249,7 @@ export const questions = [
     "bruteForce": "每次插入后全排序取中，时间 O(n^2 log n) 或每步 O(n)。",
     "invariant": "lo 中所有元素 <= hi 中所有元素；且 |len(lo)-len(hi)|<=1，lo 至多比 hi 多一个；中位数可由两堆顶直接得出。",
     "walkthrough": "插入 1：lo=[1]。插入 2：2> -lo[0]=1 压 hi，hi=[2]，平衡后 lo=[1],hi=[2]，中位(1+2)/2=1.5。插入 3：3>1 压 hi=[2,3]，失衡 len(hi)=2>1，把 2 移到 lo，lo=[2,1](堆顶2),hi=[3]，中位=2。",
-    "code": "import heapq\n\ndef running_medians(stream):\n    lo = []\n    hi = []\n    medians = []\n    for x in stream:\n        if not lo or x <= -lo[0]:\n            heapq.heappush(lo, -x)\n        else:\n            heapq.heappush(hi, x)\n        if len(lo) > len(hi) + 1:\n            heapq.heappush(hi, -heapq.heappop(lo))\n        elif len(hi) > len(lo):\n            heapq.heappush(lo, -heapq.heappop(hi))\n        medians.append(-lo[0] if len(lo) >= len(hi) else hi[0])\n    return medians",
+    "code": "import heapq\n\ndef running_medians(stream):\n    lo = []\n    hi = []\n    medians = []\n    for x in stream:\n        if not lo or x <= -lo[0]:\n            heapq.heappush(lo, -x)\n        else:\n            heapq.heappush(hi, x)\n        if len(lo) > len(hi) + 1:\n            heapq.heappush(hi, -heapq.heappop(lo))\n        elif len(hi) > len(lo):\n            heapq.heappush(lo, -heapq.heappop(hi))\n        medians.append(-lo[0] if len(lo) > len(hi) else (-lo[0] + hi[0]) / 2)\n    return medians",
     "complexity": "O(n log n) / O(n)",
     "beginnerSummary": "像把人群按身高分成两拨，左边一拨站着最矮里最高的，右边一拨站着最高里最矮的；两拨人数差不超过一人，中间那个人（或两人平均）就是中位数。",
     "diagram": "lo(大顶):  1 2      hi(小顶): 3\n       中位 = lo顶 = 2\n两堆人数差 <= 1",
@@ -17158,7 +17158,7 @@ export const questions = [
       "双重循环：若 word1[i-1]==word2[j-1]，dp[i][j]=dp[i-1][j-1]；否则 dp[i][j]=1+min(左,上,左上)。",
       "返回 dp[m][n]。"
     ],
-    "diagram": "word1=\"horse\" word2=\"ros\"  编辑距离\n    r o s\nh   1 2 3\no   2 1 2\nr   3 2 1\ns   4 3 2\ne   5 4 3\n距离 = 3  (插入/删除/替换取最小+1)",
+    "diagram": "word1=\"horse\" word2=\"ros\"  编辑距离\n    r o s\nh   1 2 3\no   2 1 2\nr   2 2 2\ns   3 3 2\ne   4 4 3\n距离 = 3  (插入/删除/替换取最小+1)",
     "order": 3
   },
   {
@@ -17630,7 +17630,7 @@ export const questions = [
     "code": "def edit_distance(a, b):\n    m, n = len(a), len(b)\n    dp = [[0] * (n + 1) for _ in range(m + 1)]\n    for i in range(m + 1):\n        dp[i][0] = i\n    for j in range(n + 1):\n        dp[0][j] = j\n    for i in range(m):\n        for j in range(n):\n            if a[i] == b[j]:\n                dp[i+1][j+1] = dp[i][j]\n            else:\n                dp[i+1][j+1] = 1 + min(dp[i][j+1], dp[i+1][j], dp[i][j])\n    return dp[m][n]",
     "complexity": "时间 O(|a|*|b|)，空间 O(|a|*|b|)（可压一维）。",
     "beginnerSummary": "像把一篇草稿改成定稿：可以加一个字、删一个字、或把一个字改成另一个，每改一次记一分，目标是用最少次数改完。",
-    "diagram": "    '' r o s\n''   0 1 2 3\nh    1 1 2 3\no    2 1 2 3\nr    3 2 2 3\ns    4 3 3 3\ne    5 4 4 3",
+    "diagram": "    '' r o s\n''   0 1 2 3\nh    1 1 2 3\no    2 2 1 2\nr    3 2 2 2\ns    4 3 3 2\ne    5 4 4 3",
     "derivation": [
       "为什么需要：拼写纠错、模糊搜索、DNA 比对都依赖编辑距离。",
       "怎么实现：二维 DP，三操作取最小 +1，匹配则继承。",
@@ -18144,7 +18144,7 @@ export const questions = [
     ],
     "workedExample": [
       "YOLO 圈出车实例，掩码内深度均值 0.8 m、分割分 0.9。",
-      "融合置信≈0.73>0.5 且距离<1 m，判为近距障碍。"
+      "融合置信≈0.66>0.5 且距离<1 m，判为近距障碍。"
     ],
     "lineByLine": [
       "for mask,label,score in seg_masks: 遍历每个实例。",
@@ -19784,7 +19784,7 @@ export const questions = [
     "code": "# Python (概念)\ndef tp_gemm_col(x, W_col_shard):        # 列切: 免通信\n    return x @ W_col_shard              # 各卡结果直接 concat\ndef tp_gemm_row(x, W_row_shard, world): # 行切: 需 all-reduce\n    return all_reduce_sum(x @ W_row_shard, world)",
     "codeNotes": [
       "列切输出沿特征维拼接。",
-      "行切输出沿 batch 维求和。"
+      "行切输出沿输出特征(隐藏)维 all-reduce 求和。"
     ],
     "complexity": "单卡 GEMM 规模 1/tp；行切额外一次 all-reduce。",
     "followUps": [
@@ -20043,7 +20043,7 @@ export const questions = [
       "怎么评测：气泡占比下降、设备利用率提升、显存峰值是否可控。"
     ],
     "invariant": "总的前向/反向次数与 GPipe 相同，数值等价，只是执行顺序交错。",
-    "walkthrough": "P=4、micro-batch 数 m=20（满足 m≫P 才显出优势）：warmup 4 个前向后进入 1F1B，气泡从 GPipe 的约 43%（=(P-1)/(m+P-1)=3/23）降到约 15%（≈(P-1)/m=3/20）。在飞窗口上限取 P 即可持续流水。",
+    "walkthrough": "P=4、micro-batch 数 m=20（满足 m≫P 才显出优势）：warmup 4 个前向后进入 1F1B，气泡从 GPipe 的约 13%（=(P-1)/(m+P-1)=3/23）降到约 15%（≈(P-1)/m=3/20）。在飞窗口上限取 P 即可持续流水。",
     "edgeCases": [
       "在飞 micro-batch 数须 ≥ P 才能持续流水。",
       "梯度需按 micro-batch 累加后再更新。",
@@ -20081,7 +20081,7 @@ export const questions = [
     ],
     "workedExample": [
       "P=4、micro-batch 数 m=20（m≫P 才显优势），warmup 后转 1F1B。",
-      "气泡从 GPipe 的 ~43% 降到 ~15%（≈(P-1)/m）。"
+      "气泡从 GPipe 的 ~13% 降到 ~15%（≈(P-1)/m）。"
     ],
     "lineByLine": [
       "warmup 阶段做若干纯前向。",
@@ -20408,7 +20408,7 @@ export const questions = [
       "EP all-to-all 在跨机几乎不可用。",
       "ZeRO-3 gather 与 TP 通信叠加需调度。"
     ],
-    "code": "# Python (概念)\ndef comm_volume(mode, P, s, h, t):\n    if mode == 'dp':   return 2 * P * (t - 1) / t      # 梯度 all-reduce\n    if mode == 'tp':   return 2 * s * h / t             # 每层 all-reduce\n    if mode == 'pp':   return s * h                     # 相邻 stage 激活\n    if mode == 'ep':   return s * h                     # all-to-all\n    return 0",
+    "code": "# Python (概念)\ndef comm_volume(mode, P, s, h, t):\n    if mode == 'dp':   return 2 * P * (t - 1) / t      # 梯度 all-reduce\n    if mode == 'tp':   return 2 * s * h             # 每层 all-reduce\n    if mode == 'pp':   return s * h                     # 相邻 stage 激活\n    if mode == 'ep':   return s * h                     # all-to-all\n    return 0",
     "codeNotes": [
       "DP 量 ∝ 参数量 P；TP 量 ∝ 激活 s·h。",
       "PP 最低但换 bubble；EP 对拓扑最敏感。"
@@ -21909,7 +21909,7 @@ export const questions = [
     ],
     "workedExample": [
       "base={web:0.4, book:0.2, code:0.25, video:0.15}，easy_bias={web:0.15, video:-0.07}。",
-      "step=0 时 web=(0.4+0.15)=0.55，video=(0.15-0.07)=0.08，归一化后 web≈0.55、video≈0.08。",
+      "step=0 时 web=(0.4+0.15)=0.55，video=(0.15-0.07)=0.08，未归一化和=1.08；归一化后 web≈0.509、video≈0.074、book≈0.185、code≈0.231（四者之和=1）。",
       "step=total 时 α=1，回到 base 配比，web=0.4、video=0.15。"
     ],
     "lineByLine": [
@@ -25616,7 +25616,7 @@ export const questions = [
     "explanationFocus": "是什么：Arithmetic Intensity（AI，算术强度）= 每次内存访问所对应的浮点运算数 = FLOPs / Bytes（单位 FLOPs/Byte）。它衡量一个任务是『算得多还是搬得多』。AI 高于硬件拐点（峰值算力 ÷ 峰值带宽）即 Compute Bound，低于即 Memory Bound。它是判断 GPU 推理/计算瓶颈的核心、统一指标。",
     "quickAnswer": "Arithmetic Intensity = FLOPs / Bytes（每搬 1 字节能做多少运算）。对照硬件拐点 = 峰值算力 / 峰值带宽：AI 高于拐点 → Compute Bound（受算力限制，加算力/更优 kernel）；低于 → Memory Bound（受带宽限制，量化/压缩/大 batch）。是判断推理瓶颈的核心指标，配合 Roofline 图使用。",
     "beginnerSummary": "Arithmetic Intensity 像『性价比』：每从仓库搬 1 单位资料，你能完成多少计算？搬很多却算很少（性价比低）→ 卡在取资料（Memory Bound）；算很多只搬一点（性价比高）→ 卡在自己算得慢（Compute Bound）。硬件有个『拐点』，超过它才算得赢搬。Decode 的性价比极低（≈1），几乎必在带宽屋顶。",
-    "walkthrough": "A100：FP16 峰值 312 TFLOPS、HBM 带宽 2 TB/s → 拐点 ≈ 312/2 = 156 FLOPs/Byte。Decode 一个 d=4096 线性层：FLOPs=33.6M，搬 33.6MB → AI≈1，远低于 156 → memory-bound。Prefill 一次算 n=512 token 的矩阵：FLOPs≈1.7T，有效 AI≈512，远超拐点 → compute-bound。同模型两阶段因 AI 不同而处不同屋顶。",
+    "walkthrough": "A100：FP16 峰值 312 TFLOPS、HBM 带宽 2 TB/s → 拐点 ≈ 312/2 = 156 FLOPs/Byte。Decode 一个 d=4096 线性层：FLOPs=33.6M，搬 33.6MB → AI≈1，远低于 156 → memory-bound。Prefill 一次算 n=512 token 的矩阵：FLOPs≈1.7×10^10（约 17 GFLOPs），有效 AI≈512，远超拐点 → compute-bound。同模型两阶段因 AI 不同而处不同屋顶。",
     "approach": "AI = FLOPs / Bytes；对照硬件拐点判断 compute vs memory bound。先估算 kernel 的 FLOPs 与访存字节（含权重+激活+KV），算 AI，查硬件规格得拐点，下结论；再用 Roofline 图（x=AI, y=可达 FLOPs）直观确认落在带宽屋顶还是算力屋顶。",
     "bruteForce": "只盯 FLOPs 总量——比如看到『这个任务有 1 TFLOPs』就以为算力瓶颈，却忽略了它要搬 2GB 数据（AI=0.5，实是 memory-bound）。只看 FLOPs 无法区分算/搬，必然误判优化方向。",
     "invariant": "硬件拐点 = peak_FLOPS / peak_BW，是硬件固有属性；AI 高于它 compute-bound，低于它 memory-bound。拐点和 AI 都随精度变化（FP8/INT8 抬升算力也抬拐点）。同一任务在不同精度下可能跨越拐点切换 bound。",
@@ -25723,7 +25723,7 @@ export const questions = [
     ],
     "workedExample": [
       "例 1（Decode memory-bound）：d=4096 线性层，FLOPs=33.6M，搬 33.6MB，AI≈1 < A100 拐点 156 → memory-bound → 量化权重到 INT8 让字节减半、AI 翻倍，利用率近似翻倍。",
-      "例 2（Prefill compute-bound）：一次算 n=512 token 的 [n,d]×[d,d] 矩阵，FLOPs≈2·512·4096²≈1.7T，访存约 2·512·4096·2≈8.4MB 权重 + 复用，AI≈512 > 拐点 → compute-bound → 用更优大 kernel/FP8 提算力。",
+      "例 2（Prefill compute-bound）：一次算 n=512 token 的 [n,d]×[d,d] 矩阵，FLOPs≈2·512·4096²≈1.7×10^10（约 17 GFLOPs），访存约 2·512·4096·2≈8.4MB 权重 + 复用，AI≈512 > 拐点 → compute-bound → 用更优大 kernel/FP8 提算力。",
       "例 3（误判代价）：对某 memory-bound 的 Decode 服务直接加 4 张卡，实测吞吐仅 +8%，因为瓶颈在单卡带宽，加卡不解决取权重问题。"
     ],
     "lineByLine": [
@@ -25931,7 +25931,7 @@ export const questions = [
       "怎么评测：算各阶段算术强度并对照硬件拐点（峰值算力/峰值带宽）；分别测 Prefill 算力利用率（MFU）与 Decode 带宽利用率（HBM 利用率），再结合端到端 TTFT 与 TPS。理想状态是两阶段各自接近其瓶颈上限，而非用统一指标掩盖一方空闲。"
     ],
     "invariant": "Prefill 的 FLOPs/Byte 随 prompt 长度上升（AI∝n）；Decode 的 FLOPs/Byte 固定偏低（≈ d²/ HBM带宽，典型≈1）。只要隐藏维 d 与权重精度不变，Decode 的 AI 是常量，不随输出长度变化——这是 Decode 结构性受带宽约束的根本原因，也是“decode 优化主抓带宽而非算力”的依据。",
-    "walkthrough": "以 seq=4096、d=4096、batch=32 为例：Prefill 的有效矩阵是 (batch×seq, d)×(d,d) = (131072,4096)×(4096,4096)，算力摊到海量数据上，AI≈seq≈4096，远超 A100 拐点（~150），GPU 算力几乎吃满（A100 实测 prefill 算力利用率可达 60%+）。Decode 每步矩阵是 (batch, d)×(d,d)=(32,4096)×(4096,4096)，算出 32×4096²≈5.4e11 FLOPs，却要为这 32 个请求各搬一遍约 14GB 权重+KV，总搬运≈32×(14GB+KV)，AI≈1。在并发 100 请求、输出长度 512 的场景，Decode 阶段 p99 延迟主要由“等权重从 HBM 搬到 SRAM”决定，而非计算；这也解释了为何小 batch decode 优化常选权重量化、PagedAttention 减 KV 碎片。",
+    "walkthrough": "以 seq=4096、d=4096、batch=32 为例：Prefill 的有效矩阵是 (batch×seq, d)×(d,d) = (131072,4096)×(4096,4096)，算力摊到海量数据上，AI≈seq≈4096，远超 A100 拐点（~150），GPU 算力几乎吃满（A100 实测 prefill 算力利用率可达 60%+）。Decode 每步矩阵是 (batch, d)×(d,d)=(32,4096)×(4096,4096)，算出 32×4096²≈5.4×10^8（前向，含反向约 1.07×10^9）FLOPs，却要为这 32 个请求各搬一遍约 14GB 权重+KV，总搬运≈32×(14GB+KV)，AI≈1。在并发 100 请求、输出长度 512 的场景，Decode 阶段 p99 延迟主要由“等权重从 HBM 搬到 SRAM”决定，而非计算；这也解释了为何小 batch decode 优化常选权重量化、PagedAttention 减 KV 碎片。",
     "edgeCases": [
       "极短 prompt（n=1~2）：Prefill 也偏访存，AI 低，此时两阶段瓶颈接近，统一 kernel 损失不大。",
       "超大模型（如 70B/FP16≈140GB）：Decode 每步要读 140GB 权重，即便 batch 大，HBM 带宽仍是硬墙，必须使用张量并行把权重切开到多卡。",
@@ -27412,7 +27412,7 @@ export const questions = [
     "complexity": "白盒攻击为 O(k·g)（k 为迭代、g 为梯度成本），黑盒为 O(q·f)（q 为查询、f 为前向），随分辨率线性增长。",
     "beginnerSummary": "对抗扰动像给照片贴了层隐形贴纸：人眼看不出，但模型\"看走眼\"。攻击就是找这层贴纸让模型误判。",
     "diagram": "image(perturb) --> VLM --> wrong_label\ntext(adv)      --> VLM --> mislead",
-    "code": "def pgd_attack(model, image, label, eps=0.03, steps=10):\n    adv = image.clone()\n    for _ in range(steps):\n        g = grad(model(adv), adv)\n        adv = adv + eps * sign(g)\n    return adv",
+    "code": "import torch\nimport torch.nn.functional as F\n\ndef pgd_attack(model, image, label, eps=0.03, steps=10, alpha=0.005):\n    adv = image.clone().detach().requires_grad_(True)\n    for _ in range(steps):\n        loss = F.cross_entropy(model(adv), label)   # 目标损失(如误分类)\n        model.zero_grad()\n        loss.backward()\n        g = adv.grad.detach()\n        with torch.no_grad():\n            adv = torch.clamp(adv + alpha * g.sign(), image - eps, image + eps)  # 投影回 L_inf ε-球\n            adv = torch.clamp(adv, 0.0, 1.0)         # 投影回合法像素范围\n        adv.requires_grad_(True)\n    return adv.detach()",
     "derivation": [
       "为什么需要：自动驾驶、医疗影像等依赖多模态判断，证明可被微妙扰动误导才能推动鲁棒训练与认证。",
       "怎么实现：用梯度或查询生成满足范数约束的扰动，使视觉编码或跨模态对齐偏移至错误语义。",
@@ -27440,8 +27440,8 @@ export const questions = [
       "def pgd_attack(model, image, label, eps, steps)：定义 PGD 攻击函数。",
       "adv = image.clone()：以原图初始化对抗样本。",
       "for _ in range(steps)：迭代更新对抗样本。",
-      "g = grad(model(adv), adv)：求损失对输入的梯度。",
-      "adv = adv + eps * sign(g)：沿符号梯度方向以小步长推进。"
+      "loss = F.cross_entropy(model(adv), label); loss.backward()：对目标损失反传，得到损失对 adv 的梯度。",
+      "adv = torch.clamp(adv + alpha * g.sign(), image - eps, image + eps)：沿符号梯度推进后投影回 L_inf ε-球，保证总扰动 ≤ eps；再 clip 到合法像素范围。"
     ],
     "codeNotes": [
       "实际应对 adv 做 clip 回合法范围，且可加入跨模态联合损失提升迁移性。"
@@ -29147,7 +29147,7 @@ export const questions = [
     "bruteForce": "只报告端到端 QPS，不拆解算力与带宽占用，无法判断优化方向，易被 launch 开销误导。",
     "invariant": "在相同输入 shape、精度与软件栈版本下，重复测量的吞吐应保持稳定(方差可控)，否则数据不可比。",
     "walkthrough": "某卡峰值 256 TFLOPS(FP16)，带宽 1TB/s。实测 ResNet50 batch=64 吞吐 9800 img/s，单次 2.2 GFLOP，实测 9800*2.2e9≈21.6 TFLOPS，利用率仅 8.4%。Roofline 显示算术强度低，属访存-bound，优化数据流水线后利用率升到 19%。",
-    "code": "def compute_utilization(peak_tflops, imgs_per_s, gflop_per_img):\n    measured = imgs_per_s * gflop_per_img * 1e3  # TFLOPS\n    return measured / peak_tflops\n\nutil = compute_utilization(256, 9800, 2.2)  # -> 0.084",
+    "code": "def compute_utilization(peak_tflops, imgs_per_s, gflop_per_img):\n    measured = imgs_per_s * gflop_per_img * 1e-3  # TFLOPS\n    return measured / peak_tflops\n\nutil = compute_utilization(256, 9800, 2.2)  # -> 0.084",
     "complexity": "测量本身 O(样本数)，分析 O(1)；为得到稳定值需多轮预热与统计，时间随重复次数线性增长。",
     "beginnerSummary": "像测一台机器实际产出 vs 满负荷产能，算出开工率；再查是机器转得慢还是上料跟不上。",
     "diagram": "峰值 256 TFLOPS\n实测  21.6 TFLOPS (8.4%)\nRoofline: 低算术强度 -> 访存墙\n 优化数据通路 -> 48 TFLOPS (19%)",
@@ -29176,7 +29176,7 @@ export const questions = [
       "某卷积因未对齐 32 字节，DMA 效率差，带宽利用率仅 40%，重排后到 85%。"
     ],
     "lineByLine": [
-      "imgs_per_s * gflop_per_img 得到每秒实际浮点运算次数(转为 TFLOPS 需 ×1e3)。",
+      "imgs_per_s * gflop_per_img 得到每秒 GFLOP 数，再 ÷1000（×1e-3）得到 TFLOP/s。",
       "除以峰值得到计算利用率，反映硬件被用满的程度。",
       "若利用率低且算术强度低，结合 Roofline 判定为访存瓶颈而非算力不足。"
     ],
@@ -29531,7 +29531,7 @@ export const questions = [
     "explanationFocus": "是什么：NPU 算子移植是把框架层算子改写成芯片专用计算 kernel，并接入芯片驱动与编译栈，使模型在该硬件上正确且高效地推理。",
     "bruteForce": "直接把整图用通用循环在 host CPU 上模拟执行，不利用任何硬件加速单元，正确性容易保证但性能极差。",
     "invariant": "无论怎样分块与调度，算子在数学上必须等价于参考实现，输出逐元素误差不超过既定阈值。",
-    "walkthrough": "以 shape=(1024,1024) 的矩阵乘为例，NPU 单核算力 128 TFLOPS(FP16)，理论耗时 2*1024^3/128e12≈16.7ms；但实测若不分块只有 12 TFLOPS 有效算力，差距来自 MTE 访存带宽 400GB/s 未打满。通过 128x128 分块让 L0 缓存命中后有效算力升到 110 TFLOPS。",
+    "walkthrough": "以 shape=(1024,1024) 的矩阵乘为例，NPU 单核算力 128 TFLOPS(FP16)，理论耗时 2*1024^3/128e12≈16.7µs（0.0167ms）；但实测若不分块只有 12 TFLOPS 有效算力，差距来自 MTE 访存带宽 400GB/s 未打满。通过 128x128 分块让 L0 缓存命中后有效算力升到 110 TFLOPS。",
     "code": "def npu_gemm_tiling(a, b, block=128):\n    # a: (M,K) on device, b: (K,N)\n    M, K = a.shape\n    N = b.shape[1]\n    out = npu_zeros((M, N))\n    for i in range(0, M, block):\n        for j in range(0, N, block):\n            for k in range(0, K, block):\n                # 调用芯片矩阵单元，单次计算 block^2 输出\n                out[i:i+block, j:j+block] += npu_mmad(\n                    a[i:i+block, k:k+block],\n                    b[k:k+block, j:j+block])\n    return out",
     "complexity": "时间复杂度 O(M*N*K)，与算法规模一致；额外空间为分块缓存 O(block^2)，用以隐藏访存延迟。",
     "beginnerSummary": "就像把一道菜从家用灶台搬到大型中央厨房，要先按新厨房的厨具重新写操作流程，再反复试做保证口味不变且出餐更快。",
@@ -32233,7 +32233,7 @@ export const questions = [
     ],
     "workedExample": [
       "两个视频：A 曝光100次均值0.8，B 曝光5次均值0.6；n_total=105，c=1。",
-      "UCB_A≈0.8+√(ln106/100)≈0.829，UCB_B≈0.6+√(ln106/5)≈0.954，选 B 探索，因为 B 不确定性高。"
+      "UCB_A≈0.8+√(ln106/100)≈1.016，UCB_B≈0.6+√(ln106/5)≈1.566，选 B 探索，因为 B 不确定性高。"
     ],
     "lineByLine": [
       "def ucb_score：计算单个物品的 UCB 分数。",
@@ -38494,7 +38494,7 @@ export const questions = [
     "derivation": [
       "为什么需要：单帧分类无法捕捉动作，需建模帧间变化与长程时序。",
       "怎么实现：要么 3D 卷积/双流，要么时空注意力，要么自监督重建。",
-      "有什么代价：3D 卷积参数与计算随 T 立方增长；纯注意力对长视频显存爆炸。",
+      "有什么代价：3D 卷积参数量与帧数 T 无关（由核与通道数决定、固定不变），计算量随 T 近似线性增长（每多一帧多一份体素计算）；纯注意力对长视频显存爆炸。",
       "怎么评测：Kinetics/Something-Something 上 Top-1/Top-5 分类精度与 FLOPs。"
     ],
     "edgeCases": [
@@ -38603,7 +38603,7 @@ export const questions = [
     "difficulty": "Hard",
     "prompt": "NeRF 与 3D 高斯泼溅（3DGS）如何实现新视角合成？它们与多视图几何有何关系？",
     "quickAnswer": "NeRF 用神经网络把 5D 坐标（位置+视角）映射为颜色与密度，通过体渲染从多视角图像学习连续辐射场，新视角即重新积分射线。3DGS 改用可微光栅化的各向异性高斯点云，渲染更快更清晰。二者都基于多视图几何的一致性约束（极几何/光度一致），但把显式几何换成可优化表示。",
-    "code": "import torch\n\ndef volume_render(rgb, sigma, t):\n    # rgb:[N,3], sigma:[N], t:[N] 采样点沿射线\n    delta = t[1:] - t[:-1]\n    alpha = 1 - torch.exp(-sigma[:-1] * delta)\n    weights = alpha * torch.cumprod(1 - alpha, 0)\n    return (weights[:, None] * rgb[:-1]).sum(0)",
+    "code": "import torch\n\ndef volume_render(rgb, sigma, t):\n    # rgb:[N,3], sigma:[N], t:[N] 采样点沿射线\n    delta = t[1:] - t[:-1]\n    alpha = 1 - torch.exp(-sigma[:-1] * delta)\n    T = torch.cat([torch.ones(1, device=alpha.device), torch.cumprod(1 - alpha, 0)[:-1]]); weights = alpha * T\n    return (weights[:, None] * rgb[:-1]).sum(0)",
     "complexity": "O(N_samples·Rays) 体渲染",
     "beginnerSummary": "想从几张照片生成任意角度的新照片？NeRF 像是把一个场景\"烤\"进神经网络，3DGS 则像撒一把会发光的小椭球来拼场景。",
     "explanationFocus": "是什么：NeRF 以神经网络表示连续体积辐射场，3DGS 以可微高斯点云表示场景，二者目标都是多视图一致的新视角合成。",
@@ -38636,7 +38636,7 @@ export const questions = [
       "def volume_render(rgb, sigma, t)：体渲染合成射线颜色。",
       "delta = t[1:]-t[:-1]：相邻采样点间距。",
       "alpha = 1-exp(-sigma*delta)：各段不透明度。",
-      "weights = alpha * cumprod(1-alpha)：透射累乘得到合成权重，加权 rgb 求和。"
+      "weights = alpha * T：T 为透射率（首项=1，其后逐段乘(1-alpha)），加权 rgb 求和。"
     ],
     "followUps": [
       {
@@ -38893,7 +38893,7 @@ export const questions = [
     "difficulty": "Easy",
     "prompt": "mixup、cutmix、autoaugment 等数据增强如何提升视觉模型泛化与域适应能力？",
     "quickAnswer": "mixup 线性混合两图与标签做邻域平滑，cutmix 用另一图块替换并相应混合标签，二者都鼓励模型在样本间线性插值处也正确，提升鲁棒与校准。AutoAugment 用搜索/强化找最优增强策略组合，降低人工。它们通过增大有效数据多样性缓解过拟合并改善域泛化。",
-    "code": "import torch\n\ndef cutmix(x, y, alpha=1.0):\n    lam = torch.distributions.Beta(alpha, alpha).sample()\n    b = x.clone(); h, w = x.shape[-2:]\n    r = torch.randint(0, h, (1,)); c = torch.randint(0, w, (1,))\n    bh, bw = int(h*lam**0.5), int(w*lam**0.5)\n    b[:, r:r+bh, c:c+bw] = x[:, r:r+bh, c:c+bw]\n    return b, lam",
+    "code": "import torch\n\ndef cutmix(x, y, x2, y2, alpha=1.0):\n    lam = torch.distributions.Beta(alpha, alpha).sample()\n    b = x.clone(); h, w = x.shape[-2:]\n    r = torch.randint(0, h, (1,)); c = torch.randint(0, w, (1,))\n    bh, bw = int(h*lam**0.5), int(w*lam**0.5)\n    b[:, r:r+bh, c:c+bw] = x2[:, r:r+bh, c:c+bw]\n    return b, lam * y + (1 - lam) * y2",
     "complexity": "O(N·H·W) 像素级",
     "beginnerSummary": "给图片做点\"小手术\"（裁剪、混合、调色）能让模型见多识广、更不容易死记硬背。",
     "explanationFocus": "是什么：数据增强通过对训练样本做变换扩充多样性；mixup/cutmix 在样本层面混合，autoaugment 自动搜策略，目的都是提升泛化与域鲁棒。",
@@ -38923,10 +38923,10 @@ export const questions = [
     ],
     "lineByLine": [
       "import torch：张量库。",
-      "def cutmix(x, y, alpha)：实现 cutmix 增强。",
+      "def cutmix(x, y, x2, y2, alpha)：实现 cutmix 增强（x2/y2 为另一张图及其标签）。",
       "Beta(alpha,alpha).sample()：采样混合比例 lam。",
       "随机取块区域 r,c 与大小 bh,bw。",
-      "b[...] = x[...]：把源图块贴到目标图，返回混合图与 lam（用于标签加权）。"
+      "b[...] = x2[...]：把【另一张图】x2 的块贴到 x 上（cutmix 必须跨样本混合，贴同图是 no-op），返回混合图与 lam*y+(1-lam)*y2（标签按块面积比例混合）。"
     ],
     "followUps": [
       {
@@ -39468,7 +39468,7 @@ export const questions = [
     "bruteForce": "最朴素评测是让人逐帧看并打分，虽然准但贵且慢；或只用逐帧 IS/FID 完全忽略时间维度，会高估闪烁严重的视频。",
     "invariant": "若生成分布等于真实分布，则 FVD→0；同一批视频用相同骨干与相同预处理，FVD 应当可复现。",
     "walkthrough": "取 2048 段生成视频与 2048 段真实视频，各用 I3D（kinetics 预训练）在 10 帧 299×299 上提 400 维 logits 特征，计算 μ_g、Σ_g 与 μ_r、Σ_r，FVD = ||μ_g-μ_r||² + Tr(Σ_g+Σ_r-2(Σ_gΣ_r)^{1/2})，典型好结果 < 100。",
-    "code": "import numpy as np\n\ndef frechet_distance(mu1, sigma1, mu2, sigma2):\n    diff = np.sum((mu1 - mu2) ** 2)\n    covmean = np.linalg.sqrt(sigma1 @ sigma2)\n    return diff + np.trace(sigma1 + sigma2 - 2 * covmean)",
+    "code": "import numpy as np\nfrom scipy.linalg import sqrtm\n\ndef frechet_distance(mu1, sigma1, mu2, sigma2):\n    diff = np.sum((mu1 - mu2) ** 2)\n    covmean = sqrtm(sigma1 @ sigma2)\n    return diff + np.real(np.trace(sigma1 + sigma2 - 2 * covmean))",
     "complexity": "特征提取 O(N·T·C·H·W)，N 为样本数；距离计算仅 O(d³)，d=400，可忽略；主要成本在跑 I3D 前向，约 N×10 帧×几 GFLOPs。",
     "beginnerSummary": "FVD 就像让一个\"懂视频的评委\"分别看真实片和 AI 片，把两批片的整体感觉记成两个\"特征画像\"，画像越接近说明 AI 片越逼真。",
     "diagram": "真实视频 ─► I3D ─► 特征 ─► 高斯(μr,Σr) ┐\n                                         ├─► Frechet 距离 = FVD\n生成视频 ─► I3D ─► 特征 ─► 高斯(μg,Σg) ┘",
@@ -42897,7 +42897,7 @@ export const questions = [
     "difficulty": "Medium",
     "title": "数据质量 vs 数据数量（Chinchilla 启示与 data-constrained regime）",
     "prompt": "训练数据质量和数量应如何权衡，尤其在数据受限时？",
-    "quickAnswer": "Chinchilla 假设无限高质量数据，给定算力按 20 token/FLOP 配比最优；现实进入 data-constrained regime 时，质量（去重/过滤/合成增强）比单纯堆量更重要，可在质量边界内谨慎多 epoch。Phi 系列用「教科书级合成数据」以远少于 LLaMA 的 token 达到强性能，说明高质量可显著弥补数量不足。",
+    "quickAnswer": "Chinchilla 假设无限高质量数据，给定算力按 D≈20·N（约 20 token/参数）的最佳配比；现实进入 data-constrained regime 时，质量（去重/过滤/合成增强）比单纯堆量更重要，可在质量边界内谨慎多 epoch。Phi 系列用「教科书级合成数据」以远少于 LLaMA 的 token 达到强性能，说明高质量可显著弥补数量不足。",
     "approach": "在高质量数据耗尽前按 Chinchilla 比例用足；进入受限后优先提升质量（强过滤、去重、合成重写），并谨慎多 epoch（降 LR、早停、重采样）而非无脑加量；用困惑度与基准双指标监控是否过拟合。",
     "explanationFocus": "是什么：数据质量 vs 数量讨论在固定算力/数据预算下「更干净但更少的精标数据」与「更多但含噪的粗糙数据」哪种更优。Chinchilla 定律假设高质量数据无限、质量恒定，给出「算力与 token 1:1 缩放」的最优比；但前沿训练已进入 data-constrained regime——高质量公开语料见底，此时质量工程（过滤/去重/合成）成为主矛盾，纯堆量收益递减甚至负向。",
     "bruteForce": "不顾质量猛加原始网页语料并多 epoch：模型记住噪声与重复样本，基准污染，收益递减甚至退化（loss 不降反升）。",
@@ -43559,7 +43559,7 @@ export const questions = [
     "explanationFocus": "是什么：QLoRA（Quantized LoRA）是 LoRA 的显存优化版——它把预训练底座权重用 4-bit NormalFloat(NF4) 量化并冻结，仅以 fp16/bf16 训练插入的 LoRA 低秩适配器（Adapter），并配合『双重量化（double quantization）』与『分页优化器（paged optimizer）』进一步压低显存，使 65B 模型可在单张 48G 显卡、7B 模型可在 24G 甚至 16G 消费级显卡上微调，而质量接近全精度 LoRA。",
     "quickAnswer": "QLoRA 用 bitsandbytes 把底座量化为 4-bit NF4 并冻结，前向时反量化为高精度计算；仅 LoRA 适配器保持 fp16/bf16 可训；再加双重量化（把量化所用的 scale 常数也量化）与分页优化器（用 NVMe 分页防峰值 OOM），把显存压到单卡可训。相对 16-bit LoRA 质量损失通常 <0.5%，但显存降到约 1/4。",
     "beginnerSummary": "QLoRA 先把大模型『压成 4-bit 缩略图』冻住不动，再在上面训练一个很小的 LoRA 外挂（像给冻住的巨人贴几张便利贴）。因为主体不训，显存砍到 1/4，单张游戏显卡也能微调巨模型。双重量化是把『记录压缩方式的便签』再压缩一次，分页优化器是显存不够时先借硬盘顶一下，防训练中途爆显存。",
-    "walkthrough": "以 Mistral-7B 为例：fp16 底座 14.5GB → 4-bit NF4 底座 3.6GB；LoRA 适配器约 0.03GB 可训；激活值 2-4GB；优化器状态（Adam，仅 LoRA 部分）约 0.06GB；CUDA 上下文 ~1GB；双重量化再省约 0.4GB/1B 参数。合计约 7-9GB，可放进单张 16GB 显卡（如 4060 Ti 16G）微调。若是 65B 模型，fp16 需 ~130GB（多卡），QLoRA 4-bit 底座 ~48GB + 适配器与开销，单张 48G A6000 即可。",
+    "walkthrough": "以 Mistral-7B 为例：fp16 底座 14.5GB → 4-bit NF4 底座 3.6GB；LoRA 适配器约 0.03GB 可训；激活值 2-4GB；优化器状态（Adam，仅 LoRA 部分）约 0.06GB；CUDA 上下文 ~1GB；双重量化再省约 0.4GB/1B 参数。合计约 7-9GB，可放进单张 16GB 显卡（如 4060 Ti 16G）微调。若是 65B 模型，fp16 底座需 ~130GB（多卡）；QLoRA 4-bit 底座本身 ≈32.5GB（65B×0.5B/param）+ 适配器/优化器/激活/CUDA 等开销 ≈48GB 合计，单张 48G A6000 即可。",
     "approach": "① 用 BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type='nf4', bnb_4bit_compute_dtype=bf16, bnb_4bit_use_double_quant=True) 加载冻结底座；② 前向时 bitsandbytes 在算子内反量化到 compute_dtype 计算；③ 用 PEFT 注入 LoRA（通常 target 到 q_proj/v_proj 等），仅适配器参数 requires_grad=True；④ 分页优化器在显存峰值超限时把优化器状态分页到 CPU/NVMe，防止 OOM。训练循环与普通 HF Trainer 一致。",
     "bruteForce": "直接用 fp16 加载并全参数微调 65B 需约 780GB 显存（权重 130G + 优化器动量/方差 2×130G + 梯度 130G + 激活），远超单卡；纯 LoRA（fp16 底座）仍需 ~130G 底座 + 少量适配器，依然要多卡。两者都把巨量显存花在『底座』上，而底座在微调时本不该变。",
     "invariant": "底座恒为 4-bit 冻结、仅 LoRA 适配器可训；NF4 是针对零均值正态权重分布最优的 4-bit 数据类型（比 INT4 信息损失更小）；compute_dtype 必须与硬件支持匹配（老卡不支持 bf16 则退 fp16），否则前向出现 NaN。凡把底座设为可训或 compute_dtype 不匹配，都会破坏显存优势或数值稳定。",
@@ -43589,7 +43589,7 @@ export const questions = [
     ],
     "workedExample": [
       "例 1（7B 单卡）：Mistral-7B fp16 底座 14.5G → 4-bit NF4 3.6G；+ LoRA 0.03G + 激活 3G + 优化器 0.06G + CUDA 1G + 双重量化省 ~0.4G ≈ 7-8G，放 16G 卡可行。",
-      "例 2（65B 单卡）：LLaMA-65B fp16 需 ~130G 底座，QLoRA 4-bit 底座 ~48G + 适配器与开销 ≈ 可放单张 48G A6000，而全微调需 8×A100。",
+      "例 2（65B 单卡）：LLaMA-65B fp16 底座需 ~130G；QLoRA 4-bit 底座本身 ≈32.5G（65B×0.5B/param）+ 适配器/优化器/激活/CUDA 等开销 ≈48G 合计，可放单张 48G A6000，而全微调需 8×A100。",
       "例 3（质量对比）：在 GSM8K 上 16-bit LoRA 得 62.3%，QLoRA 得 61.9%，差距 0.4% < 0.5%，验证『几乎无感』。"
     ],
     "lineByLine": [
@@ -43702,7 +43702,7 @@ export const questions = [
     "explanationFocus": "是什么：断点续训是把训练全部可恢复状态序列化到磁盘，使进程被杀/节点故障后能从最近点继续，而非从头开始，是大规模训练必备的容错机制。",
     "bruteForce": "只保存模型权重、不保存优化器与step，恢复后从step0重跑且优化器动量丢失，学习率与数据位置错位，训练崩坏。",
     "invariant": "恢复后的（参数、优化器矩、scheduler、step、RNG、数据游标）必须与故障前某step完全一致，保证后续轨迹可复现、loss连续。",
-    "walkthrough": "256卡训练，每1000 step异步存一次，保留最近3份（ckpt-3000/4000/5000）。第5200步节点宕机，从ckpt-5000恢复：载入权重+Adam m/v（约26GB fp32）+step=5000+RNG+数据index，第5201步loss与故障前连续无跳变。",
+    "walkthrough": "256卡训练，每1000 step异步存一次，保留最近3份（ckpt-3000/4000/5000）。第5200步节点宕机，从ckpt-5000恢复：载入权重（fp32 约52GB）与 Adam m/v（约104GB fp32）+step=5000+RNG+数据index，第5201步loss与故障前连续无跳变。",
     "code": "import torch, os, glob\n\ndef save_ckpt(model, opt, sched, step, meta, dir=\"ckpt\", keep=3):\n    path = f\"{dir}/ckpt-{step}.pt\"\n    tmp = path + \".tmp\"\n    torch.save({\"model\": model.state_dict(), \"opt\": opt.state_dict(),\n                \"sched\": sched.state_dict(), \"step\": step, **meta}, tmp)\n    os.replace(tmp, path)                      # 原子替换\n    old = sorted(glob.glob(f\"{dir}/ckpt-*.pt\"))[:-keep]\n    for f in old: os.remove(f)                 # 轮转保留最近keep份\n\ndef load_ckpt(model, opt, sched, dir=\"ckpt\"):\n    latest = max(glob.glob(f\"{dir}/ckpt-*.pt\"), key=os.path.getmtime)\n    sd = torch.load(latest)\n    model.load_state_dict(sd[\"model\"]); opt.load_state_dict(sd[\"opt\"])\n    sched.load_state_dict(sd[\"sched\"])\n    return sd[\"step\"]\n",
     "complexity": "时间：异步写盘几乎不阻塞训练（后台线程），同步写会占数个step；空间：每份约(参数+优化器state)大小，保留K份占K倍，13B fp32约52GB/份。",
     "beginnerSummary": "断点续训像游戏存档：不仅存角色（模型），还要存进度条、道具栏和随机种子，下次开机才能从原地继续，而不是重头玩。",
@@ -43835,8 +43835,8 @@ export const questions = [
     "approach": "先决定目标global batch，按显存上限算micro batch与累积步数；每个micro step loss.backward()累加梯度，不调optimizer.step()；累积结束后统一clip_grad_norm_再step并zero_grad。",
     "explanationFocus": "是什么：梯度裁剪是把参数梯度整体范数限制在某阈值内（超出的按比例缩放）；梯度累积是把K个micro-batch的梯度求和当作一个大batch的梯度，从而用micro batch显存跑出global batch效果。",
     "bruteForce": "直接放大global batch到目标值，单卡一次性前向反向——显存不够直接OOM，且大batch对LR调度更敏感。",
-    "invariant": "累积K步后等效梯度 = 各micro step梯度的算术和（即均值的K倍），clip与step在累积完成后只做一次。",
-    "walkthrough": "目标global batch=2048，单卡显存只够micro batch=128，故累积K=16步。每micro step梯度范数约1.8，累积后约28.7；设clip=5.0，则整体缩放到5.0再更新，等效学习率被合理约束。",
+    "invariant": "累积K步后等效梯度 = 各micro step梯度的算术平均（loss 已除以 accum 归一），clip与step在累积完成后只做一次。",
+    "walkthrough": "目标global batch=2048，单卡显存只够micro batch=128，故累积K=16步。每micro step梯度范数约1.8，累积（取均值）后约1.8；设clip=5.0 给出梯度范数上限，等效学习率被合理约束。",
     "code": "import torch\n\ndef train_step(model, opt, batches, accum=16, clip=5.0):\n    opt.zero_grad()\n    for i, (x, y) in enumerate(batches):\n        loss = model(x, y) / accum        #  loss按K归一，等效大batch均值\n        loss.backward()                    #  梯度累加到 .grad\n        if (i + 1) % accum == 0:\n            torch.nn.utils.clip_grad_norm_(model.parameters(), clip)\n            opt.step(); opt.zero_grad()\n",
     "complexity": "时间：与总样本数线性相关，累积不增加前向次数；空间：显存仅存1个micro batch激活，省下(K-1)倍，复杂度 O(micro_batch激活)。",
     "beginnerSummary": "梯度裁剪像给车速装限速器，防止某一下踩太猛翻车；梯度累积像分几次搬砖，凑够一趟的量再一起装车，省力气。",
@@ -43864,7 +43864,7 @@ export const questions = [
     ],
     "workedExample": [
       "micro batch=128、accum=16，单卡跑出global batch=2048。",
-      "loss=loss/16后backward，累积16步grad_norm约28.7，clip=5.0缩放到5.0。",
+      "loss=loss/16后backward，累积16步grad_norm约1.8（取均值），clip=5.0 提供上限保护。",
       "每16步opt.step一次，显存占用仅为单micro batch的1.2倍。"
     ],
     "lineByLine": [
@@ -44038,7 +44038,7 @@ export const questions = [
     "explanationFocus": "是什么：loss突刺（spike）指相邻step间loss数量级暴涨，NaN则是出现非有限值；二者都是训练不稳定信号，说明前向或反向的数值在某处失效。",
     "bruteForce": "每步把整个模型权重dump成numpy逐元素检查是否含inf/nan，再人工比对哪一层最先出现，成本极高且无法复现长训练。",
     "invariant": "稳定训练下：前向输出、梯度、权重更新量都应保持有限（finite）且梯度范数在一个合理区间（如<10）。一旦某层输出非有限，后继层必被污染。",
-    "walkthrough": "8卡A100（每卡80GB），global batch=2048，peak grad_norm正常约2.3。第31250步grad_norm从2.3跳到1.7e9，loss变NaN。回滚到第31200步checkpoint，在embedding后接hook：发现某token id=50257（越界）查表得全0向量，下游layernorm除0得NaN。",
+    "walkthrough": "8卡A100（每卡80GB），global batch=2048，peak grad_norm正常约2.3。第31250步grad_norm从2.3跳到1.7e9，loss变NaN。回滚到第31200步checkpoint，在embedding后接hook：发现某token id=50257（越界）查表得到非有限/异常值（或触发越界），污染后续 softmax/log 产生 NaN；LayerNorm 因 eps>0 不会自身除零得 NaN。",
     "code": "import torch\n\ndef detect_nonfinite_hook(module, inp, out):\n    if isinstance(out, torch.Tensor) and not torch.isfinite(out).all():\n        raise RuntimeError(f\"NaN/Inf in {module.__class__.__name__}\")\n    return out\n\n# 怀疑的层注册hook\nsuspect_layer.register_forward_hook(detect_nonfinite_hook)\n\ntorch.autograd.set_detect_anomaly(True)  # 反向时定位首个NaN出处\n",
     "complexity": "hook监控 O(1) 每步常数开销；detect_anomaly 使反向约慢1.5-2倍；全量dump权重 O(参数量)，仅在本地复现时使用。",
     "beginnerSummary": "训练像烧一锅汤，突然溢出来（NaN）说明某个原料坏了或火太大。做法是先把锅退回上一锅还能喝的状态，然后一勺勺尝，找到第一勺坏掉的原料。",
@@ -44172,7 +44172,7 @@ export const questions = [
     "explanationFocus": "是什么：显存OOM指激活+参数+优化器状态超出GPU显存；重计算（gradient checkpointing）是反向时丢弃中间激活、需要时再前向重算，以计算换显存的技术。",
     "bruteForce": "直接减小batch到1甚至micro batch=1，虽不OOM但吞吐极低、batch统计失真，收敛变差。",
     "invariant": "重计算前后参数梯度在数学上完全一致：丢弃的激活在反向时通过同输入重新前向精确重建，梯度结果不变，只是多花前向算力。",
-    "walkthrough": "13B模型、seq_len=4096、micro batch=4，单卡80GB：不重计算激活占58GB OOM；用checkpoint每1层后激活降到19GB，可放下；代价是反向多一次前向，单step时间从1.8s升到2.4s（约+33%）。",
+    "walkthrough": "13B模型、seq_len=4096、micro batch=4：激活（随层数×序列线性增长）是主要瓶颈，不重计算约58GB；用checkpoint每1层后激活降到19GB，省下约2/3。参数+优化器状态约130GB（bf16权重26GB + fp32 Adam m/v 104GB）需靠 ZeRO 分片到多卡，每卡只持有一份分片；重计算后单卡激活19GB + 分片状态即可放下。代价是反向多一次前向，单step时间约+33%。",
     "code": "import torch\nfrom torch.utils.checkpoint import checkpoint\n\ndef block_forward(block, x):\n    return checkpoint(block, x, use_reentrant=False)  # 不保存中间激活\n\ndef transformer_stack(blocks, x):\n    for blk in blocks:\n        x = block_forward(blk, x)   # 每层边界才存激活\n    return x\n",
     "complexity": "空间：激活显存从 O(L) 降到 O(√(或边界数))，可省数倍；时间：反向需重算前向，总算力约增30%-40%。",
     "beginnerSummary": "重计算像做菜不把每道工序半成品都摆桌上，用完就收，需要时用同样原料重做一遍——费点功夫但桌面（显存）清爽了。",
@@ -44199,8 +44199,8 @@ export const questions = [
       "Transformer结构"
     ],
     "workedExample": [
-      "profile显示激活占58GB、参数+优化器22GB，确认激活是瓶颈。",
-      "对12层transformer每1层checkpoint，激活降到19GB，80GB卡可跑micro batch=4。",
+      "profile显示激活占58GB（参数+优化器约130GB 靠 ZeRO 分片到多卡），确认激活是瓶颈。",
+      "对12层transformer每1层checkpoint，激活降到19GB，配合 ZeRO 分片后单卡可跑 micro batch=4。",
       "单step从1.8s升到2.4s，吞吐降33%但换来临batch翻倍。"
     ],
     "lineByLine": [
@@ -44394,7 +44394,7 @@ export const questions = [
     ],
     "workedExample": [
       "MMBench 约 3000 多选题，循环评估+GPT 将自由选项映射到标准项，报告感知/推理多维度。",
-      "SEED-Bench 含 1.9 万图题与 1.4 万视频题，视频题考查时序与因果，需帧采样评测。"
+      "SEED-Bench 共约 2 万题，含约 1.4 万图题与约 0.6 万视频题，视频题考查时序与因果，需帧采样评测。"
     ],
     "lineByLine": [
       "def sample_frames(...)：定义视频帧采样函数，n 为抽帧数。",
@@ -45552,7 +45552,7 @@ export const questions = [
     "quickAnswer": "HiFi-GAN 是一个一维卷积生成器，通过逐级上采样的转置卷积把低帧率 mel 还原为高采样率波形，并用多感受野融合（MRF）模块增强局部细节。它用多尺度判别器（不同 STFT 分辨率）与多周期判别器（不同周期切片）联合对抗训练，迫使生成波形在频域与周期结构上逼真。纯卷积、无自回归使其可实时、低延时合成。",
     "explanationFocus": "是什么：神经声码器（neural vocoder）负责把声学模型输出的中间表征（通常是 mel 频谱）还原成时域波形。HiFi-GAN 是一种基于 GAN 的一维卷积声码器，相比 WaveNet 的自回归逐采样生成，它用全卷积生成器一次性并行产出波形，在保持高音质的同时实现远超实时的推理速度。",
     "approach": "核心思路是‘多分辨率对抗 + 局部感受野融合’：生成器用转置卷积逐级上采样 mel 到波形，并用多感受野融合模块（多个不同膨胀率的卷积残差块求和）捕捉多尺度局部结构；判别器侧同时用多尺度（不同下采样率）与多周期（按周期 reshape 成 2D 后卷积）判别器，从时频与周期两个角度施加对抗压力。",
-    "code": "import torch\nimport torch.nn as nn\n\nclass HiFiGANGenerator(nn.Module):\n    def __init__(self, mel_channels=80, upsample_rates=(8,8,2,2)):\n        super().__init__()\n        self.conv_pre = nn.Conv1d(mel_channels, 512, 7, padding=3)\n        self.ups = nn.ModuleList([\n            nn.ConvTranspose1d(512//(2**i), 512//(2**(i+1)),\n                               (2,)*0 + (upsample_rates[i]*2,), stride=upsample_rates[i])\n            for i in range(len(upsample_rates))\n        ])\n        self.mrf = MultiReceptiveFieldFusion(256)   # 多感受野融合\n\n    def forward(self, mel):\n        x = self.conv_pre(mel)\n        for up in self.ups:                          # 逐级上采样到波形率\n            x = torch.tanh(up(x))\n        x = self.mrf(x)                             # 多尺度局部细节\n        return self.conv_post(x)                    # 输出波形",
+    "code": "import torch\nimport torch.nn as nn\n\nclass HiFiGANGenerator(nn.Module):\n    def __init__(self, mel_channels=80, upsample_rates=(8,8,2,2)):\n        super().__init__()\n        self.conv_pre = nn.Conv1d(mel_channels, 512, 7, padding=3)\n        self.ups = nn.ModuleList([\n            nn.ConvTranspose1d(512//(2**i), 512//(2**(i+1)),\n                               upsample_rates[i]*2, stride=upsample_rates[i])\n            for i in range(len(upsample_rates))\n        ])\n        self.mrf = MultiReceptiveFieldFusion(256)   # 多感受野融合\n\n    def forward(self, mel):\n        x = self.conv_pre(mel)\n        for up in self.ups:                          # 逐级上采样到波形率\n            x = torch.tanh(up(x))\n        x = self.mrf(x)                             # 多尺度局部细节\n        return self.conv_post(x)                    # 输出波形",
     "complexity": "O(N) 一次前向，N 为采样点数；纯卷积可实时（RTF<1），无需自回归逐点生成",
     "beginnerSummary": "频谱像‘声音的乐谱’，声码器负责把它演奏成真实声音。HiFi-GAN 用一个全卷积网络一次性把乐谱‘画’成波形，再用几个‘评委’（判别器）从多个角度挑毛病，逼它越做越像真人，而且因为不用一个一个点地生成，速度非常快。",
     "derivation": [
@@ -48053,7 +48053,7 @@ export const questions = [
     ],
     "code": "# Python (选择 kernel 伪代码)\ndef pick_gemm(dtype):\n    if dtype == 'int8' and gpu_has('tensor_core'): return int8_tc_gemm\n    if dtype == 'fp8'  and gpu_has('fp8'):         return fp8_gemm\n    return fp16_gemm                                    # 否则退回",
     "codeNotes": [
-      "Tensor Core 吞吐随精度翻倍（8→4→2 字节对应 INT8→FP8→FP16 的密度变化）。",
+      "Tensor Core 吞吐随精度翻倍（FP16=2B、FP8 与 INT8 均=1B；FP16→FP8/INT8 字节减半、吞吐约翻倍）。",
       "带宽节省与字节数成正比：权重越小搬得越快，这是量化的另一半收益。",
       "真实部署需配合量化校准与 kernel 选择，伪代码只是路由逻辑。"
     ],

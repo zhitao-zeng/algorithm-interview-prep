@@ -37,7 +37,7 @@ export default {
   ],
   "workedExample": [
     "base={web:0.4, book:0.2, code:0.25, video:0.15}，easy_bias={web:0.15, video:-0.07}。",
-    "step=0 时 web=(0.4+0.15)=0.55，video=(0.15-0.07)=0.08，归一化后 web≈0.55、video≈0.08。",
+    "step=0 时 web=(0.4+0.15)=0.55，video=(0.15-0.07)=0.08，未归一化和=1.08；归一化后 web≈0.509、video≈0.074、book≈0.185、code≈0.231（四者之和=1）。",
     "step=total 时 α=1，回到 base 配比，web=0.4、video=0.15。"
   ],
   "lineByLine": [

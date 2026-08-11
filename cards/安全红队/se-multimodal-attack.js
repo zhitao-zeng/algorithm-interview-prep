@@ -13,7 +13,7 @@ export default {
   "complexity": "白盒攻击为 O(k·g)（k 为迭代、g 为梯度成本），黑盒为 O(q·f)（q 为查询、f 为前向），随分辨率线性增长。",
   "beginnerSummary": "对抗扰动像给照片贴了层隐形贴纸：人眼看不出，但模型\"看走眼\"。攻击就是找这层贴纸让模型误判。",
   "diagram": "image(perturb) --> VLM --> wrong_label\ntext(adv)      --> VLM --> mislead",
-  "code": "def pgd_attack(model, image, label, eps=0.03, steps=10):\n    adv = image.clone()\n    for _ in range(steps):\n        g = grad(model(adv), adv)\n        adv = adv + eps * sign(g)\n    return adv",
+  "code": "import torch\nimport torch.nn.functional as F\n\ndef pgd_attack(model, image, label, eps=0.03, steps=10, alpha=0.005):\n    adv = image.clone().detach().requires_grad_(True)\n    for _ in range(steps):\n        loss = F.cross_entropy(model(adv), label)   # 目标损失(如误分类)\n        model.zero_grad()\n        loss.backward()\n        g = adv.grad.detach()\n        with torch.no_grad():\n            adv = torch.clamp(adv + alpha * g.sign(), image - eps, image + eps)  # 投影回 L_inf ε-球\n            adv = torch.clamp(adv, 0.0, 1.0)         # 投影回合法像素范围\n        adv.requires_grad_(True)\n    return adv.detach()",
   "derivation": [
     "为什么需要：自动驾驶、医疗影像等依赖多模态判断，证明可被微妙扰动误导才能推动鲁棒训练与认证。",
     "怎么实现：用梯度或查询生成满足范数约束的扰动，使视觉编码或跨模态对齐偏移至错误语义。",
@@ -41,8 +41,8 @@ export default {
     "def pgd_attack(model, image, label, eps, steps)：定义 PGD 攻击函数。",
     "adv = image.clone()：以原图初始化对抗样本。",
     "for _ in range(steps)：迭代更新对抗样本。",
-    "g = grad(model(adv), adv)：求损失对输入的梯度。",
-    "adv = adv + eps * sign(g)：沿符号梯度方向以小步长推进。"
+    "loss = F.cross_entropy(model(adv), label); loss.backward()：对目标损失反传，得到损失对 adv 的梯度。",
+    "adv = torch.clamp(adv + alpha * g.sign(), image - eps, image + eps)：沿符号梯度推进后投影回 L_inf ε-球，保证总扰动 ≤ eps；再 clip 到合法像素范围。"
   ],
   "codeNotes": [
     "实际应对 adv 做 clip 回合法范围，且可加入跨模态联合损失提升迁移性。"

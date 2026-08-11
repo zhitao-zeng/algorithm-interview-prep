@@ -60,6 +60,6 @@ export default {
     "双重循环：若 word1[i-1]==word2[j-1]，dp[i][j]=dp[i-1][j-1]；否则 dp[i][j]=1+min(左,上,左上)。",
     "返回 dp[m][n]。"
   ],
-  "diagram": "word1=\"horse\" word2=\"ros\"  编辑距离\n    r o s\nh   1 2 3\no   2 1 2\nr   3 2 1\ns   4 3 2\ne   5 4 3\n距离 = 3  (插入/删除/替换取最小+1)",
+  "diagram": "word1=\"horse\" word2=\"ros\"  编辑距离\n    r o s\nh   1 2 3\no   2 1 2\nr   2 2 2\ns   3 3 2\ne   4 4 3\n距离 = 3  (插入/删除/替换取最小+1)",
   "order": 3
 };

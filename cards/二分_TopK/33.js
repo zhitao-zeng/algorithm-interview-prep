@@ -53,7 +53,7 @@ export default {
   ],
   "workedExample": [
     "nums=[4,5,6,7,0,1,2], target=0。left=0,right=6,mid=3（值7）。nums[left]=4 <= 7，说明 [left,mid] 升序；target=0 不在 [4,7] 内 → 目标在另一半，令 left=mid+1=4。",
-    "新区间 [0,1,2]，mid=5（值1）。nums[left]=0 <= 1，[0,1] 升序；0 不在 [0,1] 内 → left=6；mid=6 命中 0，返回 6。",
+    "新区间 [0,1,2]（下标 4–6），mid=5（值1）。nums[left]=0 <= 1，[4,5] 升序；0 在 [0,1] 内 → right=mid-1=4；mid=4 命中 0，返回 4。",
     "若 target=5：第一轮 [4,7] 升序且 5∈[4,7]，令 right=mid-1 砍左半，继续二分最终命中索引 1。"
   ],
   "lineByLine": [

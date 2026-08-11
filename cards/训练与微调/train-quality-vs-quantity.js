@@ -5,7 +5,7 @@ export default {
   "difficulty": "Medium",
   "title": "数据质量 vs 数据数量（Chinchilla 启示与 data-constrained regime）",
   "prompt": "训练数据质量和数量应如何权衡，尤其在数据受限时？",
-  "quickAnswer": "Chinchilla 假设无限高质量数据，给定算力按 20 token/FLOP 配比最优；现实进入 data-constrained regime 时，质量（去重/过滤/合成增强）比单纯堆量更重要，可在质量边界内谨慎多 epoch。Phi 系列用「教科书级合成数据」以远少于 LLaMA 的 token 达到强性能，说明高质量可显著弥补数量不足。",
+  "quickAnswer": "Chinchilla 假设无限高质量数据，给定算力按 D≈20·N（约 20 token/参数）的最佳配比；现实进入 data-constrained regime 时，质量（去重/过滤/合成增强）比单纯堆量更重要，可在质量边界内谨慎多 epoch。Phi 系列用「教科书级合成数据」以远少于 LLaMA 的 token 达到强性能，说明高质量可显著弥补数量不足。",
   "approach": "在高质量数据耗尽前按 Chinchilla 比例用足；进入受限后优先提升质量（强过滤、去重、合成重写），并谨慎多 epoch（降 LR、早停、重采样）而非无脑加量；用困惑度与基准双指标监控是否过拟合。",
   "explanationFocus": "是什么：数据质量 vs 数量讨论在固定算力/数据预算下「更干净但更少的精标数据」与「更多但含噪的粗糙数据」哪种更优。Chinchilla 定律假设高质量数据无限、质量恒定，给出「算力与 token 1:1 缩放」的最优比；但前沿训练已进入 data-constrained regime——高质量公开语料见底，此时质量工程（过滤/去重/合成）成为主矛盾，纯堆量收益递减甚至负向。",
   "bruteForce": "不顾质量猛加原始网页语料并多 epoch：模型记住噪声与重复样本，基准污染，收益递减甚至退化（loss 不降反升）。",

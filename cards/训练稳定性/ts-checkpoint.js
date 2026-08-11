@@ -9,7 +9,7 @@ export default {
   "explanationFocus": "是什么：断点续训是把训练全部可恢复状态序列化到磁盘，使进程被杀/节点故障后能从最近点继续，而非从头开始，是大规模训练必备的容错机制。",
   "bruteForce": "只保存模型权重、不保存优化器与step，恢复后从step0重跑且优化器动量丢失，学习率与数据位置错位，训练崩坏。",
   "invariant": "恢复后的（参数、优化器矩、scheduler、step、RNG、数据游标）必须与故障前某step完全一致，保证后续轨迹可复现、loss连续。",
-  "walkthrough": "256卡训练，每1000 step异步存一次，保留最近3份（ckpt-3000/4000/5000）。第5200步节点宕机，从ckpt-5000恢复：载入权重+Adam m/v（约26GB fp32）+step=5000+RNG+数据index，第5201步loss与故障前连续无跳变。",
+  "walkthrough": "256卡训练，每1000 step异步存一次，保留最近3份（ckpt-3000/4000/5000）。第5200步节点宕机，从ckpt-5000恢复：载入权重（fp32 约52GB）与 Adam m/v（约104GB fp32）+step=5000+RNG+数据index，第5201步loss与故障前连续无跳变。",
   "code": "import torch, os, glob\n\ndef save_ckpt(model, opt, sched, step, meta, dir=\"ckpt\", keep=3):\n    path = f\"{dir}/ckpt-{step}.pt\"\n    tmp = path + \".tmp\"\n    torch.save({\"model\": model.state_dict(), \"opt\": opt.state_dict(),\n                \"sched\": sched.state_dict(), \"step\": step, **meta}, tmp)\n    os.replace(tmp, path)                      # 原子替换\n    old = sorted(glob.glob(f\"{dir}/ckpt-*.pt\"))[:-keep]\n    for f in old: os.remove(f)                 # 轮转保留最近keep份\n\ndef load_ckpt(model, opt, sched, dir=\"ckpt\"):\n    latest = max(glob.glob(f\"{dir}/ckpt-*.pt\"), key=os.path.getmtime)\n    sd = torch.load(latest)\n    model.load_state_dict(sd[\"model\"]); opt.load_state_dict(sd[\"opt\"])\n    sched.load_state_dict(sd[\"sched\"])\n    return sd[\"step\"]\n",
   "complexity": "时间：异步写盘几乎不阻塞训练（后台线程），同步写会占数个step；空间：每份约(参数+优化器state)大小，保留K份占K倍，13B fp32约52GB/份。",
   "beginnerSummary": "断点续训像游戏存档：不仅存角色（模型），还要存进度条、道具栏和随机种子，下次开机才能从原地继续，而不是重头玩。",

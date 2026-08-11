@@ -22,7 +22,7 @@ export default {
     "EP all-to-all 在跨机几乎不可用。",
     "ZeRO-3 gather 与 TP 通信叠加需调度。"
   ],
-  "code": "# Python (概念)\ndef comm_volume(mode, P, s, h, t):\n    if mode == 'dp':   return 2 * P * (t - 1) / t      # 梯度 all-reduce\n    if mode == 'tp':   return 2 * s * h / t             # 每层 all-reduce\n    if mode == 'pp':   return s * h                     # 相邻 stage 激活\n    if mode == 'ep':   return s * h                     # all-to-all\n    return 0",
+  "code": "# Python (概念)\ndef comm_volume(mode, P, s, h, t):\n    if mode == 'dp':   return 2 * P * (t - 1) / t      # 梯度 all-reduce\n    if mode == 'tp':   return 2 * s * h             # 每层 all-reduce\n    if mode == 'pp':   return s * h                     # 相邻 stage 激活\n    if mode == 'ep':   return s * h                     # all-to-all\n    return 0",
   "codeNotes": [
     "DP 量 ∝ 参数量 P；TP 量 ∝ 激活 s·h。",
     "PP 最低但换 bubble；EP 对拓扑最敏感。"

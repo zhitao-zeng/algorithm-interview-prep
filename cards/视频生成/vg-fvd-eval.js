@@ -10,7 +10,7 @@ export default {
   "bruteForce": "最朴素评测是让人逐帧看并打分，虽然准但贵且慢；或只用逐帧 IS/FID 完全忽略时间维度，会高估闪烁严重的视频。",
   "invariant": "若生成分布等于真实分布，则 FVD→0；同一批视频用相同骨干与相同预处理，FVD 应当可复现。",
   "walkthrough": "取 2048 段生成视频与 2048 段真实视频，各用 I3D（kinetics 预训练）在 10 帧 299×299 上提 400 维 logits 特征，计算 μ_g、Σ_g 与 μ_r、Σ_r，FVD = ||μ_g-μ_r||² + Tr(Σ_g+Σ_r-2(Σ_gΣ_r)^{1/2})，典型好结果 < 100。",
-  "code": "import numpy as np\n\ndef frechet_distance(mu1, sigma1, mu2, sigma2):\n    diff = np.sum((mu1 - mu2) ** 2)\n    covmean = np.linalg.sqrt(sigma1 @ sigma2)\n    return diff + np.trace(sigma1 + sigma2 - 2 * covmean)",
+  "code": "import numpy as np\nfrom scipy.linalg import sqrtm\n\ndef frechet_distance(mu1, sigma1, mu2, sigma2):\n    diff = np.sum((mu1 - mu2) ** 2)\n    covmean = sqrtm(sigma1 @ sigma2)\n    return diff + np.real(np.trace(sigma1 + sigma2 - 2 * covmean))",
   "complexity": "特征提取 O(N·T·C·H·W)，N 为样本数；距离计算仅 O(d³)，d=400，可忽略；主要成本在跑 I3D 前向，约 N×10 帧×几 GFLOPs。",
   "beginnerSummary": "FVD 就像让一个\"懂视频的评委\"分别看真实片和 AI 片，把两批片的整体感觉记成两个\"特征画像\"，画像越接近说明 AI 片越逼真。",
   "diagram": "真实视频 ─► I3D ─► 特征 ─► 高斯(μr,Σr) ┐\n                                         ├─► Frechet 距离 = FVD\n生成视频 ─► I3D ─► 特征 ─► 高斯(μg,Σg) ┘",

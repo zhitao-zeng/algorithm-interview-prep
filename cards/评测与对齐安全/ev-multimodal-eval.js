@@ -33,7 +33,7 @@ export default {
   ],
   "workedExample": [
     "MMBench 约 3000 多选题，循环评估+GPT 将自由选项映射到标准项，报告感知/推理多维度。",
-    "SEED-Bench 含 1.9 万图题与 1.4 万视频题，视频题考查时序与因果，需帧采样评测。"
+    "SEED-Bench 共约 2 万题，含约 1.4 万图题与约 0.6 万视频题，视频题考查时序与因果，需帧采样评测。"
   ],
   "lineByLine": [
     "def sample_frames(...)：定义视频帧采样函数，n 为抽帧数。",

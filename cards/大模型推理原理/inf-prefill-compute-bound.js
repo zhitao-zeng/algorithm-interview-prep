@@ -16,7 +16,7 @@ export default {
     "怎么评测：算各阶段算术强度并对照硬件拐点（峰值算力/峰值带宽）；分别测 Prefill 算力利用率（MFU）与 Decode 带宽利用率（HBM 利用率），再结合端到端 TTFT 与 TPS。理想状态是两阶段各自接近其瓶颈上限，而非用统一指标掩盖一方空闲。"
   ],
   "invariant": "Prefill 的 FLOPs/Byte 随 prompt 长度上升（AI∝n）；Decode 的 FLOPs/Byte 固定偏低（≈ d²/ HBM带宽，典型≈1）。只要隐藏维 d 与权重精度不变，Decode 的 AI 是常量，不随输出长度变化——这是 Decode 结构性受带宽约束的根本原因，也是“decode 优化主抓带宽而非算力”的依据。",
-  "walkthrough": "以 seq=4096、d=4096、batch=32 为例：Prefill 的有效矩阵是 (batch×seq, d)×(d,d) = (131072,4096)×(4096,4096)，算力摊到海量数据上，AI≈seq≈4096，远超 A100 拐点（~150），GPU 算力几乎吃满（A100 实测 prefill 算力利用率可达 60%+）。Decode 每步矩阵是 (batch, d)×(d,d)=(32,4096)×(4096,4096)，算出 32×4096²≈5.4e11 FLOPs，却要为这 32 个请求各搬一遍约 14GB 权重+KV，总搬运≈32×(14GB+KV)，AI≈1。在并发 100 请求、输出长度 512 的场景，Decode 阶段 p99 延迟主要由“等权重从 HBM 搬到 SRAM”决定，而非计算；这也解释了为何小 batch decode 优化常选权重量化、PagedAttention 减 KV 碎片。",
+  "walkthrough": "以 seq=4096、d=4096、batch=32 为例：Prefill 的有效矩阵是 (batch×seq, d)×(d,d) = (131072,4096)×(4096,4096)，算力摊到海量数据上，AI≈seq≈4096，远超 A100 拐点（~150），GPU 算力几乎吃满（A100 实测 prefill 算力利用率可达 60%+）。Decode 每步矩阵是 (batch, d)×(d,d)=(32,4096)×(4096,4096)，算出 32×4096²≈5.4×10^8（前向，含反向约 1.07×10^9）FLOPs，却要为这 32 个请求各搬一遍约 14GB 权重+KV，总搬运≈32×(14GB+KV)，AI≈1。在并发 100 请求、输出长度 512 的场景，Decode 阶段 p99 延迟主要由“等权重从 HBM 搬到 SRAM”决定，而非计算；这也解释了为何小 batch decode 优化常选权重量化、PagedAttention 减 KV 碎片。",
   "edgeCases": [
     "极短 prompt（n=1~2）：Prefill 也偏访存，AI 低，此时两阶段瓶颈接近，统一 kernel 损失不大。",
     "超大模型（如 70B/FP16≈140GB）：Decode 每步要读 140GB 权重，即便 batch 大，HBM 带宽仍是硬墙，必须使用张量并行把权重切开到多卡。",

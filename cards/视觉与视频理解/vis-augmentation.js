@@ -6,7 +6,7 @@ export default {
   "difficulty": "Easy",
   "prompt": "mixup、cutmix、autoaugment 等数据增强如何提升视觉模型泛化与域适应能力？",
   "quickAnswer": "mixup 线性混合两图与标签做邻域平滑，cutmix 用另一图块替换并相应混合标签，二者都鼓励模型在样本间线性插值处也正确，提升鲁棒与校准。AutoAugment 用搜索/强化找最优增强策略组合，降低人工。它们通过增大有效数据多样性缓解过拟合并改善域泛化。",
-  "code": "import torch\n\ndef cutmix(x, y, alpha=1.0):\n    lam = torch.distributions.Beta(alpha, alpha).sample()\n    b = x.clone(); h, w = x.shape[-2:]\n    r = torch.randint(0, h, (1,)); c = torch.randint(0, w, (1,))\n    bh, bw = int(h*lam**0.5), int(w*lam**0.5)\n    b[:, r:r+bh, c:c+bw] = x[:, r:r+bh, c:c+bw]\n    return b, lam",
+  "code": "import torch\n\ndef cutmix(x, y, x2, y2, alpha=1.0):\n    lam = torch.distributions.Beta(alpha, alpha).sample()\n    b = x.clone(); h, w = x.shape[-2:]\n    r = torch.randint(0, h, (1,)); c = torch.randint(0, w, (1,))\n    bh, bw = int(h*lam**0.5), int(w*lam**0.5)\n    b[:, r:r+bh, c:c+bw] = x2[:, r:r+bh, c:c+bw]\n    return b, lam * y + (1 - lam) * y2",
   "complexity": "O(N·H·W) 像素级",
   "beginnerSummary": "给图片做点\"小手术\"（裁剪、混合、调色）能让模型见多识广、更不容易死记硬背。",
   "explanationFocus": "是什么：数据增强通过对训练样本做变换扩充多样性；mixup/cutmix 在样本层面混合，autoaugment 自动搜策略，目的都是提升泛化与域鲁棒。",
@@ -36,10 +36,10 @@ export default {
   ],
   "lineByLine": [
     "import torch：张量库。",
-    "def cutmix(x, y, alpha)：实现 cutmix 增强。",
+    "def cutmix(x, y, x2, y2, alpha)：实现 cutmix 增强（x2/y2 为另一张图及其标签）。",
     "Beta(alpha,alpha).sample()：采样混合比例 lam。",
     "随机取块区域 r,c 与大小 bh,bw。",
-    "b[...] = x[...]：把源图块贴到目标图，返回混合图与 lam（用于标签加权）。"
+    "b[...] = x2[...]：把【另一张图】x2 的块贴到 x 上（cutmix 必须跨样本混合，贴同图是 no-op），返回混合图与 lam*y+(1-lam)*y2（标签按块面积比例混合）。"
   ],
   "followUps": [
     {

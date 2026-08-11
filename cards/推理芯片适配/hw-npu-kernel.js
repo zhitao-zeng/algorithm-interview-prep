@@ -9,7 +9,7 @@ export default {
   "explanationFocus": "是什么：NPU 算子移植是把框架层算子改写成芯片专用计算 kernel，并接入芯片驱动与编译栈，使模型在该硬件上正确且高效地推理。",
   "bruteForce": "直接把整图用通用循环在 host CPU 上模拟执行，不利用任何硬件加速单元，正确性容易保证但性能极差。",
   "invariant": "无论怎样分块与调度，算子在数学上必须等价于参考实现，输出逐元素误差不超过既定阈值。",
-  "walkthrough": "以 shape=(1024,1024) 的矩阵乘为例，NPU 单核算力 128 TFLOPS(FP16)，理论耗时 2*1024^3/128e12≈16.7ms；但实测若不分块只有 12 TFLOPS 有效算力，差距来自 MTE 访存带宽 400GB/s 未打满。通过 128x128 分块让 L0 缓存命中后有效算力升到 110 TFLOPS。",
+  "walkthrough": "以 shape=(1024,1024) 的矩阵乘为例，NPU 单核算力 128 TFLOPS(FP16)，理论耗时 2*1024^3/128e12≈16.7µs（0.0167ms）；但实测若不分块只有 12 TFLOPS 有效算力，差距来自 MTE 访存带宽 400GB/s 未打满。通过 128x128 分块让 L0 缓存命中后有效算力升到 110 TFLOPS。",
   "code": "def npu_gemm_tiling(a, b, block=128):\n    # a: (M,K) on device, b: (K,N)\n    M, K = a.shape\n    N = b.shape[1]\n    out = npu_zeros((M, N))\n    for i in range(0, M, block):\n        for j in range(0, N, block):\n            for k in range(0, K, block):\n                # 调用芯片矩阵单元，单次计算 block^2 输出\n                out[i:i+block, j:j+block] += npu_mmad(\n                    a[i:i+block, k:k+block],\n                    b[k:k+block, j:j+block])\n    return out",
   "complexity": "时间复杂度 O(M*N*K)，与算法规模一致；额外空间为分块缓存 O(block^2)，用以隐藏访存延迟。",
   "beginnerSummary": "就像把一道菜从家用灶台搬到大型中央厨房，要先按新厨房的厨具重新写操作流程，再反复试做保证口味不变且出餐更快。",
