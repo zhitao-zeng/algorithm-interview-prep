@@ -16,7 +16,7 @@ export default {
     "怎么评测：气泡占比下降、设备利用率提升、显存峰值是否可控。"
   ],
   "invariant": "总的前向/反向次数与 GPipe 相同，数值等价，只是执行顺序交错。",
-  "walkthrough": "P=4、在飞=4：warmup 4 个前向后进入 1F1B，反向紧随前向，气泡从 43% 降到约 14%。",
+  "walkthrough": "P=4、micro-batch 数 m=20（满足 m≫P 才显出优势）：warmup 4 个前向后进入 1F1B，气泡从 GPipe 的约 43%（=(P-1)/(m+P-1)=3/23）降到约 15%（≈(P-1)/m=3/20）。在飞窗口上限取 P 即可持续流水。",
   "edgeCases": [
     "在飞 micro-batch 数须 ≥ P 才能持续流水。",
     "梯度需按 micro-batch 累加后再更新。",
@@ -53,8 +53,8 @@ export default {
     "了解 micro-batch 概念。"
   ],
   "workedExample": [
-    "P=4、在飞=4，warmup 后转 1F1B。",
-    "气泡从 ~43% 降到 ~14%。"
+    "P=4、micro-batch 数 m=20（m≫P 才显优势），warmup 后转 1F1B。",
+    "气泡从 GPipe 的 ~43% 降到 ~15%（≈(P-1)/m）。"
   ],
   "lineByLine": [
     "warmup 阶段做若干纯前向。",

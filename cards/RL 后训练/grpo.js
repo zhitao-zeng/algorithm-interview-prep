@@ -21,7 +21,7 @@ export default {
     "奖励尺度不一需组内归一。",
     "仍需 KL 或 clip 防跑偏。"
   ],
-  "code": "# Python\ndef grpo_advantage(rewards, group, eps=1e-6):\n    mu = rewards[group].mean()                 # 同 prompt 组内均值\n    std = rewards[group].std() + eps\n    return (rewards[group] - mu) / std         # 组内相对优势",
+  "code": "# Python\ndef grpo_advantage(rewards, group, eps=1e-6):\n    mu = rewards[group].mean()                 # 同 prompt 组内均值\n    std = rewards[group].std(unbiased=False) + eps\n    return (rewards[group] - mu) / std         # 组内相对优势",
   "codeNotes": [
     "组内可用奖励模型或规则/验证器打分。",
     "省掉 Critic 显著降低显存与训练不稳。"
@@ -52,7 +52,7 @@ export default {
     "仍用 clip 控制更新幅度。"
   ],
   "workedExample": [
-    "prompt 采 4 答，奖励 [1,3,2,4] → μ=2.5 → A≈[−0.8,+0.3,−0.3,+1.0]。",
+    "prompt 采 4 答，奖励 [1,3,2,4] → μ=2.5 → A≈[−1.34,+0.45,−0.45,+1.34]。",
     "高 A 的回答提升概率，低 A 的下降。"
   ],
   "lineByLine": [

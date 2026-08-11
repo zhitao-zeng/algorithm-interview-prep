@@ -22,7 +22,7 @@ export default {
     "块大小 Br=Bc 由 SRAM 容量决定（典型 128）。",
     "需重写 kernel（CUDA），框架层不易直接 numpy 复现全部收益。"
   ],
-  "code": "def flash_step(Qi, Kj, Vj, m, l, O, Br, Bc):\n    # Qi:(Br,d) Kj:(Bc,d) Vj:(Bc,d); m,l,O 为运行统计量\n    S = (Qi @ Kj.T)                # (Br,Bc) 留在 SRAM\n    m_new = torch.maximum(m, S.max(1).values)\n    p = torch.exp(S - m_new[:, None])\n    l = l * torch.exp(m - m_new) + p.sum(1)\n    O = (l_old_exp * O + p @ Vj) / l[:, None]\n    return m_new, l, O",
+  "code": "def flash_step(Qi, Kj, Vj, m, l, O, Br, Bc):\n    # Qi:(Br,d) Kj:(Bc,d) Vj:(Bc,d); m,l,O 为运行统计量\n    S = (Qi @ Kj.T)                # (Br,Bc) 留在 SRAM\n    m_new = torch.maximum(m, S.max(1).values)\n    p = torch.exp(S - m_new[:, None])\n    l = l * torch.exp(m - m_new) + p.sum(1)\n    O = (torch.exp(m - m_new)[:, None] * O + p @ Vj) / l[:, None]\n    return m_new, l, O",
   "codeNotes": [
     "真实实现用在线 softmax 的 rescale 因子 e^{m−m_new} 校正已累加项。",
     "块循环需对 K/V 的所有块流式扫描同一 Q 块。"

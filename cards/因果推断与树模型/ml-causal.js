@@ -5,7 +5,7 @@ export default {
   "title": "因果推断基础：干预、反事实与相关性的区别",
   "prompt": "为什么相关性不等于因果，因果推断中的干预（intervention）与反事实（counterfactual）分别指什么，如何估计平均处理效应 ATE？",
   "quickAnswer": "相关只描述 P(Y|X) 的联合统计，因果关心 do(X) 带来的分布改变；干预 do(X=x) 是主动设定处理并切断其原有父节点，反事实是在已观测结果下设想“若当时选了另一处理”的结果。ATE 在可忽略性成立时可用 E[Y|T=1]-E[Y|T=0] 或倾向得分加权估计。",
-  "code": "import numpy as np\nimport pandas as pd\n\ndef naive_ate(df, treat=\"treatment\", out=\"outcome\"):\n    treated = df.loc[df[treat] == 1, out].mean()\n    control = df.loc[df[treat] == 0, out].mean()\n    return float(treated - control)\n\ndef ips_ate(df, ps, treat=\"treatment\", out=\"outcome\"):\n    w = np.where(df[treat] == 1, 1.0 / ps, 1.0 / (1.0 - ps))\n    num = (w * (df[treat] == 1) * df[out]).sum() - (w * (df[treat] == 0) * df[out]).sum()\n    den = (w * (df[treat] == 1)).sum() - (w * (df[treat] == 0)).sum()\n    return float(num / den)",
+  "code": "import numpy as np\nimport pandas as pd\n\ndef naive_ate(df, treat=\"treatment\", out=\"outcome\"):\n    treated = df.loc[df[treat] == 1, out].mean()\n    control = df.loc[df[treat] == 0, out].mean()\n    return float(treated - control)\n\ndef ips_ate(df, ps, treat=\"treatment\", out=\"outcome\"):\n    t = df[treat].values.astype(float)\n    y = df[out].values.astype(float)\n    ps_c = np.clip(ps, 1e-3, 1 - 1e-3)               # 裁剪极端权重、防除零\n    w = np.where(t == 1, 1.0 / ps_c, 1.0 / (1.0 - ps_c))\n    # 自归一化 IPW (Hájek): 处理组与对照组分别加权后再相减\n    ate_t = (w * t * y).sum() / (w * t).sum()\n    ate_c = (w * (1 - t) * y).sum() / (w * (1 - t)).sum()\n    return float(ate_t - ate_c)",
   "complexity": "时间 O(n)，空间 O(n)（n 为样本数）",
   "beginnerSummary": "冰淇淋销量和溺水人数都随天气升高而上升，但吃冰淇淋不会让人溺水——这是相关非因果。干预像是主动给病人吃药并切掉其他干扰，反事实是设想“若当初没吃这药会怎样”。",
   "derivation": [
@@ -39,8 +39,8 @@ export default {
     "import numpy/pandas：载入数值与表格处理库。",
     "naive_ate：直接计算处理组与控制组结果均值差，未校正混杂。",
     "treated/control 用 df.loc 按处理列筛选并求均值。",
-    "ips_ate：构造逆概率权重 w，处理组权重 1/ps、控制组 1/(1-ps)。",
-    "num/den 用加权差分做 Horvitz-Thompson 式估计，返回 ATE 点估计。"
+    "ips_ate：构造逆概率权重 w（处理组 1/ps、控制组 1/(1-ps)），并按 1e-3~1-1e-3 裁剪防止极端权重与除零。",
+    "ate_t / ate_c 分别对处理组、对照组做自归一化加权（Hájek），二者相减得到无偏 ATE 点估计。"
   ],
   "followUps": [
     {

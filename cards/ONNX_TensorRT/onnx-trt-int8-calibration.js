@@ -5,7 +5,7 @@ export default {
   "difficulty": "Hard",
   "title": "INT8 校准流程",
   "prompt": "TensorRT 的 INT8 校准（calibration）流程是什么，为什么需要它？",
-  "quickAnswer": "INT8 校准是估计每层激活张量分布以确定量化 scale/zero-point 的过程：提供一个有代表性的校准数据集，TRT 在 build 期跑前向收集每层激活的 min/max(或用熵/百分位算法)，据此生成量化参数，使 FP32→INT8 的截断误差最小；无校准则无法安全量化。",
+  "quickAnswer": "INT8 校准是估计每层激活张量分布以确定量化 scale 的过程：提供一个有代表性的校准数据集，TRT 在 build 期跑前向收集每层激活的 min/max(或用熵/百分位算法)，据此生成量化参数。注意 TensorRT 标准 INT8 为对称量化，zero-point 隐式为 0，并无独立 zero-point 参数；使 FP32→INT8 的截断误差最小；无校准则无法安全量化。",
   "approach": "准备代表性校准集 → 实现 IInt8Calibrator(喂样本) → 选算法(ENTROPY/LEGACY) → build 时收集分布 → 生成 INT8 engine。",
   "explanationFocus": "是什么：INT8 校准是用少量代表样本统计激活分布、为每层确定量化参数的离线过程。",
   "bruteForce": "直接按固定范围[-1,1]量化：截断严重、精度崩。",

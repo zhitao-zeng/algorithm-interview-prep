@@ -5,7 +5,7 @@ export default {
   "title": "真实信道鲁棒性失真模拟与训练",
   "prompt": "如何用播放链路建模（RIR、频响、AGC、Codec、Clipping）提升真实信道鲁棒性，并避免只拟合模拟失真？",
   "quickAnswer": "按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
-  "code": "import numpy as np\n\ndef apply_rir_fft(speech: np.ndarray, rir: np.ndarray) -> np.ndarray:\n    \"\"\"用 FFT 卷积把房间脉冲响应施加到语音，比时域卷积快约 30x。\"\"\"\n    n = len(speech) + len(rir) - 1\n    nfft = 1 << (n - 1).bit_length()\n    S = np.fft.rfft(speech, nfft)\n    R = np.fft.rfft(rir, nfft)\n    return np.fft.irfft(S * R)[:len(speech)]",
+  "code": "import numpy as np\n\ndef apply_rir_fft(speech: np.ndarray, rir: np.ndarray) -> np.ndarray:\n    \"\"\"用 FFT 卷积把房间脉冲响应施加到语音，比时域卷积快约 30x。\"\"\"\n    n = len(speech) + len(rir) - 1\n    nfft = 1 << (n - 1).bit_length()\n    S = np.fft.rfft(speech, nfft)\n    R = np.fft.rfft(rir, nfft)\n    return np.fft.irfft(S * R)[:n]",
   "complexity": "时间 O(N log N)（FFT 卷积）/ 时域 O(N·M)，空间 O(N)",
   "beginnerSummary": "就像在浴室和旷野录音声音不同，我们用数学先“装修”出各种房间和设备的声音，再让模型在“坏声音”里也听得清。",
   "derivation": [
@@ -39,7 +39,7 @@ export default {
     "n = len(speech) + len(rir) - 1 计算线性卷积所需输出长度。",
     "nfft = 1 << (n - 1).bit_length() 取不小于 n 的最小 2 的幂，满足 FFT 效率。",
     "S = np.fft.rfft(speech, nfft); R = np.fft.rfft(rir, nfft) 频域变换后逐点相乘等价于时域卷积。",
-    "return np.fft.irfft(S * R)[:len(speech)] 逆变换并裁回原语音长度。"
+    "return np.fft.irfft(S * R)[:n] 逆变换取完整线性卷积长度 [:n]（含混响尾），与时域卷积完全等价；如需与输入等长再裁到 [:len(speech)]。"
   ],
   "followUps": [
     {
@@ -55,7 +55,7 @@ export default {
     "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。",
     "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
   ],
-  "invariant": "对于任意 speech 与 rir，FFT 卷积输出在 [:len(speech)] 上与时域卷积结果数值一致，且不引入循环混叠。",
-  "walkthrough": "speech 长 16000、rir 长 4000 → n=20000，nfft=32768；rfft 后 S·R 逆变换取前 16000 点，即得与时域卷积等价的混响语音。",
+  "invariant": "对于任意 speech 与 rir，因 nfft≥L+M−1，FFT 卷积在完整线性卷积长度 [:n] 上与时域卷积数值完全一致、无循环混叠；输出含长度 M−1 的混响尾，若需与输入等长可再裁到 [:len(speech)]。",
+  "walkthrough": "speech 长 16000、rir 长 4000 → n=20000，nfft=32768；rfft 后 S·R 逆变换取前 n=20000 点，即得与时域卷积完全等价的混响语音（含 4000 点混响尾）；如需与输入等长再裁到前 16000 点。",
   "kind": "code"
 };

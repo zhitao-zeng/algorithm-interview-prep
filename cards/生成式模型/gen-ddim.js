@@ -6,7 +6,7 @@ export default {
   "difficulty": "Medium",
   "prompt": "DDIM 是如何实现确定性采样并通过更少步数加速的？它与 DDPM 的等价性与区别在哪里？",
   "quickAnswer": "DDIM 在保持与 DDPM 相同训练目标（共享 ε_θ）的前提下，把反向过程重写成非 Markov、确定性的更新式，从而支持跳步采样（如 50 步甚至 10 步）。它与 DDPM 共享训练好的权重，但采样轨迹不再是随机链，因此同种子可复现且更快。",
-  "code": "def ddim_step(xt, t, t_prev, model, eta=0.0):\n    eps = model(xt, t)\n    alpha = alphas_cumprod[t]; alpha_prev = alphas_cumprod[t_prev]\n    x0_hat = (xt - torch.sqrt(1 - alpha) * eps) / torch.sqrt(alpha)\n    dir = torch.sqrt(1 - alpha_prev - eta**2 * (1-alpha/alpha_prev)) * eps\n    noise = eta * torch.sqrt(1 - alpha_prev) * torch.randn_like(xt)\n    return torch.sqrt(alpha_prev) * x0_hat + dir + noise",
+  "code": "def ddim_step(xt, t, t_prev, model, eta=0.0):\n    eps = model(xt, t)\n    alpha = alphas_cumprod[t]; alpha_prev = alphas_cumprod[t_prev]\n    x0_hat = (xt - torch.sqrt(1 - alpha) * eps) / torch.sqrt(alpha)\n    # 随机分支方差 sigma^2 = eta^2 * (1-a_prev)/(1-a) * (1 - a/a_prev)\n    sigma = eta * torch.sqrt((1 - alpha_prev) / (1 - alpha)) * torch.sqrt(1 - alpha / alpha_prev)\n    dir = torch.sqrt(1 - alpha_prev - sigma**2) * eps\n    noise = sigma * torch.randn_like(xt)\n    return torch.sqrt(alpha_prev) * x0_hat + dir + noise",
   "complexity": "O(S·H·W·C)，S≪T",
   "beginnerSummary": "DDPM 像蒙着眼睛一步步试探着退噪，DDIM 则拿同一张“地图”走一条更直、可预定的路线，用更少步到达终点且每次结果一致。",
   "explanationFocus": "是什么：DDIM（去噪扩散隐式模型）是一种确定性、非 Markov 的采样框架，复用 DDPM 训练好的噪声预测器，但把采样步数大幅压缩。",

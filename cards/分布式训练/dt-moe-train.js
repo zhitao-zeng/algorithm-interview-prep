@@ -31,7 +31,7 @@ export default {
     "All-to-all 集合通信与 expert parallelism"
   ],
   "workedExample": [
-    "例：每层 64 专家，top-2，每 token 仅算 2/64 的专家，参数量扩 32 倍但算力仅约 2 倍；专家分布到 8 卡，all-to-all 按目标 rank 分发。",
+    "例：每层 64 专家，top-2，每 token 仅算 2/64 的专家，参数量扩 64 倍（N 个专家）但每 token 算力仅约 2 倍（top-2）；专家分布到 8 卡，all-to-all 按目标 rank 分发。",
     "例：某步路由 30% token 都选 expert 0，超过容量（如 1.25×平均），多出的 5% token 被 drop，用 aux loss 拉平分布后 drop 降到 <1%。"
   ],
   "lineByLine": [

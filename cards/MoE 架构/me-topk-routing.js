@@ -9,11 +9,11 @@ export default {
   "explanationFocus": "是什么：top-k 路由是 MoE 门控的经典策略——对每个 token，门控网络选出得分最高的 k 个专家参与计算，并按归一化后的概率为它们加权求和。",
   "bruteForce": "每次把整个 token 送给所有 E 个专家（dense）再加权求和。虽然最稳但完全没有稀疏性，计算量随专家数线性增长，失去 MoE 省算力的意义。",
   "invariant": "核心不变量：每个 token 最终只由恰好 k 个专家表示；其路由权重在所选 k 个专家上归一化和恒为 1。",
-  "walkthrough": "设 E=8，某 token 门控得分为 [0.05,0.9,0.02,0.6,0.01,0.1,0.03,0.2]。k=2 时选中专家1(0.9)、专家3(0.6)，softmax 得权重 ≈[0.62,0.38]，该 token 由这两位专家按权重组合。",
+  "walkthrough": "设 E=8，某 token 门控得分为 [0.05,0.9,0.02,0.6,0.01,0.1,0.03,0.2]。k=2 时选中专家1(0.9)、专家3(0.6)，softmax 得权重 ≈[0.57,0.43]，该 token 由这两位专家按权重组合。",
   "code": "import torch\n\ndef topk_route(gate_logits, k=2):\n    # gate_logits: [T, E]\n    topk_val, topk_idx = torch.topk(gate_logits, k, dim=-1)\n    w = torch.softmax(topk_val, dim=-1)   # 仅对选中的 k 个归一化\n    return topk_idx, w",
   "complexity": "门控前向 O(T·E)，取 top-k 可用全排序 O(T·E) 或部分排序 O(T·k·log E)；每个 token 仅做 k 次专家前向，计算量约为 dense 的 k/E。",
   "beginnerSummary": "选专家像选课：每门课（token）你挑得分最高的 2 门（top-2）去上，按喜好分配时间；而不是把所有课都上一遍。",
-  "diagram": "gate_logits [0.05,0.9,0.02,0.6,...]\n        │ topk(k=2)\n        ▼\n   选 idx=[1,3]  val=[0.9,0.6]\n        │ softmax\n        ▼\n   w=[0.62,0.38] ─▶ Expert1 + Expert3",
+  "diagram": "gate_logits [0.05,0.9,0.02,0.6,...]\n        │ topk(k=2)\n        ▼\n   选 idx=[1,3]  val=[0.9,0.6]\n        │ softmax\n        ▼\n   w=[0.57,0.43] ─▶ Expert1 + Expert3",
   "derivation": [
     "为什么需要：dense 全专家计算太贵，必须只激活少数专家；而 top-1 表达力受限且易不均衡，需要一种既稀疏又灵活的选法。",
     "怎么实现：门控输出 E 路分数 → torch.topk 取前 k 个下标 → 仅对这 k 个分数 softmax 得到权重 → 用权重加权各专家输出。",
@@ -36,7 +36,7 @@ export default {
     "Top-k 选择（argpartition/topk）操作"
   ],
   "workedExample": [
-    "E=8，分数 [0.05,0.9,0.02,0.6,0.01,0.1,0.03,0.2]，k=2：选 idx=[1,3]，子集 [0.9,0.6]，softmax 后 [0.62,0.38]。",
+    "E=8，分数 [0.05,0.9,0.02,0.6,0.01,0.1,0.03,0.2]，k=2：选 idx=[1,3]，子集 [0.9,0.6]，softmax 后 [0.57,0.43]。",
     "同分数改 k=1：只选 idx=[1]，权重恒为 1，token 完全由专家1 处理，路由更脆。"
   ],
   "lineByLine": [

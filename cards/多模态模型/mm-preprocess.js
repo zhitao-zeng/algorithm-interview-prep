@@ -16,14 +16,14 @@ export default {
     "怎么评测：对齐性测试（同图同配置输出应完全一致）、端到端精度对比、以及预处理耗时占比（通常 <5% 总时延）。"
   ],
   "invariant": "同一图像在相同配置（尺寸、均值方差、插值、padding 方式）下得到确定且可复现的预处理结果与视觉 token。",
-  "walkthrough": "原图 1000×800（RGB）→ resize 最短边到 336（得 420×336）→ pad 到 336×336 正方形（上下补 42 行无效像素）→ 用 ImageNet 均值(0.485,0.456,0.406)方差(0.229,0.224,0.225)归一化 → 转 CHW tensor → 切 14×14 patch → 576 个视觉 token → ViT 编码。",
+  "walkthrough": "原图 1000×800（RGB）→ resize 最短边到 336（得 420×336）→ center-crop 到 336×336（裁去宽度两侧各 42 列）→ 用 ImageNet 均值(0.485,0.456,0.406)方差(0.229,0.224,0.225)归一化 → 转 CHW tensor → 切 14×14 patch → 576 个视觉 token → ViT 编码。",
   "edgeCases": [
     "非 RGB（含 alpha 通道的 PNG）：必须转 RGB，否则 4 通道与训练 3 通道不匹配。",
     "极端长宽比（如长条截图）：pad 出大量无效 token，浪费算力且可能干扰模型。",
     "训练/推理归一化不一致（如推理漏了减均值）：输入分布整体偏移，编码器表征崩，精度断崖下跌。",
     "EXIF 方向信息：手机照片可能带旋转，解码若不读 EXIF 会把图读反。"
   ],
-  "code": "def preprocess(img, size=336, mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)):\n    img = decode_rgb(img)\n    img = resize_shortest(img, size)\n    img = pad_to_square(img, size)\n    t = to_tensor(img).normalize(mean, std)     # 与训练一致\n    return t",
+  "code": "def preprocess(img, size=336, mean=(0.485,0.456,0.406), std=(0.229,0.224,0.225)):\n    img = decode_rgb(img)\n    img = resize_shortest(img, size)\n    img = center_crop(img, size)                 # 裁到 size×size（裁掉较长边两侧）\n    t = to_tensor(img).normalize(mean, std)     # 与训练一致\n    return t",
   "codeNotes": [
     "均值方差必须和训练完全一致（包括用哪套统计、插值方式），否则分布偏移直接掉点。",
     "pad 会增加无效视觉 token：长图建议用动态切片而非暴力 pad 正方形，减少浪费。"
@@ -54,7 +54,7 @@ export default {
     "训练推理须一致：推理端的 transform 应直接复用训练配置，避免隐性分布偏移。"
   ],
   "workedExample": [
-    "1000×800 → resize 最短边 336（420×336）→ pad 正方形 336×336，多出的行是无效 padding。",
+    "1000×800 → resize 最短边 336（420×336）→ center-crop 到 336×336（裁掉宽度两侧各 42 列），得到 336×336 输入。",
     "归一化后切 14 patch → 576 个视觉 token；若不做归一化，同一图 top-1 可能从 78% 掉到 40%。"
   ],
   "lineByLine": [

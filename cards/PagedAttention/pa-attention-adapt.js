@@ -16,16 +16,16 @@ export default {
     "怎么评测：对比\"先拼后算\"与\"分块直接算\"的数值一致性、显存与速度。"
   ],
   "invariant": "分块计算的结果 == 把所有物理块按逻辑序拼成连续 KV 后算出的注意力（数值等价）。",
-  "walkthrough": "逻辑块 0,1,2 对应物理 P5,P2,P9：kernel 依次取 P5 的 K/V 算注意力并累加分母，再 P2、再 P9，在线 softmax 得与连续拼接相同结果。",
+  "walkthrough": "逻辑块 0,1,2 对应物理 P5,P2,P9：kernel 依次取 P5 的 K/V 算分数，用 running-max 在线 softmax 累加分子与分母，再 P2、再 P9，每一步用 exp(m-m_new) 修正历史累加项，最终结果与把 P5,P2,P9 拼成连续 KV 算全局注意力一致（浮点误差内）。",
   "edgeCases": [
     "末块有效长度 < block_size：需 mask 掉无效槽。",
     "query 自身所在块：自注意力需正确包含。",
     "多查询头：GQA 下每块 K/V 被多 Q 头复用。"
   ],
-  "code": "# Python\ndef paged_attention(q, block_table, phys_kv, block_size):\n    num = 0.0; den = 0.0\n    for lb in range(len(block_table)):\n        Kb, Vb = phys_kv[block_table[lb]]          # 按表取物理块\n        s = q @ Kb.T / sqrt(d)                     # 本块注意力分数\n        m = softmax(s); num += m @ Vb; den += m.sum()\n    return num / den                               # 在线归一化",
+  "code": "# Python (示意, 真实 kernel 在 CUDA 上向量化)\nimport math\ndef paged_attention(q, block_table, phys_kv, d):\n    m = -1e30; l = 0.0; acc = [0.0]*d          # running-max / 分母 / 加权 V 累加\n    for lb in range(len(block_table)):\n        Kb, Vb = phys_kv[block_table[lb]]       # 按 block_table 取物理块 K/V\n        s = [sum(q[k]*Kb[j][k] for k in range(d))/math.sqrt(d) for j in range(len(Kb))]\n        m_new = max(m, max(s))\n        p = [math.exp(sj - m_new) for sj in s]  # 数值稳定增量 softmax\n        l_new = l*math.exp(m - m_new) + sum(p)\n        acc = [acc[k]*math.exp(m - m_new) + sum(p[j]*Vb[j][k] for j in range(len(p)))\n               for k in range(d)]\n        m, l = m_new, l_new\n    return [a/l for a in acc]                   # 与拼成连续 KV 算全局注意力等价",
   "codeNotes": [
-    "关键在于\"按 block_table 索引物理块\"。",
-    "在线 softmax 避免拼成大张量。"
+    "关键在于\"按 block_table 索引物理块\"，不真正拷贝。",
+    "用 running-max 的在线 softmax 逐块累加分子/分母，保证与先拼后算数值一致。"
   ],
   "complexity": "计算量 O(n·d) 与传统相同；额外是 O(n/block_size) 次查表，可忽略。",
   "followUps": [
@@ -57,10 +57,10 @@ export default {
     "结果与拼成连续张量一致。"
   ],
   "lineByLine": [
-    "kernel 接收 block_table 与物理块。",
-    "逐逻辑块按表取物理 K/V。",
-    "块内算分数并增量累加分子/分母。",
-    "在线 softmax 得最终输出。"
+    "kernel 接收 block_table 与物理块数组 phys_kv。",
+    "逐逻辑块按表取物理 K/V，块内算注意力分数 s。",
+    "用 running-max (m_new) 做数值稳定增量 softmax，按 exp(m-m_new) 修正历史累加项。",
+    "在线累加加权 V 分子与分母，最终 acc/l 得输出，与连续拼接等价。"
   ],
   "diagram": "q × [P5的K | P2的K | P9的K]  (按表拼, 不真拷贝)\n  └─> 逐块算分数 -> 增量softmax -> 输出\n等价: q × 连续KV",
   "order": 7

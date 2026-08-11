@@ -5,7 +5,7 @@ export default {
   "title": "非自回归 TTS 与并行生成（FastSpeech / Matcha）",
   "prompt": "为什么非自回归 TTS（如 FastSpeech、Matcha-TTS）能做到实时并行合成，它和自回归 TTS 在时长建模上有什么根本区别？",
   "quickAnswer": "自回归 TTS 逐帧生成、速度受序列长度限制；非自回归 TTS 通过显式时长预测（length regulator）把音素一次性展开成帧序列再并行声学/波形合成，推理延迟与长度解耦，易于流式与端侧落地（如简历中的 Matcha / Melo）。",
-  "code": "import torch\n\ndef length_regulator(x, dur):\n    # x: [B, T_text, D], dur: [B, T_text]\n    out = []\n    for i in range(x.size(1)):\n        out.append(x[:, i, :].repeat_interleave(dur[:, i], dim=1))\n    return torch.cat(out, dim=1)",
+  "code": "import torch\n\ndef length_regulator(x, dur):\n    # x: [B, T_text, D], dur: [B, T_text] (每文本帧的整数帧数)\n    out = []\n    for i in range(x.size(1)):\n        d = dur[:, i]                                   # [B] 该文本帧应展开的帧数\n        rep = x[:, i, :].unsqueeze(1).repeat_interleave(d, dim=1)  # [B, d, D] 沿时间维展开\n        out.append(rep)\n    return torch.cat(out, dim=1)                        # [B, sum(dur), D]",
   "complexity": "时长展开 O(sum(dur))，并行声学模型 O(1) 步前向，整体与文本长度相关、与音频长度解耦。",
   "beginnerSummary": "自回归 TTS 像一字一字念，非自回归 TTS 先规划好每个字念多长（时长预测），再把整句话一次性画出来，因此更快。",
   "derivation": [
@@ -35,8 +35,8 @@ export default {
   "lineByLine": [
     "def length_regulator(x, dur)：定义把文本表征按预测时长展开的函数。",
     "for i in range(x.size(1))：遍历每个文本帧（音素/词）。",
-    "out.append(x[:, i, :].repeat_interleave(dur[:, i], dim=1))：按预测帧数重复该帧表征。",
-    "return torch.cat(out, dim=1)：拼接得到与音频等长的声学表征序列。"
+    "x[:, i, :].unsqueeze(1).repeat_interleave(d, dim=1)：把该帧表征沿新时间维展开 d 帧，得到 [B, d, D]。",
+    "return torch.cat(out, dim=1)：沿时间维拼接得到与音频等长的声学表征序列。"
   ],
   "followUps": [
     {

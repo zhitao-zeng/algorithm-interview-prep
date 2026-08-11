@@ -5,7 +5,7 @@ export default {
   "title": "相对深度 vs 度量深度建模",
   "prompt": "相对深度与度量深度在监督信号与损失函数上有何本质区别？给出尺度不变对数损失与仿射不变损失的写法？",
   "quickAnswer": "相对深度只用排序/尺度无关信号，常用尺度不变对数损失（SILog）避免学出任意缩放；度量深度用带物理尺度的 GT，直接 L1/RMSE 回归。仿射不变损失先对预测做最小二乘对齐再算误差，兼顾二者优势。",
-  "code": "import torch\n\ndef scale_invariant_loss(pred, gt):\n    # pred, gt: Bx1xHxW，输入为 log 深度\n    diff = pred - gt\n    n = diff.numel()\n    # 对整体缩放不变：减去均值再求方差\n    loss = (diff ** 2).mean() - (diff.sum() ** 2) / (n ** 2)\n    return 0.5 * loss\n\ndef affine_invariant_loss(pred, gt):\n    # 每样本用最小二乘把 pred 仿射对齐到 gt 再算 L1\n    a = (pred * gt).mean(dim=(-1,-2,-3)) / (pred * pred).mean(dim=(-1,-2,-3))\n    b = gt.mean(dim=(-1,-2,-3)) - a * pred.mean(dim=(-1,-2,-3))\n    aligned = a.view(-1,1,1,1) * pred + b.view(-1,1,1,1)\n    return (aligned - gt).abs().mean()",
+  "code": "import torch\n\ndef scale_invariant_loss(pred, gt):\n    # pred, gt: Bx1xHxW，输入为 log 深度\n    diff = pred - gt\n    n = diff.numel()\n    # 对整体缩放不变：减去均值再求方差\n    loss = (diff ** 2).mean() - (diff.sum() ** 2) / (n ** 2)\n    return 0.5 * loss\n\ndef affine_invariant_loss(pred, gt):\n    # 每样本用中心化最小二乘把 pred 仿射对齐到 gt 再算 L1\n    p = pred.flatten(1); g = gt.flatten(1)            # [B, N]\n    mp = p.mean(1, keepdim=True); mg = g.mean(1, keepdim=True)\n    dp = (p - mp); dg = (g - mg)\n    a = (dp * dg).sum(1) / (dp * dp).sum(1)           # 中心化斜率 cov/var\n    b = mg.squeeze(1) - a * mp.squeeze(1)\n    aligned = a.view(-1,1,1,1) * pred + b.view(-1,1,1,1)\n    return (aligned - gt).abs().mean()",
   "complexity": "时间 O(B·H·W)，空间 O(B·H·W)",
   "beginnerSummary": "相对深度像学'排队次序'，用对缩放不敏感的损失防止模型随意放大缩小；度量深度像学'报米数'，用真实距离直接算误差。仿射不变损失先对齐再比，两全其美。",
   "derivation": [
@@ -36,7 +36,7 @@ export default {
   "lineByLine": [
     "diff = pred - gt 计算对数深度残差。",
     "loss = (diff**2).mean() - (diff.sum()**2)/(n**2) 减去均值平方项实现缩放不变。",
-    "affine_invariant_loss 中先算每样本最优 a、b 对齐预测。",
+    "affine_invariant_loss 中先对 pred 去均值中心化，再算每样本最优斜率 a、截距 b 对齐预测。",
     "return (aligned-gt).abs().mean() 对齐后算 L1 作为最终损失。"
   ],
   "followUps": [

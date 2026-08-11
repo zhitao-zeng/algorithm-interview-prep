@@ -22,7 +22,7 @@ export default {
     "请求超 max 需快速拒绝。",
     "buffer 大小须按 max 预分配。"
   ],
-  "code": "# Python：运行时按请求设动态形状\ndef infer(context, engine, x, stream):\n    import numpy as np\n    shape = (x.shape[0], 3, x.shape[2], x.shape[3])\n    context.set_input_shape('input', shape)          # 实际 batch/尺寸\n    buf = np.empty(engine.get_binding_shape(0) if False else shape, dtype=np.float32)\n    # 实际按 max 预分配并拷贝 x\n    context.execute_async_v3(stream_handle=stream)",
+  "code": "# Python：运行时按请求设动态形状\ndef infer(context, engine, x, stream):\n    import numpy as np\n    shape = (x.shape[0], 3, x.shape[2], x.shape[3])\n    context.set_input_shape('input', shape)          # 实际 batch/尺寸\n    # 按 profile 的 max 形状预分配 buffer，并真正把输入拷入\n    max_shape = engine.get_profile_shape(0, 0)[2]     # (min, opt, max) 中的 max\n    buf = np.empty(max_shape, dtype=np.float32)\n    buf[:shape[0]] = x\n    context.set_tensor_address('input', buf.ctypes.data)\n    context.execute_async_v3(stream_handle=stream)",
   "codeNotes": [
     "shape 必须≤profile max。",
     "buffer 建议按 max 预分配。"

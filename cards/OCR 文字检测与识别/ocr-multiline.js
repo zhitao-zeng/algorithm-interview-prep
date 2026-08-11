@@ -5,7 +5,7 @@ export default {
   "title": "多行合并与高 FP 陷阱",
   "prompt": "为什么在 OCR 后处理中应放弃全局降阈值与通用多行合并，它们会带来什么高 FP 风险？",
   "quickAnswer": "全局降阈值会整体抬高召回但成倍增加误检(FP)，通用多行合并规则在不同版式下易把无关文本块错误拼成一行；应采用局部 refinement 与窄条件 fallback 而非一刀切。",
-  "code": "def safe_merge(lines, same_line_iou=0.6, max_v_gap=10):\n    \"\"\"窄条件多行合并：仅当水平重叠且垂直间隙极小才合并\"\"\"\n    merged, dropped = [], []\n    for ln in sorted(lines, key=lambda b: b.y):\n        if merged and overlap_x(merged[-1], ln) > same_line_iou \\\n           and abs(ln.y - merged[-1].y) <= max_v_gap:\n            merged[-1] = concat(merged[-1], ln)\n        else:\n            dropped.append(ln)          # 不匹配的单独保留，不强行合并\n    return merged, dropped\n",
+  "code": "def safe_merge(lines, same_line_iou=0.6, max_v_gap=10):\n    \"\"\"窄条件多行合并：仅当水平重叠且垂直间隙极小才合并\"\"\"\n    merged, dropped = [], []\n    for ln in sorted(lines, key=lambda b: b.y):\n        if merged and overlap_x(merged[-1], ln) > same_line_iou \\\n           and abs(ln.y - merged[-1].y) <= max_v_gap:\n            merged[-1] = concat(merged[-1], ln)\n        else:\n            if not merged:\n                merged.append(ln)       # 首个元素作为种子入 merged，避免恒空\n            else:\n                dropped.append(ln)      # 其余不匹配的单独保留，不强行合并\n    return merged, dropped\n",
   "complexity": "时间 O(N log N)，空间 O(N)",
   "beginnerSummary": "不要“为了多抓几个字就把网撒到全图”，那样会捞上一堆不是字的东西；也别用一套合并规则硬把不相干的文字拼成一行，会读出胡话。",
   "derivation": [

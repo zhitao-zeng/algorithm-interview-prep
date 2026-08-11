@@ -31,7 +31,7 @@ export default {
     "优化器状态组成（fp32 主权重、一阶/二阶动量）与 Adam 显存占用"
   ],
   "workedExample": [
-    "例：7B 模型用 fp16 参数(14GB)+fp32 主权重+Adam 动量(84GB)。DDP 每卡需约 98GB；ZeRO-1 把优化器状态 84GB 分到 8 卡，每卡约 24.5GB；ZeRO-3 再把参数与梯度分摊，每卡约 2GB 级。",
+    "例：7B 模型 fp16 参数 14GB + 梯度 14GB + fp32 主权重/Adam 动量 84GB，DDP 每卡约 112GB。ZeRO-1 仅分片优化器状态，每卡 14+14+84/8≈38.5GB；ZeRO-3 把参数、梯度、优化器状态全部按 1/8 分片，每卡约 (14+14+84)/8≈14GB。",
     "例：8 卡 A100-80G 训 13B，ZeRO-3+CPU-offload 可放下；forward 时 FSDP 逐 block all-gather 参数，backward 后 reduce-scatter 梯度，optimizer.step 在 CPU 完成。"
   ],
   "lineByLine": [
@@ -43,7 +43,7 @@ export default {
   "followUps": [
     {
       "question": "ZeRO-3 的 all-gather 和 DDP 的 all-reduce 在通信量上到底差多少？",
-      "answer": "DDP 每步对梯度做一次 all-reduce（2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做 N-1 次 all-gather（≈2ψ），总通信约 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。"
+      "answer": "DDP 每步对梯度做一次 all-reduce（≈2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做一次 all-gather（≈ψ，把 N 个分片拼回完整参数），总通信≈2ψ+ψ=3ψ，约为 DDP 的 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。"
     },
     {
       "question": "为什么 CPU offload 不完全免费？",
@@ -51,7 +51,7 @@ export default {
     }
   ],
   "followUpAnswers": [
-    "DDP 每步对梯度做一次 all-reduce（2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做 N-1 次 all-gather（≈2ψ），总通信约 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。",
+    "DDP 每步对梯度做一次 all-reduce（≈2ψ 字节，ψ 为参数量）。ZeRO-3 还需对参数做一次 all-gather（≈ψ，把 N 个分片拼回完整参数），总通信≈2ψ+ψ=3ψ，约为 DDP 的 1.5x；但 ZeRO-3 显存省很多，可在更少卡上跑更大模型，通信/卡数比更优。",
     "offload 把 optimizer.step 放到 CPU，需把梯度从 GPU 拷到 CPU、更新后再拷回，引入 PCIe 带宽瓶颈且 step 串行化；只在 GPU 显存真正不够、且 CPU 内存与带宽富余时划算。"
   ],
   "order": 3

@@ -5,7 +5,7 @@ export default {
   "title": "分类模型评测：AUC 与 ROC 曲线",
   "prompt": "如何用 Wilcoxon-Mann-Whitney 视角从排序计算 AUC，并解释 ROC 曲线与 AUC 在类别不平衡下的局限？",
   "quickAnswer": "AUC 等价于随机抽一正一负样本、正样本得分更高的概率：AUC=(∑rank_pos - n_pos(n_pos+1)/2)/(n_pos·n_neg)。ROC 是不同阈值下 TPR 对 FPR 的轨迹，AUC 是其下面积。类别极不平衡时 AUC 仍稳但 PR 曲线/AUPRC 更能反映稀有正类表现。",
-  "code": "import numpy as np\n\ndef roc_auc(y_true, y_score):\n    y_true = np.asarray(y_true)\n    y_score = np.asarray(y_score)\n    order = np.argsort(y_score)\n    ranks = np.empty(len(y_score), dtype=float)\n    ranks[order] = np.arange(1, len(y_score) + 1)\n    ties = np.isclose(y_score[order][1:], y_score[order][:-1])\n    ranks[order][1:][ties] = (ranks[order][1:][ties] + ranks[order][:-1][ties]) / 2.0\n    n_pos = y_true.sum()\n    n_neg = len(y_true) - n_pos\n    return float((ranks[y_true == 1].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))\n\ndef compute_roc(y_true, y_score, n=100):\n    thr = np.linspace(0, 1, n)\n    fpr = [float(((y_score >= t) & (y_true == 0)).mean()) for t in thr]\n    tpr = [float(((y_score >= t) & (y_true == 1)).mean()) for t in thr]\n    return fpr, tpr",
+  "code": "import numpy as np\n\ndef roc_auc(y_true, y_score):\n    y_true = np.asarray(y_true)\n    y_score = np.asarray(y_score)\n    n = len(y_score)\n    order = np.argsort(y_score)\n    ranks = np.empty(n, dtype=float)\n    ranks[order] = np.arange(1, n + 1)\n    # 并列得分：把排序后相邻且分值相同的连续块统一取平均秩并写回 ranks\n    dup = np.isclose(y_score[order][1:], y_score[order][:-1])\n    i = 0\n    while i < n - 1:\n        if dup[i]:\n            j = i\n            while j < n - 1 and dup[j]:\n                j += 1\n            block = order[i:j + 1]\n            avg = ranks[block].mean()\n            ranks[block] = avg\n            i = j + 1\n        else:\n            i += 1\n    n_pos = int(y_true.sum())\n    n_neg = n - n_pos\n    return float((ranks[y_true == 1].sum() - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg))\n\ndef compute_roc(y_true, y_score, n=100):\n    thr = np.linspace(0, 1, n)\n    fpr = [float(((y_score >= t) & (y_true == 0)).mean()) for t in thr]\n    tpr = [float(((y_score >= t) & (y_true == 1)).mean()) for t in thr]\n    return fpr, tpr",
   "complexity": "时间 O(n log n)（排序），空间 O(n)",
   "beginnerSummary": "AUC 就像给模型打分：随便抓一个会出险的和一个不会出险的，看模型能不能把“会出险”排得更靠前，排对的概率就是 AUC。",
   "derivation": [
@@ -38,7 +38,7 @@ export default {
   "lineByLine": [
     "np.argsort(y_score)：得升序索引，作为赋秩基础。",
     "ranks[order]=arange(1..n)：把样本按得分从低到高赋 1..n 秩。",
-    "ties 平均秩处理：并列得分取平均秩避免偏差。",
+    "并列得分取连续块平均秩并写回 ranks：避免高级索引赋值的临时副本不回写导致有偏。",
     "n_pos/n_neg 统计正负样本数，构造 AUC 分母。",
     "rank_pos 求和减最小秩和后除以正负对数，得到 Mann-Whitney 式 AUC。",
     "compute_roc：遍历阈值输出 FPR/TPR 序列供画 ROC。"

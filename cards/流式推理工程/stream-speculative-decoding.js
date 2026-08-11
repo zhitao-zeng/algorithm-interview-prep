@@ -5,13 +5,13 @@ export default {
   "difficulty": "Hard",
   "title": "投机解码 Speculative Decoding",
   "prompt": "大模型自回归逐 token 生成很慢，投机解码(Speculative Decoding)是如何在保持输出分布完全不变(lossless)的前提下实现加速的？",
-  "quickAnswer": "投机解码用一个小的草稿模型先预测 K 个候选 token，再用大模型并行一次性验证，把 K 次串行前向压缩成约 1 次验证，从而实现加速。被接受的数量由 acceptance rate 决定，未通过的位置从分歧点按大模型分布重采样，因此输出分布与原始自回归严格一致(lossless)。代价是额外维护草稿模型与 K 的选择，收益在接受率高时显著。",
+  "quickAnswer": "投机解码用一个小的草稿模型先预测 K 个候选 token，再用大模型并行一次性验证，把 K 次串行前向压缩成约 1 次验证，从而实现加速。被接受的数量由 acceptance rate 决定；分歧点直接采用大模型在该位置实际采样到的 token 续写（数学上等价于在修正分布上做接受-拒绝），因此输出分布与原始自回归严格一致(lossless)。代价是额外维护草稿模型与 K 的选择，收益在接受率高时显著。",
   "approach": "核心思路是“用小模型猜、大模型验”：草稿模型自回归产出候选块，目标模型单次并行前向给出整块的分布，再从左到右贪心对齐；首个不一致处截断并以大模型分布重采样。关键在于保证统计一致性——验证步骤本质上是在做 “blockwise” 的接受-拒绝采样。",
   "explanationFocus": "是什么：投机解码是一种 lossless 的推理加速方法，用一个小的草稿模型(draft model)一次性预测未来若干个 token，再由大的目标模型(target model)并行地一次性校验(verify)这批 token 是否符合其自身分布，从而把多次串行自回归步压缩成一次并行验证。",
   "bruteForce": "朴素做法就是直接用目标大模型做标准自回归：每步只生成一个 token，生成下一个 token 前必须等上一步完成，L 个 token 就串行 L 次前向。没有任何并行或猜测，实现简单但严重受限于大模型单步延迟。",
   "invariant": "循环不变量：在每一轮投机-验证中，被接受前缀 + 分歧点处目标重采样出的 token 始终与目标模型对该前缀的边际分布采样结果同分布，因此任意多轮叠加后整体序列分布等于原始自回归分布(证明见 Leviathan et al. 2023 的接受-拒绝采样引理)。",
   "walkthrough": "假设目标模型 M 每步前向固定 50ms，草稿模型 m 每步 5ms。取 K=4：m 串行跑 4 步 = 20ms 产出 4 个候选；M 一次性验证 4 个 token 约 55ms(批大小 4 略增)。若该轮接受率 0.75，平均接受 3 个，则“3 个新 token”花费 ~75ms；而纯 M 自回归需 3×50=150ms，这一轮提速约 2×。若接受率掉到 0.25(只接受 1 个)，则 ~75ms 只换 1 个 token，不如纯自回归。这说明加速比 ≈ (K×单步M延迟) / (K×单步m延迟 + 单次M批延迟) × 接受率 的折中。",
-  "code": "def speculative_decode(draft, target, prefix, K):\n    # 草稿模型串行猜 K 个\n    candidates = []\n    ctx = prefix\n    for _ in range(K):\n        tok = draft.sample(ctx)        # 小模型便宜\n        candidates.append(tok)\n        ctx = ctx + [tok]\n    # 大模型一次性并行验证整块\n    logits = target.forward(prefix + candidates)   # 单批次前向\n    # 从左到右接受-拒绝\n    n_accept = 0\n    for i, c in enumerate(candidates):\n        if target.sample_from(logits[i]) == c:\n            n_accept += 1\n        else:\n            break\n    new_prefix = prefix + candidates[:n_accept]\n    if n_accept < K:\n        new_prefix += [target.sample_from(logits[n_accept])]  # 分歧点重采样\n    return new_prefix, n_accept",
+  "code": "def speculative_decode(draft, target, prefix, K):\n    # 草稿模型串行猜 K 个\n    candidates = []\n    ctx = prefix\n    for _ in range(K):\n        tok = draft.sample(ctx)        # 小模型便宜\n        candidates.append(tok)\n        ctx = ctx + [tok]\n    # 大模型一次性并行验证整块\n    logits = target.forward(prefix + candidates)   # 单批次前向\n    # 从左到右接受-拒绝；分歧点直接采用目标在该位已采样的 token 并停止\n    for i, c in enumerate(candidates):\n        t = target.sample_from(logits[i])   # 目标在该位置实际采样的 token\n        if t == c:\n            continue\n        else:\n            # 复用已采样的 t（等价于在修正分布上做接受-拒绝），保证严格 lossless\n            return prefix + candidates[:i] + [t], i\n    return prefix + candidates, K",
   "complexity": "时间上，每轮用 K 次小模型前向 + 1 次大模型批前向换得 (接受数+1) 个 token；理想加速 ≈ (K·t_M)/(K·t_m + t_M_batch)。空间上需为 K 个候选缓存 logits 与 KV，开销 O(K)。大模型单次批前向随 K 略增但远小于 K 次独立前向。",
   "beginnerSummary": "想象你写作业时，让一个写字快但常出错的小同学先替你写一整段，然后你(大同学)拿着红笔一次性核对：对的留着，第一个错的地方你亲自改并续写。因为错的地方一定按你的意思来，最后整段和你自己写的一字不差，但因为你一次核对了一整段，省下了反复等小同学、再等自己逐字写的时间。",
   "diagram": "草稿模型 m          目标模型 M\n  │                   │\n  ├─ t1,t2,t3,t4 ───► │  并行 verify\n  │   (候选 K 个)     │\n  │                   ▼\n  │            接受 t1,t2,t3 | 分歧于 t4\n  └────────── 从 t4' 按 M 重采样续写",
@@ -45,8 +45,8 @@ export default {
     "def speculative_decode(draft, target, prefix, K): 定义主函数，draft 为小草稿模型、target 为大目标模型、prefix 为已确认上下文、K 为每轮猜测长度。",
     "for _ in range(K): tok = draft.sample(ctx) 让便宜的小模型自回归地连续猜出 K 个候选 token，这 K 次是小模型串行前向。",
     "logits = target.forward(prefix + candidates) 把整段候选一次性喂给大模型做单批次并行前向，得到每个位置的真实分布——这是加速的核心(一次换 K)。",
-    "for i, c in enumerate(candidates): if target.sample_from(logits[i]) == c: n_accept += 1 else: break 从左到右逐位比较：草稿 token 与大模型在该位采样一致则接受，第一个不一致即停止(保证分布一致性的关键)。",
-    "new_prefix += [target.sample_from(logits[n_accept])] 分歧点用大模型自己的分布重采样一个 token 续写，被拒绝的后续草稿全部丢弃。"
+    "for i, c in enumerate(candidates): t = target.sample_from(logits[i]); if t == c: continue else: break 从左到右逐位比较：草稿 token 与大模型在该位采样的 token 一致则接受，第一个不一致即停止(保证分布一致性的关键)。",
+    "return prefix + candidates[:i] + [t] 分歧点直接采用目标已采样的 token t 续写并停止——复用已采样值而非重新从目标分布采样，否则 K=1 时都会破坏 lossless。"
   ],
   "codeNotes": [
     "for 循环里 draft.sample 是小模型串行猜测，K 次累加的是小模型成本；",

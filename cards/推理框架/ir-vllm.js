@@ -10,7 +10,7 @@ export default {
   "bruteForce": "朴素自写推理为每个请求预留\"最大长度×层×隐藏维\"的连续 KV 缓冲，内部大量预留未用、且请求间无法共享，显存迅速耗尽、吞吐极低。",
   "invariant": "核心不变量：每个逻辑 token 位置都能通过块表唯一映射到某个物理 block 内的偏移，且 block 在引用计数为 0 时被立即回收，保证映射一致与零泄漏。",
   "walkthrough": "设 block=16 token、隐藏维 4096、32 层、FP16；单请求 2048 token 传统法预留整块连续显存约 1.2GB，vLLM 仅分配 128 个 block 实际占用，碎片趋零；在 A100 上同显存并发从 8 路升到 40+ 路。",
-  "code": "class BlockTable:\n    def __init__(self, block_size=16):\n        self.block_size = block_size\n        self.free = list(range(1024))      # 物理块池\n        self.mapping = {}                  # seq_id -> [phys_block]\n    def append(self, seq_id, tokens):\n        # 按需分配物理块，逻辑连续、物理可不连续\n        while tokens:\n            if seq_id not in self.mapping or len(self.mapping[seq_id])*self.block_size == len(allocated):\n                self.mapping.setdefault(seq_id, []).append(self.free.pop())\n            tokens = tokens[self.block_size:]",
+  "code": "class BlockTable:\n    def __init__(self, block_size=16):\n        self.block_size = block_size\n        self.free = list(range(1024))      # 物理块池\n        self.mapping = {}                  # seq_id -> [phys_block]\n    def append(self, seq_id, n_tokens):\n        # 按需分配物理块，逻辑连续、物理可不连续\n        self.mapping.setdefault(seq_id, [])\n        used = len(self.mapping[seq_id]) * self.block_size\n        while used < n_tokens:             # 已分配块容量不足才补块\n            self.mapping[seq_id].append(self.free.pop())\n            used += self.block_size",
   "complexity": "分配/映射为 O(序列长度/block_size) 的块操作；注意力计算仍为 O(n²) 但受高利用率带来的更多并发摊薄；块表查询 O(1)。",
   "beginnerSummary": "像图书馆把书拆成标准书匣按需上架，读者要哪几页就抽哪几个匣，不用为一本书空出整排书架，书架利用率从两成涨到九成。",
   "diagram": "逻辑序列 [tok0..tokN]\n   │ 块表映射\n   ▼\n物理块: [B3][B7][B1][B9]  (可不连续)\n   ▲\n   └── 引用计数=0 即回收",

@@ -9,7 +9,7 @@ export default {
   "explanationFocus": "是什么：数据 scaling law 描述模型性能（通常用损失）随数据量、参数量等资源平滑变化的幂律规律；它让团队用小规模实验预测大规模收益，指导数据采购与算力分配。",
   "bruteForce": "朴素做法：凭直觉直接买最大数据、训最大模型，不做任何可预测的成本-收益分析。",
   "invariant": "核心不变式：在固定算力/模型下，loss 与数据量的对数呈近似线性（幂律），拟合曲线外推误差随距离增大而增大。",
-  "walkthrough": "在 D=10M/30M/100M/300M 上训同架构小模型得 loss=3.2/2.9/2.6/2.35；拟合 L=5.0·D^(-0.09)+2.0，外推 D=1B 得约 2.15。相比把参数翻倍（边际收益更小），加数据更划算，故优先采购数据。",
+  "walkthrough": "在 D=10M/30M/100M/300M 上训同架构小模型得 loss=3.2/2.9/2.6/2.35；对 log L 做线性回归得纯幂律 L≈13.8·D^(-0.091)，外推 D=1B 得约 2.1。相比把参数翻倍（边际收益更小），加数据更划算，故优先采购数据。",
   "code": "def scaling_loss(D, a, alpha, c):\n    return a * (D ** (-alpha)) + c\ndef fit(points):\n    import numpy as np\n    xs = np.log([p[0] for p in points])\n    ys = np.log([p[1] - 0.0 for p in points])\n    k, _ = np.polyfit(xs, ys, 1)\n    return -k  # alpha 近似",
   "complexity": "拟合为 O(点数) 的线性回归，预测为 O(1)；真正的成本在小规模训练实验本身。",
   "beginnerSummary": "像施肥实验：先在小块地试不同施肥量看产量，画出\"肥越多产越高但增幅变缓\"的曲线，再推算大规模该买多少肥最值。",
@@ -37,7 +37,7 @@ export default {
   ],
   "workedExample": [
     "points=[(10M,3.2),(30M,2.9),(100M,2.6),(300M,2.35)]。",
-    "polyfit 得 alpha≈0.09，外推 D=1B 得 loss≈2.15。",
+    "polyfit 得 alpha≈0.09，外推 D=1B 得 loss≈2.1。",
     "对比加参数的边际收益更低 → 决策优先扩数据。"
   ],
   "lineByLine": [

@@ -9,11 +9,11 @@ export default {
   "explanationFocus": "是什么：多任务数据平衡是在联合训练多个目标（图文检索、生成、VQA 等）时，为各任务分配采样权重，使模型不偏科、不发生灾难性遗忘的工程策略。",
   "bruteForce": "朴素做法：把所有任务数据按自然出现频率直接混，结果常见任务主导、稀有任务被忽略。",
   "invariant": "核心不变式：每个任务在每轮训练中被采样的概率 > 0，且权重随验证表现单调可调（差的任务权重不降）。",
-  "walkthrough": "4 个任务：检索 50M、生成 30M、VQA 15M、OCR 5M。用温度 α=0.5 加权后权重变 0.34/0.27/0.21/0.18，长尾 OCR 从 5% 提到 18%；训练中 VQA 验证掉点，再把其权重提到 0.25。",
+  "walkthrough": "4 个任务：检索 50M、生成 30M、VQA 15M、OCR 5M。用温度 α=0.5 加权：(1/N)^0.5 后归一化，权重变约 0.14/0.18/0.25/0.43，长尾 OCR 从原始占比 5% 提到 43%（稀有任务权重被显著拉高）；训练中 VQA 验证掉点，再把其权重提到约 0.30。",
   "code": "def task_weights(counts, alpha=0.5):\n    inv = {k: (1.0 / v) ** alpha for k, v in counts.items()}\n    s = sum(inv.values())\n    return {k: w / s for k, w in inv.items()}",
   "complexity": "权重计算 O(任务数)，每步采样 O(任务数) 选任务再 O(样本) 取数据，整体开销可忽略。",
   "beginnerSummary": "像几门课一起学：不能只刷擅长的数学，要给弱的语文多安排时间，且随时看哪科退步就加练哪科。",
-  "diagram": "counts:  R50M G30M Q15M O5M\ntemp α=0.5\nweights: 0.34 0.27 0.21 0.18  (长尾被拉高)",
+  "diagram": "counts:  R50M G30M Q15M O5M\ntemp α=0.5\nweights: 0.14 0.18 0.25 0.43  (长尾被拉高)",
   "derivation": [
     "为什么需要：任务数据量悬殊会导致模型只优化头部任务，长尾任务退化。",
     "怎么实现：用 (1/N)^α 温度加权平衡，并按验证表现动态升权掉队任务。",
@@ -37,8 +37,8 @@ export default {
   ],
   "workedExample": [
     "counts={R:50M,G:30M,Q:15M,O:5M}，α=0.5。",
-    "O 的 (1/5M)^0.5 相对最大，权重由 0.05 升到 0.18。",
-    "VQA 掉点后权重 0.21→0.25 补救。"
+    "O 的 (1/5M)^0.5 相对最大，归一化后权重由原始占比 0.05 升到约 0.43（稀有任务被显著拉高）。",
+    "VQA 掉点后权重由 0.25 提到约 0.30 补救。"
   ],
   "lineByLine": [
     "def task_weights(counts, alpha=0.5): 按样本数算任务权重。",

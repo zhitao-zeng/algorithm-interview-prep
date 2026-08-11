@@ -13,7 +13,7 @@ export default {
   "complexity": "说明：显存碎片趋近于零，块表开销 O(序列数×块数)，gather/lookup 为常数开销；吞吐相较预留式显著提升，代价是间接访存与块表维护。",
   "beginnerSummary": "KV Cache 占显存巨大。预留整段会浪费。PagedAttention 像给内存分页一样把 KV 切块、用表映射，空闲块可复用，省显存又提速。",
   "diagram": "seq A: [L0][L1][L2]\n         |   |   |\n        P3  P1  P7\nseq B: [L0][L1]\n         |   |\n        P2  P5\nfree physical blocks: P0 P4 P6",
-  "code": "def paged_attention(q, block_table, kv_blocks, block_size=16):\n    # block_table: 逻辑块 -> 物理块\n    ks = [kv_blocks[block_table[i]] for i in range(len(block_table))]\n    k = concat(ks, axis=0)\n    return softmax(q @ k.T / sqrt(d)) @ k",
+  "code": "def paged_attention(q, block_table, kv_blocks, block_size=16):\n    # block_table: 逻辑块 -> 物理块\n    ks = [kv_blocks[block_table[i]] for i in range(len(block_table))]\n    k = concat(ks, axis=0)\n    return softmax(q @ k.T / sqrt(d)) @ v",
   "derivation": [
     "为什么需要：自回归解码必须为每个历史 token 保存 KV，连续预留导致大量内部碎片，且不同序列长度差异大，显存利用率低、并发受限。",
     "怎么实现：将 KV 按 block_size 分页，逻辑块号经块表映射到任意物理块；分配器维护空闲物理块池，按需分配/回收，同一提示前缀可被多序列共享引用。",

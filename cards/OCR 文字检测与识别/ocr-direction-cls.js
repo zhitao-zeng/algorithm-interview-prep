@@ -5,7 +5,7 @@ export default {
   "title": "方向分类与旋转文本处理",
   "prompt": "OCR 中如何做文本方向分类，旋转或倒置文本应在流水线哪一步校正？",
   "quickAnswer": "用轻量分类器(如浅 CNN)判定文本为 0/90/180/270 度，在送识别前按判定角度旋转归正，避免识别器因方向错乱而读错。",
-  "code": "import cv2\nimport numpy as np\n\nDIRECTION_ANGLES = {0: 0, 1: 90, 2: 180, 3: 270}\n\ndef correct_orientation(img, direction_cls):\n    \"\"\"按方向分类结果旋转图像到正向\"\"\"\n    angle = DIRECTION_ANGLES[int(direction_cls(img))]\n    if angle == 0:\n        return img\n    h, w = img.shape[:2]\n    m = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)\n    return cv2.warpAffine(img, m, (w, h), flags=cv2.INTER_LINEAR)\n",
+  "code": "import cv2\nimport numpy as np\n\nDIRECTION_ANGLES = {0: 0, 1: 90, 2: 180, 3: 270}\n\ndef correct_orientation(img, direction_cls):\n    \"\"\"按方向分类结果旋转图像到正向\"\"\"\n    angle = DIRECTION_ANGLES[int(direction_cls(img))]\n    if angle == 0:\n        return img\n    h, w = img.shape[:2]\n    dsize = (h, w) if angle in (90, 270) else (w, h)  # 90/270° 旋转后宽高互换, 否则裁切内容\n    m = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)\n    return cv2.warpAffine(img, m, dsize, flags=cv2.INTER_LINEAR)\n",
   "complexity": "时间 O(H·W)（旋转），空间 O(H·W)",
   "beginnerSummary": "就像先把倒过来的书转正再读。方向分类器先判断这页字是头朝哪，转正后识别器才不会把字读反。",
   "derivation": [

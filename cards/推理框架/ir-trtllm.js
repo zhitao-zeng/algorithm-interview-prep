@@ -9,7 +9,7 @@ export default {
   "explanationFocus": "是什么：TensorRT-LLM 是 NVIDIA 面向 GPU 的高性能 LLM 推理库，它将模型编译成高度优化的执行引擎，通过算子融合、量化、分页 KV 与定制内核，在编译期固化最优执行路径以获得极低延迟与高吞吐。",
   "bruteForce": "朴素 PyTorch 推理逐算子调用、大量小块 kernel 启动与临时张量分配，GPU 利用率低、显存带宽未吃满，延迟高且波动大。",
   "invariant": "核心不变量：给定相同模型权重与构建配置，编译出的 engine 在固定输入形状范围内的数值与调度行为可复现，且 KV 块生命周期由运行时严格管理不越界。",
-  "walkthrough": "以 LLaMA-70B 在 4×A100 为例，开启 FP8 + 连续批处理，TRT-LLM 将 QKV 投影与 RoPE 融合为单 kernel，attention 用 FlashAttention；相比 HF 推理吞吐从约 900 tok/s 提升到 3000+ tok/s，P99 延迟降约 3 倍。",
+  "walkthrough": "以 LLaMA-70B 在 4×H100 为例（A100 为 Ampere 架构不支持 FP8 计算，FP8 需 Hopper 以上），开启 FP8 + 连续批处理，TRT-LLM 将 QKV 投影与 RoPE 融合为单 kernel，attention 用 FlashAttention；相比 HF 推理吞吐从约 900 tok/s 提升到 3000+ tok/s，P99 延迟降约 3 倍。",
   "code": "def build_engine(onnx_graph, cfg):\n    builder = trt.Builder(logger)\n    net = builder.create_network()          # 捕获为计算图\n    net = fuse_qkv_rope(net)                # 算子融合\n    net = quantize(net, cfg.precision)      # FP8/INT8\n    engine = builder.build_engine(net,\n        profile=cfg.shapes)                 # 编译期定形状/内核\n    return engine",
   "complexity": "构建为一次性 O(模型规模) 编译开销；运行推理核心仍为 O(n²) 注意力，但融合内核将常数因子降数倍，吞吐近线性随 GPU 数扩展。",
   "beginnerSummary": "像把一道复杂菜谱提前优化成一条流水线，把多步合并成一步、用更省料的火候，开火后每桌出菜又快又稳。",

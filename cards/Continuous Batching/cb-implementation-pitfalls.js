@@ -22,7 +22,7 @@ export default {
     "变长 mask 写错导致 attend 到未来/pad。",
     "释放与读取竞态：释放后才被某 kernel 引用。"
   ],
-  "code": "# Python\ndef step_position(req):\n    return req.generated  # 各自已生成数, 非全局步号\n\ndef causal_mask(length):\n    return [[1 if i <= j else 0 for j in range(length)] for i in range(length)]",
+  "code": "# Python\ndef step_position(req):\n    return req.generated  # 各自已生成数, 非全局步号\n\ndef causal_mask(length):\n    # 位置 i 只能 attend 自身及之前的 j (j <= i), 屏蔽未来\n    return [[1 if i >= j else 0 for j in range(length)] for i in range(length)]",
   "codeNotes": [
     "position 用每请求自计数，非全局步。",
     "mask 按各自长度, 非整批统一。"

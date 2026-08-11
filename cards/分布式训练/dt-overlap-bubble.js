@@ -5,7 +5,7 @@ export default {
   "title": "通信计算重叠与 Pipeline Bubble 优化",
   "difficulty": "Hard",
   "prompt": "请讲讲分布式训练中通信计算重叠与 pipeline bubble 优化：1F1B、interleaved schedule、comm/compute overlap 如何减小 bubble 比例？",
-  "quickAnswer": "Pipeline 并行中，各 stage 等待前 stage 数据会产生 bubble（空闲）。朴素 GPipe 先全前向再全后向，bubble 大；1F1B 在 warmup 后每完成一次前向立即排一次后向，使后向与前向在不同 stage 重叠，bubble 降到 (pp-1)/(m+pp-1)。interleaved 1F1B 让每设备持有多段不连续层，进一步把等效 pp 减小。comm/compute overlap 用异步通信（如 FSDP 的 all-gather 与 forward 重叠）隐藏通信延迟。",
+  "quickAnswer": "Pipeline 并行中，各 stage 等待前 stage 数据会产生 bubble（空闲）。GPipe 与 1F1B 的理论 bubble 占比相同，均为 (pp-1)/(m+pp-1)——区别在显存：1F1B 只缓存 pp-1 个在途 micro-batch 激活，而 GPipe 要缓存全部 m 个。真正进一步压低 bubble 的是 interleaved 1F1B：让每设备持有多段不连续层使等效 pp 减小。comm/compute overlap 用异步通信（如 FSDP 的 all-gather 与 forward 重叠）隐藏通信延迟。",
   "beginnerSummary": "流水线训练像工厂流水线，某些工位等料时会空转（bubble）。优化办法是让“算完一部分立刻回头算梯度”以及“在等数据的空隙里偷偷做通信”，把空转时间压到最小。",
   "explanationFocus": "是什么：Pipeline bubble 指流水线并行中部分 stage 因等待前序 stage 的输出而空闲的时间比例。通信计算重叠是指在前反向计算的同时异步执行集合通信（如梯度同步、参数 all-gather），把通信延迟隐藏在计算背后，从而提升设备利用率。",
   "approach": "用 1F1B 调度：先 warmup 若干 micro-batch 的前向，之后每完成一个前向就安排一个后向，使下游后向与上游前向重叠，bubble 仅出现在两端。interleaved schedule 让每个设备切分为多段（如 1F1B-int）并交错排布，缩短关键路径。comm/compute overlap 借助非阻塞 NCCL 调用，把 FSDP/TP 的 all-gather/reduce-scatter 与矩阵计算并发。",
@@ -31,7 +31,7 @@ export default {
     "异步集合通信（非阻塞 NCCL）与 CUDA stream"
   ],
   "workedExample": [
-    "例：pp=8, m=8，朴素 GPipe bubble 约 (8-1)/8≈88%；1F1B 降到 (8-1)/(8+8-1)=7/15≈47%；interleaved 等效 pp≈4 则约 3/11≈27%。",
+    "例：pp=8, m=8，GPipe 与 1F1B 的理论 bubble 占比相同，均为 (pp-1)/(m+pp-1)=7/15≈47%（二者差异在显存：1F1B 仅缓存 pp-1≈7 个在途 micro-batch 激活，GPipe 需缓存全部 m=8 个）；真正进一步压低 bubble 的是 interleaved 1F1B：每设备持 k 段薄层使等效流水线深度降到 pp/k，bubble≈(pp/k-1)/(m+pp/k-1)，取 k=2（等效 pp≈4）则约 3/11≈27%。",
     "例：FSDP 中把下一层参数的 all-gather 与当前层 forward 计算重叠，timeline 上通信被计算完全掩盖，step 时间接近纯计算。"
   ],
   "lineByLine": [

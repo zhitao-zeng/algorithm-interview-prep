@@ -23,7 +23,7 @@ export default {
     "中途断流需重连重计：连接断开后重连要从断点续传并重新打点，不能把重连耗时算进 TPOT。",
     "一个 chunk 含多 token：需按 token 数归一化间隔（间隔/该 chunk token 数），否则 TPOT 被高估。"
   ],
-  "code": "# Python\ndef stream_metrics(chunks):                  # chunks: [(t, tok)]\n    ttft = chunks[0][0] - chunks[0][1] and chunks[0][0]\n    gaps = [chunks[i][0]-chunks[i-1][0] for i in range(1,len(chunks))]\n    return chunks[0][0], sum(gaps)/len(gaps), chunks[-1][0]",
+  "code": "# Python\ndef stream_metrics(chunks, request_start):     # chunks: [(t, tok)], request_start: 请求发出时间\n    ttft = chunks[0][0] - request_start          # 首 token 时延\n    gaps = [chunks[i][0]-chunks[i-1][0] for i in range(1,len(chunks))]\n    tpot = sum(gaps)/len(gaps) if gaps else 0.0  # 相邻 token 平均间隔\n    return ttft, tpot, chunks[-1][0] - request_start   # TTFT, TPOT, 端到端时延",
   "codeNotes": [
     "要正确解析 SSE 的 data 事件与多行合并，跳过以 \":\" 开头的心跳注释行。",
     "统一 token 与字符粒度：用 tokenizer 把 chunk 文本转 token 数再算间隔，避免中英文混排失真。",

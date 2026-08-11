@@ -35,7 +35,7 @@ export default {
     "熟悉浏览器事件循环与 requestAnimationFrame"
   ],
   "workedExample": [
-    "示例A：模型 200 token/s，渲染 60 token/s，有界队列 N=1024 使内存封顶，约 17s 蓄满后暂停读取反向抑制。",
+    "示例A：模型 200 token/s，渲染 60 token/s，有界队列 N=1024 使内存封顶，约 7s 蓄满后暂停读取反向抑制。",
     "示例B：把按单 token 渲染改为每帧取 8 个，帧率从掉到 20fps 恢复到稳定 60fps。"
   ],
   "lineByLine": [

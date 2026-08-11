@@ -52,15 +52,15 @@ export default {
     "常带一个极小 eps 防止除零。"
   ],
   "workedExample": [
-    "x=[1,2,3]：mean(x²)=(1+4+9)/3=14/3≈4.667，RMS=√4.667≈2.160；x̂=[0.463,0.926,1.389]；y=x̂·γ+β。",
+    "x=[1,2,3]：mean(x²)=(1+4+9)/3=14/3≈4.667，RMS=√4.667≈2.160；x̂=[0.463,0.926,1.389]；y=x̂·γ（标准 RMSNorm 不含 bias）。",
     "与 LayerNorm 不同，不先减去均值（保留符号/偏移信息）。"
   ],
   "lineByLine": [
     "校验 weight 维度（weight.ndim / weight.shape[0]）与输入特征维一致。",
     "计算 rms = sqrt(mean(x², dim=-1, keepdim=True) + eps)。",
     "x̂ = x / rms。",
-    "y = x̂ * weight（+ bias 若提供）。"
+    "y = x̂ * weight（标准 RMSNorm 无 bias，仅逐特征增益）。"
   ],
-  "diagram": "x=[1,2,3]\nrms = √( mean(x²) ) = √(14/3) ≈ 2.16\nx̂ = x / rms\ny = x̂ · γ + β\n(先归一化再缩放, 比 LayerNorm 少一步减均值)",
+  "diagram": "x=[1,2,3]\nrms = √( mean(x²) ) = √(14/3) ≈ 2.16\nx̂ = x / rms\ny = x̂ · γ\n(无 bias；比 LayerNorm 少减均值与 bias，只缩放尺度)",
   "order": 4
 };

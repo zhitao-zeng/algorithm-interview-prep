@@ -5,7 +5,7 @@ export default {
   "title": "语种识别 LID 的梯度干扰隔离",
   "prompt": "在 ChinaVoices LID 仅 67.57% 的多任务学习中，LID 梯度干扰为何导致 ASR 负收益，应如何隔离？",
   "quickAnswer": "ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
-  "code": "def project_conflict(grad_asr: list, grad_lid: list) -> list:\n    \"\"\"当 ASR 与 LID 梯度冲突时，把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。\"\"\"\n    dot = sum(a * b for a, b in zip(grad_asr, grad_lid))\n    norm2 = sum(b * b for b in grad_lid) or 1e-8\n    if dot >= 0:\n        return grad_lid\n    return [b - dot / norm2 * a for a, b in zip(grad_asr, grad_lid)]",
+  "code": "def project_conflict(grad_asr: list, grad_lid: list) -> list:\n    \"\"\"当 ASR 与 LID 梯度冲突时，把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。\"\"\"\n    dot = sum(a * b for a, b in zip(grad_asr, grad_lid))\n    norm2 = sum(a * a for a in grad_asr) or 1e-8   # 分母是 ASR 梯度的模平方\n    if dot >= 0:\n        return grad_lid\n    return [b - dot / norm2 * a for a, b in zip(grad_asr, grad_lid)]",
   "complexity": "时间 O(d)（d 为参数维度），空间 O(d)",
   "beginnerSummary": "两个人同时拽一根绳子往不同方向，ASR 会被 LID 带偏；把 LID 那股“反向力”拆掉，只保留不打架的部分。",
   "derivation": [
@@ -36,9 +36,9 @@ export default {
   ],
   "lineByLine": [
     "dot = sum(a*b for ...) 计算 ASR 与 LID 梯度内积，判断冲突方向。",
-    "norm2 = sum(b*b ...) or 1e-8 求 LID 梯度模平方，加极小值防除零。",
+    "norm2 = sum(a*a ...) or 1e-8 求 ASR 梯度模平方（PCGrad 分母用参考梯度即 grad_asr 的模），加极小值防除零。",
     "if dot >= 0: return grad_lid 不冲突时原样保留 LID 梯度。",
-    "return [b - dot/norm2*a ...] 冲突时减去沿 ASR 方向的分量，仅留正交部分。"
+    "return [b - dot/norm2*a ...] 冲突时减去沿 ASR 方向的分量，仅留正交部分（与 grad_asr 内积变为 0）。"
   ],
   "followUps": [
     {
