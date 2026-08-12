@@ -19822,6 +19822,576 @@ const questions = [
     "order": 10
   },
   {
+    "id": "ci-propensity-score",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "倾向得分(Propensity Score)：定义、估计与 overlap 诊断",
+    "difficulty": "Medium",
+    "prompt": "倾向得分 e(x)=P(T=1|x) 如何用来做因果调整？估计时为何要关注 positivity/overlap 假设，又如何诊断与处理重叠不足？",
+    "quickAnswer": "倾向得分为给定协变量 x 下接受处理的概率 e(x)=P(T=1|x)，它是协变量的一维平衡分数，给定 e(x) 即平衡所有观测混杂(Rosenbaum-Rubin 定理)。估计可用逻辑回归或更灵活的机器学习模型，但需避免过拟合导致 e(x) 极端。positivity 要求每个 x 都有 0<e(x)<1 的非零被处理机会，重叠不足会让加权/匹配失效，可用重叠图诊断并对重叠区外个体做 trimming。",
+    "code": "import numpy as np\nfrom sklearn.linear_model import LogisticRegression\n\ndef fit_propensity(X, T):\n    model = LogisticRegression(max_iter=1000)\n    model.fit(X, T)\n    return model.predict_proba(X)[:, 1]\n\ndef overlap_diagnose(e, lo=0.1, hi=0.9):\n    return (e < lo) | (e > hi)",
+    "complexity": "估计 O(N·d·iter)；平衡得分把维度从 d 压缩到 1",
+    "beginnerSummary": "人群千差万别，倾向得分把\"这个人有多可能被分到处理组\"压成一个 0~1 的概率，用它把处理组和对照组拉到同一类人上再比结果。",
+    "explanationFocus": "是什么：倾向得分 e(x)=P(T=1|x) 是在给定协变量 x 时个体接受处理的条件概率，它是一维平衡分数——所有观测混杂经 e(x) 平衡后处理组与对照组可比。",
+    "approach": "先估 e(x)(逻辑回归或机器学习)，再用它做加权(IPW)、匹配或分层以平衡混杂；同时诊断 overlap 并对重叠不足区域 trimming。",
+    "derivation": [
+      "为什么需要：多维协变量直接匹配遇维度灾难，需把可比性压缩到一维。",
+      "怎么实现：用分类模型在观测数据上拟合 P(T=1|x) 得 e(x)，再据 e(x) 加权/匹配/分层。",
+      "有什么代价：e(x) 估计误差直接传到效应估计；机器学习估得准但易给极端值，破坏 positivity。",
+      "怎么评测：看加权/匹配后各协变量标准化均值差(SMD<0.1)是否平衡，并检查 overlap 覆盖。"
+    ],
+    "edgeCases": [
+      "某 x 区域 e(x)≈0 或 1，positivity 被破坏，该子群效应无法识别。",
+      "用强模型估 e(x) 出现过拟合，少数样本 e(x) 极端，加权方差爆炸。",
+      "协变量含与处理近乎确定的关系(如政策强制)，e(x) 边界化。"
+    ],
+    "pitfalls": [
+      "只平衡了 e(x) 一维，若正确模型需高阶交互，简单逻辑回归仍留残余混杂。",
+      "为稳住方差过度 trimming，丢弃大量样本并改变目标人群，需报告估计的是重叠人群效应。"
+    ],
+    "prerequisites": [
+      "潜在结果与可忽略性假设",
+      "逆概率加权(IPW)基础"
+    ],
+    "workedExample": [
+      "1000 人，逻辑回归得 e(x)：处理组均值 0.62、对照组 0.38；按 e(x) 五分位分层后各层协变量 SMD 均<0.1。",
+      "重叠诊断发现 40 人 e(x)>0.95(几乎必处理)，trimming 到 [0.05,0.95] 后保留 960 人，IPW 加权 ATE 由 0.31 变为 0.24，方差更稳。"
+    ],
+    "lineByLine": [
+      "def fit_propensity：用 LogisticRegression 在 (X,T) 上拟合处理概率。",
+      "model.predict_proba(X)[:,1]：取正类概率即 e(x)。",
+      "def overlap_diagnose：标记落在 [lo,hi] 之外的样本，定位重叠不足个体。"
+    ],
+    "followUps": [
+      {
+        "question": "倾向得分分层和 IPW 有什么区别？",
+        "answer": "分层是把 e(x) 相近样本分组比较再加权平均，解释性强但仍有信息损失；IPW 用权重重构伪人群，更平滑但方差大。两者都依赖 e(x) 正确与 positivity。"
+      },
+      {
+        "question": "机器学习估 e(x) 比逻辑回归好在哪、风险在哪？",
+        "answer": "灵活模型能捕捉非线性与交互，平衡更好；但易对训练样本给出 0/1 极端概率，破坏 positivity 并使加权爆炸，常需交叉拟合(cross-fitting)与截断。"
+      }
+    ],
+    "order": 11,
+    "followUpAnswers": [
+      "分层是把 e(x) 相近样本分组比较再加权平均，解释性强但仍有信息损失；IPW 用权重重构伪人群，更平滑但方差大。两者都依赖 e(x) 正确与 positivity。",
+      "灵活模型能捕捉非线性与交互，平衡更好；但易对训练样本给出 0/1 极端概率，破坏 positivity 并使加权爆炸，常需交叉拟合(cross-fitting)与截断。"
+    ]
+  },
+  {
+    "id": "ci-mediation",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "中介分析(Mediation)：NDE、NIE 与 Sobel/Bootstrap",
+    "difficulty": "Medium",
+    "prompt": "中介分析如何把总效应拆成自然直接效应(NDE)与自然间接效应(NIE)？Sobel 检验与 Bootstrap 置信区间各有何优劣？",
+    "quickAnswer": "中介分析在 X→M→Y 中加入中介 M，把总效应拆为 NDE(保持 M 在对照水平、改变 X 的效应)与 NIE(保持 X 在对照水平、经 M 传导的效应)，NDE+NIE=总效应。Sobel 检验假设 a·b 乘积近似正态，解析快但有正态性假设、对小样本保守；Bootstrap 不依赖正态假设、直接对 a·b 重抽样给置信区间，更稳健但计算贵。",
+    "code": "import numpy as np\nfrom sklearn.linear_model import LinearRegression\n\ndef mediation_effects(X, M, Y):\n    a = LinearRegression().fit(X, M).coef_[0]\n    b = LinearRegression().fit(np.c_[X, M], Y).coef_[1]\n    cp = LinearRegression().fit(np.c_[X, M], Y).coef_[0]\n    return a * b, cp\n\ndef sobel_se(a, sa, b, sb):\n    return np.sqrt(b**2 * sa**2 + a**2 * sb**2)",
+    "complexity": "拟合两条回归 O(N·d)；Bootstrap B 次重抽样为 O(B·N·d)",
+    "beginnerSummary": "药不仅能直接治病，还可能先改善睡眠再治病。中介分析就是把\"直接作用\"和\"绕道睡眠的作用\"分开算账。",
+    "explanationFocus": "是什么：中介分析研究处理 X 通过中介变量 M 影响结果 Y 的机制，将总效应分解为自然直接效应(NDE，X 变而 M 保持原分布)与自然间接效应(NIE，X 固定而 M 随 X 变化的部分)。",
+    "approach": "分别拟合 X→M(a) 与 X,M→Y(b,c′) 两条回归，乘积 a·b 估计 NIE、c′ 估计 NDE；用 Sobel 或 Bootstrap 给 NIE 置信区间。",
+    "derivation": [
+      "为什么需要：只知道 X 影响 Y 不够，还要弄清是直通车还是经 M 中转，指导干预靶点。",
+      "怎么实现：估计 a(路径 X→M)、b(路径 M→Y 控 X)、c′(X→Y 控 M)，NIE=a·b、NDE=c′。",
+      "有什么代价：需顺序可忽略性(无 X→M 与 M→Y 的未观测混杂)，否则效应分解有偏。",
+      "怎么评测：报告 NDE/NIE 占比、Bootstrap 置信区间是否排除 0，并检验中介比例。"
+    ],
+    "edgeCases": [
+      "存在 X→M 的未观测混杂，NIE 估计有偏且方向难判。",
+      "M 与 Y 互为因果(X→M 与 Y→M 同时存在)，标准中介公式失效。",
+      "a 或 b 接近 0 使 NIE 极小，Sobel 检验功效低易漏检。"
+    ],
+    "pitfalls": [
+      "把相关链条当因果中介，忽略 M 与 Y 间的混杂(如基线严重度)。",
+      "Sobel 检验要求 a·b 乘积正态，偏态小样本下 Bootstrap 更可靠却常被省略。"
+    ],
+    "prerequisites": [
+      "潜在结果与可忽略性",
+      "线性回归与系数解释"
+    ],
+    "workedExample": [
+      "健身(X)经睡眠(M)提升精力(Y)：a=0.5(健身多睡0.5h)、b=2.0(每多睡1h精力+2)、c′=1.0(直接作用)。",
+      "NIE=a·b=1.0，NDE=c′=1.0，总效应=2.0，中介占比 50%；Sobel SE=√(2²·0.1²+0.5²·0.3²)=√(0.04+0.0225)=0.25，z=1.0/0.25=4>1.96 显著。"
+    ],
+    "lineByLine": [
+      "def mediation_effects：用 LinearRegression 估计 a(X→M) 和 b、c′(X,M→Y)。",
+      "return a*b, cp：a*b 即自然间接效应 NIE，c′ 即自然直接效应 NDE。",
+      "def sobel_se：按 √(b²sa²+a²sb²) 解析计算 a·b 的标准误用于 z 检验。"
+    ],
+    "followUps": [
+      {
+        "question": "NDE 和 NIE 加起来一定等于总效应吗？",
+        "answer": "在线性且无交互、可忽略假设成立时 NDE+NIE=总效应；若存在 X×M 交互或暴露-中介交互，二者加总可能不等于总效应，需用反事实定义正确拆分。"
+      },
+      {
+        "question": "Sobel 和 Bootstrap 该选哪个？",
+        "answer": "Bootstrap(尤其偏差校正 BCa)不依赖乘积正态假设、对小样本与偏态更稳健，是现今主流；Sobel 计算快但保守且对正态敏感，适合大样本快速筛查。"
+      }
+    ],
+    "order": 12,
+    "followUpAnswers": [
+      "在线性且无交互、可忽略假设成立时 NDE+NIE=总效应；若存在 X×M 交互或暴露-中介交互，二者加总可能不等于总效应，需用反事实定义正确拆分。",
+      "Bootstrap(尤其偏差校正 BCa)不依赖乘积正态假设、对小样本与偏态更稳健，是现今主流；Sobel 计算快但保守且对正态敏感，适合大样本快速筛查。"
+    ]
+  },
+  {
+    "id": "ci-front-door",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "前门准则(Front-Door Criterion)",
+    "difficulty": "Hard",
+    "prompt": "当存在未观测混杂 U 影响处理与结果时，前门准则在什么条件下仍能识别因果效应？它与后门准则如何互补？",
+    "quickAnswer": "前门准则在存在未观测混杂 U 时仍可识别，需满足：(1)处理到中介 M 无未观测混杂；(2)中介 M 到结果 Y 无未观测混杂；(3)不存在处理到结果的直接路径(全部效应经 M)；(4)处理与中介充分强。效应按 P(y|do(x))=Σ_m P(m|x)Σ_x′ P(y|m,x′)P(x′) 识别，核心把效应拆成 X→M 与 M→Y 两段，每段各自未被 U 污染。后门处理观测混杂、前门处理特定结构的未观测混杂，二者互补。",
+    "code": "import numpy as np\n\ndef front_door_effect(P_M_given_X, P_Y_given_M_X, X_vals):\n    total = 0.0\n    for x1 in X_vals:\n        acc = 0.0\n        for m in [0, 1]:\n            for x2 in X_vals:\n                acc += P_M_given_X[m, x1] * P_Y_given_M_X[1, m, x2] / len(X_vals)\n        total += acc / len(X_vals)\n    return total",
+    "complexity": "枚举 x,m 组合 O(|X|·|M|·|X|)，离散情形线性、连续需积分/模型",
+    "beginnerSummary": "抽烟和肺癌之间可能有说不清的遗传因素(U)同时影响两者。如果抽烟一定先伤肺(M)，且伤肺到肺癌没别的暗道，那就能把\"抽烟→伤肺\"和\"伤肺→肺癌\"两段分开量，绕开那个说不清的 U。",
+    "explanationFocus": "是什么：前门准则是一种在存在未观测混杂 U 污染 X→Y 时仍可识别因果效应的图准则，前提是全部 X 对 Y 的效应都经由中介 M，且 X→M 与 M→Y 这两段各自没有未观测混杂。",
+    "approach": "把不可识别的 X→Y 拆成两段：先识 X→M(无 U 污染)，再识 M→Y(无 U 污染)，乘积式 Σ_m P(m|x)Σ_x′ P(y|m,x′)P(x′) 给出 do 表达式。",
+    "derivation": [
+      "为什么需要：后门要求观测所有混杂，现实常有未观测 U，此时标准调整失效。",
+      "怎么实现：验证 X→M、M→Y 两段无 U，且 X→Y 无直接边；用前门公式分段识别再相乘。",
+      "有什么代价：对图结构假设极强，任一段漏掉混杂即偏倚；需 M 充分介导。",
+      "怎么评测：敏感性分析检验 M 是否遗漏混杂、M 是否充分中介，对比后门估计。"
+    ],
+    "edgeCases": [
+      "X→Y 存在未被 M 介导的直接路径，前门公式漏算直接效应。",
+      "M→Y 存在未观测混杂(如社会因素同时影响伤肺程度与就诊)，识别失效。",
+      "M 仅介导很小部分效应，估计方差大且对假设极敏感。"
+    ],
+    "pitfalls": [
+      "把\"有中介\"误当\"完全中介\"，忽略直接路径导致低估总效应。",
+      "前门的 M 必须本身不被 U 直接影响，否则和后门一样被污染。"
+    ],
+    "prerequisites": [
+      "有向无环图(DAG)与 d-分离",
+      "后门准则与 do-演算"
+    ],
+    "workedExample": [
+      "抽烟(X)→焦油沉积(M)→肺癌(Y)，U=遗传同时影响 X,Y 但被假定不影响 M。",
+      "测得 P(M=高|X=1)=0.8、P(M=高|X=0)=0.2；P(Y=1|M=高,X=1)=0.30、P(Y=1|M=高,X=0)=0.28(控制 X 后 M→Y 稳定)。前门效应≈Σ_m P(m|x)Σ_x′ P(y|m,x′)P(x′)，估算 do(X=1) 相对 do(X=0) 风险比约 2.1，绕开了 U。"
+    ],
+    "lineByLine": [
+      "def front_door_effect：按前门公式在离散 x,m 上求和识别 do 效应。",
+      "P_M_given_X[m,x1]：第一段 X→M 的概率，假定无未观测混杂可直接估。",
+      "内层 Σ_x′ P_Y_given_M_X[1,m,x′] / len(X_vals)：第二段 M→Y 对 x′ 边际化，消去被 U 污染的 X 关联。"
+    ],
+    "followUps": [
+      {
+        "question": "前门和后门能同时用吗？",
+        "answer": "可以。先用后门调整观测混杂得到 X→M 与 M→Y 的干净估计，再套前门公式；当 U 只污染 X→Y 而不污染两段时，前门是后门的必要补充。"
+      },
+      {
+        "question": "前门公式里的 Σ_x′ P(x′) 为什么重要？",
+        "answer": "它把 M→Y 的效应在 X 的边际分布上平均，消除 X→M 段可能残留的(被 U 污染的)X 与 Y 关联，这正是绕开 U 的关键一步。"
+      }
+    ],
+    "order": 13,
+    "followUpAnswers": [
+      "可以。先用后门调整观测混杂得到 X→M 与 M→Y 的干净估计，再套前门公式；当 U 只污染 X→Y 而不污染两段时，前门是后门的必要补充。",
+      "它把 M→Y 的效应在 X 的边际分布上平均，消除 X→M 段可能残留的(被 U 污染的)X 与 Y 关联，这正是绕开 U 的关键一步。"
+    ]
+  },
+  {
+    "id": "ci-sensitivity",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "因果敏感性分析(Rosenbaum 边界与 E-value)",
+    "difficulty": "Hard",
+    "prompt": "当 unconfoundedness 可能不成立时，如何用 Rosenbaum 边界与 E-value 判断因果结论是否稳健？",
+    "quickAnswer": "敏感性分析量化\"未观测混杂要多强才能推翻结论\"。Rosenbaum 边界给出处理组与对照组在混杂下倾向得分比的上界 Γ，Γ 越大结论越稳；E-value(VanderWeele)给出使点估计失效所需的最小混杂强度(风险比形式)，E-value 越大结论越难被未观测混杂推翻。二者都回答\"还要藏多深的混杂才能翻案\"，帮助判断结论可信度。",
+    "code": "import numpy as np\n\ndef e_value(rr, ci_low=None):\n    if ci_low is None:\n        return rr + np.sqrt(rr * (rr - 1)) if rr > 1 else 1/rr + np.sqrt((1/rr) * (1/rr - 1))\n    est = ci_low + np.sqrt(ci_low * (ci_low - 1)) if ci_low > 1 else 1/ci_low + np.sqrt((1/ci_low) * (1/ci_low - 1))\n    return est\n\ndef rosenbaum_gamma(p, gamma):\n    return p * gamma",
+    "complexity": "E-value 解析 O(1)；Rosenbaum 边界重排/重加权 O(N·iter)",
+    "beginnerSummary": "你说这药真有效，我得问：还要藏一个多厉害的\"隐藏因素\"才能把你这结论扳倒？能扳倒需要的隐藏因素越夸张，你这结论就越稳。",
+    "explanationFocus": "是什么：因果敏感性分析评估未观测混杂(unmeasured confounding)在多大程度上能改变已得因果结论，常用 Rosenbaum 边界(倾向得分比上界 Γ)与 E-value(使点估计失效的最小混杂风险比)两种度量。",
+    "approach": "先估主效应，再反推\"需多强未观测混杂才能翻案\"：E-value 给单一数字阈值，Rosenbaum 边界给 Γ 随 p 值变化的稳健区间。",
+    "derivation": [
+      "为什么需要：unconfoundedness 不可证伪，必须量化结论对遗漏混杂的脆弱度。",
+      "怎么实现：Rosenbaum 用 Γ 限定处理/对照组倾向得分比；E-value 反解使 RR 退化为 1 的最小混杂强度。",
+      "有什么代价：都基于简化假设(单混杂、同质效应)，只能给边界而非真实偏倚。",
+      "怎么评测：报告 E-value 并与已观测协变量强度对比；Γ 临界值远大于 1 才称稳健。"
+    ],
+    "edgeCases": [
+      "效应接近 0 时 E-value≈1，任何微小混杂都能翻案，结论本就脆弱。",
+      "存在多个相关未观测混杂，单因子 E-value 低估所需总强度。",
+      "效应估计本身置信区间宽，即使 E-value 大也难言稳健。"
+    ],
+    "pitfalls": [
+      "把 E-value 当\"已证明无混杂\"，它只是翻案难度阈值。",
+      "未把已观测混杂强度作为参照，孤立看 E-value 易误判。"
+    ],
+    "prerequisites": [
+      "可忽略性/unconfoundedness 假设",
+      "风险比与因果效应度量"
+    ],
+    "workedExample": [
+      "观察研究得 RR=2.0(处理增风险一倍)，E-value=2.0+√(2·1)=3.41：需一个使风险×3.41 的未观测混杂才能翻案。",
+      "若最强已观测协变量仅 RR=1.5，因 1.5<3.41，说明已观测混杂还不够强，结论相对稳健；Rosenbaum Γ 在 p=0.05 临界约 1.8，即倾向得分比需达 1.8 倍才推翻。"
+    ],
+    "lineByLine": [
+      "def e_value：对点估计 rr>1 用 rr+√(rr(rr-1)) 计算翻案所需最小混杂强度。",
+      "对置信下限 ci_low 同样计算，保证区间端点也稳健。",
+      "def rosenbaum_gamma：示意 Γ 放大对 p 值的影响，实际需按倾向得分比对配对重加权。"
+    ],
+    "followUps": [
+      {
+        "question": "E-value 和 Rosenbaum 边界哪个更常用？",
+        "answer": "E-value 给出单一直观阈值、易报告，流行病与观测研究常用；Rosenbaum 边界给出随 Γ 变化的显著区间，更细但计算与解释更重。两者互补，报告中常并列。"
+      },
+      {
+        "question": "E-value 大于 1 很多就代表无混杂吗？",
+        "answer": "不。它只说明要翻案需很强的混杂；若已知存在 RR>该值的未观测混杂，结论仍可能被推翻。须结合领域知识判断是否存在如此强的混杂。"
+      }
+    ],
+    "order": 14,
+    "followUpAnswers": [
+      "E-value 给出单一直观阈值、易报告，流行病与观测研究常用；Rosenbaum 边界给出随 Γ 变化的显著区间，更细但计算与解释更重。两者互补，报告中常并列。",
+      "不。它只说明要翻案需很强的混杂；若已知存在 RR>该值的未观测混杂，结论仍可能被推翻。须结合领域知识判断是否存在如此强的混杂。"
+    ]
+  },
+  {
+    "id": "ci-learner-tsx",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "元学习器估计 CATE(T/S/X-learner)",
+    "difficulty": "Hard",
+    "prompt": "如何用 T-learner、S-learner 与 X-learner 估计条件平均处理效应 CATE？各自适用什么数据场景？",
+    "quickAnswer": "T-learner 为处理组/对照组各训一个模型 μ1、μ0，CATE=μ1(x)-μ0(x)，适合组间差异大的异质效应；S-learner 把处理指示 T 当特征训单一模型，CATE=μ(x,1)-μ(x,0)，借共享结构降方差但易低估效应；X-learner 先用 T/S 思路估 CATE，再用倾向得分对两组估计做加权交叉，小处理组与效应稀疏时更准。选择看组大小与效应强度：组均衡且效应强用 T，稀疏用 X。",
+    "code": "import numpy as np\nfrom sklearn.ensemble import GradientBoostingRegressor\n\ndef t_learner(X, T, Y):\n    m1 = GradientBoostingRegressor().fit(X[T == 1], Y[T == 1])\n    m0 = GradientBoostingRegressor().fit(X[T == 0], Y[T == 0])\n    return m1, m0\n\ndef s_learner(X, T, Y):\n    m = GradientBoostingRegressor().fit(np.c_[X, T], Y)\n    return m\n\ndef x_learner(X, T, Y, e, m1, m0):\n    tau_t = m1.predict(X) - m0.predict(X)\n    tau = np.where(T == 1, Y - m0.predict(X), m1.predict(X) - Y)\n    mx = GradientBoostingRegressor().fit(X, tau)\n    return e * tau_t + (1 - e) * mx.predict(X)",
+    "complexity": "各 learner 拟合 1~2 个 GBRT，O(N·d·trees)；预测 O(trees)",
+    "beginnerSummary": "想知道\"这药对哪类人特别有效\"。T 法给两类人各建一本账相减；S 法把\"是否吃药\"当备注记在一本账里；X 法聪明地把两本账按\"这人多可能被给药\"融合，小样本更稳。",
+    "explanationFocus": "是什么：元学习器(meta-learner)用现成监督模型包装来估计条件平均处理效应 CATE=τ(x)=E[Y(1)-Y(0)|x]，主流有 T/S/X 三种：T 双模型、S 单模型带处理指示、X 倾向加权交叉。",
+    "approach": "据样本量与效应结构选 learner：T 分别建模两组、S 共享建模、X 在伪结果上用倾向得分加权融合两组 CATE 估计。",
+    "derivation": [
+      "为什么需要：RCT 只给 ATE，个性化干预需 CATE，但处理与结果模型异质难直接建模。",
+      "怎么实现：T 训 μ1,μ0 相减；S 训含 T 的单模型取差；X 用伪结果 τ 与倾向 e 加权组合。",
+      "有什么代价：T 在小组方差大；S 易把效应 shrinkage 掉；X 依赖 e(x) 准确与伪结果可靠。",
+      "怎么评测：用基准(cate suite)或实验数据比 MSE，看异质区校准与 Coverage。"
+    ],
+    "edgeCases": [
+      "处理组极小，T-learner 的 μ1 欠拟合，CATE 在高维区崩。",
+      "S-learner 把 T 当弱特征，强效应也被共享结构稀释成近 0。",
+      "e(x) 极端时 X-learner 加权失衡，伪结果方差爆炸。"
+    ],
+    "pitfalls": [
+      "忽略对 CATE 的校准验证，只在 ATE 上评估误导异质估计。",
+      "X-learner 用同批数据估 e 与 τ 导致过拟合，应交叉拟合。"
+    ],
+    "prerequisites": [
+      "潜在结果与 CATE 定义",
+      "集成树模型(Gradient Boosting)"
+    ],
+    "workedExample": [
+      "N=10000，处理组仅 500 人，真实 τ(x) 在中年组高。T-learner 在小组区 MSE 高；S-learner 把 τ 估成接近常数 0.1(真实 0.6)。",
+      "X-learner 用 e(x) 加权后，在中年组 CATE 估到 0.55、老年组 0.12，MSE 比 T 低约 23%，因借对照组结构补了处理组稀疏。"
+    ],
+    "lineByLine": [
+      "def t_learner：分别对 T=1/T=0 训模型，返回两模型即 CATE 的组件。",
+      "def s_learner：把 T 拼进特征，对 (x,1) 与 (x,0) 预测相减。",
+      "def x_learner：用伪结果 τ 与倾向 e 加权融合两组估计，缓解小组方差。"
+    ],
+    "followUps": [
+      {
+        "question": "什么时候别用 S-learner？",
+        "answer": "当处理效应强且异质、而你用的模型有正则/共享结构(如单一树或带 L2 的模型)时，S-learner 会把 τ shrinkage 掉，这时优先 T 或 X-learner。"
+      },
+      {
+        "question": "X-learner 的 e(x) 怎么来才稳？",
+        "answer": "用交叉拟合(cross-fitting)在留出集上估倾向得分，避免用同批数据既估 e 又估 τ 造成过拟合；e 极端处应截断或改用 DR-learner。"
+      }
+    ],
+    "order": 15,
+    "followUpAnswers": [
+      "当处理效应强且异质、而你用的模型有正则/共享结构(如单一树或带 L2 的模型)时，S-learner 会把 τ shrinkage 掉，这时优先 T 或 X-learner。",
+      "用交叉拟合(cross-fitting)在留出集上估倾向得分，避免用同批数据既估 e 又估 τ 造成过拟合；e 极端处应截断或改用 DR-learner。"
+    ]
+  },
+  {
+    "id": "ci-causal-forest",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "因果森林(GRF)与诚实树(Honesty)",
+    "difficulty": "Hard",
+    "prompt": "因果森林(GRF)如何估计异质处理效应？其分裂准则、Honesty 与方差估计与传统随机森林有何不同？",
+    "quickAnswer": "GRF 把随机森林的分裂准则换成\"最大化子节点间 CATE 异质性\"的伪结果梯度(对 ATE 用双重稳健 scores)，从而专门找效应分歧大的切分。Honesty 把样本随机分成生长集与估计集，树结构用前者、叶内 CATE 用后者，消除同数据既建树又估效应的乐观偏。方差用 bootstrap/Jackknife 在叶层聚合估计，给出逐点置信区间。传统 RF 优化预测误差、不保证异质识别且无因果方差。",
+    "code": "import numpy as np\nfrom sklearn.ensemble import RandomForestRegressor\n\ndef grf_pseudo_outcome(Y, T, e, mu0, mu1):\n    return T * (Y - mu1) / e - (1 - T) * (Y - mu0) / (1 - e) + (mu1 - mu0)\n\ndef honesty_split(X, Y, T, e, mu0, mu1):\n    n = len(Y)\n    grow, est = np.split(np.random.permutation(n), [n // 2])\n    forest = RandomForestRegressor().fit(X[grow], grf_pseudo_outcome(Y[grow], T[grow], e[grow], mu0[grow], mu1[grow]))\n    return forest.predict(X[est])",
+    "complexity": "每棵树 O(N log N·d) 同 RF，但需预估 e,μ 且多次重抽样，常数更大；方差估计增 O(B·N)",
+    "beginnerSummary": "普通随机森林想\"猜结果\"，因果森林想\"找哪拨人对药反应差别最大\"。它每切一刀都问：这一刀两边的效果差异拉得够大吗？还特意用一半数据长树、另一半算效果，防止自己骗自己。",
+    "explanationFocus": "是什么：因果森林(Generalized Random Forest)是一类针对异质处理效应(CATE)的森林方法，用最大化 CATE 异质性的伪结果梯度作分裂准则，并借 Honesty 划分与刀切方差给出逐点置信区间。",
+    "approach": "构造双重稳健伪结果，以最大化子节点 CATE 方差的准则递归分裂；Honesty 把样本分两半分别用于建树与估叶内效应；bootstrap 聚合得 CATE 与方差。",
+    "derivation": [
+      "为什么需要：传统 RF 优化 MSE，分裂不针对效应异质，给不了可信区间。",
+      "怎么实现：用伪结果定义局部矩，分裂使子节点 τ 差异最大；诚实划分防乐观偏；聚合得 τ(x) 与方差。",
+      "有什么代价：需先估倾向 e 与结果 μ，预模型误差传到森林；计算比普通 RF 重。",
+      "怎么评测：Best Linear Predictor 检验、置信区间覆盖、与基准 CATE 比 MSE。"
+    ],
+    "edgeCases": [
+      "处理组极稀疏，叶内两类样本失衡，CATE 方差大、区间空。",
+      "预估 e,μ 偏差大，伪结果失真，森林沿错误方向分裂。",
+      "特征无真实异质，森林仍会\"编造\"分裂，需 BLP 检验把关。"
+    ],
+    "pitfalls": [
+      "误把 GRF 输出当无偏点估计而忽略其依赖 e,μ 正确。",
+      "未做 Honesty 而同数据建树又估效应，置信区间偏窄、覆盖不足。"
+    ],
+    "prerequisites": [
+      "随机森林与装袋",
+      "双重稳健估计与 CATE"
+    ],
+    "workedExample": [
+      "N=5000，GRF 在年龄切分点 45 岁处子节点 τ 分别为 0.2(青年)与 0.7(中年)，异质分裂显著。",
+      "Honesty 下中年组 CATE 估 0.68，95% CI [0.55,0.81] 排除 0；非诚实版 CI [0.60,0.76] 偏窄，覆盖率低 8 个百分点。"
+    ],
+    "lineByLine": [
+      "def grf_pseudo_outcome：构造双重稳健伪结果，把 CATE 估计转成回归目标。",
+      "def honesty_split：把样本随机分生长集/估计集，树结构用生长集、CATE 用估计集。",
+      "forest.predict(X[est])：在估计集上预测，避免同数据乐观偏。"
+    ],
+    "followUps": [
+      {
+        "question": "GRF 和普通随机森林核心区别？",
+        "answer": "普通 RF 分裂最小化预测 MSE，目标是 Y；GRF 分裂最大化 CATE 异质(用伪结果梯度)，目标是 τ(x)，并额外提供 Honesty 与逐点方差，是因果而非预测。"
+      },
+      {
+        "question": "Honesty 会损失样本效率吗？",
+        "answer": "会牺牲约一半数据用于建树，但换来无偏的叶内估计与可信区间；在异质效应估计中这种偏差-方差权衡通常值得，且可用交叉化 Honesty 缓解。"
+      }
+    ],
+    "order": 16,
+    "followUpAnswers": [
+      "普通 RF 分裂最小化预测 MSE，目标是 Y；GRF 分裂最大化 CATE 异质(用伪结果梯度)，目标是 τ(x)，并额外提供 Honesty 与逐点方差，是因果而非预测。",
+      "会牺牲约一半数据用于建树，但换来无偏的叶内估计与可信区间；在异质效应估计中这种偏差-方差权衡通常值得，且可用交叉化 Honesty 缓解。"
+    ]
+  },
+  {
+    "id": "ci-gcomputation",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "G-computation / g-formula",
+    "difficulty": "Medium",
+    "prompt": "G-computation(g-formula)如何通过对模型预测做边际化来估计 ATE？它与 IPTW、边际结构模型有何关系？",
+    "quickAnswer": "G-computation 用观测数据拟合结果模型 E[Y|T,X]，再对每个个体把处理分别设为 1 与 0 做反事实预测，对所有 X 平均得到 E[Y(1)] 与 E[Y(0)]，其差即 ATE(需可忽略性)。本质是标准化/边际化掉协变量。它依赖结果模型正确；与 IPTW 互补——IPTW 靠倾向模型、G-formula 靠结果模型——AIPW/DR 把二者结合，对任一方误设仍一致。MSM 常在 IPTW 加权后拟合，G-formula 则直接建模结果。",
+    "code": "import numpy as np\nfrom sklearn.linear_model import LogisticRegression\n\ndef g_formula(X, T, Y):\n    model = LogisticRegression().fit(np.c_[X, T], Y)\n    p1 = model.predict_proba(np.c_[X, np.ones(len(X))])[:, 1]\n    p0 = model.predict_proba(np.c_[X, np.zeros(len(X))])[:, 1]\n    return p1.mean() - p0.mean()\n\ndef aipw(X, T, Y, e, mu0, mu1):\n    tau = T * (Y - mu1) / e - (1 - T) * (Y - mu0) / (1 - e) + mu1 - mu0\n    return tau.mean()",
+    "complexity": "拟合结果模型 O(N·d)；边际化 O(N)，比 IPTW 更省且无需极端权重",
+    "beginnerSummary": "想知道全民吃药会怎样、都不吃会怎样。G-formula 给每个人各\"算一遍\"吃药和不吃的得分，再把所有人平均，差就是平均因果效应；它靠把个人特征\"抹平\"。",
+    "explanationFocus": "是什么：G-computation(又称 g-formula)通过拟合观测结果模型 E[Y|T,X]，把处理分别干预为 1 与 0 生成反事实预测，再对所有协变量 X 取期望，用 E[Y(1)]-E[Y(0)] 估计 ATE。",
+    "approach": "拟合结果回归 → 对每个样本算两种处理的预测 → 在 X 上平均得边际结果 → 相减得 ATE；可与 IPTW 组合成双重稳健 AIPW。",
+    "derivation": [
+      "为什么需要：直接边际化要求满协变量联合，不可行；需借模型参数化结果再平均。",
+      "怎么实现：估 μ(t,x)=E[Y|T=t,X=x]，算全样本 μ(1,x) 与 μ(0,x) 均值之差。",
+      "有什么代价：强依赖结果模型正确设定；外推到协变量支撑外有偏。",
+      "怎么评测：与 IPTW/AIPW 交叉验证，检查重叠区与残差，报告稳健性。"
+    ],
+    "edgeCases": [
+      "结果模型漏交互项，标准化后仍有残余混杂偏倚。",
+      "某子群 X 在 T=1 下无支撑(无重叠)，反事实预测纯外推。",
+      "Y 为生存/纵向时 g-formula 需递归状态演化，复杂度陡增。"
+    ],
+    "pitfalls": [
+      "只校观测混杂，对未观测混杂无能为力，与所有可忽略性方法同限。",
+      "误信 g-formula 比 IPTW 更\"安全\"——其实只是误设对象不同(结果 vs 倾向)。"
+    ],
+    "prerequisites": [
+      "可忽略性与反事实框架",
+      "标准化/边际化(直接标准化法)"
+    ],
+    "workedExample": [
+      "1000 人，逻辑回归结果模型得：设 T=1 时平均预测概率 0.45，设 T=0 时 0.30。",
+      "ATE=0.45-0.30=0.15；同数据 IPTW 估 0.16、AIPW 估 0.155，三者接近，说明结果模型与倾向模型一致、结论稳健。"
+    ],
+    "lineByLine": [
+      "def g_formula：拟合 E[Y|T,X] 结果模型。",
+      "predict_proba 对 (X, T=1) 与 (X, T=0) 分别预测反事实概率。",
+      "p1.mean()-p0.mean()：在 X 上平均得 ATE，即 g-formula 边际化。"
+    ],
+    "followUps": [
+      {
+        "question": "G-formula 和 IPTW 哪个更稳？",
+        "answer": "IPTW 靠倾向模型、对极端 e 方差大；G-formula 靠结果模型、无需极端权重但需正确设定。AIPW 同时用两者达到双重稳健——任一方正确即可一致，是更优默认。"
+      },
+      {
+        "question": "g-formula 能处理时变处理吗？",
+        "answer": "可以，但需递归 g-formula(序列化状态演化)，且每一步都需顺序可忽略性；实际常与 MSM/IPW 配合，计算与假设都更重。"
+      }
+    ],
+    "order": 17,
+    "followUpAnswers": [
+      "IPTW 靠倾向模型、对极端 e 方差大；G-formula 靠结果模型、无需极端权重但需正确设定。AIPW 同时用两者达到双重稳健——任一方正确即可一致，是更优默认。",
+      "可以，但需递归 g-formula(序列化状态演化)，且每一步都需顺序可忽略性；实际常与 MSM/IPW 配合，计算与假设都更重。"
+    ]
+  },
+  {
+    "id": "ci-msm",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "边际结构模型(MSM)与序列 IPTW",
+    "difficulty": "Hard",
+    "prompt": "处理时变混杂(time-varying confounding)时，边际结构模型如何用序列 IPTW 加权后拟合得到因果效应？",
+    "quickAnswer": "时变混杂指基线或前期处理影响后续协变量、而这些协变量又影响后续处理与结果，传统调整会切断合法中介路径。MSM 先对每一步处理用\"序列 IPTW\"构造稳定权重：w=∏_k P(A_k|A_{<k},L_{<k})/P(A_k|A_{<k},L_{≤k})，把观测人群伪造成各时点处理相互独立(即打破时变混杂)；再在加权样本上拟合边际模型(如 E[Y(a)]=β0+β1·a)得到 population-level 因果参数。权重需截断控方差。",
+    "code": "import numpy as np\nfrom sklearn.linear_model import LogisticRegression\n\ndef seq_iptw(A, L, eps=0.01):\n    w = np.ones(len(A))\n    for k in range(A.shape[1]):\n        hist = np.c_[A[:, :k], L[:, :k+1]] if k else L[:, :1]\n        denom = LogisticRegression(max_iter=1000).fit(hist, A[:, k]).predict_proba(hist)[:, 1]\n        num = A[:, k].mean()\n        w *= (num / np.clip(denom, eps, 1 - eps))\n    return w\n\ndef fit_msm(Y, A_final, w):\n    model = LogisticRegression().fit(A_final.reshape(-1, 1), Y, sample_weight=w)\n    return model.coef_[0][0]",
+    "complexity": "每时点拟合两个模型 O(T·N·d)；权重乘积 O(N·T)，截断维持数值稳定",
+    "beginnerSummary": "病人病情随治疗变化，而病情又决定下一步治疗——这是\"绕圈\"的混杂。MSM 给每步治疗按\"本该被如何治疗\"反着加权，把人掰回每步都随机决定的人群，再直接看治疗量和结果的关系。",
+    "explanationFocus": "是什么：边际结构模型(MSM)用序列逆概率加权(seq-IPTW)处理时变混杂，先构造跨所有时点的稳定权重把各时点处理伪随机化，再在加权样本上拟合一个对边际处理史设定的模型，得到总体(population)因果效应参数。",
+    "approach": "对每个时点 k 用分母 P(A_k|历史处理、历史协变量)与分子 P(A_k|历史处理)构造稳定权重并累乘，加权后拟合边际模型估计因果参数。",
+    "derivation": [
+      "为什么需要：时变混杂同时被前期处理影响又影响后续处理，标准回归调整会切断处理经协变量的合法路径。",
+      "怎么实现：逐时点估分母/分子倾向并累乘稳定权重，加权后拟合 MSM 得 β。",
+      "有什么代价：权重跨时点连乘易极端、方差暴涨；依赖各时点可忽略性成立。",
+      "怎么评测：检查加权后各时点协变量平衡、做权重截断与敏感性分析。"
+    ],
+    "edgeCases": [
+      "某时点分母 e≈0(几乎必处理)，连乘权重爆炸，单样本主导。",
+      "时变混杂含未观测成分，seq-IPTW 无法校正，β 有偏。",
+      "处理史类别爆炸(多时点多水平)，权重分母稀疏不稳。"
+    ],
+    "pitfalls": [
+      "在 MSM 前对时变中介做标准回归调整，错误关掉合法因果路径。",
+      "为稳方差过度截断权重，改变目标人群且引入微小偏倚未报告。"
+    ],
+    "prerequisites": [
+      "时变混杂与因果序",
+      "逆概率加权与稳定权重"
+    ],
+    "workedExample": [
+      "两时点：时点1稳定权重 1.8，时点2分母 e=0.05 截断到 0.1 得权重 2.0，累乘稳定权重=3.6。",
+      "加权后拟合 MSM E[Y(a)]=β0+β1·a，β1=0.22(p<0.01)，表示坚持两期治疗较中断平均多 0.22 结果分；未加权回归仅得 0.10(被时变混杂压低)。"
+    ],
+    "lineByLine": [
+      "def seq_iptw：逐时点 k 拟合分母(含历史协变量)与分子(仅历史处理)倾向。",
+      "w *= num/np.clip(denom,...)：累乘稳定权重并截断防极端。",
+      "def fit_msm：用 sample_weight=w 拟合边际模型，coef_ 即因果参数 β1。"
+    ],
+    "followUps": [
+      {
+        "question": "MSM 和 g-formula 处理时变混杂有何不同？",
+        "answer": "MSM 用序列 IPTW 伪随机化后拟合简单边际模型，重点是总体参数且依赖倾向模型；递归 g-formula 直接建模状态演化，依赖结果模型。DR 方法(如 SWIG+AIPW)可结合二者提升稳健性。"
+      },
+      {
+        "question": "稳定权重为什么用分子 P(A_k|历史处理)？",
+        "answer": "分子只含历史处理(不含时变协变量)，相当于把人群拉回到\"仅由已发生处理决定下一步\"的伪随机状态，从而打破时变混杂；分母含协变量保证无偏、分子保证权重有界更稳。"
+      }
+    ],
+    "order": 18,
+    "followUpAnswers": [
+      "MSM 用序列 IPTW 伪随机化后拟合简单边际模型，重点是总体参数且依赖倾向模型；递归 g-formula 直接建模状态演化，依赖结果模型。DR 方法(如 SWIG+AIPW)可结合二者提升稳健性。",
+      "分子只含历史处理(不含时变协变量)，相当于把人群拉回到\"仅由已发生处理决定下一步\"的伪随机状态，从而打破时变混杂；分母含协变量保证无偏、分子保证权重有界更稳。"
+    ]
+  },
+  {
+    "id": "ci-panel-fe",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "面板固定效应(FE)与双向固定效应(TWFE)",
+    "difficulty": "Medium",
+    "prompt": "面板数据固定效应如何通过 within-transformation 消去不随时间变的未观测混杂？它与 DID 有何联系，双向固定效应又是什么？",
+    "quickAnswer": "面板 FE 对每单位 i 引入固定截距 α_i 吸收所有不随时间变的未观测混杂(如企业文化、地理)。within-transformation 对每个变量减去其个体均值，把 α_i 消去后只比较同一单位随时间的变动，从而识别随时间变化的处理的因果效应。DID 是 FE 的特例：双向固定效应(TWFE)同时含个体 FE α_i 与时间 FE γ_t，既消不随时变混杂也消共同时间冲击，正是多期 DID 的标准设定。",
+    "code": "import numpy as np\nimport pandas as pd\n\ndef within_transform(df, y, x, unit='id'):\n    mu = df.groupby(unit)[[y, x]].transform('mean')\n    dy = df[y] - mu[y]\n    dx = df[x] - mu[x]\n    return np.sum(dx * dy) / np.sum(dx * dx)\n\ndef twfe(df, y, treat, unit='id', time='t'):\n    return pd.get_dummies(df, columns=[unit, time])",
+    "complexity": "within 变换 O(N·T)；含哑变量的 OLS O((N+T)·观测)，大 N 需吸收哑变量技巧",
+    "beginnerSummary": "每个公司底子不同(不随时变)，硬比会乱。固定效应先把每家公司\"自己的平均线\"扣掉，只看每家公司内部随时间的涨跌——好比只比同一个人吃药前后来判断药效。",
+    "explanationFocus": "是什么：面板固定效应(FE)为每个个体引入不随时变的截距 α_i，吸收所有恒定的未观测混杂；within-transformation 对变量减去个体均值以消去 α_i，仅用单位内随时间的变化识别处理效应。双向固定效应(TWFE)再加时间哑变量 γ_t。",
+    "approach": "对个体做组内去心(within)消去 α_i 得 FE 估计；DID 即 TWFE 含 α_i+γ_t，同时消恒定混杂与共同时间趋势。",
+    "derivation": [
+      "为什么需要：面板含不随时间变的未观测混杂(α_i)，混进截距造成遗漏变量偏倚。",
+      "怎么实现：设 Y_it=β·T_it+α_i+γ_t+ε，组内去心消去 α_i，或加时间哑变量消 γ_t。",
+      "有什么代价：只能识别随时间变化的 T 的效应，恒定 T 被 α_i 吸收不可估；需严格外生假设。",
+      "怎么评测：豪斯曼检验选 FE 还是 RE，看时间趋势、做平行趋势与稳健标准误。"
+    ],
+    "edgeCases": [
+      "处理 T_it 几乎不随时间变(单位内变动极小)，within 估计退化、标准误爆炸。",
+      "存在不随单位变但随时间变的混杂(如宏观冲击)，需 γ_t 才能消。",
+      "短面板 N 小、T 大，α_i 维度高占自由度。"
+    ],
+    "pitfalls": [
+      "把单位内固定效应误当处理了所有混杂，对随单位变的时变混杂无能为力。",
+      "DID/TWFE 在存在异质处理效应与动态效应时，TWFE 系数可能被负权重污染(需别方法如 CS/事件研究)。"
+    ],
+    "prerequisites": [
+      "面板数据(长/宽)结构与遗漏变量偏倚",
+      "双重差分(DID)基础"
+    ],
+    "workedExample": [
+      "10 家公司、5 年，Y 为公司利润、T 为是否上云。组内去心后公司 A 均值利润 100，某年 T=1 时利润 130(偏离+30)，T=0 年偏离-5，斜率估得 β≈上云边际 +25。",
+      "加时间哑变量 γ_t 后，共同行业景气冲击被吸收，β 从 25 调为 22，说明原估计含 3 单位时间趋势混淆；TWFE 即标准多期 DID。"
+    ],
+    "lineByLine": [
+      "def within_transform：groupby 个体求 y,x 的组内均值。",
+      "dy,dx = 原值减组内均值：消去 α_i，仅留单位内变动。",
+      "np.sum(dx*dy)/np.sum(dx*dx)：within 估计量 β 的闭式解。"
+    ],
+    "followUps": [
+      {
+        "question": "FE 和随机效应(RE)怎么选？",
+        "answer": "若未观测 α_i 与处理 T 相关(典型因果场景)，FE 一致、RE 有偏，豪斯曼检验显著应选 FE；RE 仅在 α_i 与 T 无关且需估恒定 T 效应时才更优。"
+      },
+      {
+        "question": "TWFE 在现代 DID 里有什么坑？",
+        "answer": "当处理时点 staggered 且效应异质时，传统 TWFE 会因\"已处理单位被当控制\"产生负权重、估计偏。应改用 Callaway-Sant′Anna、Sun-Abraham 事件研究或堆叠估计。"
+      }
+    ],
+    "order": 19,
+    "followUpAnswers": [
+      "若未观测 α_i 与处理 T 相关(典型因果场景)，FE 一致、RE 有偏，豪斯曼检验显著应选 FE；RE 仅在 α_i 与 T 无关且需估恒定 T 效应时才更优。",
+      "当处理时点 staggered 且效应异质时，传统 TWFE 会因\"已处理单位被当控制\"产生负权重、估计偏。应改用 Callaway-Sant′Anna、Sun-Abraham 事件研究或堆叠估计。"
+    ]
+  },
+  {
+    "id": "ci-selection",
+    "kind": "concept",
+    "category": "因果推断",
+    "title": "样本选择偏差与 Heckman 两阶段",
+    "difficulty": "Hard",
+    "prompt": "样本选择偏差如何导致估计偏？Heckman 两阶段模型如何用逆米尔斯比(IMR)校正？",
+    "quickAnswer": "当样本进入观测(如被雇佣、回问卷)本身与结果相关且由未观测因素驱动时，仅用观测样本回归会系统性偏倚(如最低工资样本截断了低工资)。Heckman 两阶段：第一阶段对\"是否被观测\"Probit 得选择概率，算逆米尔斯比 λ=φ(·)/Φ(·)；第二阶段在结果方程中加入 λ 作为控制项，吸收选择机制带来的相关性，得到一致估计。需 excluded restriction(至少一个只影响选择不影响结果的变量)保证可识别。",
+    "code": "import numpy as np\nfrom scipy.stats import norm\nfrom sklearn.linear_model import LogisticRegression\n\ndef inverse_mills(p):\n    return norm.pdf(norm.ppf(p)) / p\n\ndef heckman_two_stage(Z, X, observed, Y_obs):\n    sel = LogisticRegression().fit(Z, observed)\n    p = sel.predict_proba(Z)[:, 1]\n    imr = inverse_mills(p)\n    design = np.c_[X, imr]\n    model = LogisticRegression().fit(design[observed], Y_obs)\n    return model.coef_",
+    "complexity": "两阶段各 O(N·d)；Probit 用 MLE 略贵；IMR 需数值求逆 Φ",
+    "beginnerSummary": "只调查到\"愿意回问卷的人\"，而这群人往往工资更高，直接算平均会高估。Heckman 法先算\"你被看见的概率\"，用这个概率造一个修正项加进模型，把\"看不见的人\"的影响补回来。",
+    "explanationFocus": "是什么：样本选择偏差指观测样本并非随机子集、且其进入观测的机制与结果相关，导致对全体的回归有偏；Heckman 两阶段用选择方程估逆米尔斯比(IMR)并在结果方程中控制它来校正该偏倚。",
+    "approach": "第一阶段 Probit 估观测概率得 IMR λ；第二阶段在 Y~X+λ 中加入 λ 吸收选择相关性；需排除性约束保证 λ 可识别。",
+    "derivation": [
+      "为什么需要：观测样本由选择机制生成，误差与解释变量相关，OLS 有偏(如截断/自选择)。",
+      "怎么实现：Probit 选观测、算 λ=φ/Φ，结果方程加 λ 控制选择。",
+      "有什么代价：依赖排除性约束与 Probit 正态假设；λ 由估计带来两阶段标准误需校正。",
+      "怎么评测：检验 λ 系数显著性、做排除变量的敏感性、对比全样本(若有)。"
+    ],
+    "edgeCases": [
+      "无有效排除变量(选择方程与结果方程同解释变量)，模型不可识别、λ 共线。",
+      "选择概率接近 0/1，IMR 数值不稳、λ 极端。",
+      "选择机制近似随机时 λ≈0，强行加 λ 反而引入噪声。"
+    ],
+    "pitfalls": [
+      "把显著 λ 当证明存在选择偏倚，可能只是函数形式误设。",
+      "忽略两阶段标准误校正，直接对第二阶段 OLS 做推断导致置信区间偏窄。"
+    ],
+    "prerequisites": [
+      "选择偏差与自选择",
+      "Probit 模型与截断回归"
+    ],
+    "workedExample": [
+      "女性工资研究：仅观测到就业者，Probit 得就业概率 p，IMR λ 在就业样本均值 0.4。",
+      "结果方程 wage~education+λ，λ 系数显著为正 1.2，说明未校正的 OLS 低估了教育回报约 1.2；校正后教育回报由 0.8 调为 0.9，更接近全样本真实。"
+    ],
+    "lineByLine": [
+      "def inverse_mills：计算逆米尔斯比 λ=φ(Φ⁻¹(p))/Φ(Φ⁻¹(p))。",
+      "def heckman_two_stage：第一阶段 Logistic 近似 Probit 估观测概率 p。",
+      "design=np.c_[X,imr]：第二阶段把 λ 作为控制项拟合，吸收选择偏倚。"
+    ],
+    "followUps": [
+      {
+        "question": "Heckman 和直接丢缺失/截断样本有何不同？",
+        "answer": "直接只用观测样本是 Naive 删截回归，因选择相关而有偏；Heckman 显式建模选择机制并用 IMR 校正。若选择确随机则二者接近，但现实中少见。"
+      },
+      {
+        "question": "排除性约束找不到怎么办？",
+        "answer": "无排除变量时 Heckman 不可识别、λ 与 X 共线。可改用工具变量、断点/实验设计的外部变动，或敏感性分析量化选择强度，而非强行估 λ。"
+      }
+    ],
+    "order": 20,
+    "followUpAnswers": [
+      "直接只用观测样本是 Naive 删截回归，因选择相关而有偏；Heckman 显式建模选择机制并用 IMR 校正。若选择确随机则二者接近，但现实中少见。",
+      "无排除变量时 Heckman 不可识别、λ 与 X 共线。可改用工具变量、断点/实验设计的外部变动，或敏感性分析量化选择强度，而非强行估 λ。"
+    ]
+  },
+  {
     "id": "ml-auc-eval",
     "category": "因果推断与树模型",
     "difficulty": "Medium",
@@ -31322,6 +31892,586 @@ const questions = [
       "离线用 item 塔把全库物品编码为向量建 ANN 索引；线上用户塔实时编码出 query 向量，一次 ANN 查询即得 TopK 相似物品作为召回结果，整个流程毫秒级。"
     ],
     "order": 10
+  },
+  {
+    "id": "rs-ctr",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "CTR 预估演进：从 LR 到 DCN 交叉网络",
+    "difficulty": "Medium",
+    "prompt": "CTR 预估模型从 LR 到 FM、DeepFM，再到 DCN 的交叉网络(cross network)，DCN 是如何显式建模高阶特征交叉的，DCN v2 又为何要做低秩分解来压缩 cross 层参数？",
+    "quickAnswer": "DCN 用交叉网络以逐层外积方式显式构造高阶交叉，避免 DNN 隐式学习的低效。v1 的 cross 层参数量随维度平方增长，v2 引入低秩分解 W=W_down·W_up+diag(v) 把参数从 O(d²) 降到 O(rd)，并支持专家混合捕捉多语义交叉。显式高阶交叉能在不加深 DNN 的前提下提升 CTR 表达力。",
+    "code": "import numpy as np\n\ndef cross_layer(x0, x, W, b):\n    # DCN v1: x_{l+1} = x0 ⊙ (W x_l + b) + x_l\n    return x0 * (W @ x + b) + x\n\ndef cross_layer_lowrank(x0, x, W_down, W_up, v, b):\n    # DCN v2: W = W_down @ W_up + diag(v)，低秩分解降参数量\n    W = W_down @ W_up + np.diag(v)\n    return x0 * (W @ x + b) + x",
+    "complexity": "v1 cross: O(L·d²)；v2 低秩: O(L·r·d)，L 为交叉层数",
+    "beginnerSummary": "LR 只把积木并排摆(线性)，DNN 偷偷揉成复杂形状却说不清怎么揉；DCN 像乐高说明书，明确写出\"第1块×第3块\"这种组合规则，v2 再把说明书压成摘要版省纸。",
+    "explanationFocus": "是什么：DCN(Deep & Cross Network)是一类用\"交叉网络\"逐层显式构造特征高阶交叉、再与 DNN 并联输出做 CTR 预估的模型；DCN v2 进一步用低秩分解压缩交叉层权重矩阵。",
+    "approach": "交叉层按 x_{l+1}=x_0⊙(W_l x_l+b_l)+x_l 迭代，每步把原始输入 x_0 与当前表示的线性变换逐元素乘，显式产生高阶交叉；v2 将 W_l 低秩分解以降参。",
+    "derivation": [
+      "为什么需要：DNN 隐式学交叉效率低且需很深，LR/FM 只到一/二阶，显式高阶交叉更直接。",
+      "怎么实现：cross 层 x_{l+1}=x_0⊙(W x_l+b)+x_l 迭代 L 层；v2 令 W=W_down W_up+diag(v) 低秩分解。",
+      "有什么代价：v1 参数 O(d²) 在 d 大时昂贵；低秩会有轻微表达损失，需选 r 平衡。",
+      "怎么评测：用 AUC/LogLoss 对比 DeepFM/DCN，看同参数量下 CTR 增益与训练内存。"
+    ],
+    "edgeCases": [
+      "输入维度 d 很大(如 1024+)时 v1 cross 层参数爆炸，必须用 v2 低秩。",
+      "数值溢出：逐层外积若在 sigmoid 前过大需做归一化或 clip。",
+      "x_0 含未归一化连续特征时，⊙ 会把量纲放大，需先标准化。"
+    ],
+    "pitfalls": [
+      "把 cross 层当成普通全连接，漏掉与 x_0 的逐元素乘，退化成 MLP。",
+      "低秩秩 r 设过大等于 v1，设过小丢交叉信息，需按验证集调。"
+    ],
+    "prerequisites": [
+      "Embedding 与特征交叉基础",
+      "FM/DeepFM 与 CTR 对数损失"
+    ],
+    "workedExample": [
+      "设输入维度 d=1024、交叉层数 L=3：v1 每层参数 d²+d≈105万，3 层约 315万；v2 取低秩 r=32，每层 2·(1024·32)+2·1024≈69k，3 层约 21万，参数降至约 1/15。",
+      "交叉层数实验：L=2 时 Criteo AUC 0.802，L=4 升到 0.805 但训练慢 40%，L=6 出现过拟合，故工业常用 2~4 层。"
+    ],
+    "lineByLine": [
+      "def cross_layer：实现 DCN v1 单层，公式 x0⊙(W@x+b)+x。",
+      "x0 * (W @ x + b)：原输入与线性变换逐元素乘，制造交叉项。",
+      "def cross_layer_lowrank：v2 先把 W 拆成 W_down@W_up+diag(v) 再同样计算。",
+      "W_down @ W_up：低秩用 r×d 与 d×r 两小矩阵近似大矩阵以省参。"
+    ],
+    "followUps": [
+      {
+        "question": "DCN 的 cross 层和 FM 的二阶交叉有什么区别？",
+        "answer": "FM 只到二阶且交叉由隐向量内积给出；DCN cross 层通过多层嵌套产生任意阶显式交叉，FM 是浅层、DCN 是深度显式交叉。"
+      },
+      {
+        "question": "DCN v2 的低秩分解会损失什么？",
+        "answer": "低秩把 W 限制为低维子空间，可能漏掉极端稀疏特征间的特殊交叉；实践中用多专家低秩(MoL)弥补，r 与专家数按验证集选。"
+      }
+    ],
+    "followUpAnswers": [
+      "FM 只到二阶且交叉由隐向量内积给出；DCN cross 层通过多层嵌套产生任意阶显式交叉，FM 是浅层、DCN 是深度显式交叉。",
+      "低秩把 W 限制为低维子空间，可能漏掉极端稀疏特征间的特殊交叉；实践中用多专家低秩(MoL)弥补，r 与专家数按验证集选。"
+    ],
+    "order": 11
+  },
+  {
+    "id": "rs-din",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "用户兴趣建模：DIN 与 DIEN 的注意力机制",
+    "difficulty": "Medium",
+    "prompt": "DIN 如何用注意力机制根据候选广告\"激活\"用户历史中的局部兴趣，DIEN 又是怎样引入序列演化(GRU/AUGRU)来建模兴趣随时间变化的？",
+    "quickAnswer": "DIN 用一个 candidate-aware 注意力给历史行为加权，与候选越相关的历史贡献越大，实现局部兴趣激活。DIEN 在 DIN 之上加一层兴趣抽取 GRU 与兴趣演化 AUGRU，用隐状态序列刻画兴趣漂移并让注意力读演化后的兴趣。二者都区别于把历史压成定长向量的早期序列做法。",
+    "code": "import numpy as np\n\ndef din_attention(target_ad, user_hist, W):\n    # target_ad: (d,) 候选; user_hist: (T, d) 用户行为序列\n    scores = []\n    for h in user_hist:\n        feat = np.concatenate([h, target_ad, h * target_ad])\n        scores.append(W @ feat)            # 局部相关性打分\n    a = np.exp(scores) / np.sum(np.exp(scores))\n    return a @ user_hist                   # 加权局部兴趣向量\n\ndef augru_update(h_prev, x_t, a_t):\n    # AUGRU: 用注意力 a_t 门控更新, 抑制无关历史对演化的干扰\n    z = _sigmoid(W_z @ np.concatenate([h_prev, x_t]))\n    h = (1 - z) * h_prev + z * x_t\n    return a_t * h + (1 - a_t) * h_prev    # 注意力加权演化",
+    "complexity": "DIN: O(T·d)；DIEN: O(T·d·L)，T 历史长度、L 为 GRU 步",
+    "beginnerSummary": "普通做法把你的浏览历史压成一坨固定印象；DIN 像看到\"运动鞋\"广告时，自动翻出你买过的鞋类记录重点参考，其它记录暂时靠边。",
+    "explanationFocus": "是什么：DIN(Deep Interest Network)是一类用候选物品对用户在行为序列上的注意力来\"激活\"局部兴趣的 CTR 模型；DIEN 在 DIN 之上引入 GRU/AUGRU 序列建模，刻画兴趣随时间的演化。",
+    "approach": "DIN 用 candidate 与每个历史行为算注意力再加权求和得兴趣向量；DIEN 先用 GRU 抽兴趣序列、用 AUGRU 以注意力门控演化，注意力作用在演化后兴趣上。",
+    "derivation": [
+      "为什么需要：用户兴趣多样且随候选不同侧重不同，定长向量压扁会丢局部信号。",
+      "怎么实现：DIN 注意力 a_i∝f(h_i, target)；DIEN 加 GRU 抽兴趣、AUGRU 用 a_t 门控更新。",
+      "有什么代价：序列长度 T 大时计算与显存上升，需要截断或兴趣抽取降采样。",
+      "怎么评测：AUC/GAUC(按用户分组)、对比 pooled 序列基线看 CTR 增益。"
+    ],
+    "edgeCases": [
+      "新用户历史为空(T=0)，需回退到全局平均 embedding 或冷启动向量。",
+      "历史含大量无关行为，注意力若过软会稀释目标兴趣，需温度系数调。",
+      "序列过长(数千行为)需截断或分层采样，否则 O(T) 拖慢训练。"
+    ],
+    "pitfalls": [
+      "注意力只用历史自身相似度而忽略候选，退化成自注意力而非 target attention。",
+      "DIEN 把 GRU 隐状态直接当注意力 key，未做兴趣抽取层导致演化噪声大。"
+    ],
+    "prerequisites": [
+      "注意力机制(Attention)基础",
+      "用户行为序列与 embedding 表示"
+    ],
+    "workedExample": [
+      "用户历史 T=50，候选为\"运动鞋\"广告；DIN 注意力后 8 个鞋类行为权重和达 0.62，其余 42 个权重和仅 0.38，局部兴趣被激活。",
+      "DIEN 中 AUGRU 门控：某无关历史 a_t=0.05，其更新量仅 5% 进入兴趣演化，避免污染\"运动\"兴趣轨迹。"
+    ],
+    "lineByLine": [
+      "def din_attention：对每个历史行为算与候选的相关性分数。",
+      "feat = concat([h, target, h*target])：拼接原始与逐元素乘, 捕捉交叉。",
+      "a = softmax(scores)：归一化得到注意力分布。",
+      "def augru_update：用注意力 a_t 门控 GRU 更新, 抑制无关历史。"
+    ],
+    "followUps": [
+      {
+        "question": "DIN 和序列推荐(如 SASRec)的区别？",
+        "answer": "DIN 是 candidate-aware 注意力、为每个候选重算兴趣，属 CTR 精排；SASRec 用自注意力从序列预测下一个 item，属序列召回/排序，不依赖外部候选。"
+      },
+      {
+        "question": "AUGRU 相比普通 GRU 好在哪？",
+        "answer": "AUGRU 用兴趣注意力 a_t 直接门控隐状态更新，无关历史几乎不推进演化，避免兴趣漂移被噪声行为带偏。"
+      }
+    ],
+    "followUpAnswers": [
+      "DIN 是 candidate-aware 注意力、为每个候选重算兴趣，属 CTR 精排；SASRec 用自注意力从序列预测下一个 item，属序列召回/排序，不依赖外部候选。",
+      "AUGRU 用兴趣注意力 a_t 直接门控隐状态更新，无关历史几乎不推进演化，避免兴趣漂移被噪声行为带偏。"
+    ],
+    "order": 12
+  },
+  {
+    "id": "rs-bpr",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "排序学习范式与 BPR 贝叶斯个性化排序",
+    "difficulty": "Medium",
+    "prompt": "排序学习有 pointwise/pairwise/listwise 三种范式，BPR(贝叶斯个性化排序)是如何用\"用户对正例的偏好高于负例\"这一概率假设来构造损失并最大化后验的？",
+    "quickAnswer": "Pointwise 把排序当单点回归/分类，pairwise 只关心正负例相对序(BPR 即此类)，listwise 直接优化整列排序指标。BPR 假设观测偏好由潜因子内积加高斯噪声生成，最大化\"用户更偏好正例而非负例\"的后验概率，得到 -ln σ(x_ui - x_uj) 损失。它天然契合隐式反馈(点击即正、未点击即负采样)。",
+    "code": "import numpy as np\n\ndef _sigmoid(z):\n    return 1.0 / (1.0 + np.exp(-np.clip(z, -30, 30)))\n\ndef bpr_loss(user_emb, pos_emb, neg_emb):\n    # 三元组 (u, i正, j负): 建模 x_ui > x_uj\n    x_ui = float(user_emb @ pos_emb)\n    x_uj = float(user_emb @ neg_emb)\n    return -np.log(_sigmoid(x_ui - x_uj))     # 最大化后验的负对数\n\ndef bpr_batch(U, P, N, reg=1e-4):\n    loss = bpr_loss(U, P, N)\n    return loss + reg * (np.sum(U**2) + np.sum(P**2) + np.sum(N**2))",
+    "complexity": "每三元组 O(d)，d 为 embedding 维度；整批 O(B·d)",
+    "beginnerSummary": "考试排名时，pointwise 只管每题对不对，pairwise 只问\"A 该排在 B 前吗\"，listwise 看整张榜单。BPR 选 pairwise：只要你知道的喜欢的，比随机没看过的更靠前就行。",
+    "explanationFocus": "是什么：BPR(贝叶斯个性化排序)是一类 pairwise 排序损失，它假设用户对正例的偏好分数高于负例，并以最大化该偏序的后验概率来学习潜因子，广泛用于隐式反馈召回/排序。",
+    "approach": "从\"用户 u 更偏好 i 而非 j\"的似然 P(i>_u j)=σ(x_ui - x_uj) 出发，取负对数得 BPR 损失，配合 L2 正则最大化后验。",
+    "derivation": [
+      "为什么需要：隐式反馈只有正例(点击)，pointwise 难以定义负标签，需成对相对序建模。",
+      "怎么实现：似然 σ(x_ui - x_uj)，负对数损失 -ln σ(x_ui - x_uj) + λ‖Θ‖²。",
+      "有什么代价：依赖负采样质量，随机负例带来偏差，且只考虑成对忽略整列序。",
+      "怎么评测：离线用 AUC/Recall@K/NDCG，线上看 CTR/时长，对比 pointwise 基线。"
+    ],
+    "edgeCases": [
+      "负例若恰好是用户未来会喜欢但未曝光物品，会引入假负例噪声。",
+      "用户只交互过 1 个物品时，正例少导致梯度稀缺，需加权或借物品相似。",
+      "分数差 x_ui - x_uj 极大时 sigmoid 趋 0，需 clip 防 log(0)。"
+    ],
+    "pitfalls": [
+      "把未点击当确定负例直接做 pointwise 二分类，忽略曝光偏置。",
+      "负采样只用全局随机，热门物品被过度当负例，需流行度校正。"
+    ],
+    "prerequisites": [
+      "矩阵分解与潜因子模型",
+      "极大似然与贝叶斯后验基础"
+    ],
+    "workedExample": [
+      "三元组 (u, i, j)：x_ui=1.2, x_uj=0.3，差 0.9；σ(0.9)=0.711，BPR 损失 -ln(0.711)=0.341。",
+      "若把负例 j 换成更相关的 j'：x_uj'=0.9，差 0.3，σ=0.574，损失升到 0.556，说明 harder 负例给更强梯度。"
+    ],
+    "lineByLine": [
+      "def _sigmoid：做 clip 防止 exp 溢出。",
+      "def bpr_loss：算用户-正例与用户-负例的分数差。",
+      "return -log(sigmoid(x_ui - x_uj))：差越大损失越小, 符合偏序。",
+      "def bpr_batch：加 L2 正则项, 等价于最大化后验 MAP。"
+    ],
+    "followUps": [
+      {
+        "question": "BPR 与 pointwise 逻辑回归损失有何本质区别？",
+        "answer": "逻辑回归对每样本独立建模绝对点击概率，BPR 对正负例对建模相对序；前者需显式负标签且受曝光偏置影响，后者用采样负例直接优化排序。"
+      },
+      {
+        "question": "BPR 的负采样怎么选更合理？",
+        "answer": "优先用流行度校正(如 P(j)∝pop^0.75)的随机负例，再混入少量 hard negative；也可用 in-batch 负例，但要扣除采样偏置。"
+      }
+    ],
+    "followUpAnswers": [
+      "逻辑回归对每样本独立建模绝对点击概率，BPR 对正负例对建模相对序；前者需显式负标签且受曝光偏置影响，后者用采样负例直接优化排序。",
+      "优先用流行度校正(如 P(j)∝pop^0.75)的随机负例，再混入少量 hard negative；也可用 in-batch 负例，但要扣除采样偏置。"
+    ],
+    "order": 13
+  },
+  {
+    "id": "rs-negative-sampling",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "负采样策略：随机、in-batch 与 hard negative",
+    "difficulty": "Medium",
+    "prompt": "推荐系统的负采样有哪些常见方式(随机/in-batch/hard negative mining)，采样偏差会带来什么问题，又该如何用重要性采样或流行度纠偏来校正？",
+    "quickAnswer": "随机负例从全库均匀(或流行度偏置)抽，简单但有偏差；in-batch 负例把同批其它用户的正例当本用户负例，极大增负例数但热门易被过度当负；hard negative 选模型当前分高的难负例提升区分度。偏差来自\"未曝光≠真负、热门过采样\"，可用 importance sampling(对抽样概率倒数加权)或 logQ 流行度纠偏。",
+    "code": "import numpy as np\n\ndef _sigmoid(z):\n    return 1.0 / (1.0 + np.exp(-np.clip(z, -30, 30)))\n\ndef in_batch_softmax_loss(scores, logQ=None):\n    # scores: (B, B) 用户-物品打分, 对角线为 (u,u) 正例\n    # logQ: 长度 B, 物品被抽作负例的 log 概率, 用于纠偏\n    B = scores.shape[0]\n    loss = 0.0\n    for i in range(B):\n        pos = scores[i, i]\n        denom = 0.0\n        for j in range(B):\n            if j == i:\n                continue\n            w = 0.0 if logQ is None else logQ[j]\n            denom += np.exp(scores[i, j] - w)   # 减去流行度偏置\n        loss += -(pos - np.log(denom))\n    return loss / B\n\ndef sample_hard_neg(user_emb, item_emb, k=5):\n    # 取打分最高的 k 个未交互物品作 hard negative\n    scores = item_emb @ user_emb\n    return np.argsort(-scores)[:k]",
+    "complexity": "in-batch softmax: O(B²)；hard neg 检索: O(N·d)",
+    "beginnerSummary": "教分类器认猫，不能只拿狗当反例(太容易)，偶尔也该拿\"薮猫\"这种难区分的当反例；但别老拿网红猫当反例，否则模型以为所有猫都该被排除。",
+    "explanationFocus": "是什么：负采样是为隐式反馈构造训练负例的策略集合，含随机采样、in-batch 负例与 hard negative mining，目标是高效且无偏地学习\"用户偏好正例甚于负例\"。",
+    "approach": "随机/in-batch 提供充足负例，hard negative 提升难度；用重要性采样权重 1/P(采样) 或减去 logQ 流行度偏置来校正\"曝光未点击≠真负、热门过采样\"带来的选择偏差。",
+    "derivation": [
+      "为什么需要：隐式反馈只有正例，必须造负例，否则模型全预测为正。",
+      "怎么实现：随机抽/同批借负/in-batch softmax；hard neg 取高分未交互项。",
+      "有什么代价：in-batch 热门被过度当负，hard neg 难例若太难会训练不稳。",
+      "怎么评测：看纠偏后离线 NDCG 与线上 CTR，对比未纠偏基线。"
+    ],
+    "edgeCases": [
+      "曝光未点击(轻轻一点划走)不是真负例，直接当负会引入噪声标签。",
+      "in-batch 中其它用户的正例被借作负例，但该物品用户本也可能喜欢。",
+      "hard negative 比例过高(>20%)易训崩，需控制如 5%~10%。"
+    ],
+    "pitfalls": [
+      "用全局均匀随机负例，忽略热门物品过采样，模型偏向冷门。",
+      "把 logQ 纠偏项符号写反(应减去而非加上流行度偏置)。"
+    ],
+    "prerequisites": [
+      "BPR 与 pairwise 损失",
+      "重要性采样与偏差校正基础"
+    ],
+    "workedExample": [
+      "batch B=4096 的 in-batch 设置下，每用户获得约 4095 个负例，相比随机采 k=5 提供约 819 倍负例/步，显存换样本效率。",
+      "logQ 纠偏：某热门物品被抽作负例概率 P=0.05，logQ=-3.0；减去该项使热门负例贡献降权，纠偏前 NDCG@10=0.38、纠偏后 0.41。"
+    ],
+    "lineByLine": [
+      "def in_batch_softmax_loss：对每个用户用批内其它物品作负例做 softmax。",
+      "w = logQ[j]：取出该负例的流行度偏置对数。",
+      "denom += exp(scores[i,j] - w)：减去偏置等于给热门负例降权。",
+      "def sample_hard_neg：取模型当前打分最高的 k 个未交互物品为 hard neg。"
+    ],
+    "followUps": [
+      {
+        "question": "曝光未点击为什么不能直接当真负例？",
+        "answer": "未点击可能是位置靠后、重复曝光或用户当时无意愿，并不代表真不喜欢；直接当负会引入 selection bias，应考虑用曝光未点击单独建模或降权。"
+      },
+      {
+        "question": "in-batch 负例和随机负例怎么选？",
+        "answer": "in-batch 省采样且负例随模型变难(自对抗)，但要 logQ 纠偏；随机负例无批内泄露但需额外采样。大模型常混合两者。"
+      }
+    ],
+    "followUpAnswers": [
+      "未点击可能是位置靠后、重复曝光或用户当时无意愿，并不代表真不喜欢；直接当负会引入 selection bias，应考虑用曝光未点击单独建模或降权。",
+      "in-batch 省采样且负例随模型变难(自对抗)，但要 logQ 纠偏；随机负例无批内泄露但需额外采样。大模型常混合两者。"
+    ],
+    "order": 14
+  },
+  {
+    "id": "rs-graph",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "图神经网络推荐：二部图上的消息传播",
+    "difficulty": "Hard",
+    "prompt": "如何把\"用户-物品\"交互建模成二部图并用 GCN/GraphSAGE/NGCF/LightGCN 做消息传播，为什么 LightGCN 去掉非线性与权重反而更好，又该如何缓解过平滑？",
+    "quickAnswer": "用户-物品交互构成二部图，GCN 通过归一化邻接矩阵做邻居聚合传播信号。NGCF 在传播中保留非线性与交互项以建模高阶协同；LightGCN 去掉权重矩阵与非线性，仅做线性聚合再各层平均，反而更简洁有效。层数过深会使所有节点表示趋同(过平滑)，一般用 2~3 层并加残差/早停缓解。",
+    "code": "import numpy as np\n\ndef lightgcn_propagate(adj_norm, emb, layers=3):\n    # adj_norm: 含自环并度归一化的 (N, N) 邻接矩阵\n    # emb: 初始 (N, d) 节点表示\n    all_emb = [emb]\n    h = emb\n    for _ in range(layers):\n        h = adj_norm @ h           # 仅线性传播, 无权重无非线性\n        all_emb.append(h)\n    return np.mean(all_emb, axis=0) # 各层表示平均融合\n\ndef ngcf_message(emb_u, emb_i, W1, W2):\n    # NGCF: 保留交互项与线性变换的消息\n    return (W1 @ emb_i) + (W2 @ (emb_u * emb_i))",
+    "complexity": "单层 O(|E|·d)，|E| 边数；L 层 O(L·|E|·d)",
+    "beginnerSummary": "把用户和商品画成两张圆点、看过的就连线；信息像水一样沿连线流，朋友(相似用户/商品)会把口味传给你，多流几轮你就\"尝\"到间接喜欢的物品。",
+    "explanationFocus": "是什么：图神经网络推荐把用户-物品交互视为二部图，用消息传播在邻居间聚合特征，从而得到融合高阶协同信号的节点表示；LightGCN 是去掉冗余非线性与权重的轻量变体。",
+    "approach": "用度归一化邻接矩阵做邻居聚合；NGCF 在传播里保留非线性与交互项，LightGCN 只做线性聚合再各层平均，靠层数捕获高阶协同。",
+    "derivation": [
+      "为什么需要：协同过滤只看一阶共现，图传播可自然捕获多跳高阶相似。",
+      "怎么实现：h^{(l+1)}=normalize(A) h^{(l)}；LightGCN 取各层均值。",
+      "有什么代价：层数深会过平滑，且大图全图传播显存高需采样邻居。",
+      "怎么评测：Recall@20/NDCG@20 对比 MF 与 NGCF，看层数敏感度。"
+    ],
+    "edgeCases": [
+      "度数极高的超级用户/爆款商品会在聚合中主导邻居表示，需对称归一化。",
+      "新节点无边，无法从邻居获信息，需属性特征或冷启动注入。",
+      "二部图单边聚合会导致表示震荡，需各层平均或残差连接。"
+    ],
+    "pitfalls": [
+      "照搬带 ReLU 与权重的 GCN，在推荐图上反而过拟合并损害协同信号。",
+      "层数设到 4 以上不加以太差，节点表示趋同、指标掉点(过平滑)。"
+    ],
+    "prerequisites": [
+      "协同过滤与矩阵分解",
+      "图卷积与消息传递基础"
+    ],
+    "workedExample": [
+      "2 层 LightGCN：用户 u 经 1 跳拿到交互物品表示，2 跳拿到\"相似用户交互的物品\"，感受野约 d² 量级；实验 L=3 时 Amazon 上 Recall@20 最高。",
+      "过平滑测试：L 从 1 增到 4，节点表示余弦相似度均值从 0.21 升到 0.87，NDCG@20 在 L=3 后回落，说明 3 层为拐点。"
+    ],
+    "lineByLine": [
+      "def lightgcn_propagate：线性聚合邻居、不引入权重与非线性。",
+      "h = adj_norm @ h：按度归一化邻接矩阵把邻居信息传过来。",
+      "all_emb.append(h)：保存每一层输出。",
+      "return mean(all_emb)：各层平均融合, 兼顾不同阶邻域。"
+    ],
+    "followUps": [
+      {
+        "question": "为什么 LightGCN 比 NGCF 更简单却更好？",
+        "answer": "推荐图的特征主要就是 ID embedding，非线性与特征变换收益小，反而引入过拟合与训练难度；LightGCN 去掉它们只保留结构传播，更稳更轻。"
+      },
+      {
+        "question": "如何缓解过平滑？",
+        "answer": "控制层数(通常 2~3)、各层表示加权/平均而非只用末层、加残差连接，或对边做丢弃(edge dropout)打破同质化。"
+      }
+    ],
+    "followUpAnswers": [
+      "推荐图的特征主要就是 ID embedding，非线性与特征变换收益小，反而引入过拟合与训练难度；LightGCN 去掉它们只保留结构传播，更稳更轻。",
+      "控制层数(通常 2~3)、各层表示加权/平均而非只用末层、加残差连接，或对边做丢弃(edge dropout)打破同质化。"
+    ],
+    "order": 15
+  },
+  {
+    "id": "rs-contrastive",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "对比学习推荐：自监督数据增强与 InfoNCE",
+    "difficulty": "Hard",
+    "prompt": "对比学习(SGL/CL4SRec)如何用结点丢弃、边扰动、特征掩码等数据增强构造正例视图，并用 InfoNCE 自监督信号来缓解推荐中的数据稀疏？",
+    "quickAnswer": "SGL 对同一用户-物品子图做不同增强(随机丢结点/丢边/特征掩码)得到两个视图，互为正例、批内其它节点为负例，用 InfoNCE 拉紧正例、推远负例。CL4SRec 在序列上做裁剪/掩码/重排增强。自监督补全了监督信号稀缺时的结构/序列一致性约束，缓解稀疏与冷启动。",
+    "code": "import numpy as np\n\ndef _cosine(a, b):\n    return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-8))\n\ndef info_nce(z_i, z_j, z_all, tau=0.1):\n    # z_i, z_j: 同一节点两视图; z_all: 批内所有视图(含 z_j)\n    pos = np.exp(_cosine(z_i, z_j) / tau)\n    neg = sum(np.exp(_cosine(z_i, z) / tau) for z in z_all if not np.array_equal(z, z_j))\n    return -np.log(pos / (pos + neg))          # 单正多负的 InfoNCE\n\ndef sg_node_drop(adj, drop_rate=0.1):\n    # SGL: 随机丢弃结点构造另一增强视图\n    keep = np.random.rand(adj.shape[0]) > drop_rate\n    return adj[np.ix_(keep, keep)]",
+    "complexity": "InfoNCE: O(B·d)；图增强: O(|E|)",
+    "beginnerSummary": "同一张照片做左右翻转、调亮度，你仍认得是同一人；对比学习让模型也这样：同一用户图的两种\"变形\"必须是相似表示，顺便把不像的别人推远。",
+    "explanationFocus": "是什么：对比学习推荐用数据增强从同一节点/序列构造多个视图，以 InfoNCE 自监督损失拉近同节点视图、推远异节点视图，从而在标注稀疏时学到鲁棒表示。",
+    "approach": "对图做结点丢弃/边扰动/特征掩码(SGL)，或对序列做裁剪/掩码/重排(CL4SRec)生成正例对，用温度系数 τ 的 InfoNCE 对比批内负例训练。",
+    "derivation": [
+      "为什么需要：显式反馈极稀疏，监督召回信号不足，需自监督补约束。",
+      "怎么实现：同节点两增强视图为正例，批内其余为负，InfoNCE 训练。",
+      "有什么代价：增强太弱视图同质化学不到东西，太强破坏语义；需调 drop 率。",
+      "怎么评测：Recall@20/NDCG@20，对比无增强基线及在冷启动子集上的提升。"
+    ],
+    "edgeCases": [
+      "丢弃率过高(>0.5)会破坏图连通性，两视图语义不一致变成假正例。",
+      "批内负例若含与正例高度相似节点，InfoNCE 易训错，需大 batch。",
+      "特征掩码若遮掉关键 ID 特征，视图退化为随机，对比失效。"
+    ],
+    "pitfalls": [
+      "把不同用户的视图当正例，违背\"同节点才正例\"的假设。",
+      "温度 τ 设太小使负例贡献过锐、训练不稳，设太大则区分度不足。"
+    ],
+    "prerequisites": [
+      "图神经网络与消息传播",
+      "InfoNCE 与对比学习基础"
+    ],
+    "workedExample": [
+      "SGL 结点丢弃率 0.1，两视图正例余弦相似度 0.85，批内 1024 负例均值 0.05；τ=0.1 时 InfoNCE 单样本损耗约 2.3。",
+      "Yelp 上 SGL 相对 LightGCN 在稀疏用户(交互<10)子集 Recall@20 提升约 8%，说明自监督补了稀缺信号。"
+    ],
+    "lineByLine": [
+      "def _cosine：计算两向量余弦相似度, 对比任务常用。",
+      "def info_nce：分子为正例相似度指数, 分母为含所有负例之和。",
+      "return -log(pos/(pos+neg))：拉近正例推远负例的标准 InfoNCE。",
+      "def sg_node_drop：按丢弃率随机保留结点, 生成增强视图邻接矩阵。"
+    ],
+    "followUps": [
+      {
+        "question": "SGL 三种增强(结点丢弃/边扰动/特征掩码)怎么选？",
+        "answer": "常取三者并集或多视图混合效果最好；边扰动保结构较稳，结点丢弃最强但易破连通，特征掩码只动特征。可用网格搜索或自适应组合。"
+      },
+      {
+        "question": "对比学习与 BPR 损失能一起用吗？",
+        "answer": "可以，主流做法是用 BPR/交叉熵做主监督损失，对比损失作正则项加权(如 λ=0.1)，既保排序信号又补结构一致性。"
+      }
+    ],
+    "followUpAnswers": [
+      "常取三者并集或多视图混合效果最好；边扰动保结构较稳，结点丢弃最强但易破连通，特征掩码只动特征。可用网格搜索或自适应组合。",
+      "可以，主流做法是用 BPR/交叉熵做主监督损失，对比损失作正则项加权(如 λ=0.1)，既保排序信号又补结构一致性。"
+    ],
+    "order": 16
+  },
+  {
+    "id": "rs-multi-modal",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "多模态推荐：图文视频特征融合",
+    "difficulty": "Hard",
+    "prompt": "多模态推荐如何把图像/文本/视频特征融合进排序模型，早期融合、晚期融合与跨模态注意力各有什么取舍，TikTok 这类场景又如何处理视觉特征与模态缺失？",
+    "quickAnswer": "早期融合在输入层拼接各模态特征再进统一网络，交互强但模态异构难对齐；晚期融合先各模态独立打分再加权，灵活但错失交叉；跨模态注意力让一模态作为 query 去检索另一模态，对齐更好。TikTok 用 ViT/帧特征提视觉、BERT 提文本，靠对比学习做跨模态对齐，训练时模态丢弃(modality dropout)缓解推理期缺图缺文。",
+    "code": "import numpy as np\n\ndef cross_modal_fuse(img_feat, text_feat, W_q, W_k, W_v):\n    # 图像作 query, 文本作 key/value 的跨模态注意力\n    q = W_q @ img_feat\n    k = W_k @ text_feat\n    v = W_v @ text_feat\n    a = np.exp(q @ k) / np.sum(np.exp(q @ k))   # 对齐权重\n    return a @ v                                # 文本对齐后的视觉增强表示\n\ndef modality_dropout(feats, p=0.1):\n    # 训练时随机丢弃某模态, 缓解推理期模态缺失\n    mask = (np.random.rand(len(feats)) > p).astype(float)\n    return [f * m for f, m in zip(feats, mask)]\n\ndef late_fusion(s_img, s_text, w=(0.6, 0.4)):\n    return w[0] * s_img + w[1] * s_text          # 各模态独立打分再加权",
+    "complexity": "跨模态注意力: O(d²)；晚期融合: O(d)",
+    "beginnerSummary": "就像看短视频既看画面又听文案，你大脑把\"画面里的美食\"和\"文案说的店名\"对上号才决定点赞；多模态推荐也是把图、文、视频对上号再综合判断。",
+    "explanationFocus": "是什么：多模态推荐是把图像、文本、视频等异构内容特征融合进召回/排序的范式，通过早期拼接、晚期打分或跨模态注意力对齐，弥补 ID 特征冷启动与稀疏问题。",
+    "approach": "用预训练骨干(ViT/BERT/视频编码器)抽各模态表示，早期拼接、晚期加权或跨模态注意力对齐后，与 ID 特征拼接进主模型；训练期模态丢弃增强鲁棒性。",
+    "derivation": [
+      "为什么需要：新物品无交互历史，ID 特征失效，内容多模态可提供冷启动信号。",
+      "怎么实现：骨干抽特征→早期/晚期/注意力融合→接主排序网络。",
+      "有什么代价：跨模态对齐难、模态缺失会塌缩，且多骨干推理延迟高。",
+      "怎么评测：冷启动子集 Recall@K、线上 CTR/完播，对比纯 ID 模型。"
+    ],
+    "edgeCases": [
+      "推理时图片审核失败导致视觉特征缺失，需靠 modality dropout 训练出的回退路径。",
+      "视频长 but 只取首帧会漏掉关键内容，需多帧/片段聚合。",
+      "文本与图像语义冲突(标题党)时跨模态对齐会混乱，需一致性判别。"
+    ],
+    "pitfalls": [
+      "直接拼接异构模态不经对齐，量纲与语义不一致导致主导模态压过其它。",
+      "训练从不丢模态，上线遇到缺图缺文直接性能崩，缺乏鲁棒性。"
+    ],
+    "prerequisites": [
+      "多模态表征与预训练骨干(ViT/BERT)",
+      "注意力与特征融合方法"
+    ],
+    "workedExample": [
+      "TikTok 视频抽 8 帧经 ViT-L/14 得 8×768-d，池化为 768-d 视觉；标题经 BERT-base 得 768-d 文本；早期融合 concat→1536-d 接 DIN，冷启动 CTR +6%。",
+      "模态丢弃 p=0.1 训练后，模拟\"缺图\"推理，NDCG@10 仅降 2.1%，而未做丢弃的基线降 11.7%。"
+    ],
+    "lineByLine": [
+      "def cross_modal_fuse：以图像为 query 检索文本, 做跨模态对齐。",
+      "a = softmax(q @ k)：得到文本各片段对图像的相关权重。",
+      "return a @ v：按权重汇总文本, 输出图像对齐后的增强表示。",
+      "def modality_dropout：随机置零某模态, 模拟并抗推理期缺失。"
+    ],
+    "followUps": [
+      {
+        "question": "早期融合和晚期融合怎么选？",
+        "answer": "早期融合交互充分、适合模态强相关且都稳定存在的场景；晚期融合灵活、易做模态缺失回退，但错过早交叉。工业常混合：底层跨模态对齐+顶层打分融合。"
+      },
+      {
+        "question": "TikTok 视觉特征怎么和 ID 特征对齐？",
+        "answer": "常用对比学习(如 CLIP 式)把视觉编码与文本/行为表示拉到同空间，再映射到 ID embedding 维度拼接；也可用视觉特征初始化新物品 ID 向量做冷启动。"
+      }
+    ],
+    "followUpAnswers": [
+      "早期融合交互充分、适合模态强相关且都稳定存在的场景；晚期融合灵活、易做模态缺失回退，但错过早交叉。工业常混合：底层跨模态对齐+顶层打分融合。",
+      "常用对比学习(如 CLIP 式)把视觉编码与文本/行为表示拉到同空间，再映射到 ID embedding 维度拼接；也可用视觉特征初始化新物品 ID 向量做冷启动。"
+    ],
+    "order": 17
+  },
+  {
+    "id": "rs-bandit",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "探索利用 Bandit：冷启动流量分配",
+    "difficulty": "Medium",
+    "prompt": "在新用户或新物料冷启动时，ε-greedy、UCB、Thompson Sampling 这几种 bandit 策略如何分配探索流量，上下文 bandit(LinUCB)又是怎样引入特征来个性化探索的？",
+    "quickAnswer": "ε-greedy 以固定概率随机探索、否则贪心；UCB 用\"均值+置信半径\"偏好不确定物品；Thompson Sampling 从后验采样再贪心，理论 regret 更优。上下文 bandit 如 LinUCB 用特征估计每臂期望与置信区间，把探索做成个性化。冷启动靠这些策略给新用户/新物料保底曝光以快速累积反馈。",
+    "code": "import numpy as np\nimport random\n\ndef eps_greedy(estimates, eps=0.1):\n    if random.random() < eps:\n        return random.randrange(len(estimates))   # 探索\n    return int(np.argmax(estimates))              # 利用\n\ndef ucb_score(avg, n_arm, n_total, c=1.0):\n    if n_arm == 0:\n        return float('inf')\n    return avg + c * np.sqrt(np.log(n_total + 1) / n_arm)\n\ndef linucb_score(x, A_inv, b, alpha=1.0):\n    # 上下文 x 下 UCB: theta_hat^T x + alpha * sqrt(x^T A^-1 x)\n    theta = A_inv @ b\n    bonus = alpha * np.sqrt(x @ (A_inv @ x))\n    return float(theta @ x + bonus)\n\ndef thompson_sample(alpha, beta):\n    return random.betavariate(alpha, beta)         # Beta 后验采样",
+    "complexity": "ε-greedy/UCB: O(K)；LinUCB: O(d²) 每决策",
+    "beginnerSummary": "餐厅新菜上架，老板不能只推招牌菜，也得随机给新菜一点出餐机会看客人反应；bandit 就是决定\"每桌多大概率试新菜\"的规则。",
+    "explanationFocus": "是什么：探索利用 Bandit 是一类在\"推已知好内容(利用)\"与\"试探未知内容(探索)\"间权衡的在线决策框架；上下文 bandit 进一步用特征估计每臂回报与不确定性，实现个性化探索，常用于冷启动流量分配。",
+    "approach": "无上下文用 ε-greedy/UCB/TS 按不确定性给新臂保底曝光；有特征用 LinUCB 以 theta^T x ± α√(x^T A⁻¹x) 做个性化 UCB，边服务边更新。",
+    "derivation": [
+      "为什么需要：新用户/新物料无历史反馈，纯利用会把它们饿死，需保底探索。",
+      "怎么实现：维护每臂均值/计数或上下文线性参数，按 UCB/TS 选臂。",
+      "有什么代价：探索浪费部分流量，短期指标受损，需控探索比例。",
+      "怎么评测：累积 regret、冷启动物料后续转化率与长期留存。"
+    ],
+    "edgeCases": [
+      "全新物料 n_arm=0，UCB 应返回 ∞ 优先探索或给先验均值。",
+      "上下文高维时 LinUCB 的 A⁻¹ 维 d² 开销大，需低秩或在线近似。",
+      "奖励非平稳(热点过期)需衰减计数或用滑动窗口更新。"
+    ],
+    "pitfalls": [
+      "探索率 ε 固定拍脑袋，未随不确定性自适应衰减。",
+      "把点击当唯一奖励，忽略负反馈，探索到低质内容。"
+    ],
+    "prerequisites": [
+      "多臂老虎机(MAB)基础",
+      "线性回归与置信区间"
+    ],
+    "workedExample": [
+      "新物料设定 ε=0.1，则每 10 次曝光约 1 次强制探索；累积 50 次Trial 后均值 0.6、UCB 收敛，探索率可降到 0.02。",
+      "LinUCB：某上下文 x 下 theta^T x=0.7，√(x^T A⁻¹x)=0.3，α=1，UCB=1.0>另一臂 0.85，选此臂；随 A 更新置信收缩、bonus 变小。"
+    ],
+    "lineByLine": [
+      "def eps_greedy：以概率 eps 随机探索, 否则取当前最优。",
+      "def ucb_score：均值加置信半径, 曝光越少半径越大。",
+      "def linucb_score：用上下文线性参数算点估计与置信 bonus。",
+      "def thompson_sample：从 Beta 后验采样一次用于贪心比较。"
+    ],
+    "followUps": [
+      {
+        "question": "UCB 和 Thompson Sampling 该选哪个？",
+        "answer": "TS 理论 regret 更优且只需采样、实现简单，配合 Beta-Bernoulli 在推荐 EE 常见；UCB 更直观易调，二者在冷启动都可用，TS 更适合个性化后验。"
+      },
+      {
+        "question": "上下文 bandit 和强化学习怎么区分？",
+        "answer": "上下文 bandit 每步独立、状态即上下文、无跨步长期转移；RL 有状态转移与长期折扣回报。冷启动流量分配通常用 bandit 足够，无需完整 MDP。"
+      }
+    ],
+    "followUpAnswers": [
+      "TS 理论 regret 更优且只需采样、实现简单，配合 Beta-Bernoulli 在推荐 EE 常见；UCB 更直观易调，二者在冷启动都可用，TS 更适合个性化后验。",
+      "上下文 bandit 每步独立、状态即上下文、无跨步长期转移；RL 有状态转移与长期折扣回报。冷启动流量分配通常用 bandit 足够，无需完整 MDP。"
+    ],
+    "order": 18
+  },
+  {
+    "id": "rs-eval",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "推荐系统评估：离线指标与在线实验",
+    "difficulty": "Medium",
+    "prompt": "推荐系统的离线评估有哪些核心指标(HR/NDCG@K/Recall/MAP)，它们各自怎么算，在线又要看哪些指标，离线-在线指标之间为何常出现 gap？",
+    "quickAnswer": "离线常用 HR@K(前 K 是否命中任一带标签相关项)、Recall@K(命中相关项占比)、NDCG@K(带位置折扣的命中质量)、MAP(多查询平均精度)。在线看 AB 实验的 CTR、留存、时长、GMV 等业务指标。离线-在线 gap 来自曝光偏置、离线用历史曝光日志而线上是模型决定曝光、以及离线只评排序不评多样性/新颖性。",
+    "code": "import numpy as np\n\ndef ndcg_at_k(ranked, relevant, k=10):\n    dcg = 0.0\n    for i, item in enumerate(ranked[:k], start=1):\n        if item in relevant:\n            dcg += 1.0 / np.log2(i + 1)\n    idcg = sum(1.0 / np.log2(i + 1) for i in range(1, min(len(relevant), k) + 1))\n    return dcg / idcg if idcg > 0 else 0.0\n\ndef recall_at_k(ranked, relevant, k=10):\n    hit = len(relevant & set(ranked[:k]))\n    return hit / len(relevant) if relevant else 0.0\n\ndef hit_rate_at_k(ranked, relevant, k=10):\n    return 1.0 if relevant & set(ranked[:k]) else 0.0",
+    "complexity": "各指标 O(K)，K 截断长度",
+    "beginnerSummary": "离线指标像考试标准答案打分(前10名里有没有对的、排多靠前)，在线指标像开店真实营收(客人点没点、留没留)；考高分不一定真旺铺，因为考题是旧卷子。",
+    "explanationFocus": "是什么：推荐系统评估分离线(用历史日志算排序质量指标)与在线(用 AB 实验算业务指标)两层；NDCG@K/Recall@K/HR/MAP 衡量离线排序质量，CTR/留存/时长衡量在线价值。",
+    "approach": "离线用带标签测试集算 HR/Recall/NDCG/MAP 看排序能力；在线用随机分流 AB 实验看业务指标；用偏差分析与全链路复盘解释两者 gap。",
+    "derivation": [
+      "为什么需要：上线有风险且贵，需离线先粗筛，再用线上实验确证业务收益。",
+      "怎么实现：离线按排名算各指标；在线做 AA/AB 与显著性检验。",
+      "有什么代价：离线指标只看排序忽略多样性/时延，线上受新奇效应与季节影响。",
+      "怎么评测：以线上 CTR/留存为最终判据，离线指标仅作相关性参考。"
+    ],
+    "edgeCases": [
+      "相关集为空时 Recall/NDCG 定义为 0 或剔除，需统一避免平均失真。",
+      "AB 实验流量不足时差异不显著，需算最小样本量与 p 值。",
+      "新用户/新物品在日志里极少，离线指标对其不具代表性。"
+    ],
+    "pitfalls": [
+      "只盯离线 AUC 涨点就上线，忽略线上多样性与负反馈导致留存掉。",
+      "用全量日志(含自身曝光)做离线评估，产生信息泄露与乐观偏差。"
+    ],
+    "prerequisites": [
+      "信息检索评价指标基础",
+      "AB 实验与统计显著性"
+    ],
+    "workedExample": [
+      "排序 [a,b,c,d,e,...]，相关集 {c,f}；c 在第 3 位贡献 1/log2(4)=0.5，DCG=0.5；IDCG 为两相关项在 1、2 位 1+0.5=1.5，NDCG@10=0.5/1.5≈0.333。",
+      "同例 Recall@10=1/2=0.5(2 个相关项中命中 c 1 个)，HR@10=1(前10含 c)；若 k 缩到 2 则 HR=0、Recall=0。"
+    ],
+    "lineByLine": [
+      "def ndcg_at_k：累加命中项的位置折扣增益得 DCG。",
+      "idcg = 理想 DCG：相关项全排最前的增益和。",
+      "return dcg/idcg：归一化到 0~1, 兼顾命中与位置。",
+      "def recall_at_k：命中相关项数除以相关项总数。"
+    ],
+    "followUps": [
+      {
+        "question": "NDCG 相比 HR 好在哪？",
+        "answer": "HR 只看前 K 是否命中、不区分位置；NDCG 用 log 折扣奖励更靠前的命中，更能反映用户真实注意力衰减，适合精排评估。"
+      },
+      {
+        "question": "离线涨点但线上没涨，可能什么原因？",
+        "answer": "常见有曝光偏置(离线用历史曝光日志)、位置偏差、多样性/新颖性被牺牲、新奇效应，或离线指标与最终业务目标弱相关，需做全链路归因。"
+      }
+    ],
+    "followUpAnswers": [
+      "HR 只看前 K 是否命中、不区分位置；NDCG 用 log 折扣奖励更靠前的命中，更能反映用户真实注意力衰减，适合精排评估。",
+      "常见有曝光偏置(离线用历史曝光日志)、位置偏差、多样性/新颖性被牺牲、新奇效应，或离线指标与最终业务目标弱相关，需做全链路归因。"
+    ],
+    "order": 19
+  },
+  {
+    "id": "rs-causal-rec",
+    "kind": "concept",
+    "category": "推荐系统",
+    "title": "因果推荐：IPW 与双重稳健去偏",
+    "difficulty": "Hard",
+    "prompt": "推荐中的曝光偏置(selection bias)如何用 IPW 与 doubly-robust 估计量去除，反事实数据增广又是怎样补充未观测曝光的，它和 rs-debias 的去偏视角如何衔接？",
+    "quickAnswer": "曝光偏置指用户只见到了系统决定曝光的物品，观测点击不等于喜好。IPW 用倾向得分 P(曝光|特征)的倒数加权，把观测样本反转为无偏总体估计；doubly-robust 再叠加模型直接预估与 IPW 残差，任一层正确即得无偏。反事实增广用因果图生成\"若曝光会怎样\"的补充样本。它与 rs-debias 同属去偏，rs-debias 偏工程纠偏、因果推荐偏辨识因果效应。",
+    "code": "import numpy as np\n\ndef ipw_loss(y, pred, propensity):\n    # y: 观测点击; pred: 模型预估; propensity: 曝光倾向 P(o=1|x)\n    w = y / (propensity + 1e-6)            # 逆概率加权去 selection bias\n    return np.mean(w * (y - pred) ** 2)\n\ndef doubly_robust(y, pred, imputed, propensity):\n    # DR: 直接误差 + IPW 纠偏的残差, 任一层正确即无偏\n    direct = y - pred\n    ipw = (y - imputed) / (propensity + 1e-6)\n    return np.mean(direct - (1 - propensity) * ipw)\n\ndef propensity_model(score, eps=0.1):\n    # 曝光倾向截断防极端权重\n    return np.clip(score, eps, 1 - eps)",
+    "complexity": "IPW/DR: O(N·d)，N 样本数",
+    "beginnerSummary": "只因餐厅把某道菜放在门口，你点它的概率就高，不代表你最爱它；IPW 像按\"被摆在门口的概率\"反着加权，把这种位置优势削掉，看清你真实喜好。",
+    "explanationFocus": "是什么：因果推荐用因果推断框架(倾向得分、反事实)去除曝光/选择偏置，使模型估计的是\"用户本会对物品作何反应\"而非\"系统让ta看到什么\"；IPW 与 doubly-robust 是两种核心无偏估计量。",
+    "approach": "用倾向得分模型估 P(曝光|上下文)，IPW 以 1/e 加权纠偏；doubly-robust 结合直接预估与 IPW 残差得双重稳健；反事实增广补未观测曝光样本。",
+    "derivation": [
+      "为什么需要：观测数据被系统曝光策略选择， naive 训练会放大流行/位置偏置。",
+      "怎么实现：训倾向模型得 e(x)，IPW 损失 y/e，DR 加直接项与残差。",
+      "有什么代价：倾向估计不准会给极端权重，需截断(clip)与正则。",
+      "怎么评测：在随机曝光或无偏数据集上比 naive 模型，看偏差下降。"
+    ],
+    "edgeCases": [
+      "倾向得分 e→0 时 IPW 权重爆炸，需截断到 [eps, 1-eps]。",
+      "未曝光物品无 label，反事实增广需谨慎避免引入假标签。",
+      "倾向模型本身受历史偏置影响，需用随机流量或纠偏特征。"
+    ],
+    "pitfalls": [
+      "直接用观测点击训练而不加权，模型复刻并放大历史曝光偏置。",
+      "把 DR 的 IPW 残差符号写反，去偏变成加偏。"
+    ],
+    "prerequisites": [
+      "因果推断与倾向得分",
+      "推荐系统曝光偏置(selection bias)"
+    ],
+    "workedExample": [
+      "倾向 e=0.3、观测 y=1、pred=0.8；IPW 权重=1/0.3≈3.33，加权误差=(1-0.8)×3.33=0.67，远大于未加权 0.2，迫使模型不依赖曝光多的物品。",
+      "DR：imputed=0.75、e=0.3，direct=0.2，ipw 残差=(1-0.75)/0.3≈0.83，(1-e)=0.7；DR 项=0.2 - 0.7×0.83≈-0.38，相对 IPW 更稳定。"
+    ],
+    "lineByLine": [
+      "def ipw_loss：用 1/倾向 对观测样本反概率加权。",
+      "w = y/(propensity+eps)：曝光越少权重越大, 抵消选择偏置。",
+      "def doubly_robust：直接误差减 (1-e) 倍的 IPW 残差。",
+      "def propensity_model：把倾向截断, 防极端权重。"
+    ],
+    "followUps": [
+      {
+        "question": "IPW 和 doubly-robust 哪个更稳？",
+        "answer": "DR 在倾向模型或结果模型任一层正确时即无偏，比 IPW 对倾向估计误差更鲁棒；代价是要额外训一个 imputation 模型，且两者都需倾向截断。"
+      },
+      {
+        "question": "它和 rs-debias 的去偏视角有何联系？",
+        "answer": "rs-debias 偏工程侧(位置/流行度纠偏、负采样校正)，因果推荐偏辨识因果效应(用 IPW/DR 估真实因果)；二者目标一致，因果框架能给 rs-debias 提供更严谨的理论依据。"
+      }
+    ],
+    "followUpAnswers": [
+      "DR 在倾向模型或结果模型任一层正确时即无偏，比 IPW 对倾向估计误差更鲁棒；代价是要额外训一个 imputation 模型，且两者都需倾向截断。",
+      "rs-debias 偏工程侧(位置/流行度纠偏、负采样校正)，因果推荐偏辨识因果效应(用 IPW/DR 估真实因果)；二者目标一致，因果框架能给 rs-debias 提供更严谨的理论依据。"
+    ],
+    "order": 20
   },
   {
     "kind": "code",
