@@ -27,7 +27,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 761);
+  assert.equal(questions.length, 781);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -72,7 +72,7 @@ test('kind 分布与分类映射一致', () => {
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 143, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 618, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 638, '概念题数量');
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
@@ -1014,5 +1014,29 @@ test('子Agent模块【因果推断与树模型】全部题卡通过初学者契
   assert.equal(matched.length, 6, 'matched count');
   for (const q of matched) {
     assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+  }
+});
+
+test('子Agent模块【因果推断】全部题卡通过初学者契约', () => {
+  const ids = new Set(["ci-potential-outcomes", "ci-rct", "ci-confounding", "ci-backdoor", "ci-ipw", "ci-matching", "ci-iv", "ci-did", "ci-rdd", "ci-uplift"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, q.id + ' 应提供完整 Python 代码');
+    assert.ok(q.lineByLine.length >= 3, q.id + ' 应至少有三段逐行讲解');
+    assert.ok(q.workedExample.length >= 2, q.id + ' 应至少有两步演练');
+  }
+});
+
+test('子Agent模块【推荐系统】全部题卡通过初学者契约', () => {
+  const ids = new Set(["rs-cf", "rs-two-tower", "rs-recall-ranking", "rs-fm-deepfm", "rs-sequential", "rs-multi-task", "rs-cold-start", "rs-debias", "rs-rerank", "rs-ann"]);
+  const matched = questions.filter((q) => ids.has(q.id));
+  assert.equal(matched.length, 10, 'matched count');
+  for (const q of matched) {
+    assert.equal(validateQuestionCard(q, { beginner: true }).valid, true, q.id);
+    assert.match(q.code, /def |class |from |import /, q.id + ' 应提供完整 Python 代码');
+    assert.ok(q.lineByLine.length >= 3, q.id + ' 应至少有三段逐行讲解');
+    assert.ok(q.workedExample.length >= 2, q.id + ' 应至少有两步演练');
   }
 });
