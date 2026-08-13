@@ -1,58 +1,32 @@
 export default {
-  "id": "slm-pipeline",
-  "category": "语音大模型",
-  "difficulty": "Medium",
-  "title": "语音大模型端到端 Pipeline",
-  "prompt": "请描述语音大模型（Speech LLM）的端到端 pipeline，并说明 audio encoder、token 化、LLM、audio decoder 各自的作用？",
-  "quickAnswer": "语音 LLM 把音频经 encoder 抽取表征并离散化为 token，与文本 token 拼接进 LLM 做自回归推理，输出 token 再经 audio decoder 还原为波形。端到端让语义理解与语音生成在同一框架内完成。",
-  "code": "from dataclasses import dataclass\n\ndef speech_llm_step(audio, encoder, llm, decoder):\n    feat = encoder(audio)            # 1. 音频编码器抽取连续表征\n    tokens = encoder.quantize(feat)  # 2. 量化成离散语音 token\n    out = llm(tokens)                # 3. LLM 自回归生成 token\n    wav = decoder(out)               # 4. audio decoder 合成波形\n    return wav",
-  "complexity": "时间 O(T*d + N*C)，空间 O(T + N)（T 音频帧数，N 生成 token 数）",
-  "beginnerSummary": "就像先把你说的话转成一种'密码本里的编号'，大模型读编号思考后写出新编号，再由合成器把编号变回声音，全程只走这一条流水线。",
-  "derivation": [
-    "为什么需要：纯文本 LLM 无法直接吃音频，需要一个统一接口把声音变成模型能处理的 token，从而支持语音理解与生成。",
-    "怎么实现：用 audio encoder 抽取表征并量化成离散 token，与文本 token 拼进 LLM，生成端再用 audio decoder 还原波形。",
-    "有什么代价：量化会损失声学细节，且自回归生成逐 token 延迟高，长音频的 encoder 计算量随时长线性增长。",
-    "怎么评测：用语音识别词错率 WER、语音合成 MOS、以及端到端任务准确率综合衡量整条链路质量。"
+  id: 'slm-pipeline', category: '语音大模型', difficulty: 'Hard', kind: 'concept',
+  title: '语音大模型的接口契约与延迟预算',
+  prompt: '已有整体架构图后，怎样把语音大模型拆成可落地、可定位问题的接口与延迟预算？',
+  quickAnswer: '为每段写清输入输出表示、时间尺度、是否可流式和失败回退，再把首包延迟拆成输入分块、Encoder/Adapter、LLM 首 token、Talker 首语音 token、声学解码和播放缓冲。不同模型可以有不同模块，但这组契约必须可测。',
+  beginnerSummary: '会画流程图只是第一步。真正落地要像接水管一样，标清每段接什么、多久出第一滴水、堵了从哪里查。',
+  explanationFocus: '从“模块名”升级到“接口、时间戳、延迟和回退”的系统设计。',
+  approach: '先记录每段 tensor/token 形状和时间戳，再对真实请求打点；把端到端首音频时间拆成各阶段增量，并为超时、空输出与截断定义回退。',
+  derivation: [
+    '为什么需要：端到端慢并不能说明是哪一段慢，接口表示不清也会让错误在下游才暴露。',
+    '怎么实现：为每段定义 schema、时钟与 trace id，并记录进入、首输出、完成三个时间点。',
+    '有什么代价：打点和缓冲增加实现复杂度；更小的块降低首包，却可能损伤上下文和音质。',
+    '怎么评测：同时报告各阶段 p50/p95、端到端首音频、实时率、空输出率和回退率。',
   ],
-  "edgeCases": [
-    "输入静音或极短音频时 encoder 输出为空，需补 <pad> 或 <silent> 特殊 token。",
-    "多说话人重叠音频会让 token 混淆，需要说话人分离或流式分轨预处理。",
-    "生成 token 出现 <eos> 提前触发会导致语音截断，需配置最小生成长度。",
-    "长音频超出上下文窗口需分块并保留 chunk 边界的语义连续。"
+  prerequisites: ['流式推理与会话状态', '音频特征与离散 token', '服务性能评测与延迟分位数'],
+  workedExample: [
+    '示意：一次请求有文本回复但没有声音；沿 trace 发现 Talker 已出 token，问题定位到 codec 首块超时。',
+    '把声学解码块缩小后首包变快，但边界出现爆音；最终增加跨块上下文而不是继续缩块。',
   ],
-  "pitfalls": [
-    "把 audio decoder 当作普通 vocoder 直接接 LLM 输出，忽略 token 与声学帧率不匹配会导致节奏错乱。",
-    "混淆连续表征与离散 token，直接把连续向量拼进 LLM 会破坏词表对齐。"
+  code: "def trace_stage(trace, name, action):\n    trace.mark(name, 'start')\n    output = action()\n    trace.mark(name, 'first_output')\n    return output",
+  lineByLine: ['进入阶段时打点。', '执行真实模块。', '拿到第一份可消费输出时再次打点。', '用相邻时间点差值定位首包瓶颈。'],
+  complexity: '延迟预算应使用真实计时相加：T_first_audio = T_input_ready + T_encoder + T_llm_first + T_talker_first + T_codec_first + T_buffer；各项在并行流水时可能重叠，不能机械全加。',
+  edgeCases: ['某阶段返回空对象但不报错。', '时间戳来自不同机器且时钟未同步。', '流式阶段的 first_output 不可播放，需要等到最小完整块。'],
+  pitfalls: ['只报端到端平均延迟，无法定位长尾。', '把输入一定量化成 token 写进接口，忽略连续表征模型。'],
+  followUps: [
+    { question: '为什么还要记录完成时间？', answer: '首包决定交互感受，完成时间与实时率决定是否越播越积压；二者解决不同问题。' },
+    { question: 'Qwen2.5-Omni 的流式延迟来自哪些环节？', answer: '技术报告明确拆到多模态输入处理、首文本到首语音 token、语音 token 到首音频块，以及架构本身的计算延迟。' },
   ],
-  "prerequisites": [
-    "Transformer 与自回归语言模型基础",
-    "音频特征（Mel 谱/codec）与矢量量化原理"
-  ],
-  "workedExample": [
-    "用户说'今天天气如何' → Whisper encoder 输出 50 帧特征 → 量化为 32 个语义 token。",
-    "LLM 生成回复 token 序列 → audio decoder 以 25Hz 帧率合成 1.8s 波形回答。"
-  ],
-  "lineByLine": [
-    "feat = encoder(audio)：调用音频编码器把原始波形抽取成连续隐表征。",
-    "tokens = encoder.quantize(feat)：用码本把连续特征离散化成语音 token 序列。",
-    "out = llm(tokens)：把语音 token 送进 LLM 做自回归生成得到回复 token。",
-    "wav = decoder(out)：audio decoder 把回复 token 还原成可播放的波形。"
-  ],
-  "followUps": [
-    {
-      "question": "如何处理流式场景下的 audio token 生成？",
-      "answer": "采用 chunk-wise streaming encoder 与 LLM 的 KV-cache，按固定帧块增量编码并在收到部分 token 即触发 decoder 预热。"
-    },
-    {
-      "question": "为什么不直接用连续表征而要用离散 token？",
-      "answer": "离散 token 能复用文本 LLM 的词表与交叉熵训练范式，且便于做 next-token 预测，连续向量拼接则破坏词表对齐并难以定义生成目标。"
-    }
-  ],
-  "followUpAnswers": [
-    "采用 chunk-wise streaming encoder 与 LLM 的 KV-cache，按固定帧块增量编码并在收到部分 token 即触发 decoder 预热。",
-    "离散 token 能复用文本 LLM 的词表与交叉熵训练范式，且便于做 next-token 预测，连续向量拼接则破坏词表对齐并难以定义生成目标。"
-  ],
-  "explanationFocus": "是什么：语音大模型端到端 pipeline 指从原始音频输入到合成音频输出的一条统一链路，核心是 audio encoder 把声音编码为 token、LLM 负责语义推理、audio decoder 再把 token 还原成声音。",
-  "approach": "核心思路是把音频和文本统一到离散 token 空间，使同一个自回归 LLM 既能理解语音又能生成语音，从而用一个模型覆盖听、想、说三个环节。",
-  "kind": "concept"
+  followUpAnswers: ['首包、完成和实时率要分开记录。', '接口契约比背模块名更接近工程面试。'],
+  diagram: '输入块 ─▶ Encoder/Adapter ─▶ LLM 首 token ─▶ Talker 首语音 token ─▶ Codec 首音频块 ─▶ 播放\n          每一段：schema + 时间戳 + first_output + fallback',
+  references: [{ title: 'Qwen2.5-Omni Technical Report', url: 'https://arxiv.org/abs/2503.20215' }],
 };

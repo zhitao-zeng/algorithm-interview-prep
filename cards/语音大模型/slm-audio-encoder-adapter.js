@@ -1,58 +1,32 @@
 export default {
-  "id": "slm-audio-encoder-adapter",
-  "category": "语音大模型",
-  "difficulty": "Medium",
-  "title": "音频编码器与适配器",
-  "prompt": "Whisper/HuBERT 这类音频编码器如何接入 LLM？适配器（adapter）的作用与常见结构是什么？",
-  "quickAnswer": "音频编码器（Whisper/HuBERT）先抽取帧级表征，再用适配器（如线性投影、Q-Former、或轻量 MLP）把变长序列压缩并投影到 LLM 隐空间，作为前缀软 token 接入。适配器还能缓解模态 gap 并降低序列长度。",
-  "code": "from torch import nn\n\nclass AudioAdapter(nn.Module):\n    def __init__(self, d_enc, d_llm, n=32):\n        self.proj = nn.Linear(d_enc, d_llm)        # 维度对齐\n        self.down = nn.Conv1d(1, 1, 4, stride=4)   # 4倍下采样\n    def forward(self, feat):\n        x = self.down(feat).squeeze(0)             # 压缩帧率\n        return self.proj(x)                        # 投到 LLM 空间",
-  "complexity": "时间 O(T*d)，空间 O(params)",
-  "beginnerSummary": "编码器像翻译把声音变成'外语笔记'，适配器像字典把笔记翻成大模型看得懂的'母语'，并顺手把长篇笔记压缩成要点。",
-  "derivation": [
-    "为什么需要：音频编码器输出维度与帧率都与 LLM 隐空间不同，需适配器做对齐与压缩。",
-    "怎么实现：在 encoder 后接线性/MLP/Q-Former，将帧级特征投影到 LLM 维度并下采样，作为前缀 token 拼入。",
-    "有什么代价：适配器引入额外参数，下采样过猛会丢信息，训练需与 LLM 对齐避免表征漂移。",
-    "怎么评测：用下游 ASR/WER 与语音问答准确率，及适配后特征与文本空间的对齐度（如零样本检索）。"
+  id: 'slm-audio-encoder-adapter', category: '语音大模型', difficulty: 'Hard', kind: 'concept',
+  title: 'Adapter 压缩率怎样选才不漏信息',
+  prompt: 'Audio Adapter 从 T 帧压到 T/r 后，怎样选择 r 并定位短词、数字和流式边界的掉点？',
+  quickAnswer: '不要预设 4 倍或某种结构最好。固定 encoder、LLM 和训练预算，扫描多档压缩率；同时测平均任务效果、短音素/数字/人名切片、上下文长度、显存与首包。若高压缩只在长音频省成本，却让短关键信息掉点，就降低压缩或改用内容感知聚合。',
+  beginnerSummary: '压缩像做课堂笔记：少写一点能省时间，删得太狠会把数字和人名漏掉。正确做法是试几档压缩，再专门抽查最容易漏的内容。',
+  explanationFocus: '把 Adapter 从“桥接模块”推进到可测的压缩率与失败切片设计。',
+  approach: '对 r 建立小范围消融，用统一训练步数比较固定卷积/pooling 与内容感知聚合；记录压缩后长度、质量切片与系统成本。',
+  derivation: [
+    '为什么需要：平均 WER 或问答准确率可能掩盖短关键信息被压缩掉。',
+    '怎么实现：准备多档 r 和至少两类压缩器，保持其他变量一致。',
+    '有什么代价：内容感知聚合通常更贵，流式实现也更复杂。',
+    '怎么评测：除主指标外，按数字、人名、短词、噪声、长音频和 chunk 边界切片。',
   ],
-  "edgeCases": [
-    "长音频下采样后关键信息丢失，需自适应池化或注意力下采样。",
-    "编码器与 LLM 维度差过大时单层线性不够，需多层 MLP。",
-    "冻结编码器只训适配器时容量受限，难学复杂对齐。",
-    "多采样率输入需重采样到编码器期望 16k/24k。"
+  prerequisites: ['投影层与表征对齐', '流式 chunk 与缓存', '消融实验与评测指标'],
+  workedExample: [
+    '示意：r=2、4、8 三档平均结果接近，但 r=8 的数字切片明显退化。',
+    '进一步比较固定抽帧和注意力聚合；若后者保住数字且延迟可接受，再选择它。',
   ],
-  "pitfalls": [
-    "直接把 encoder 输出无下采样拼入 LLM，序列过长撑爆显存与上下文。",
-    "适配器与 LLM 一起从头训导致编码器表征被破坏，应先冻编码器。"
+  code: "for ratio in [2, 4, 8]:\n    result = evaluate_adapter(ratio, slices=['overall', 'digits', 'names', 'short_words'])\n    report(ratio, result)",
+  lineByLine: ['枚举有限候选压缩率。', '在同一切片集合评测。', '同时汇报平均与高风险切片。'],
+  complexity: '压缩后 LLM 序列约为 T/r；注意力成本随具体架构变化，不能只凭 r² 宣称端到端同倍加速，因为 Encoder、Adapter 和生成端仍有固定成本。',
+  edgeCases: ['卷积边界在流式 chunk 处缺上下文。', '不同语言的音素密度不同，同一 r 未必公平。', '训练和推理使用不同 chunk 配置会造成分布偏移。'],
+  pitfalls: ['引用“zero-shot 72%”却没有数据集和来源。', '用形状错误的 Conv1d 代码掩盖真正的数据维度问题。'],
+  followUps: [
+    { question: '为什么固定抽帧风险更大？', answer: '它不看内容，可能正好跳过短音素；可学习卷积或 query 聚合能结合邻域，但成本和训练难度更高。' },
+    { question: '压缩率是否全语言统一？', answer: '不一定。先统一方案做基线，再检查各语言切片；只有差异显著且工程允许时才做分语言配置。' },
   ],
-  "prerequisites": [
-    "CNN / Transformer 音频编码器",
-    "投影层与表征对齐"
-  ],
-  "workedExample": [
-    "Whisper encoder 输出 1500 帧 1280 维，经 4 倍下采样+线性投影成 375 个 4096 维 LLM 前缀 token。",
-    "仅训 adapter 冻结 HuBERT，在语音问答上 zero-shot 达 72% 准确率。"
-  ],
-  "lineByLine": [
-    "self.proj = nn.Linear(d_enc, d_llm)：构建维度对齐投影。",
-    "self.down = nn.Conv1d(..., stride=4)：用卷积做 4 倍帧率下采样。",
-    "x = self.down(feat).squeeze(0)：压缩时间维减少 token 数。",
-    "return self.proj(x)：投影到 LLM 隐空间作为前缀。"
-  ],
-  "followUps": [
-    {
-      "question": "Q-Former 适配器相比线性投影好在哪儿？",
-      "answer": "Q-Former 用可学习查询做交叉注意力，把变长音频压缩为固定数量语义 token，既降序列又保留关键信息，适合长音频与多任务。"
-    },
-    {
-      "question": "Whisper 与 HuBERT encoder 怎么选？",
-      "answer": "Whisper 偏识别、对 ASR 友好；HuBERT 自监督、语义表征更通用且适合做语义 token 源，按任务选或二者融合。"
-    }
-  ],
-  "followUpAnswers": [
-    "Q-Former 用可学习查询做交叉注意力，把变长音频压缩为固定数量语义 token，既降序列又保留关键信息，适合长音频与多任务。",
-    "Whisper 偏识别、对 ASR 友好；HuBERT 自监督、语义表征更通用且适合做语义 token 源，按任务选或二者融合。"
-  ],
-  "explanationFocus": "是什么：音频编码器（如 Whisper/HuBERT）负责把波形抽取成帧级表征，适配器是把这些表征投影并压缩到 LLM 隐空间的桥梁模块，使音频能作为前缀 token 接入语言模型。",
-  "approach": "在 encoder 后接投影/下采样/交叉注意力类适配器，做维度对齐与序列压缩，再作为软前缀拼入 LLM，从而以最小改动把听觉能力注入现成大模型。",
-  "kind": "concept"
+  followUpAnswers: ['压缩率必须通过切片实验选择。', '平均结果接近时再比较成本与流式稳定性。'],
+  diagram: 'Encoder 输出 T 帧 ─▶ Adapter 候选 r={2,4,8}\n                     └─▶ 平均 / 数字 / 人名 / 短词 / chunk 边界\n                     └─▶ 长度 / 显存 / 首包 ─▶ 选择可接受折中',
+  references: [{ title: 'Qwen2.5-Omni Technical Report', url: 'https://arxiv.org/abs/2503.20215' }],
 };

@@ -1,65 +1,64 @@
 export default {
-  "kind": "concept",
-  "id": "speech-training-stages",
-  "category": "语音大模型",
-  "difficulty": "Hard",
-  "title": "语音大模型训练阶段",
-  "prompt": "一个语音大模型通常分哪几个训练阶段？各阶段目标与数据是什么？",
-  "quickAnswer": "典型四阶段：(1) Encoder/Codec 预训练（自监督声学表征或 RVQ codec）；(2) 多任务监督预训练（ASR/ST/TTS/QA 等混合，带文本对齐）；(3) 指令微调 SFT（对话/多轮）；(4) 偏好/RL 后训练（RLHF/DPO 提升自然度、正确率、安全性）。",
-  "approach": "典型四阶段：(1) Codec 预训练；(2) 多任务监督预训练；(3) 指令微调 SFT；(4) 偏好/RL 后训练（RLHF/DPO）。",
-  "explanationFocus": "预训练表征→多任务对齐→SFT→RL 后训练，逐阶段提能力与对齐。",
-  "bruteForce": "直接端到端从零训对话，数据稀疏、难收敛、易幻觉。",
-  "derivation": [
-    "先有强声学表征/codec，下游才好接 LLM。",
-    "多任务监督让模型学会“听-想-说”的基础能力。",
-    "SFT 塑形对话风格，RL 对齐人类偏好与质量。"
+  kind: 'concept',
+  id: 'speech-training-stages',
+  category: '语音大模型',
+  difficulty: 'Hard',
+  title: '语音大模型训练阶段',
+  prompt: '语音大模型训练有没有固定的“四阶段”？更稳妥的回答框架是什么？',
+  quickAnswer: '没有所有模型通用的固定阶段。更稳妥的框架是：先复用或训练音频 encoder/codec，再做语音—文本或多模态对齐，然后做任务/对话指令微调，最后按需要优化语音生成稳定性、偏好与音色。具体冻结顺序、ASR/TTS 配比和是否做 RL 都取决于架构与数据。',
+  approach: '用“组件初始化 → 模态对齐 → 能力训练 → 交互与生成对齐”讲主线，并明确这是组织答案的框架，不是每篇论文都照抄的 recipe。',
+  explanationFocus: '面试重点是每一阶段解决什么问题、看什么门禁，而不是死背四个名称。',
+  bruteForce: '把 ASR、TTS、对话和偏好数据一次性混在一起全参数训练，既难定位梯度冲突，也容易覆盖已有文本或语音能力。',
+  derivation: [
+    '为什么需要：音频表征、语言推理和语音生成的目标不同，直接联合训练不容易稳定。',
+    '怎么实现：先让音频特征能接入 LLM，再加入 ASR、理解和生成等任务，之后用对话数据塑形，最后针对语音稳定性与偏好做专门优化。',
+    '有什么代价：分阶段便于诊断，却会增加检查点、数据配比和能力回归成本；阶段顺序也可能带来遗忘。',
+    '怎么评测：每一阶段都保留旧能力回归集，并分别报告理解、生成、延迟和安全指标；不能只看最后一个 MOS 或 WER。',
   ],
-  "invariant": "越往后阶段越关注“对齐与质量”，越往前越关注“表征与能力”。",
-  "walkthrough": "画阶梯：Codec预训练 → ASR/多任务 → SFT → RLHF/DPO。",
-  "edgeCases": [
-    "阶段间灾难性遗忘：需保留部分前阶段数据回放。",
-    "RL 阶段奖励模型偏差：需多维度奖励。",
-    "数据规模不均：多任务需平衡采样。"
+  invariant: '每次进入下一阶段前，都要确认新能力提升且旧能力没有不可接受的回归。',
+  walkthrough: '先画组件和数据，再为每阶段写“解冻哪些参数、用哪些样本、优化什么损失、用什么指标放行”。',
+  edgeCases: [
+    '已有成熟 encoder/codec 时不需要从零预训练。',
+    '有些模型联合训练多任务，有些模型分别训练 Thinker 与 Talker，阶段数量并不相同。',
+    '偏好优化不是必选项；奖励定义不稳时可能比监督微调更差。',
   ],
-  "code": "# Python\ndef speech_llm_train(model, stage, data):\n    if stage == 'codec_pretrain':\n        return train_codec(model.codec, data.audio)   # 自监督声学codec\n    if stage == 'multitask':\n        return sft(model, data.mix_tasks)             # ASR/ST/TTS/QA\n    if stage == 'sft':\n        return sft(model, data.dialog)                # 对话指令\n    if stage == 'rl':\n        return rlhf(model, reward=data.pref_reward)    # 偏好后训练",
-  "codeNotes": [
-    "Codec 与 LLM 常分阶段解冻，先训瓶颈再端到端。",
-    "RL 阶段常用 ASR 正确性+自然度+安全多奖励。"
+  code: "def stage_gate(before, after, improve, guardrails):\n    new_skill_ok = after[improve] > before[improve]\n    old_skills_ok = all(after[k] >= limit for k, limit in guardrails.items())\n    return new_skill_ok and old_skills_ok",
+  codeNotes: [
+    '这是阶段门禁示意，不是训练框架 API。',
+    '门禁同时包含主优化指标和旧能力护栏。',
   ],
-  "complexity": "各阶段独立；RL 阶段单位有效样本成本高（需在线生成、奖励模型推理 O(B·N²·d) 与旧策略采样），但完整训练链路里大规模预训练通常消耗更多总算力，不能说 RL 一定最贵。",
-  "followUps": [
-    {
-      "question": "为什么先训 codec 再训对话？",
-      "answer": "codec/表征是离散化的基础，先把声音压成稳定 token，下游 LLM 才能在一致空间里学习听与说，否则表示漂移难训。"
-    },
-    {
-      "question": "RL 后训练在语音里奖励什么？",
-      "answer": "除文本正确性外，还奖励 ASR 词错率、语音自然度/音色一致性、停顿合理性与安全性，常用多奖励加权。"
-    }
+  complexity: '总训练成本取决于各阶段数据量、解冻参数量和序列长度；分阶段不会自动省算力，它主要提高可诊断性和可控性。',
+  followUps: [
+    { question: '为什么不能回答“固定四阶段”？', answer: 'Qwen2.5-Omni 的技术报告就把预训练与 Talker 后训练分别拆成不同阶段，说明实际 recipe 会随架构变化。' },
+    { question: '怎样防止后期语音训练损伤文本能力？', answer: '保留文本批次或旧任务回放，降低共享主干学习率，并用文本基准做阶段门禁。' },
   ],
-  "followUpAnswers": [
-    "用回放缓冲防止遗忘前期能力。",
-    "奖励模型结合 ASR 指标与主观打分。"
+  followUpAnswers: [
+    '先讲能力主线，再给一篇模型作为具体例子。',
+    '用回放、冻结策略和多任务回归集控制遗忘。',
   ],
-  "pitfalls": [
-    "跳过表征预训练直接 SFT，收敛差。",
-    "RL 只优化单一奖励导致偏科。"
+  pitfalls: [
+    '把某篇论文的阶段名称说成行业统一标准。',
+    '只说明训练数据，不说明解冻范围和放行指标。',
   ],
-  "beginnerSummary": "训练一个会听会说的语音大模型像盖楼，分四层：第一层先把声音压缩成稳定 token（codec 预训练）；第二层用大量“听写/翻译/问答”任务让它学会基本功（多任务监督）；第三层用对话例子教它怎么像人一样聊天（SFT 指令微调）；第四层用人类偏好打分让它说得更对、更自然、更安全（RL 后训练）。一层层叠加，能力越来越强。",
-  "prerequisites": [
-    "声音要先变成可训练 token。",
-    "监督学习打基础，RL 做对齐。",
-    "阶段训练避免从零直接训对话。"
+  beginnerSummary: '训练会听会说的模型没有唯一课程表。通常先准备“耳朵和声音编码”，再把声音和文字对上，接着教会任务与对话，最后修正说话稳定性和偏好。真正重要的是：每上完一课，新能力有没有学会，旧能力有没有忘掉。',
+  prerequisites: [
+    '监督学习与阶段训练：不同数据和损失可以分阶段或混合使用。',
+    '灾难性遗忘：学习新任务时可能覆盖旧任务能力。',
+    'ASR / TTS 基础管线：理解与生成需要不同模块和指标。',
   ],
-  "workedExample": [
-    "阶段1：海量无标音频训 codec。",
-    "阶段2：ASR+翻译混合数据。阶段3：多轮对话。阶段4：用偏好数据 RLHF。"
+  workedExample: [
+    '示意阶段 A：冻结 LLM，只训练音频 adapter，让语音输入能被文本模型理解。',
+    '示意阶段 B：加入对话与生成数据；只有新任务提升且文本、ASR 回归都过门禁才进入下一阶段。',
   ],
-  "lineByLine": [
-    "Codec 预训练：自监督得到声学离散表示。",
-    "多任务监督：ASR/ST/TTS/QA 混合对齐。",
-    "SFT：对话指令塑形交互风格。",
-    "RL 后训练：以偏好奖励提升质量与安全。"
+  lineByLine: [
+    '比较阶段前后的指标。',
+    '检查目标新能力是否提升。',
+    '逐项检查旧能力是否仍高于门槛。',
+    '两者同时满足才放行。',
   ],
-  "diagram": "L1 Codec预训练 ─▶ L2 多任务监督 ─▶ L3 SFT ─▶ L4 RLHF/DPO\n (声学token)      (听想说基础)      (对话风格)   (偏好对齐)"
+  diagram: '组件初始化 ─▶ 模态对齐 ─▶ 任务 / 对话训练 ─▶ 生成稳定性与偏好\n     每一步都执行：新能力指标 + 旧能力回归门禁',
+  references: [
+    { title: 'Qwen2.5-Omni Technical Report', url: 'https://arxiv.org/abs/2503.20215' },
+    { title: 'Moshi: a speech-text foundation model for real-time dialogue', url: 'https://arxiv.org/abs/2410.00037' },
+  ],
 };

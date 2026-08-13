@@ -170,9 +170,12 @@ test('58 道语音主航道通用题升级为教学卡 V2，并诚实标注代�
   assert.equal(speechCards.length, 58);
   for (const card of speechCards) {
     assert.equal(card.speechTeachingV2, true, card.id);
+    assert.match(card.knowledgeBoundary, /知识补课卡/);
+    assert.match(card.knowledgeBoundary, /不代表我亲自实现/);
     assert.equal(card.interviewAnswer.length, 4, card.id);
     assert.equal(card.conceptPath.length, 4, card.id);
     assert.ok(card.guidedExample.length >= 4, card.id);
+    assert.ok(card.guidedExample[0].startsWith('示意案例·第 1 步：'), card.id);
     assert.ok(card.prerequisites.every((term) => term.includes('：') && term.length >= 24), card.id);
     assert.ok(card.prerequisites.every((term) => !term.includes('先明确这个概念')), card.id);
     assert.equal(detailSections(card, 'quick').some((section) => section.key === 'code'), false, card.id);
@@ -189,6 +192,16 @@ test('58 道语音主航道通用题升级为教学卡 V2，并诚实标注代�
   for (const term of ['正字法归一化', 'TTS 声学模型与声码器基础', '对话需要低延迟与可打断。']) {
     assert.ok(speechPrerequisiteExplanation(term), term);
   }
+
+  const speechLlmCards = speechCards.filter((card) => card.category === '语音大模型');
+  assert.equal(new Set(speechLlmCards.map((card) => card.title)).size, speechLlmCards.length, '语音大模型题目不应换标题重复讲同一件事');
+  const auditedFields = ['quickAnswer', 'beginnerSummary', 'explanationFocus', 'approach', 'derivation', 'workedExample'];
+  const auditedText = speechLlmCards.flatMap((card) => auditedFields.flatMap((field) => Array.isArray(card[field]) ? card[field] : [card[field]])).join('\n');
+  assert.doesNotMatch(auditedText, /0\.6703|0\.7648|zero-shot 达 72%|10k 小时|WER 从 8% 降到 4%/);
+  assert.match(questions.find((q) => q.id === 'rvq').quickAnswer, /不是“从语义到声学的分层”/);
+  assert.match(questions.find((q) => q.id === 'thinker-talker').quickAnswer, /Qwen2\.5-Omni/);
+  assert.match(questions.find((q) => q.id === 'full-duplex').quickAnswer, /支持打断不一定等于全双工/);
+  assert.equal(detailSections(questions.find((q) => q.id === 'thinker-talker'), 'deep').some((section) => section.key === 'references'), true);
 });
 
 test('站点定位为个人长期面试系统并保留旧进度迁移', () => {

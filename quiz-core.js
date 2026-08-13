@@ -69,6 +69,7 @@ export function detailSections(card, level = 'quick') {
     const codeNotesTitle = card.codeMode === 'executable' ? '逐行讲解' : '草图说明';
     const quick = [
       ['beginnerSummary', '先讲人话', 'text'],
+      ['knowledgeBoundary', '先分清：这是知识还是经历', 'text'],
       ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
       ['conceptPath', '学习路径', 'steps'],
       ['followUps', '常见追问', 'qa'],
@@ -76,6 +77,7 @@ export function detailSections(card, level = 'quick') {
     ];
     const deep = [
       ['beginnerSummary', '先讲人话', 'text'],
+      ['knowledgeBoundary', '先分清：这是知识还是经历', 'text'],
       ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
       ['prerequisites', '术语拆解', 'concepts'],
       ['conceptPath', '从问题到答案', 'steps'],
@@ -85,6 +87,7 @@ export function detailSections(card, level = 'quick') {
       ['code', codeTitle, 'code'],
       ['lineByLine', codeNotesTitle, 'lineNotes'],
       ['complexity', '成本与复杂度', 'text'],
+      ['references', '原论文与官方资料', 'refs'],
       ['edgeCases', '失败边界', 'cards'],
       ['followUps', '常见追问', 'qa'],
       ['pitfalls', '容易弄错的地方', 'list'],

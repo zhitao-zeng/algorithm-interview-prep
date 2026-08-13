@@ -38,6 +38,7 @@ const termRules = [
   [/投影层|adapter|表征对齐/, 'adapter 把音频编码器输出映射到语言模型可接收的维度和分布，同时承担时间轴压缩。'],
   [/异常检测/, '先定义正常分布或可接受范围，再用重建误差、距离或分类分数发现偏离样本。'],
   [/消融实验|评测指标|加权融合/, '消融要一次只改变一个因素并固定预算；多指标融合前要明确各指标的业务含义与权重。'],
+  [/服务性能评测|延迟分位数/, '服务评测要拆分首包、单步与完成时间，并报告 p50、p95、p99 等分位数，避免平均值掩盖长尾。'],
   [/语义相似度|机器翻译/, '字面错误率之外还要检查意思是否保持，以及错误是否会传递到翻译等下游任务。'],
   [/条件独立|对数域|前向-后向|动态规划/, '把指数条路径按共享子问题聚合，并在 log 域用 log-sum-exp 避免概率连乘下溢。'],
   [/因果卷积|Masked/, '只允许当前位置读取过去信息，避免训练时偷看未来，从而保证流式或自回归推理一致。'],
@@ -69,6 +70,8 @@ function first(items, fallback) {
 
 export function enrichSpeechTeachingCard(card) {
   if (!speechCategories.has(card?.category) || card?.resumeCard) return card;
+  const knowledgeBoundary = card.knowledgeBoundary
+    || '这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。';
   const explanation = card.explanationFocus || first(card.derivation, card.quickAnswer);
   const mechanism = card.approach || card.quickAnswer;
   const example = first(card.workedExample, '用一个最小输入手算或逐步跟踪模型的中间状态。');
@@ -81,13 +84,14 @@ export function enrichSpeechTeachingCard(card) {
   });
   const originalExamples = Array.isArray(card.workedExample) ? card.workedExample : [];
   const guidedExample = [
-    ...originalExamples.map((step, index) => `第 ${index + 1} 步：${step}`),
+    ...originalExamples.map((step, index) => `示意案例·第 ${index + 1} 步：${step}`),
     `边界检查：${boundary}`,
     `反向自检：${pitfall}`,
   ];
   return {
     ...card,
     speechTeachingV2: true,
+    knowledgeBoundary,
     codeMode: card.code ? (executableSpeechCode.has(card.id) ? 'executable' : 'illustrative') : 'none',
     prerequisites,
     interviewAnswer: [

@@ -1,58 +1,32 @@
 export default {
-  "id": "slm-semantic-acoustic-token",
-  "category": "语音大模型",
-  "difficulty": "Hard",
-  "title": "语义 token 与声学 token",
-  "prompt": "语义 token 和声学 token 有什么区别？RVQ 残差矢量量化的层级结构如何同时表达两者？",
-  "quickAnswer": "语义 token（如 HuBERT 第 2 层聚类）承载内容与说话人无关的高层语义；声学 token（如 EnCodec/SoundStream 的 RVQ 多层残差）逐层补全音高、音色、韵律等细节。RVQ 第 1 层近似语义，后续层为声学残差。",
-  "code": "import torch\n\ndef rvq_levels(z, codebooks):\n    tokens, residual = [], z\n    for book in codebooks:                # 逐层码本\n        idx = (book - residual).pow(2).sum(-1).argmin(0)\n        tokens.append(idx)                # 每层一个 token\n        residual = residual - book[idx]   # 残差送下一层\n    return tokens                         # [lv0语义, lv1..声学残差]",
-  "complexity": "时间 O(L*K*d)，空间 O(L*K*d)（L 层数，K 码本大小，d 维度）",
-  "beginnerSummary": "语义 token 像'这句话说了什么'，声学 token 像'这句话怎么说的'；RVQ 第一层记大意，后面几层不断补细节，叠起来就能完整还原声音。",
-  "derivation": [
-    "为什么需要：单一种 token 要么丢了音色细节、要么训练不易对齐语义，分离语义与声学可兼顾内容可控性与音质。",
-    "怎么实现：用 RVQ 把音频表征依次量化，第 1 层粗量化捕捉语义，残差继续被后续层量化得到声学细节。",
-    "有什么代价：RVQ 层数越多码本越大、训练越难；语义层与声学层若用不同模型需额外对齐，推理要拼接多层 token。",
-    "怎么评测：用重建音频的 STOI/PESQ 衡量声学保真，用语义相似度（如句嵌入余弦）衡量内容一致性。"
+  id: 'slm-semantic-acoustic-token', category: '语音大模型', difficulty: 'Hard', kind: 'concept',
+  title: '怎样验证语义与声学 Token 真正解耦',
+  prompt: '一个 tokenizer 声称“第一层语义、后续层声学”时，怎样证明而不是只看架构图？',
+  quickAnswer: '至少做三组验证：第一层对音素/文字是否更相关，后续层对说话人、F0 和重建质量是否提供增益，以及交换两条语音的内容层/声学层后能否实现“内容来自 A、音色来自 B”。普通 RVQ 没有这些证据时只能称粗到细重建。',
+  beginnerSummary: '厂家说抽屉一放“内容”、抽屉二放“音色”，不能只信标签。要把抽屉分别拿走、互换，再看句子内容和声音身份到底跟着哪个抽屉走。',
+  explanationFocus: '用探针、逐层消融和 token 交换实验验证分层。',
+  approach: '训练内容探针与说话人探针，逐层增加码本看重建增量，再在成对语音上交换第一层与残差层，检查内容、音色和韵律的归属。',
+  derivation: [
+    '为什么需要：码本层级只表示量化顺序，不自动等价于信息解耦。',
+    '怎么实现：对每层分别训练轻量 probe，并进行层删除、层交换和跨说话人重建。',
+    '有什么代价：probe 可能学到残留信息；交换实验也受 decoder 泛化能力影响。',
+    '怎么评测：内容用音素相关性/ASR，声学用说话人相似度、F0/韵律和重建质量，并报告置信区间。',
   ],
-  "edgeCases": [
-    "第 1 层量化过粗会丢失重音与情绪，需要更高层补偿。",
-    "极低码率下残差层不足会导致明显音质下降与金属感。",
-    "多语言混合语音在语义层可能错聚到错误簇，需多语言码本。",
-    "静音段 RVQ 仍会占用 token，需要 VAD 过滤或静音特殊码。"
+  prerequisites: ['矢量量化与 codec', '说话人和韵律表征', '消融实验与评测指标'],
+  workedExample: [
+    '示意：保留第一层、移除残差层后，语音仍可懂但音色明显下降；这只是支持证据之一。',
+    '再把 A 的第一层与 B 的后续层组合；若内容跟 A、音色跟 B，才进一步支持分层解耦。',
   ],
-  "pitfalls": [
-    "把 EnCodec 全部层都当成语学 token 喂给 LLM，导致词表过大、训练发散。",
-    "用同一码本同时做语义与声学，忽略残差结构会使得高层语义被低层噪声污染。"
+  code: "def swap_test(tokens_a, tokens_b, decoder):\n    mixed = [tokens_a[0], *tokens_b[1:]]\n    return decoder(mixed)",
+  lineByLine: ['取 A 的第一层。', '取 B 的后续残差层。', '组合后解码。', '分别评测内容来自谁、音色来自谁。'],
+  complexity: '若有 L 层，逐层消融至少需要 O(L) 组重建；交换实验还需覆盖多说话人和多文本配对，避免只看一个样例。',
+  edgeCases: ['decoder 没见过混合层组合，交换后崩坏不一定代表没有解耦。', '第一层仍可能包含说话人残留，解耦通常不是绝对独立。', '跨语言交换会混入语言与音素覆盖差异。'],
+  pitfalls: ['把 SpeechTokenizer 的语义蒸馏结论套到 EnCodec-RVQ-1。', '只听“像不像”，没有内容与说话人两个独立指标。'],
+  followUps: [
+    { question: '为什么 probe 准确率高还不够？', answer: '某层可能同时包含内容与音色。probe 只能证明信息存在，不能证明另一类信息不存在或已解耦。' },
+    { question: 'SpeechTokenizer 第一层为什么更可信？', answer: '论文明确给第一量化层加入 HuBERT 语义蒸馏，并报告音素相关指标，而不是仅靠层级猜测。' },
   ],
-  "prerequisites": [
-    "矢量量化（VQ）与码本训练",
-    "自监督语音表征（HuBERT / wav2vec2）"
-  ],
-  "workedExample": [
-    "同一句话不同人说：语义层 token 几乎一致，声学残差层 token 差异显著。",
-    "只保留 RVQ 第 1 层重建语音可懂但音色中性，叠加 8 层后接近原音。"
-  ],
-  "lineByLine": [
-    "tokens, residual = [], z：初始化输出列表与待量化残差。",
-    "for book in codebooks：遍历每一层码本做一级量化。",
-    "idx = ...argmin(0)：在码本中找与当前残差最近的向量下标。",
-    "residual = residual - book[idx]：减去已量化部分，残差留给下一层。"
-  ],
-  "followUps": [
-    {
-      "question": "语义 token 一般取自哪种模型？",
-      "answer": "常用 HuBERT 第 6~9 层或 wav2vec2 聚类得到，也可用语义 codec（如 SpeechTokenizer 的语义层），目标是内容相关而说话人无关。"
-    },
-    {
-      "question": "RVQ 层数如何取舍？",
-      "answer": "层数越多保真度越高但词表与序列长度增大、推理变慢；语音 LLM 常取前 1~2 层做语义、保留 7~8 层做声学，按音质与延迟需求折中。"
-    }
-  ],
-  "followUpAnswers": [
-    "常用 HuBERT 第 6~9 层或 wav2vec2 聚类得到，也可用语义 codec（如 SpeechTokenizer 的语义层），目标是内容相关而说话人无关。",
-    "层数越多保真度越高但词表与序列长度增大、推理变慢；语音 LLM 常取前 1~2 层做语义、保留 7~8 层做声学，按音质与延迟需求折中。"
-  ],
-  "explanationFocus": "是什么：语义 token 编码'说了什么'的高层内容与语言信息，声学 token 编码'怎么说的'的音色、音高与韵律细节；RVQ 通过分层残差量化在同一码本体系中同时表达两者。",
-  "approach": "用残差矢量量化的第 1 层逼近语义，后续层量化逐层残差逼近声学细节，从而在统一 token 空间里分离并重建内容与音色。",
-  "kind": "concept"
+  followUpAnswers: ['存在信息不等于信息解耦。', '层删除、层交换和多维指标要结合。'],
+  diagram: '每层 token ─┬─▶ 内容 probe（音素 / ASR）\n             ├─▶ 声学 probe（说话人 / F0）\n             ├─▶ 逐层重建消融\n             └─▶ A 内容层 + B 声学层交换测试',
+  references: [{ title: 'SpeechTokenizer: Unified Speech Tokenizer for Speech Language Models', url: 'https://arxiv.org/abs/2308.16692' }],
 };

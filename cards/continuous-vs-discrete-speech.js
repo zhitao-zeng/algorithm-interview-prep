@@ -1,65 +1,63 @@
 export default {
-  "kind": "concept",
-  "id": "continuous-vs-discrete-speech",
-  "category": "语音大模型",
-  "difficulty": "Medium",
-  "title": "连续 vs 离散语音表示",
-  "prompt": "语音表示有“连续向量”和“离散 token”两种，各有什么优缺点？语音大模型怎么选？",
-  "quickAnswer": "连续表示（Encoder 隐状态）信息完整、保真高但序列长、难与 LLM 词表对齐；离散 token（RVQ/VQ 单元）可像文本一样被 LLM 自回归生成、易训练，但有量化损失。主流做法：理解端用连续特征接 Adapter，生成端用离散 unit 自回归。",
-  "approach": "连续表示信息完整、保真高但序列长、难与 LLM 词表对齐；离散 token 可像文本一样被 LLM 自回归生成、易训练，但有量化损失。主流做法：理解端用连续特征接 Adapter，生成端用离散 unit 自回归。",
-  "explanationFocus": "连续=高保真难对齐；离散=易生成有损。按“理解/生成”分工。",
-  "bruteForce": "全程连续喂 LLM 自回归，序列过长且梯度难训；全程离散则保真下降。",
-  "derivation": [
-    "连续特征保真但和文本 token 不在同一离散空间，直接自回归不一致。",
-    "离散 unit 可与文本共用自回归框架，训练目标统一（CE）。",
-    "折中：输入用连续(经 Adapter)，输出用离散 unit 自回归合成。"
+  kind: 'concept',
+  id: 'continuous-vs-discrete-speech',
+  category: '语音大模型',
+  difficulty: 'Medium',
+  title: '连续 vs 离散语音表示',
+  prompt: '连续音频表征和离散语音 token 各适合什么任务？为什么不能简单回答“理解用连续、生成用离散”？',
+  quickAnswer: '连续表征保留更多细粒度信息，可以通过 adapter 作为 soft tokens 接入 LLM；离散 token 便于使用分类/自回归目标并控制码率，但量化会损失信息。常见系统确实会在理解端使用连续特征、生成端使用离散 codec token，但这只是常见选择，不是硬规则。',
+  approach: '按四个问题选择表示：要保留哪些信息、序列有多长、训练目标是什么、下游需要理解还是重建。必要时使用连续输入与离散输出的混合方案。',
+  explanationFocus: '连续/离散不是谁绝对更好，而是保真、长度、训练目标和部署成本的权衡。',
+  bruteForce: '只凭“任务叫理解或生成”直接选表示，会忽略情感、说话人信息、token 帧率和可用解码器。',
+  derivation: [
+    '为什么需要：音频同时包含语言内容和大量声学细节，一种表示很难兼顾全部目标。',
+    '怎么实现：连续路径用 encoder 输出加 adapter；离散路径用 VQ/RVQ 或语义 tokenizer 产生编号；混合路径让两类表示分别承担输入与输出。',
+    '有什么代价：连续序列可能更长且占显存；离散表示受码本、帧率和量化误差限制。',
+    '怎么评测：理解任务看 WER、问答或分类；生成任务看可懂度、音质与说话人保持；同时报告 token 率、延迟和显存。',
   ],
-  "invariant": "无论连续/离散，都要保持时间对齐与内容一致性。",
-  "walkthrough": "对比两条路：Continuous-to-Continuous vs Discrete-token（如 SpeechGPT）。",
-  "edgeCases": [
-    "连续路径显存大、训练慢。",
-    "离散路径有量化噪声，合成略糊。",
-    "混合路径需处理两种模态的对齐损失。"
+  invariant: '选择表示时必须同时说明信息保留、序列长度、训练目标和解码方式。',
+  walkthrough: '对同一段音频分别得到 encoder 连续特征和 codec token，比较长度、下游效果和是否能重建波形。',
+  edgeCases: [
+    '情感识别虽然是理解任务，但细粒度连续特征可能比高度语义化 token 更重要。',
+    '端到端语音生成也可能使用连续流匹配或扩散表示，并不一定全程离散。',
+    '离散 token 帧率过高时，自回归成本仍然很大。',
   ],
-  "code": "# Python\ndef speech_repr(wav, encoder, quantizer=None):\n    cont = encoder(wav)                 # 连续向量 (T, D)\n    if quantizer is None:\n        return cont                     # 连续表示(高保真)\n    return quantizer.encode(cont)       # 离散 token 序列",
-  "codeNotes": [
-    "连续常用于 ASR 编码器输出、作为 LLM 前缀。",
-    "离散常用于“语音版 next-token prediction”。"
+  code: "def choose_representation(task):\n    if task.needs_waveform_reconstruction and task.can_use_codec:\n        return 'discrete_acoustic_tokens'\n    if task.needs_fine_grained_audio_understanding:\n        return 'continuous_encoder_features'\n    return 'compare_continuous_discrete_and_hybrid'",
+  codeNotes: [
+    '这是决策框架，不是按任务名称写死的生产逻辑。',
+    '最后一个分支强调要通过实验选择。',
   ],
-  "complexity": "连续 O(T·D²)；离散额外 O(T·L·K) 量化，但生成时可复用 LLM 的 O(L·N²) 自回归。",
-  "followUps": [
-    {
-      "question": "为什么很多 Speech LLM 用离散 unit 做生成？",
-      "answer": "离散 unit 让“语音生成”退化成和文本一样的 next-token 预测，可直接套用 LLM 训练范式与采样策略，工程简单、可规模化。"
-    },
-    {
-      "question": "连续表示就完全没用吗？",
-      "answer": "不是。理解端常保留连续特征以保信息；仅生成端为适配自回归而离散化，或用语义+声学两层分别处理。"
-    }
+  complexity: '连续路径成本受帧数和隐藏维度影响；离散路径还受每秒 token 数、RVQ 层数与码本大小影响。统一比较时应换算成真实序列长度和每秒计算。',
+  followUps: [
+    { question: '连续表征能直接接 LLM 吗？', answer: '可以把投影后的连续向量当 soft tokens，但通常还需要压缩时间轴、对齐维度和训练分布。' },
+    { question: '离散 token 为什么更方便生成？', answer: '它把输出变成有限类别序列，可以使用交叉熵和 next-token 预测；但声学 codec 往往每帧有多层码，生成仍不便宜。' },
   ],
-  "followUpAnswers": [
-    "用连续特征做 LLM 前缀，离散 unit 做输出。",
-    "量化损失可用多码本 RVQ 缓解。"
+  followUpAnswers: [
+    '连续向量可以做 soft tokens，不需要强行对齐文本词表编号。',
+    '离散的优势是可分类生成和码率可控，不代表没有信息损失。',
   ],
-  "pitfalls": [
-    "把连续特征直接当 token 自回归，训练目标不一致。",
-    "过度离散导致合成音质下降。"
+  pitfalls: [
+    '说“连续向量不能进 LLM”——可以投影后作为 soft tokens。',
+    '说“合成一定用连续，推理一定用离散”——方向通常写反且本身也不是硬规则。',
   ],
-  "beginnerSummary": "语音可以有两种“写法”：连续写法像一张高清照片（信息完整但占地方、不好逐字生成）；离散写法像用一套编号把声音“拼写”出来（方便像打字一样一个接一个生成，但会丢失一点细节）。语音大模型通常两头占：让模型“听懂”时用连续特征保留细节，让模型“说话”时用离散编号方便自回归生成。",
-  "prerequisites": [
-    "声音可表示为一串向量（连续）。",
-    "离散化=用有限编号替代向量。",
-    "自回归生成更适合离散 token。"
+  beginnerSummary: '连续表示像保留较多细节的声音笔记，离散 token 像把声音压成有限编号。前者信息丰富但可能很长，后者方便像文字一样预测却会丢细节。选哪个要看你想听懂内容、识别情绪，还是要把声音重新生成出来。',
+  prerequisites: [
+    '音频特征：连续向量按时间描述短时声音。',
+    '离散 token：用有限编号表示量化后的音频信息。',
+    '序列预测：模型根据已有上下文生成下一编号或表示。',
   ],
-  "workedExample": [
-    "连续：Encoder 输出 (T,1024) 浮点向量，保真但长。",
-    "离散：RVQ 编成 (T, L) 整数序列，可直接 CE 训练生成。"
+  workedExample: [
+    '示意：语音问答先用连续 encoder 特征，经 adapter 压缩后交给 LLM。',
+    '示意：语音生成用 codec token 作为预测目标，再由 codec decoder 还原波形；同时保留连续韵律条件也很常见。',
   ],
-  "lineByLine": [
-    "Encoder 得连续声学特征。",
-    "若需保真/理解，直接用作 LLM 前缀（连续）。",
-    "若需生成，经量化器离散成 token 序列。",
-    "离散 token 用交叉熵做 next-token 训练。"
+  lineByLine: [
+    '先看是否必须重建波形。',
+    '再看任务是否依赖细粒度声学信息。',
+    '不确定时比较连续、离散和混合三种方案。',
   ],
-  "diagram": "连续: 波形 ─▶ Encoder ─▶ (T,D) 浮点  ─▶ LLM前缀(理解)\n离散: 波形 ─▶ Encoder ─▶ RVQ ─▶ (T,L) 整数 ─▶ 自回归生成"
+  diagram: '连续：波形 ─▶ Encoder ─▶ 连续 soft tokens ─▶ 理解 / 条件控制\n离散：波形 ─▶ Codec / Tokenizer ─▶ 离散 token ─▶ 序列生成 ─▶ 波形\n混合：连续输入 + 离散输出，或离散内容 + 连续韵律条件',
+  references: [
+    { title: 'Qwen2.5-Omni Technical Report', url: 'https://arxiv.org/abs/2503.20215' },
+    { title: 'SpeechTokenizer: Unified Speech Tokenizer for Speech Language Models', url: 'https://arxiv.org/abs/2308.16692' },
+  ],
 };

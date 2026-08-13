@@ -1,65 +1,63 @@
 export default {
-  "kind": "concept",
-  "id": "rvq",
-  "category": "语音大模型",
-  "difficulty": "Medium",
-  "title": "残差向量量化 RVQ",
-  "prompt": "什么是残差向量量化（RVQ）？为什么语音 codec 要用多层码本？",
-  "quickAnswer": "RVQ 用多个码本逐级量化：第1个码本量化原始向量，后续每个码本量化“前一级的残差”，逐级逼近。多层码本能用较少比特表达高保真声音，并可按层近似看作‘从粗到细’；但‘首层语义、后续声学’并非 RVQ 天然属性，需专门训练（如 SpeechTokenizer 的层级解耦）才出现。",
-  "approach": "RVQ 用多个码本逐级量化：第1个码本量化原始向量，后续每个码本量化“前一级的残差”，逐级逼近。多层码本能用较少比特表达高保真声音，并可按层近似看作‘从粗到细’；但‘首层语义、后续声学’并非 RVQ 天然属性，需专门训练（如 SpeechTokenizer 的层级解耦）才出现。",
-  "explanationFocus": "RVQ = 串行残差量化；多层码本换高保真与分层语义。",
-  "bruteForce": "单层 VQ 要么码本巨大（指数爆炸）要么保真度低。",
-  "derivation": [
-    "单层 VQ 要覆盖高维声学空间需要海量码本，不现实。",
-    "RVQ 把“难表达的残差”交给下一层更小码本，逐级细化。",
-    "普通 RVQ 逐层量化残差、仅最小化重建误差，并不天然学习‘语义/声学’分层；‘首层偏语义、后续补声学’需专门设计（如 SSL semantic target、HuBERT/WavLM 蒸馏、层级解耦损失，如 SpeechTokenizer），并非 RVQ 的天然属性。"
+  kind: 'concept',
+  id: 'rvq',
+  category: '语音大模型',
+  difficulty: 'Medium',
+  title: '残差向量量化 RVQ',
+  prompt: 'RVQ 怎样用多层码本逐步逼近声音？为什么“第一层语义、后续层声学”不是它的天然性质？',
+  quickAnswer: 'RVQ 先用第一个码本近似原向量，再把剩余误差交给后续码本逐层补偿。它天然提供的是“从粗到细的重建”，不是“从语义到声学的分层”。只有加入语义蒸馏等额外目标后，第一层才可能稳定地偏向内容信息。',
+  approach: '编码时每层都量化当前残差，解码时把各层选中的码向量相加。先理解重建机制，再单独判断模型是否有语义约束。',
+  explanationFocus: 'RVQ 的本体是残差重建；语义分层是特定 tokenizer 的训练结果。',
+  bruteForce: '单层 VQ 若想同时覆盖大量声学细节，往往需要很大的码本；直接把普通 RVQ-1 当语义 token，又会混淆重建粗层与内容层。',
+  derivation: [
+    '为什么需要：高维音频表示很难用一个有限码本精确覆盖。',
+    '怎么实现：第 l 层从码本中选出最接近当前残差的向量，减掉它后把新残差交给下一层。',
+    '有什么代价：层数越多，码率、存储和生成成本越高；训练不当还会出现码本条目长期不用。',
+    '怎么评测：逐层增加码本并画出码率—重建质量曲线；若声称某层有语义，还要额外报告音素相关性或下游内容任务。',
   ],
-  "invariant": "各层码本容量固定，重建误差随层数单调下降。",
-  "walkthrough": "x→码本1最近向量→残差 r1→码本2最近→r2… 重建 = Σ 各层中心。",
-  "edgeCases": [
-    "码本崩溃：某层某些 entry 从不被选，需 codebook reset。",
-    "层间耦合：上层依赖下层残差，推理须按顺序。",
-    "比特预算：层数×log2(码本) 决定总码率。"
+  invariant: '重建向量等于各层选中码向量之和；层号本身不能证明该层表达语义。',
+  walkthrough: 'x 先匹配 c1，得到 r1=x-c1；r1 再匹配 c2；最终用 c1+c2+… 重建。',
+  edgeCases: [
+    '码本坍缩：部分条目从不被选择，需要监控使用率并重置。',
+    '过多层码本提高重建质量，却会增加每个时间步要生成的 token 数。',
+    '只训练重建损失时，第一层可能保留说话人和信道信息，不能直接称为语义层。',
   ],
-  "code": "# Python\ndef rvq_encode(x, codebooks):\n    residuals = x.clone()\n    codes = []\n    for cb in codebooks:                 # 多层码本串行\n        idx = cb.nearest(residuals)      # 当前层量化\n        codes.append(idx)\n        residuals = residuals - cb.centroid(idx)   # 残差留给下一层\n    return codes                         # 每层一个离散码",
-  "codeNotes": [
-    "训练常用梳状量化+码本损失避免崩溃。",
-    "层级数决定保真度/码率权衡。"
+  code: "def rvq_encode(x, codebooks):\n    residual = x\n    codes = []\n    for codebook in codebooks:\n        index, vector = codebook.nearest(residual)\n        codes.append(index)\n        residual = residual - vector\n    return codes",
+  codeNotes: [
+    '每层都处理上一层未解释掉的残差。',
+    '解码时按索引取回各层向量并求和。',
   ],
-  "complexity": "编码 O(L·T·K)（L 层、T 帧、码本 K），解码同样量级，远小于单层巨码本 K^L。",
-  "followUps": [
-    {
-      "question": "为什么 RVQ 第1层常被当作语义 token？",
-      "answer": "第1层捕捉信号主成分/最大方差方向，对内容（音素/语义）最敏感，而高频声学细节留在残差层，因此第1层天然近似语义。"
-    },
-    {
-      "question": "RVQ 与 VQ-VAE 什么关系？",
-      "answer": "SoundStream/EnCodec 用残差 VQ 作为 VAE 的离散瓶颈：编码器出连续向量，RVQ 离散化，解码器由离散码重建波形。"
-    }
+  complexity: '若有 L 层、T 个时间步、每层 K 个码向量且向量维度为 D，朴素最近邻编码约 O(LTKD)；解码求和约 O(LTD)。',
+  followUps: [
+    { question: '为什么有人把 RVQ 第一层叫语义 token？', answer: '在 SpeechTokenizer、Mimi 等特定模型里，第一层接受了语义教师或等价约束，所以更偏内容；这不是普通 RVQ 自动拥有的性质。' },
+    { question: '增加层数一定更好吗？', answer: '重建通常会改善，但码率和生成成本也会上升。应根据可懂度、音质和延迟的联合曲线选择。' },
   ],
-  "followUpAnswers": [
-    "用 kmeans 初始化码本中心。",
-    "增加层数可在同码率下提升重建质量。"
+  followUpAnswers: [
+    '第一层的语义性需要训练目标与评测共同证明。',
+    '层数选择是码率、音质和生成成本之间的折中。',
   ],
-  "pitfalls": [
-    "单层 VQ 码本过大导致训练不稳定。",
-    "忽略残差顺序，推理无法并行各层。"
+  pitfalls: [
+    '前面说“语义不是天然属性”，后面又说“第一层天然近似语义”——这两句话互相矛盾。',
+    '只看重建音质，不监控码本使用率和 token 生成成本。',
   ],
-  "beginnerSummary": "向量量化(VQ)就是把一个向量“取整”到离它最近的那个标准向量（码本里的一个点），用一个编号表示。残差向量量化(RVQ)做了件聪明的事：先用第 1 个码本取整，算出“还差多少”（残差），再用第 2 个码本去取整这个残差，如此层层递进。这样少量编号就能高精度地表示声音。而且第 1 层近似“说了什么”，后面层补“声音细节”。",
-  "prerequisites": [
-    "向量量化=用有限码本近似连续向量。",
-    "残差=原始减去预测后的“剩余误差”。",
-    "多层近似能逐步逼近高保真。"
+  beginnerSummary: 'RVQ 像分几次修图：第一次先修掉最明显的误差，第二次只修第一次没修好的部分，后面继续补。这样能用多个小码本逐步逼近声音。但“第一次修的是语义”并不是规则；如果训练时没有专门教它内容信息，第一层只是一层较粗的声音编码。',
+  prerequisites: [
+    '向量量化：用码本中最近的向量近似连续向量。',
+    '残差：原向量减去当前近似后仍未被表示的部分。',
+    '语义蒸馏：额外用内容教师约束某层关注音素与语言。',
   ],
-  "workedExample": [
-    "x 经码本1得中心 c1，残差 r1=x−c1；r1 经码本2得 c2…",
-    "重建 x̂ = c1 + c2 + c3，层数越多越像原声。"
+  workedExample: [
+    '示意：x 经第一码本选到 c1，剩余 r1=x-c1；第二码本再用 c2 近似 r1。',
+    '重建得到 x_hat=c1+c2；若再加入第三层，就是继续量化 r2=r1-c2。',
   ],
-  "lineByLine": [
-    "初始化残差为原始向量 x。",
-    "对每一层码本，找最近中心并记录索引。",
-    "用该中心近似，更新残差 = 残差 − 中心。",
-    "收集所有层索引作为离散 token；重建时求和各层中心。"
+  lineByLine: [
+    '把初始残差设为原向量。',
+    '每层查找当前残差的最近码向量。',
+    '记录索引并扣除已解释部分。',
+    '层级语义要靠额外目标验证，不能从这段循环推出。',
   ],
-  "diagram": "x ─▶ [码本1]─idx1─▶ 残差 r1 ─▶ [码本2]─idx2─▶ r2 ─▶ ...\n重建: x̂ = c1 + c2 + ... + cL"
+  diagram: 'x ─▶ 码本 1 得 c1 ─▶ 残差 r1 ─▶ 码本 2 得 c2 ─▶ 残差 r2\n重建：x_hat = c1 + c2 + …\n注意：粗到细重建 ≠ 天然的语义到声学分层',
+  references: [
+    { title: 'SpeechTokenizer: Unified Speech Tokenizer for Speech Language Models', url: 'https://arxiv.org/abs/2308.16692' },
+  ],
 };

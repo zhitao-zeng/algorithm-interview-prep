@@ -1,58 +1,32 @@
 export default {
-  "id": "slm-streaming-duplex",
-  "category": "语音大模型",
-  "difficulty": "Hard",
-  "title": "流式全双工语音交互",
-  "prompt": "什么是流式全双工语音交互架构？相比半双工轮次式对话它要解决哪些核心问题？",
-  "quickAnswer": "全双工指模型可同时收听与发声、随时打断；流式指音频分块低延迟处理。核心是用流式 encoder、增量 KV-cache 与打断检测（barge-in）让用户可在模型说话时插话。",
-  "code": "from collections import deque\n\ndef duplex_step(stream, state, enc, llm, dec, vad):\n    chunk = stream.read(0.2)          # 200ms 音频块\n    if vad(chunk):                    # 检测到用户插话\n        state.playing.stop()          # 打断当前播报\n        state.buffer = deque()\n    feat = enc(chunk, state.cache)    # 流式增量编码\n    tok = llm.generate(feat, state.kv)# 增量自回归\n    return dec.decode(tok)            # 边生成边播放",
-  "complexity": "时间 O(B*d) 每块，空间 O(cache) 流式常数级",
-  "beginnerSummary": "半双工像对讲机按完说、说完听；全双工像真人打电话，你随时能插嘴，对方也会立刻闭嘴听你说。",
-  "derivation": [
-    "为什么需要：轮次式语音助手延迟高、不能打断，体验不自然，全双工才能像人与人对话。",
-    "怎么实现：音频按 100~300ms 分块，encoder 与 LLM 用增量 KV-cache 流式处理，并加 VAD/barge-in 检测用户打断。",
-    "有什么代价：并行收发需状态管理与回声消除，打断会导致未播完文本浪费，流式对小模型实时性要求高。",
-    "怎么评测：用首包延迟、打断响应时间、对话回合成功率与用户主观自然度评分。"
+  id: 'slm-streaming-duplex', category: '语音大模型', difficulty: 'Hard', kind: 'concept',
+  title: '全双工的打断状态机与回声串扰',
+  prompt: '系统边说边听时，怎样区分回声、附和和真正打断，并保证取消旧输出后状态一致？',
+  quickAnswer: '先用播放参考做 AEC，再把输入事件分成噪声、附和、补充和中断；只有中断才取消未播放音频并触发重规划。状态机要分别记录已生成、已入播放队列和已播放内容，因为三者能否回滚不同。',
+  beginnerSummary: '系统听到声音不能立刻闭嘴：那可能是自己的回声，也可能只是用户说“嗯”。先判断声音是谁、想干什么，再决定继续说、轻声回应还是停止重来。',
+  explanationFocus: '从“有 VAD 就能打断”推进到事件分类、三段输出状态和一致性恢复。',
+  approach: 'AEC 清理自声，VAD 找语音，事件分类器判断附和/中断；输出端维护 generated、queued、played 三个游标，打断时只取消尚未播放部分。',
+  derivation: [
+    '为什么需要：单纯 VAD 会把咳嗽、回声和“嗯”都当成中断。',
+    '怎么实现：结合回声参考、持续时长、语义和对话状态分类事件。',
+    '有什么代价：等待更多上下文能降低误判，却会增加打断响应时间。',
+    '怎么评测：按事件类型报告误中断率、漏中断率、停止播放延迟和重规划正确率。',
   ],
-  "edgeCases": [
-    "用户咳嗽或环境噪声误触发打断，需要 VAD 阈值与去抖。",
-    "模型正在播放时用户只说半句，需要缓冲与句尾判断再决策。",
-    "双向同讲（双方同时说）需回声消除与优先级策略。",
-    "网络抖动导致音频块乱序需重排与缓存。"
+  prerequisites: ['VAD 与端点检测', '流式会话状态与缓存', '回声消除与音频预处理'],
+  workedExample: [
+    '示意：用户在系统说话时短促说“嗯”，分类为 backchannel，系统继续回答。',
+    '用户说“等等，换成英文”，分类为 interrupt；取消 queued 音频，保留已播放文本作为历史，再重规划。',
   ],
-  "pitfalls": [
-    "忽略回声消除，模型把自身播放声当作用户输入造成自激。",
-    "流式分块过大导致首包延迟超标，过小则 encoder 上下文不足。"
+  code: "if event == 'backchannel':\n    continue_playback()\nelif event == 'interrupt':\n    cancel_unplayed_audio()\n    replan_with_user_input()",
+  lineByLine: ['附和不终止主回答。', '真正打断取消未播放音频。', '把新输入带入重规划。'],
+  complexity: '缓存不会天然是常数空间；长会话仍需窗口、摘要或状态淘汰。延迟权衡是“多等一点降低误判”与“更快停止播放”之间的平衡。',
+  edgeCases: ['耳机与外放的回声条件差异很大。', '用户边笑边说，VAD 和语义分类都可能不稳。', '取消指令到达播放器前已有一小段音频进入硬件缓冲。'],
+  pitfalls: ['把 200ms chunk 和 400ms 首包写成通用保证。', '清空所有会话缓存，导致新一轮丢失必要上下文。'],
+  followUps: [
+    { question: '为什么要区分 queued 与 played？', answer: 'queued 可以取消，played 已经被用户听见，只能作为既成上下文继续处理。' },
+    { question: '怎样评测附和？', answer: '准备“嗯、对、继续”等短反馈，检查系统是否错误停播，同时确认模型没有完全忽略后续真正中断。' },
   ],
-  "prerequisites": [
-    "流式推理与 KV-cache 机制",
-    "VAD 与语音端点检测"
-  ],
-  "workedExample": [
-    "用户问天气，模型播报中用户说'不用了' → barge-in 停止播放并清空缓冲。",
-    "200ms 分块 + 增量 KV-cache 使首包延迟控制在 400ms 内。"
-  ],
-  "lineByLine": [
-    "chunk = stream.read(0.2)：每次读取 200ms 音频块模拟流式输入。",
-    "if vad(chunk)：检测到用户新语音则判定为打断。",
-    "state.playing.stop()：立即停止当前正在播放的语音。",
-    "feat = enc(chunk, state.cache)：用缓存做增量编码而非整段重算。"
-  ],
-  "followUps": [
-    {
-      "question": "如何处理回声消除？",
-      "answer": "在输入端用播放参考信号做线性回声消除（AEC）并配合 WebRTC 类模块，必要时在特征层做掩码避免自声进入 LLM。"
-    },
-    {
-      "question": "全双工下如何保证语义不被打断破坏？",
-      "answer": "维护对话状态机，打断时保留已确认意图、丢弃未播完内容，并用短上下文重跑理解，必要时向用户确认。"
-    }
-  ],
-  "followUpAnswers": [
-    "在输入端用播放参考信号做线性回声消除（AEC）并配合 WebRTC 类模块，必要时在特征层做掩码避免自声进入 LLM。",
-    "维护对话状态机，打断时保留已确认意图、丢弃未播完内容，并用短上下文重跑理解，必要时向用户确认。"
-  ],
-  "explanationFocus": "是什么：流式全双工语音交互指系统以低延迟分块处理音频，且能在播放自身语音的同时监听并响应用户插话，实现像真人通话一样的双向自然对话。",
-  "approach": "以流式分块 + 增量 KV-cache 保障低延迟，以 VAD/barge-in 检测打断并即时切换收发状态，从而兼顾'边听边说'与'随时打断'。",
-  "kind": "concept"
+  followUpAnswers: ['三段游标决定可回滚边界。', '打断评测必须包含负例和附和。'],
+  diagram: '播放参考 ─▶ AEC ─┐\n用户输入 ──────────┴─▶ VAD / 事件分类 ─┬─ 附和：继续\n                                      └─ 中断：取消 queued ─▶ 重规划\n输出状态：generated ─▶ queued ─▶ played（不可回滚）',
+  references: [{ title: 'Moshi: a speech-text foundation model for real-time dialogue', url: 'https://arxiv.org/abs/2410.00037' }],
 };
