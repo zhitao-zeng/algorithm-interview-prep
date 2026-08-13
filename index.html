@@ -53316,6 +53316,8 @@ const domains = [
         steps: ['编码器（ViT）', 'token 化（patch→token）', '对齐（CLIP）', '连接器（Q-Former）', '融合（主流架构 / M-RoPE / 音频接入）', '进阶（高分辨率 / 多图多轮 / 视频时序 Token Explosion）', '训练与评测（预训练 / 指令微调 / 幻觉 / benchmark）', '部署与系统设计（视觉编码器与 LLM 协同 / 短视频理解系统）'] },
       { name: 'ASR 专项', oneliner: 'CTC/RNNT 原理、VAD、流式分段、partial/final、解码与语言模型融合。',
         steps: ['CTC（Greedy / Prefix Beam，路径对齐）', 'RNN-T（前向递推 / Greedy，流式建模）', '流式工程（VAD / 分段 / partial-final / 流式 ASR 缓存）'] },
+      { name: '语音合成', label: 'TTS 语音合成', oneliner: '文本前端、声学模型、声码器、流式合成、声音克隆、可控生成与质量评测。',
+        steps: ['文本前端（G2P / 音素 / 文本归一化）', '声学模型（Tacotron → FastSpeech → VITS / Matcha-TTS）', '波形生成（HiFi-GAN / 神经声码器）', '工程落地（流式 TTS / 稳定性 / ONNX 部署）', '可控与大模型合成（多语种 / 方言 / 情感 / LLM-TTS / 声音克隆）', '评测（MOS / 音质 / 韵律 / 实时率）'] },
       { name: '语音大模型', oneliner: 'speech/semantic/acoustic token、thinker-talker、语音 LLM pipeline、训练阶段。',
         steps: ['表示形式（连续 vs 离散）', 'token 类型（语义 Token vs 声学 Token / RVQ）', '编码器/适配器（Audio Encoder 与 Adapter）', '架构（整体架构 / Thinker-Talker 双塔）', '训练与全双工（训练阶段 / 全双工交互）'] },
     ],
@@ -54138,6 +54140,11 @@ function diagramToVectorModel(value) {
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
+const categoryLabels = new Map([
+  ['语音合成', 'TTS 语音合成'],
+]);
+
+function categoryLabel(category) { return categoryLabels.get(category) || category; }
 
 const state = {
   mode: 'review', view: 'map', mapTab: 'domains', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
@@ -54178,7 +54185,7 @@ function renderCategories() {
   }, 'nav-lead'));
   // 真实分类（排除内置的「全部」）
   categories.filter((c) => c !== '全部').forEach((category) => {
-    buttons.push(navButton(category, state.view === 'list' && state.category === category, () => {
+    buttons.push(navButton(categoryLabel(category), state.view === 'list' && state.category === category, () => {
       state.view = 'list'; state.category = category;
       selectQuestion(filterQuestions(questions, category, state.query, state.kind)[0]?.id); render();
     }));
@@ -54201,13 +54208,13 @@ function renderKindSwitch() {
 function renderList() {
   const items = activeQuestions(), empty = getEmptyState(items);
   el('question-list').hidden = empty.visible; el('empty-state').hidden = !empty.visible;
-  el('result-count').textContent = `${items.length} 题`; el('list-title').textContent = state.mode === 'mock' ? '本轮题目' : state.category;
+  el('result-count').textContent = `${items.length} 题`; el('list-title').textContent = state.mode === 'mock' ? '本轮题目' : categoryLabel(state.category);
   if (empty.visible) return;
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
     const meta = document.createElement('div'); meta.className = 'card-meta';
     const kindBadge = document.createElement('span'); kindBadge.className = 'badge'; kindBadge.textContent = q.kind === 'code' ? '代码' : '概念';
-    const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = q.category;
+    const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = categoryLabel(q.category);
     const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, metaText);
     const title = appendRichText(document.createElement('h3'), q.title);
     const prompt = appendRichText(document.createElement('p'), q.prompt);
@@ -54519,7 +54526,7 @@ function renderDetail() {
   if (!q) { pane.textContent = '请选择一道题目'; return; }
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
-  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [q.category, 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
+  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [categoryLabel(q.category), 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
   const title = appendRichText(document.createElement('h2'), q.title);
   const prompt = appendRichText(document.createElement('p'), q.prompt);
   head.append(tags, title, prompt); pane.append(head);
@@ -54587,7 +54594,7 @@ function renderCategoryThread(pane, list) {
   banner.id = 'category-thread'; banner.className = `thread-banner ${info.heavy ? 'heavy' : ''}`;
   const head = document.createElement('div'); head.className = 'thread-head';
   const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '本类主线';
-  const title = document.createElement('h3'); title.textContent = state.category;
+  const title = document.createElement('h3'); title.textContent = categoryLabel(state.category);
   head.append(tag, title);
   const oneliner = document.createElement('p'); oneliner.className = 'thread-oneliner'; oneliner.textContent = info.oneliner;
   const ol = document.createElement('ol'); ol.className = 'thread-steps';
@@ -54624,7 +54631,7 @@ function renderMapDomains() {
     const why = document.createElement('p'); why.className = 'domain-why'; why.textContent = d.why;
     const chips = document.createElement('div'); chips.className = 'cat-chips';
     d.categories.forEach((cat) => {
-      const chip = document.createElement('button'); chip.className = 'cat-chip'; chip.textContent = cat.name;
+      const chip = document.createElement('button'); chip.className = 'cat-chip'; chip.textContent = cat.label || categoryLabel(cat.name);
       chip.addEventListener('click', () => {
         state.view = 'list'; state.category = cat.name;
         selectQuestion(filterQuestions(questions, cat.name, state.query, state.kind)[0]?.id); render();

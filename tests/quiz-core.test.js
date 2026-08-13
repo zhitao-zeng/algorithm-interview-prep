@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import { questions } from '../questions.js';
 import { detailSections, validateQuestionCard } from '../quiz-core.js';
+import { categoryThread, domains } from '../knowledge-map.js';
 import { readFileSync } from 'node:fs';
 
 const beginnerFixture = {
@@ -73,6 +74,20 @@ test('kind 分布与分类映射一致', () => {
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 143, '代码题数量');
   assert.equal(questions.filter((q) => q.kind === 'concept').length, 658, '概念题数量');
+});
+
+test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', () => {
+  const ttsQuestions = questions.filter((q) => q.category === '语音合成');
+  const speechDomain = domains.find((domain) => domain.name === '多模态与语音');
+  const ttsCategory = speechDomain?.categories.find((category) => category.name === '语音合成');
+  const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.equal(ttsQuestions.length, 20);
+  assert.equal(ttsCategory?.label, 'TTS 语音合成');
+  assert.ok(ttsCategory?.steps.length >= 6);
+  assert.equal(categoryThread['语音合成'].steps.length, ttsCategory.steps.length);
+  assert.match(appSource, /\['语音合成', 'TTS 语音合成'\]/);
+  assert.match(appSource, /categoryLabel\(q\.category\)/);
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {

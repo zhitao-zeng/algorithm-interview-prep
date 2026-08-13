@@ -76,6 +76,8 @@ export const domains = [
         steps: ['编码器（ViT）', 'token 化（patch→token）', '对齐（CLIP）', '连接器（Q-Former）', '融合（主流架构 / M-RoPE / 音频接入）', '进阶（高分辨率 / 多图多轮 / 视频时序 Token Explosion）', '训练与评测（预训练 / 指令微调 / 幻觉 / benchmark）', '部署与系统设计（视觉编码器与 LLM 协同 / 短视频理解系统）'] },
       { name: 'ASR 专项', oneliner: 'CTC/RNNT 原理、VAD、流式分段、partial/final、解码与语言模型融合。',
         steps: ['CTC（Greedy / Prefix Beam，路径对齐）', 'RNN-T（前向递推 / Greedy，流式建模）', '流式工程（VAD / 分段 / partial-final / 流式 ASR 缓存）'] },
+      { name: '语音合成', label: 'TTS 语音合成', oneliner: '文本前端、声学模型、声码器、流式合成、声音克隆、可控生成与质量评测。',
+        steps: ['文本前端（G2P / 音素 / 文本归一化）', '声学模型（Tacotron → FastSpeech → VITS / Matcha-TTS）', '波形生成（HiFi-GAN / 神经声码器）', '工程落地（流式 TTS / 稳定性 / ONNX 部署）', '可控与大模型合成（多语种 / 方言 / 情感 / LLM-TTS / 声音克隆）', '评测（MOS / 音质 / 韵律 / 实时率）'] },
       { name: '语音大模型', oneliner: 'speech/semantic/acoustic token、thinker-talker、语音 LLM pipeline、训练阶段。',
         steps: ['表示形式（连续 vs 离散）', 'token 类型（语义 Token vs 声学 Token / RVQ）', '编码器/适配器（Audio Encoder 与 Adapter）', '架构（整体架构 / Thinker-Talker 双塔）', '训练与全双工（训练阶段 / 全双工交互）'] },
     ],

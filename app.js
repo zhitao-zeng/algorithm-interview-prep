@@ -5,6 +5,11 @@ import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, sp
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
+const categoryLabels = new Map([
+  ['语音合成', 'TTS 语音合成'],
+]);
+
+function categoryLabel(category) { return categoryLabels.get(category) || category; }
 
 const state = {
   mode: 'review', view: 'map', mapTab: 'domains', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
@@ -45,7 +50,7 @@ function renderCategories() {
   }, 'nav-lead'));
   // 真实分类（排除内置的「全部」）
   categories.filter((c) => c !== '全部').forEach((category) => {
-    buttons.push(navButton(category, state.view === 'list' && state.category === category, () => {
+    buttons.push(navButton(categoryLabel(category), state.view === 'list' && state.category === category, () => {
       state.view = 'list'; state.category = category;
       selectQuestion(filterQuestions(questions, category, state.query, state.kind)[0]?.id); render();
     }));
@@ -68,13 +73,13 @@ function renderKindSwitch() {
 function renderList() {
   const items = activeQuestions(), empty = getEmptyState(items);
   el('question-list').hidden = empty.visible; el('empty-state').hidden = !empty.visible;
-  el('result-count').textContent = `${items.length} 题`; el('list-title').textContent = state.mode === 'mock' ? '本轮题目' : state.category;
+  el('result-count').textContent = `${items.length} 题`; el('list-title').textContent = state.mode === 'mock' ? '本轮题目' : categoryLabel(state.category);
   if (empty.visible) return;
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
     const meta = document.createElement('div'); meta.className = 'card-meta';
     const kindBadge = document.createElement('span'); kindBadge.className = 'badge'; kindBadge.textContent = q.kind === 'code' ? '代码' : '概念';
-    const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = q.category;
+    const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = categoryLabel(q.category);
     const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, metaText);
     const title = appendRichText(document.createElement('h3'), q.title);
     const prompt = appendRichText(document.createElement('p'), q.prompt);
@@ -386,7 +391,7 @@ function renderDetail() {
   if (!q) { pane.textContent = '请选择一道题目'; return; }
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
-  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [q.category, 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
+  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [categoryLabel(q.category), 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
   const title = appendRichText(document.createElement('h2'), q.title);
   const prompt = appendRichText(document.createElement('p'), q.prompt);
   head.append(tags, title, prompt); pane.append(head);
@@ -454,7 +459,7 @@ function renderCategoryThread(pane, list) {
   banner.id = 'category-thread'; banner.className = `thread-banner ${info.heavy ? 'heavy' : ''}`;
   const head = document.createElement('div'); head.className = 'thread-head';
   const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '本类主线';
-  const title = document.createElement('h3'); title.textContent = state.category;
+  const title = document.createElement('h3'); title.textContent = categoryLabel(state.category);
   head.append(tag, title);
   const oneliner = document.createElement('p'); oneliner.className = 'thread-oneliner'; oneliner.textContent = info.oneliner;
   const ol = document.createElement('ol'); ol.className = 'thread-steps';
@@ -491,7 +496,7 @@ function renderMapDomains() {
     const why = document.createElement('p'); why.className = 'domain-why'; why.textContent = d.why;
     const chips = document.createElement('div'); chips.className = 'cat-chips';
     d.categories.forEach((cat) => {
-      const chip = document.createElement('button'); chip.className = 'cat-chip'; chip.textContent = cat.name;
+      const chip = document.createElement('button'); chip.className = 'cat-chip'; chip.textContent = cat.label || categoryLabel(cat.name);
       chip.addEventListener('click', () => {
         state.view = 'list'; state.category = cat.name;
         selectQuestion(filterQuestions(questions, cat.name, state.query, state.kind)[0]?.id); render();
