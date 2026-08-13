@@ -215,7 +215,7 @@ test('复杂 ASCII 图会保留原始几何并生成可缩放的矢量节点与�
 });
 
 test('题库源数据已恢复：没有脚本生成的 Mermaid，也没有数学误伤', () => {
-  assert.equal(questions.length, 841);
+  assert.equal(questions.length, 855);
   assert.equal(questions.some((question) => /^(?:graph|flowchart)\s/m.test(question.diagram || '')), false);
 
   const corpus = JSON.stringify(questions);

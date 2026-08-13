@@ -31,7 +31,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 841);
+  assert.equal(questions.length, 855);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -77,7 +77,22 @@ test('kind 分布与分类映射一致', () => {
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 143, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 698, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 712, '概念题数量');
+});
+
+test('直播变现与增长模块覆盖两份 JD 的业务、算法与工程闭环', () => {
+  const liveCards = questions.filter((q) => q.category === '直播变现与增长');
+  assert.equal(liveCards.length, 14);
+  assert.deepEqual(liveCards.map((q) => q.order), Array.from({ length: 14 }, (_, index) => index + 1));
+  assert.ok(liveCards.every((q) => validateQuestionCard(q, { beginner: true }).valid));
+  assert.ok(categoryThread['直播变现与增长'].steps.length >= 7);
+  const text = liveCards.map((q) => JSON.stringify(q)).join('\n');
+  for (const term of ['因子分析', 'LTR', 'uplift', 'Bandit', '生成式个性化', 'Flink', 'Spark', 'Hive', '多线程', '全球']) {
+    assert.match(text, new RegExp(term), term);
+  }
+  assert.match(questions.find((q) => q.id === 'live-jd-map').quickAnswer, /岗位 A.*数据挖掘与策略工程/);
+  assert.match(questions.find((q) => q.id === 'live-causal-experiment').quickAnswer, /本来就会付费/);
+  assert.match(questions.find((q) => q.id === 'live-generative-personalization').quickAnswer, /超时降级到模板/);
 });
 
 test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', () => {

@@ -1,4 +1,4 @@
-import { categories, questions } from './questions.js?v=1be0ad7e';
+import { categories, questions } from './questions.js?v=fbb723c9';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
@@ -41,6 +41,10 @@ const personalTracks = [
   {
     code: '05', title: '评测、实验与 Tech Lead', categories: ['服务性能评测', '训练稳定性', 'Tech Lead 与项目答辩'],
     summary: '用可信实验做决策，用工程机制交付结果，用复盘沉淀团队能力。',
+  },
+  {
+    code: '06', title: '直播推荐与增长策略', categories: ['直播变现与增长', '搜索推荐', '因果推断'],
+    summary: '面向直播变现岗位，串起业务漏斗、推荐排序、因果增量、生成式个性化与实时策略系统。',
   },
 ];
 
@@ -603,7 +607,7 @@ function renderPersonalDashboard() {
 
   const heading = document.createElement('div'); heading.className = 'personal-section-head';
   const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
-  const h = document.createElement('h3'); h.textContent = '我的五条准备主线';
+  const h = document.createElement('h3'); h.textContent = '我的六条准备主线';
   const note = document.createElement('p'); note.textContent = '先把自己的经历讲透，再沿主航道加深，最后用通用知识库补齐短板。';
   heading.append(eyebrow, h, note); wrap.append(heading);
 

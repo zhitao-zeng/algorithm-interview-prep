@@ -88,6 +88,8 @@ export const domains = [
     categories: [
       { name: '搜索推荐', oneliner: '多路召回/融合、粗排+精排、双塔、MMOE/ESMM、偏差（位置/选择）、冷启动、LLM 召回、实时、指标。',
         steps: ['全栈架构（工业推荐整体架构）', '多层级漏斗（召回 → 粗排 → 精排 → 重排）', '多目标与偏差（CTR/CVR/时长 / 位置与选择偏差）', '特征与实时（特征工程 / 特征存储 / 实时流）', '专项（视频配乐：生成 vs 检索 / 系统设计）'] },
+      { name: '直播变现与增长', oneliner: '把直播业务漏斗、付费建模、LTR、因果增量、在线 RL、生成式个性化、流批数据与可靠服务串成完整岗位闭环。',
+        steps: ['岗位地图与业务漏斗', '用户与付费建模（算法选型 / 概率校准 / LTV）', '排序与生态（LTR / 多目标）', '可信策略（A/B / uplift / 在线 Bandit-RL）', '生成式个性化（受控生成 / 反馈闭环）', '大数据与服务（Flink-Spark-Hive / 高可靠在线服务）', '业务与全球化（用户洞察 / 本地化 / 信任风险）'] },
       { name: 'RAG', oneliner: '检索/重排/索引、chunk 策略、混合检索、评估、与微调的取舍。',
         steps: ['基础范式（三段范式 / 文档切块）', '检索增强（向量库 / ANN / 混合检索 BM25+向量 / 查询改写 HyDE）', '重排与压缩（重排 / 元数据过滤 / 上下文压缩）', '自省纠错（Self-RAG / CRAG）', '选型与评测（embedding 选型 / 失败模式 / 评测 / RAG vs 微调）'] },
       { name: 'Agent Workflow', oneliner: 'agent 定义、ReAct、planning、tool calling 与失败恢复、memory、MCP vs FC、orchestration、可观测、安全、生产部署。',
@@ -124,6 +126,7 @@ export const crossLines = [
   { name: '端侧感知落地', line: 'OCR/单目深度 → Oracle 定位 → ONNX/TensorRT/MNN → 量化 → Buffer 复用 → 灰度回滚' },
   { name: '多模态生成系统', line: 'Diffusion/Flow Matching → LoRA/人物一致性 → 音频驱动 → 约束生成 → 自动评测' },
   { name: '算法交付与领导', line: '指标契约 → 模型选型 → 实验优先级 → 跨团队交付 → 事故复盘 → STAR-L 答辩' },
+  { name: '直播变现策略闭环', line: '业务漏斗 → 付费/LTR 建模 → 因果实验 → 受约束在线学习 → 生成式个性化 → 流批与可靠服务' },
 ];
 
 export const priorities = [
