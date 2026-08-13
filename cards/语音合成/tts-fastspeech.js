@@ -1,58 +1,20 @@
 export default {
-  "id": "tts-fastspeech",
-  "category": "语音合成",
-  "difficulty": "Medium",
-  "title": "非自回归 TTS 与并行生成（FastSpeech / Matcha）",
-  "prompt": "为什么非自回归 TTS（如 FastSpeech、Matcha-TTS）能做到实时并行合成，它和自回归 TTS 在时长建模上有什么根本区别？",
-  "quickAnswer": "自回归 TTS 逐帧生成、速度受序列长度限制；非自回归 TTS 通过显式时长预测（length regulator）把音素一次性展开成帧序列再并行声学/波形合成，推理延迟与长度解耦，易于流式与端侧落地（如简历中的 Matcha / Melo）。",
-  "code": "import torch\n\ndef length_regulator(x, dur):\n    # x: [B, T_text, D], dur: [B, T_text] (每文本帧的整数帧数)\n    out = []\n    for i in range(x.size(1)):\n        d = dur[:, i]                                   # [B] 该文本帧应展开的帧数\n        rep = x[:, i, :].unsqueeze(1).repeat_interleave(d, dim=1)  # [B, d, D] 沿时间维展开\n        out.append(rep)\n    return torch.cat(out, dim=1)                        # [B, sum(dur), D]",
-  "complexity": "时长展开 O(sum(dur))，并行声学模型 O(1) 步前向，整体与文本长度相关、与音频长度解耦。",
-  "beginnerSummary": "自回归 TTS 像一字一字念，非自回归 TTS 先规划好每个字念多长（时长预测），再把整句话一次性画出来，因此更快。",
-  "derivation": [
-    "为什么需要：自回归逐帧生成使推理时延随音频长度线性增长，难以满足实时/流式与端侧需求。",
-    "怎么实现：用时长预测器给出每个音素/词的帧数，length regulator 把文本表征按帧数展开，再并行过声学模型与声码器。",
-    "有什么代价：时长预测可能不准导致节奏异常，且并行生成弱化了上下文依赖，需要额外对齐或知识蒸馏（teacher 自回归）辅助。",
-    "怎么评测：用 RTF（实时率）、MOS、相似度与 ASR 回测 WER 衡量速度与质量权衡。"
-  ],
-  "edgeCases": [
-    "静音/停顿时长估计偏差导致节奏怪异。",
-    "多音字展开后音素序列错误。",
-    "极长短文本时并行收益有限。",
-    "低资源方言缺少对齐数据训练时长模型。"
-  ],
-  "pitfalls": [
-    "直接用自回归模型做 teacher 未做长度匹配，蒸馏失效。",
-    "忽略时长预测的方差，推理时取 argmax 丢失韵律多样性。"
-  ],
-  "prerequisites": [
-    "自回归 TTS（如 Tacotron/VITS）",
-    "时长建模与对齐（forced alignment）"
-  ],
-  "workedExample": [
-    "FastSpeech 用自回归 teacher 提供的时长作为监督，训练并行时长预测器。",
-    "简历中 Matcha-TTS / Melo 以非自回归流式结构交付中英混读与多方言，正是该思路的工程化。"
-  ],
-  "lineByLine": [
-    "def length_regulator(x, dur)：定义把文本表征按预测时长展开的函数。",
-    "for i in range(x.size(1))：遍历每个文本帧（音素/词）。",
-    "x[:, i, :].unsqueeze(1).repeat_interleave(d, dim=1)：把该帧表征沿新时间维展开 d 帧，得到 [B, d, D]。",
-    "return torch.cat(out, dim=1)：沿时间维拼接得到与音频等长的声学表征序列。"
-  ],
-  "followUps": [
-    {
-      "question": "非自回归 TTS 如何保证可懂度？",
-      "answer": "通常用自回归 teacher 做序列级知识蒸馏，并辅以时长对齐与 ASR 回测 WER 监控，避免并行带来的信息丢失。"
-    },
-    {
-      "question": "时长预测不准怎么办？",
-      "answer": "可用 variance adaptor（pitch/energy/duration）联合建模，或在推理时做轻量时长搜索与韵律控制。"
-    }
-  ],
-  "followUpAnswers": [
-    "通常用自回归 teacher 做序列级知识蒸馏，并辅以时长对齐与 ASR 回测 WER 监控，避免并行带来的信息丢失。",
-    "可用 variance adaptor（pitch/energy/duration）联合建模，或在推理时做轻量时长搜索与韵律控制。"
-  ],
-  "explanationFocus": "是什么：非自回归 TTS 通过显式时长预测把文本一次性展开为声学帧序列再并行合成，从而把推理时延与音频长度解耦，是实现实时、流式与端侧 TTS（如 FastSpeech、Matcha、Melo）的关键思路。",
-  "approach": "核心思路是先预测时长、再并行生成：时长预测器 + length regulator 负责把音素映射成帧数，声学模型与声码器并行前向；训练时常借助自回归 teacher 蒸馏来补偿并行带来的上下文弱化。",
-  "kind": "concept"
+  id: 'tts-fastspeech', category: '语音合成', difficulty: 'Medium', kind: 'concept',
+  title: 'FastSpeech 的 length regulator 与 variance adaptor',
+  prompt: '非自回归 TTS 怎样把文本 token 展开成声学帧？FastSpeech 2 的时长、音高和能量条件分别解决什么？',
+  quickAnswer: 'duration predictor 给每个文本/音素 token 预测帧数，length regulator 按帧数复制或展开隐藏表示，声学 decoder 因而可以并行处理整段序列。FastSpeech 2 进一步显式加入 pitch、energy 和更准确的 duration 条件，缓解同一句文本可有多种说法的一对多问题；并行生成不等于天然有好韵律。',
+  beginnerSummary: '先把“你/好”各自要占几帧写出来，例如 4 帧和 6 帧，再把两个文字向量展开成 10 帧，模型就能并行画完整频谱。音高和能量告诉它这 10 帧该怎么抑扬轻重。',
+  explanationFocus: 'length regulator 解决长度对齐，variance adaptor 解决文本不能唯一决定韵律的问题。',
+  approach: '训练时从可靠对齐提取 duration、pitch、energy；推理时使用预测值，并对零时长、总长度和控制范围做守卫。',
+  derivation: ['为什么需要：文本序列短、mel 序列长，且同一文本存在多种合法韵律。', '怎么实现：预测 duration 后展开 token 表示，再注入 pitch/energy 条件并并行解码。', '有什么代价：显式监督依赖对齐与 F0 提取质量，错误会直接变成漏读或韵律僵硬。', '怎么评测：duration/F0 误差只是诊断，最终还要看漏读重读、自然度、可控性与 RTF。'],
+  prerequisites: ['非自回归 NAR', '时长与 forced alignment', '韵律 F0 与能量'],
+  workedExample: ['音素 A/B/C 的 duration=[2,3,1]，展开后隐藏序列长度为 6，而不是仍为 3。', '若标点后停顿被压到 0 帧，模型会黏连两句；应在前端与 duration 预测两侧定位。'],
+  code: "def length_regulate_one_utterance(hidden, durations):\n    frames = []\n    for token_vector, frame_count in zip(hidden, durations):\n        if frame_count > 0:\n            frames.extend([token_vector] * int(frame_count))\n    return stack(frames)",
+  lineByLine: ['按 token 与预测帧数成对遍历。', '零时长 token 不展开，必须确认它是否允许被删除。', '真实 batch 实现需要 padding、mask 与每条样本独立长度。'],
+  complexity: '展开和后续 decoder 的计算随总声学帧数 sum(duration) 增长；优势是位置之间可并行，不是计算量与音频长度无关。',
+  diagram: 'text tokens ─▶ encoder ─▶ duration / pitch / energy predictors\n                         └▶ length regulator ─▶ expanded frames ─▶ parallel mel decoder',
+  references: [{ title: 'FastSpeech 2: Fast and High-Quality End-to-End Text to Speech', url: 'https://arxiv.org/abs/2006.04558' }],
+  edgeCases: ['所有 duration 都为 0 会产生空 mel。', '极端语速控制可能超出训练分布。', '清音段 F0 不存在，不能把插值后的数值当真值。'],
+  pitfalls: ['把 Matcha-TTS 也解释成一次 length-regulator 前向；它的 decoder 是 ODE 数值积分。', '只看 duration MSE，不听长句停顿和重音。'],
+  followUps: [{ question: 'duration 从哪里来？', answer: '可来自 teacher attention、外部 forced aligner、CTC/MAS 等对齐；不同来源的偏差会传给模型。' }, { question: '为什么显式 pitch/energy 有助于可控性？', answer: '它们把部分韵律变化从隐藏随机性中拿出来，推理时可调；但局部自然度仍依赖模型与训练覆盖。' }],
 };

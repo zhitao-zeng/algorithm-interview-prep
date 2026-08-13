@@ -1,57 +1,19 @@
 export default {
-  "id": "tts-codeswitch",
-  "category": "语音合成",
-  "difficulty": "Hard",
-  "title": "中英 code-switching 混读控制",
-  "prompt": "中英混读 TTS 中常见的\"混读偏移\"是什么，如何在前端与模型两侧控制其分布？",
-  "quickAnswer": "混读偏移指模型在夹杂英文时音素/韵律向某一方言或语言倾斜(如中文词带英文腔或反之)；需在前端按语言精确切分 G2P，并在训练/微调时控制 code-switch 比例与语言边界平滑。",
-  "code": "def detect_lang_spans(text):\n    # 检测中英混读边界，分别走不同 G2P\n    spans = []\n    for tok in text:\n        spans.append(\"en\" if is_english(tok) else \"zh\")\n    return merge_consecutive(spans)",
-  "complexity": "时间 O(n)，空间 O(n)（n 为字符数）",
-  "beginnerSummary": "像双语者切换语言时偶尔\"串味\"；我们要让中英文各归各的味，切换点自然不突兀。",
-  "derivation": [
-    "为什么需要：混读是自然场景常态，偏移会让某语言发音失真、听感怪异。",
-    "怎么实现：前端 detect_lang_spans 分语言段→各自 G2P→边界处做韵律平滑；训练控制混读比例。",
-    "有什么代价：语言切分错误会放大偏移；过度控制会削弱自然语码转换。",
-    "怎么评测：逐词语言正确率、混读自然度 MOS、偏移的声学距离度量。"
-  ],
-  "edgeCases": [
-    "中英夹杂无空格(如\"这个API\")的切分。",
-    "英文缩写大小写/数字混合(如\"GPT4\")。",
-    "中文词内夹英文术语(如\"transformer模型\")。",
-    "方言口音下的英文读法差异需适配。"
-  ],
-  "pitfalls": [
-    "切分按字符而非语义，把\"API\"拆散读错。",
-    "微调时混读比例失衡导致单向偏移。"
-  ],
-  "prerequisites": [
-    "语言识别与分词",
-    "多语言音素体系"
-  ],
-  "workedExample": [
-    "\"我用了 GPT 模型\"→切分[中:我用了][英:GPT][中:模型]。",
-    "各段走对应 G2P，边界加短停与音高过渡。"
-  ],
-  "lineByLine": [
-    "def detect_lang_spans(text)：混读边界检测入口。",
-    "spans.append(\"en\" if is_english(tok) else \"zh\")：逐字符打语言标签。",
-    "return merge_consecutive(spans)：合并连续同语言段便于分段 G2P。"
-  ],
-  "followUps": [
-    {
-      "question": "边界韵律平滑具体怎么做？",
-      "answer": "在语言切换处插入短停、并做基频与能量插值，避免突兀跳变，使混读更自然。"
-    },
-    {
-      "question": "训练数据缺乏混读怎么办？",
-      "answer": "用平行语料构造混读样本、控制比例，并用强前端切分保证标注一致。"
-    }
-  ],
-  "followUpAnswers": [
-    "在语言切换处插入短停、并做基频与能量插值，避免突兀跳变，使混读更自然。",
-    "用平行语料构造混读样本、控制比例，并用强前端切分保证标注一致。"
-  ],
-  "explanationFocus": "是什么：code-switching(语码转换)指一句话中中英文交替；混读偏移是模型在切换时把某语言的发音/韵律错误地带入另一方。本课关注其控制方法。",
-  "approach": "前端用语言切分把文本按段分语言并各自 G2P，在边界做韵律平滑；训练/微调侧控制混读比例与边界一致性，抑制向单一语言偏移。",
-  "kind": "concept"
+  id: 'tts-codeswitch', category: '语音合成', difficulty: 'Hard', kind: 'concept',
+  title: '中英混读：语言跨度、音素冲突与训练分布',
+  prompt: '中英 code-switch TTS 为什么会出现英文中文化、声线漂移或切换处停顿异常？怎样分前端与模型两侧定位？',
+  quickAnswer: '前端先识别语言跨度、保护 URL/缩写/专名，再按语言做 TN、G2P 和音素映射；相同符号若在中英文代表不同发音，要保留 language id 或语言专属音素。模型侧需要真实混读数据与切换位置覆盖，并防止 language、speaker 和 prosody 条件串扰。评测应按切换方向、边界位置、词类和未见专名切片。',
+  beginnerSummary: '“请打开 Wi‑Fi 设置”里，Wi‑Fi 不能先被中文规则改坏，也不能在切到英文时突然换人或多停半秒。系统要知道每一段是什么语言，并让边界在训练中见过足够多样的例子。',
+  explanationFocus: '混读问题可能来自 span 切错、TN/G2P 错、音素表冲突、数据分布或条件泄漏，必须逐层留证据。',
+  approach: '保存 span→normalized text→phoneme→language id→duration→audio 全链路；构造中→英、英→中、句中/句尾与专名切片。',
+  derivation: ['为什么需要：单语前端和单语数据不能覆盖语言切换的读法与韵律。', '怎么实现：语言跨度识别、分语言 TN/G2P、共享或带语言标记音素、混读训练与条件控制。', '有什么代价：规则和词表维护复杂，真实混读数据稀少且长尾专名持续变化。', '怎么评测：span/LID、音素准确、切换边界时长/F0、speaker consistency、回识和盲听。'],
+  prerequisites: ['多语种与语言识别', 'G2P 音素与发音', '正字法归一化', '韵律 F0 与能量'],
+  workedExample: ['“GPU 温度”中 GPU 标为英文缩写并保留字母名读法，后接中文时不插入无依据长停顿。', '固定 speaker 对比纯中文、纯英文和混读；若只有混读切换后 speaker similarity 掉点，检查 language/speaker 条件串扰。'],
+  code: "def code_switch_frontend(text):\n    spans = detect_language_and_entities(text)\n    outputs = []\n    for span in spans:\n        normalized = normalize_for_language(span.text, span.language, span.entity_type)\n        outputs.extend(g2p(normalized, language=span.language, keep_language_tag=True))\n    return outputs",
+  lineByLine: ['先联合检测语言与 URL/缩写/专名实体。', '归一化规则按语言和实体类型选择。', 'G2P 输出保留 language tag，避免同形音素冲突。'],
+  complexity: '前端通常近似随文本长度增长；上下文模型与词典查询增加成本，真正难点是长尾覆盖和可回溯日志。',
+  diagram: 'mixed text ─▶ span + entity detection ─▶ per-language TN ─▶ per-language G2P\n                                                      └▶ phoneme + language tag ─▶ TTS\n证据链：span / normalized / phoneme / duration / audio',
+  edgeCases: ['URL、型号和缩写不应按普通英文单词处理。', '中文姓名含拉丁字母时语言跨度可能被切碎。', '训练语料只在句尾切换，句中切换会分布外。'],
+  pitfalls: ['只增加一张共享音素表就宣称解决混读。', '把边界停顿问题全部归因给前端，忽略训练数据和 duration predictor。'],
+  followUps: [{ question: '共享 IPA 是否足够？', answer: '不够。还要保留语言音系、重音、声调和上下文；同一 IPA 单元在不同语言中的共现与韵律也不同。' }, { question: '怎样判断问题在前端还是模型？', answer: '先人工核对 span、normalized text 和 phoneme；若这些正确而 duration/F0 或声线在边界异常，再查模型与数据。' }],
 };

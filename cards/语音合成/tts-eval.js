@@ -1,58 +1,19 @@
 export default {
-  "id": "tts-eval",
-  "category": "语音合成",
-  "difficulty": "Medium",
-  "title": "TTS 主客观评测",
-  "prompt": "如何对 TTS 系统做全面评测，覆盖 MOS、说话人相似度与自然度等主客观指标？",
-  "quickAnswer": "主观用 MOS/相似度/自然度人工打分与 AB 测试；客观用说话人编码器余弦相似度、STOI/PESQ、音素错误率与稳定性指标，二者结合判断优劣。",
-  "code": "def compute_mos(scores: list) -> float:\n    # 主观打分平均，过滤异常评分\n    scores = remove_outliers(scores)\n    return sum(scores) / len(scores)\n\ndef speaker_similarity(a, b):\n    return cosine(encoder(a), encoder(b))",
-  "complexity": "时间 O(N)，空间 O(1)（N 为样本数）",
-  "beginnerSummary": "像餐厅评分既看食客打分(主观)也看营养检测(客观)，主客观结合才可靠。",
-  "derivation": [
-    "为什么需要：自然度/相似度单看指标会失真，需主客观互补。",
-    "怎么实现：主观 MOS+相似度打分与 ABX；客观用 ECAPA 余弦、PESQ/STOI、WER。",
-    "有什么代价：人工评测贵且慢、方差大；客观指标与听感不完全一致。",
-    "怎么评测：用评测集给出各指标均值与置信区间，跨系统 AB 显著性检验。"
-  ],
-  "edgeCases": [
-    "评测员疲劳导致打分漂移。",
-    "参考音频与合成域不匹配拉低相似度。",
-    "短句 MOS 方差大需增大样本。",
-    "客观指标高但听感差的特例需人工复检。"
-  ],
-  "pitfalls": [
-    "只用客观指标(如 PESQ)误判自然度。",
-    "样本量小导致 MOS 无统计意义。"
-  ],
-  "prerequisites": [
-    "说话人验证/编码器",
-    "语音质量客观指标"
-  ],
-  "workedExample": [
-    "收集 50 句合成音频，20 人打 MOS 与相似度(1-5)。",
-    "客观算 ECAPA 余弦与 PESQ，综合排序。"
-  ],
-  "lineByLine": [
-    "def compute_mos(scores)：主观 MOS 计算入口。",
-    "scores = remove_outliers(scores)：剔除异常评分保证稳健。",
-    "return sum(scores) / len(scores)：返回平均 MOS。",
-    "cosine(encoder(a), encoder(b))：说话人余弦相似度。"
-  ],
-  "followUps": [
-    {
-      "question": "客观相似度与主观相似度不一致怎么办？",
-      "answer": "检查编码器域偏置，补充 ABX 与细粒度聚类分析定位偏差来源。"
-    },
-    {
-      "question": "如何用稳定性指标补充 MOS？",
-      "answer": "加崩坏率/异常 loss 占比，避免高 MOS 掩盖偶发崩溃。"
-    }
-  ],
-  "followUpAnswers": [
-    "检查编码器域偏置，补充 ABX 与细粒度聚类分析定位偏差来源。",
-    "加崩坏率/异常 loss 占比，避免高 MOS 掩盖偶发崩溃。"
-  ],
-  "explanationFocus": "是什么：TTS 评测用主观(人听打分)与客观(自动指标)共同衡量自然度、相似度与稳定性。本课给出可落地的指标组合。",
-  "approach": "主观以 MOS/相似度/ABX 为主，客观以说话人余弦、PESQ/STOI、WER 与稳定性指标为辅，跨系统做显著性检验综合判定。",
-  "kind": "concept"
+  id: 'tts-eval', category: '语音合成', difficulty: 'Medium', kind: 'concept',
+  title: 'TTS 自动回归：上线前应有哪些门禁',
+  prompt: '不可能每个 checkpoint 都做大规模听测时，怎样用自动回归先淘汰漏读、爆音、音色漂移和性能退化？',
+  quickAnswer: '自动回归应分成文本正确性、声学稳定性、音色/风格和系统性能四组：ASR 回识与关键词检查发现漏读重读；时长、静音、削顶、响度、F0 异常发现崩坏；speaker embedding 只作音色代理；RTF、TTFA、内存和失败率约束部署。自动指标用于筛查与门禁，最终听感定版仍需盲听。',
+  beginnerSummary: '自动测试像流水线质检：先查有没有漏字、重复、长静音、爆音，再查声音像不像目标人、跑得快不快。它能挡住明显坏样本，但不能代替人判断“自然不自然”。',
+  explanationFocus: '这张卡关注持续集成中的自动门禁，不重复上一张的主观听测设计。',
+  approach: '冻结文本集、说话人参考、声学后处理和硬件；每个 checkpoint 保存逐样本音频、指标与异常标签，只有所有关键门禁通过才进入听测。',
+  derivation: ['为什么需要：大规模听测慢，训练过程却会产生大量 checkpoint。', '怎么实现：按内容、声学、身份和性能建立分层自动检测与最差切片门禁。', '有什么代价：代理指标会误报/漏报，ASR 和 speaker encoder 自身也有偏差。', '怎么评测：用人工标注崩坏集校准门禁召回/误报，再对候选做盲听确认。'],
+  prerequisites: ['CER 与 WER 编辑距离', '说话人 d-vector 与声纹', '服务性能评测与延迟分位数'],
+  workedExample: ['候选 speaker similarity 上升，但 ASR 回识删除率变差且长静音增加，应先淘汰。', '平均 RTF 通过但 p99 长句超时，性能门禁仍失败。'],
+  code: "def tts_release_gate(metrics, thresholds):\n    checks = {\n        'content': metrics.asr_error <= thresholds.asr_error,\n        'stability': metrics.bad_audio_rate <= thresholds.bad_audio_rate,\n        'latency': metrics.p99_latency <= thresholds.p99_latency,\n    }\n    return all(checks.values()), checks",
+  lineByLine: ['不同风险各自设置门禁，不先揉成一个总分。', '返回逐项结果，方便知道失败原因。', '阈值应由基线、人工坏例和业务风险校准。'],
+  complexity: '成本主要是批量合成、ASR 回识、speaker encoder 与目标硬件性能测试，可并行但需要保存大量音频证据。',
+  diagram: 'checkpoint ─▶ 批量合成 ─┬▶ 内容：漏读/重读/关键词\n                       ├▶ 声学：静音/削顶/F0/响度\n                       ├▶ 身份：speaker proxy\n                       └▶ 系统：RTF/TTFA/内存/p99\n全部门禁通过 ─▶ 盲听定版',
+  edgeCases: ['ASR 对方言本身较差，会高估 TTS 错误。', 'speaker encoder 可能把信道相似误当音色相似。', '短句门禁无法覆盖长句对齐崩坏。'],
+  pitfalls: ['把 MOS、speaker similarity、ASR-WER 加权成一个总分后失去诊断性。', '只看平均值，不保存逐样本音频和最差切片。'],
+  followUps: [{ question: 'speaker similarity 变高为什么仍可能更差？', answer: '模型可能更像参考信道或牺牲发音可懂度换取 embedding 相似，需和内容及跨设备测试联合看。' }, { question: '门禁阈值从哪里来？', answer: '以当前线上基线、人工确认坏例和业务容忍度校准，再用独立回归集验证误报与漏报。' }],
 };

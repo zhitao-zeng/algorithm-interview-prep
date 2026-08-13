@@ -1,59 +1,19 @@
 export default {
-  "id": "tts-g2p",
-  "category": "语音合成",
-  "difficulty": "Medium",
-  "title": "G2P 前端与多音字三级回退",
-  "prompt": "在中文 TTS 前端中，如何用双层词典、G2PW 与 pypinyin 三级回退处理多音字与低置信词组，保证中英混读稳定？",
-  "quickAnswer": "采用 split_by_lang 先按语言切分，中文段优先查双层词典（多音字特殊词+常规词典），再调用 G2PW 模型；当 G2PW 置信度低于阈值时用 pypinyin 兜底，英文段走英文 G2P，从而保证混读稳定。",
-  "code": "def g2p_with_fallback(text: str) -> list:\n    # 第一级：split_by_lang 按语言切分\n    segs = split_by_lang(text)\n    phonemes = []\n    for lang, seg in segs:\n        if lang == \"zh\":\n            # 第二级：G2PW 模型，低置信回退 pypinyin\n            res, conf = g2pw.predict(seg)\n            if conf < 0.6:\n                res = pypinyin.lazy_pinyin(seg)\n            phonemes.extend(res)\n        else:\n            phonemes.extend(english_g2p(seg))\n    return phonemes",
-  "complexity": "时间 O(n)，空间 O(n)（n 为字符数）",
-  "beginnerSummary": "就像遇到不认识的字先查小字典、再查大字典、最后用拼音规则猜，三级兜底保证每个字都能读对，不会卡壳。",
-  "derivation": [
-    "为什么需要：中文多音字（如\"重\"）与未登录词无法靠规则唯一确定读音，G2PW 虽好但对低频词置信度低，必须回退。",
-    "怎么实现：split_by_lang 切分语言→双层词典命中→否则 G2PW 预测，置信度低于 0.6 时用 pypinyin 兜底。",
-    "有什么代价：三级回退增加推理分支与词典维护成本，回退可能引入音错，需要评测低置信词组覆盖率。",
-    "怎么评测：在带读音标注的多音字测试集上统计准确率与混读崩溃率，并离线拟合轻量 G2P 服务替代 G2PW。"
-  ],
-  "edgeCases": [
-    "多音字在专有名词中读错（如\"重庆\"的\"重\"）。",
-    "G2PW 对数字/字母混合串（如\"GPT4\"）置信度低。",
-    "中英混读边界切分错误导致整句重读。",
-    "轻声与儿化音（如\"花儿\"）规则缺失时丢失韵律。"
-  ],
-  "pitfalls": [
-    "把 pypinyin 当主模型用会丢失上下文消歧能力，多音字全错。",
-    "置信度阈值设得过高会频繁回退、过低会放过错误读音。"
-  ],
-  "prerequisites": [
-    "中文分词与语言识别基础",
-    "拼音与音素表示（pinyin/phoneme）",
-    "模型置信度与阈值策略"
-  ],
-  "workedExample": [
-    "输入\"他重(chóng)新读了 GPT 论文\"，split_by_lang 切成中文段\"他重新读了\"与英文段\"GPT 论文\"。",
-    "\"重\"命中多音字词典得 chóng；\"GPT\"走英文 G2P；低置信词组回退 pypinyin 保证不崩。"
-  ],
-  "lineByLine": [
-    "def g2p_with_fallback(text)：定义入口，接收原始混合语言文本。",
-    "segs = split_by_lang(text)：按语言切成若干段，分离中英文。",
-    "res, conf = g2pw.predict(seg)：G2PW 预测中文读音并返回置信度。",
-    "if conf < 0.6: res = pypinyin.lazy_pinyin(seg)：低置信时回退到 pypinyin 兜底。"
-  ],
-  "followUps": [
-    {
-      "question": "为什么要把读音标签从 8 类扩展到 18 类？",
-      "answer": "8 类无法覆盖轻声、儿化、变调等细分韵律需求，18 类能更精细地驱动韵律建模与多方言适配，提升自然度与方言区分度。"
-    },
-    {
-      "question": "轻量 G2P 服务如何拟合 G2PW？",
-      "answer": "用 G2PW 的批量输出作伪标签，蒸馏到一个小模型或规则服务，降低线上延迟与对 G2PW 重模型的依赖，同时保留三级回退兜底。"
-    }
-  ],
-  "followUpAnswers": [
-    "8 类无法覆盖轻声、儿化、变调等细分韵律需求，18 类能更精细地驱动韵律建模与多方言适配，提升自然度与方言区分度。",
-    "用 G2PW 的批量输出作伪标签，蒸馏到一个小模型或规则服务，降低线上延迟与对 G2PW 重模型的依赖，同时保留三级回退兜底。"
-  ],
-  "explanationFocus": "是什么：G2P（Grapheme-to-Phoneme）把文字转为拼音或音素序列；本课关注中文多音字与中英混读场景下的三级回退策略。它是 TTS 前端最易出错、最影响自然度的环节。",
-  "approach": "以 split_by_lang 做语言切分，中文走\"双层词典→G2PW→pypinyin\"三级回退，英文走英文 G2P，并用轻量服务拟合 G2PW、把读音标签从 8 类扩到 18 类以支撑多方言与韵律。",
-  "kind": "concept"
+  id: 'tts-g2p', category: '语音合成', difficulty: 'Medium', kind: 'concept',
+  title: '中文 G2P：词典、上下文模型与回退怎样仲裁',
+  prompt: '多音字、人名、专名和中英混读同时存在时，怎样设计可解释的 G2P 级联与置信度回退？',
+  quickAnswer: '先做文本归一化、分词与语言跨度识别，再让高精度短语/专名词典、上下文多音字模型和规则/通用拼音工具各承担明确范围。仲裁要保存来源、置信度和冲突；阈值应在独立金标上按实体类型校准。不存在所有项目通用的“词典→G2PW→pypinyin”固定三级最优顺序，词典质量和业务风险决定谁能强制覆盖。',
+  beginnerSummary: '“银行”和“行走”的“行”读音不同。系统先看完整词和上下文，再看专名词典；实在不确定才用覆盖广但不够聪明的默认规则，并记录自己为什么这么读。',
+  explanationFocus: 'G2P 是带来源和置信度的候选仲裁，不是三个库按固定 if/else 串起来就结束。',
+  approach: '冻结多音字/人名/数字/code-switch 金标；每个候选输出 phoneme、source、confidence，按类型校准阈值并保留可热更新词典。',
+  derivation: ['为什么需要：中文字符到读音依赖词义和上下文，专名与混读又持续变化。', '怎么实现：TN/分词/LID→高精度词典→上下文模型→规则回退→冲突与 OOV 日志。', '有什么代价：词典维护成本高，模型置信度未校准会错误覆盖，分词错误还会传递。', '怎么评测：音节/声调准确率、实体切片、覆盖率—错误率曲线和最终 TTS 回识/听测。'],
+  prerequisites: ['G2P 音素与发音', '正字法归一化', '多语种与语言识别', '置信度阈值与校准'],
+  workedExample: ['“银行行长”先按词级上下文切分，两个“行”分别由短语或上下文模型给出读音与来源。', '罕见人名模型置信度不足时进入白名单/人工词典，而不是无条件接受默认单字音。'],
+  code: "def resolve_pronunciation(span, context, resources):\n    candidates = resources.collect_candidates(span, context)\n    calibrated = [resources.calibrate(c, entity_type(span)) for c in candidates]\n    return resources.policy.choose(calibrated)",
+  lineByLine: ['词典、上下文模型和规则都可提供候选。', '置信度按人名、普通词等实体类型分别校准。', '策略选择结果时保留来源，便于纠错与热修。'],
+  complexity: 'Trie 词典匹配通常近似随文本长度增长；上下文模型成本取决于 encoder；真正工程成本还包括词典版本和 OOV 闭环。',
+  diagram: 'text ─▶ TN / 分词 / LID ─▶ 候选：短语词典 + 上下文模型 + 规则\n                               └▶ 类型化校准 / 冲突仲裁 ─▶ phoneme + source + confidence',
+  edgeCases: ['词典边界与分词结果冲突。', '人名、地名和普通词需要不同阈值。', '英文缩写在中文句中可能按字母名或单词发音。'],
+  pitfalls: ['词典命中就永远强制覆盖；自动生成的低质量词典也会错。', '把某套具体三级回退描述成自己一定实施过的项目流程。'],
+  followUps: [{ question: '为什么需要校准而不只看 softmax 最大值？', answer: '模型原始分数不一定等于真实正确概率，且在人名、普通词、不同域上的可靠性不同。' }, { question: '线上发现错读怎样热修？', answer: '优先用带版本和作用域的高精度短语词典修复，同时把样本回流金标集，避免永久堆叠不可审计规则。' }],
 };

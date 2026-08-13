@@ -1,60 +1,19 @@
 export default {
-  "id": "tts-multilingual-emotion",
-  "kind": "concept",
-  "category": "语音合成",
-  "title": "多语种与情感/风格控制 TTS",
-  "difficulty": "Hard",
-  "prompt": "请说明多语种 TTS 的跨语种迁移、情感/韵律标签控制，以及零样本声音克隆的实现要点？",
-  "quickAnswer": "多语种 TTS 常用共享音素/字符空间或语言无关表征（如国际音标 IPA、可学习的语言嵌入）让模型跨语种共享韵律与声学知识，实现跨语种迁移。情感/风格控制通过显式标签嵌入、参考编码器（从参考音频提取风格向量）或无监督解耦（如全局/局部风格 token）注入。零样本声音克隆则依赖说话人编码器（如 d-vector/x-vector）或语音大模型的提示条件，无需微调即可复现音色。",
-  "explanationFocus": "是什么：多语种与情感/风格控制 TTS 是在基础合成能力之上，叠加‘说哪种语言、带什么情绪、像谁在说’三类可控维度的能力。多语种强调跨语言共享表征与迁移；情感/风格强调把韵律（音高、能量、语速）从内容中解耦并可被外部信号驱动；零样本克隆强调脱离微调复现任意说话人音色。",
-  "approach": "核心思路是‘解耦 + 条件注入’：文本侧用语言 ID/共享音素表区分语种；韵律侧用参考编码器或风格 token 把情感/说话人压缩成向量并做归一化解耦（如 GST、VITS 的说话人适配器）；推理时把语言、情感、说话人三类条件拼接进模型，从而自由组合‘语种×情感×说话人’。",
-  "code": "import torch\n\ndef controlled_synthesis(text, lang_id, emotion_vec, spk_vec, model):\n    # 解耦条件注入：语种 + 情感 + 说话人\n    h = model.text_encoder(text)\n    h = h + model.lang_emb(lang_id)                 # 语种条件\n    style = torch.cat([emotion_vec, spk_vec], dim=-1)\n    h = model.ada_in(h, style)                       # 自适应归一化注入风格\n    return model.decode(h)\n\ndef clone_voice(ref_wav, spk_encoder):\n    return spk_encoder(ref_wav)                      # 零样本声纹向量",
-  "complexity": "O(T) 与基础模型同阶；条件注入为轻量加法/归一化，开销可忽略",
-  "beginnerSummary": "让机器‘用某种语言、带着某种情绪、模仿某个人的声音’说话，需要把这三件事拆开来控制。做法是给模型额外的开关：选语言、给情绪样本、给目标说话人的几秒录音，模型就能自由组合，比如‘用中文、开心地、模仿张三’说话。",
-  "derivation": [
-    "为什么需要：全球化与拟人交互要求单一系统覆盖多语种、多变情感与任意说话人，逐一训练成本不可接受。",
-    "怎么实现：语种用共享音素/IPA 或语言嵌入；情感用标签或参考编码器提取风格向量并通过 AdaIN/条件归一化注入；说话人用预训练编码器或大模型提示实现零样本克隆；多任务训练让表征解耦。",
-    "有什么代价：解耦不彻底会‘串味’（情感泄漏到音色或语种）；低资源语种数据少易退化；多条件组合下分布外难泛化。",
-    "怎么评测：跨语种 MOS、情感识别准确率（把合成音频再过情感分类器）、说话人相似度、主观自然度。"
-  ],
-  "edgeCases": [
-    "低资源语种：数据稀疏导致韵律生硬。",
-    "语种混说（code-switch）：需语言边界准确标注。",
-    "强情感与高可懂度冲突：过度情绪化降低清晰度。",
-    "参考音频与目标语种不同：跨语种克隆音色可能偏移。"
-  ],
-  "pitfalls": [
-    "风格与说话人向量未解耦，导致‘换情绪却也换了音色’的串扰。",
-    "语言嵌入仅在推理时切换但训练覆盖不均，小语种被大语种主导。"
-  ],
-  "prerequisites": [
-    "说话人嵌入（d-vector/x-vector）与说话人验证",
-    "风格建模（GST/参考编码器/AdaIN）",
-    "多语种音素与国际音标（IPA）基础"
-  ],
-  "workedExample": [
-    "跨语种迁移：一个中英混合模型，输入中文文本+英文语言嵌入，复用共享韵律知识产出带英文韵律的中文朗读。",
-    "情感控制：给定‘愤怒’参考音频提取 emotion_vec，注入后合成语句音高上升、能量增强、语速加快，而内容不变。"
-  ],
-  "lineByLine": [
-    "controlled_synthesis：文本编码得到基础隐表征 h。",
-    "lang_emb：把语言 ID 嵌入加到 h，区分语种。",
-    "ada_in：用拼接后的风格向量（情感+说话人）做自适应实例归一化，注入风格而不破坏内容。",
-    "clone_voice：说话人编码器从参考波形产出零样本声纹向量。"
-  ],
-  "followUps": [
-    {
-      "question": "如何防止情感控制时‘串’到说话人音色？",
-      "answer": "关键是解耦训练：用正交约束/互信息最小化或独立编码器分别建模情感与说话人，并在推理时验证两者余弦相似度互不影响；也可采用解耦更彻底的 VAE 式分离，使风格向量各司其职。"
-    },
-    {
-      "question": "零样本克隆和微调克隆怎么选？",
-      "answer": "零样本（编码器/提示）无需训练、即时可用、适合海量临时说话人但上限受参考质量限制；微调克隆在特定说话人上音质更高更稳，但需训练时间与过拟合风险，适合固定主播等高频场景。"
-    }
-  ],
-  "followUpAnswers": [
-    "关键是解耦训练：用正交约束/互信息最小化或独立编码器分别建模情感与说话人，并在推理时验证两者余弦相似度互不影响；也可采用解耦更彻底的 VAE 式分离，使风格向量各司其职。",
-    "零样本（编码器/提示）无需训练、即时可用、适合海量临时说话人但上限受参考质量限制；微调克隆在特定说话人上音质更高更稳，但需训练时间与过拟合风险，适合固定主播等高频场景。"
-  ],
-  "order": 6
+  id: 'tts-multilingual-emotion', category: '语音合成', difficulty: 'Hard', kind: 'concept',
+  title: '多语种、音色与情感控制怎样避免互相串扰',
+  prompt: '语言、说话人和情感三个条件怎样注入 TTS？如何证明模型真的解耦而不是记住训练组合？',
+  quickAnswer: '语言条件控制音素/文字体系与发音规则，说话人条件控制音色，情感/风格条件主要影响 F0、能量、时长和停顿。它们可通过 embedding、参考 encoder、style token 或条件归一化注入，但“向量分开”不等于能力解耦。必须测试训练中未出现的 language×speaker×emotion 组合，并检查改情感时音色是否漂移、换语言时情感是否消失。',
+  beginnerSummary: '要让同一个人用不同语言、不同情绪说话，模型得分别理解“说什么语言”“像谁”“怎么说”。如果训练数据里某个说话人永远只说英语，模型很容易把英语误当成这个人的一部分。',
+  explanationFocus: '解耦是可观察的组合泛化能力，不是网络里有三个 embedding 就自动成立。',
+  approach: '设计交叉覆盖的数据与 factorial test；一次只改变语言、speaker 或情感，比较目标属性与非目标属性。',
+  derivation: ['为什么需要：多语种、多说话人和情感标签在数据中常高度相关。', '怎么实现：共享内容 encoder，并以语言、speaker、style 条件调制时长/声学/decoder。', '有什么代价：条件会泄漏，参考音频还可能带入文本、信道和背景噪声。', '怎么评测：逐属性分类/相似度、F0/时长、可懂度、自然度，以及未见组合的交叉测试。'],
+  prerequisites: ['多语种与文字单元', '说话人 d-vector 与声纹', '情感韵律 F0 与能量'],
+  workedExample: ['固定 speaker 和文本，只把 neutral 改为 angry；若 speaker similarity 大幅下降，情感控制污染了音色。', '某 speaker 训练时只说中文；测试其英文发音，若变成另一 speaker，说明语言与音色未解耦。'],
+  code: "def controlled_tts(text, language, speaker, style):\n    content = text_encoder(text, language=language)\n    prosody = style_controller(content, style=style)\n    return decoder(content, prosody, speaker=speaker)",
+  lineByLine: ['语言条件先参与文本/音素内容编码。', '风格控制韵律，不应擅自替换内容。', 'decoder 同时接收 speaker；真实系统需用交叉实验验证各条件职责。'],
+  complexity: '条件 embedding 本身开销小，真正成本在数据交叉覆盖、参考 encoder 和多维评测；组合数随控制维度相乘增长。',
+  diagram: 'text + language ─▶ content encoder ───────────┐\nstyle / reference ─▶ prosody controller ──────────┼▶ decoder ─▶ speech\nspeaker reference / id ─▶ speaker condition ──────┘\n评测：一次只改一个条件 + 未见组合',
+  edgeCases: ['参考音频文本与目标文本相同会泄漏内容。', '低资源语言的某些音素不在共享表中。', '情感标签来自演员表演，可能与真实情绪分布不同。'],
+  pitfalls: ['宣称任意“语种×情感×说话人”都能自由组合，却没有未见组合测试。', '把 speaker embedding 的高余弦直接当成零样本克隆成功。'],
+  followUps: [{ question: '怎样减少条件泄漏？', answer: '改善数据交叉覆盖，限制参考编码器带宽，加入内容/说话人对抗约束，并用一次只改一项的 counterfactual 测试。' }, { question: 'IPA 能统一所有语言吗？', answer: 'IPA 有助于共享发音单位，但语言仍有音系、韵律和文字前端差异，不能只换一张 IPA 表。' }],
 };

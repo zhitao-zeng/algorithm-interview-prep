@@ -217,6 +217,18 @@ test('58 道语音主航道通用题升级为教学卡 V2，并诚实标注代�
   assert.match(questions.find((q) => q.id === 'asr-eval-metrics').workedExample[0], /CER=1\/6/);
   assert.doesNotMatch(questions.find((q) => q.id === 'asr-architecture-compare').quickAnswer, /端侧选|高准确选|流式选/);
   assert.ok(asrKnowledgeCards.flatMap((card) => card.references || []).every((reference) => reference.title && reference.url));
+
+  const ttsKnowledgeCards = speechCards.filter((card) => card.category === '语音合成' && !card.resumeCard);
+  assert.equal(ttsKnowledgeCards.length, 20);
+  assert.equal(new Set(ttsKnowledgeCards.map((card) => card.title)).size, ttsKnowledgeCards.length, 'TTS 题目不应换标题重复讲同一件事');
+  assert.ok(ttsKnowledgeCards.filter((card) => card.code).every((card) => card.codeMode === 'illustrative'), 'TTS 伪代码只能标为理解草图');
+  const ttsCoreText = ttsKnowledgeCards.flatMap((card) => auditedFields.flatMap((field) => Array.isArray(card[field]) ? card[field] : [card[field]])).join('\n');
+  assert.doesNotMatch(ttsCoreText, /TTFA.*<\s*300\s*ms|SoundStream 是 TTS 模型|FastSpeech.*O\(1\)|天然支持帧级流式/);
+  assert.match(questions.find((q) => q.id === 'tts-hifigan').quickAnswer, /MSD 不是“多个 STFT 分辨率判别器”/);
+  assert.match(questions.find((q) => q.id === 'tts-matcha-melo').quickAnswer, /不是“一次前向生成 mel”/);
+  assert.match(questions.find((q) => q.id === 'tts-llm-tts').quickAnswer, /SoundStream 是神经音频 codec/);
+  assert.match(questions.find((q) => q.id === 'tts-onnx-deploy').quickAnswer, /不能只传一个 model path/);
+  assert.ok(ttsKnowledgeCards.flatMap((card) => card.references || []).every((reference) => reference.title && reference.url));
 });
 
 test('站点定位为个人长期面试系统并保留旧进度迁移', () => {

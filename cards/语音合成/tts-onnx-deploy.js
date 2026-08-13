@@ -1,57 +1,20 @@
 export default {
-  "id": "tts-onnx-deploy",
-  "category": "语音合成",
-  "difficulty": "Medium",
-  "title": "sherpa-onnx 量化与端侧部署",
-  "prompt": "如何把 TTS 模型用 sherpa-onnx 做 INT8 量化、打包并在端侧运行交付？",
-  "quickAnswer": "将训练好的模型/声码器导出为 ONNX，用 sherpa-onnx 的量化工具做 INT8 校准量化，打包为端侧资源(模型+词典+配置)，通过 OfflineTts API 在 CPU/移动端推理。",
-  "code": "import sherpa_onnx\n\ndef export_int8(model, path):\n    # INT8 量化后由 sherpa-onnx 加载，端侧交付\n    sess = sherpa_onnx.OfflineTts(\n        model=path, num_threads=4,\n        provider=\"coreml\"  # 或 \"cpu\"\n    )\n    return sess  # 端侧 INT8 推理",
-  "complexity": "时间 O(inference)，空间 O(model_size)",
-  "beginnerSummary": "像把大冰箱压缩成小冰柜还能用——量化让模型变小变快，端侧手机也能跑得动。",
-  "derivation": [
-    "为什么需要：原始浮点模型体积大、端侧算力有限，需压缩与统一运行时。",
-    "怎么实现：导出 ONNX→校准 INT8 量化→封装资源→sherpa-onnx 加载推理。",
-    "有什么代价：INT8 可能引入轻微音质损失，需校准集代表性强。",
-    "怎么评测：对比量化前后 MOS 与崩坏率、测端侧延迟与内存占用。"
-  ],
-  "edgeCases": [
-    "校准集不含方言导致量化后方言崩坏。",
-    "移动端算子不支持需替换实现。",
-    "多说话人配置打包遗漏导致缺音色。",
-    "不同芯片(ARM/x86)数值差异需验证。"
-  ],
-  "pitfalls": [
-    "校准集太小导致量化误差大、音质明显下降。",
-    "忘记关闭训练态(BN/dropout)再导出，推理结果漂移。"
-  ],
-  "prerequisites": [
-    "ONNX 导出与推理基础",
-    "模型量化(INT8)概念"
-  ],
-  "workedExample": [
-    "导出 VITS+HiFi-GAN 为 ONNX→量化工具生成 int8 模型。",
-    "端侧用 OfflineTts 加载，num_threads 调优跑通推理。"
-  ],
-  "lineByLine": [
-    "import sherpa_onnx：引入端侧推理库。",
-    "sherpa_onnx.OfflineTts(model=path, ...)：构建离线 TTS 会话。",
-    "provider=\"coreml\"：选择端侧后端(或 cpu/NPU)。"
-  ],
-  "followUps": [
-    {
-      "question": "INT8 量化为何需要校准集？",
-      "answer": "校准确定激活值动态范围(scale/zero-point)，代表性不足会截断分布致精度下降、崩坏增多。"
-    },
-    {
-      "question": "sherpa-onnx 相比直接用 PyTorch 部署的优势？",
-      "answer": "跨平台统一、无 Python 依赖、体积小、支持移动/嵌入式，便于端侧交付与集成。"
-    }
-  ],
-  "followUpAnswers": [
-    "校准确定激活值动态范围(scale/zero-point)，代表性不足会截断分布致精度下降、崩坏增多。",
-    "跨平台统一、无 Python 依赖、体积小、支持移动/嵌入式，便于端侧交付与集成。"
-  ],
-  "explanationFocus": "是什么：sherpa-onnx 是基于 ONNX Runtime 的跨平台语音工具链，支持把 TTS 模型量化并在端侧(手机/嵌入式)离线运行。本课关注 INT8 量化与打包交付。",
-  "approach": "将模型导出 ONNX，用校准集做 INT8 量化以压缩体积、降低延迟，再与词典/配置打包，通过 OfflineTts API 在 CPU 或 NPU 后端推理。",
-  "kind": "concept"
+  id: 'tts-onnx-deploy', category: '语音合成', difficulty: 'Medium', kind: 'concept',
+  title: 'sherpa-onnx TTS 交付：先匹配模型族，再谈 INT8',
+  prompt: '怎样把一个 TTS 系统交付到 sherpa-onnx/ONNX Runtime，而不编造统一 OfflineTts 构造参数或量化流程？',
+  quickAnswer: '先确认 sherpa-onnx 当前支持的 TTS 模型族和所需文件；不同模型可能需要 encoder、decoder、flow、vocoder、tokens/lexicon 等不同配置，不能只传一个 model path。导出后先做 ONNX 与原框架逐阶段一致性，再使用该模型官方支持的量化方式或已发布 INT8 包；最终在目标平台验证算子、动态长度、音质、RTF、内存和线程配置。',
+  beginnerSummary: '把模型搬到手机不是“存成 ONNX 再开 INT8”两步。不同 TTS 像不同套装，零件清单不一样；先确认每个文件和接口，再逐层核对声音，最后才在真实设备量化压测。',
+  explanationFocus: '部署配置必须跟具体模型族和当前文档一致，通用伪 API 会误导。',
+  approach: '建立模型 manifest；导出/简化/量化每一步保存版本与校验音频；分别比较原框架、FP32 ONNX、量化 ONNX 和目标设备。',
+  derivation: ['为什么需要：TTS 常由前端、声学/flow 和 vocoder 多个子图组成。', '怎么实现：按支持矩阵准备模型文件与元数据，逐阶段校验后再创建 OfflineTts 配置。', '有什么代价：量化并非所有子图都适合，算子 fallback 或线程设置还可能让 INT8 反而更慢。', '怎么评测：数值/音频一致性、ASR 回识、坏音频率、RTF、TTFA、峰值内存和包体。'],
+  prerequisites: ['ONNX 端侧推理与 INT8', 'TTS 声学模型与声码器基础'],
+  workedExample: ['先用同一文本比较 PyTorch 与 FP32 ONNX 的中间张量/波形；不一致时先修导出，不进入量化。', '官方模型包包含多个 int8.onnx 与词表文件时，manifest 必须逐项校验哈希，不能只记录目录名。'],
+  code: "def validate_tts_package(package, expected_manifest):\n    for item in expected_manifest.files:\n        assert package.exists(item.path)\n        assert sha256(package.read(item.path)) == item.sha256\n    return run_golden_texts(package, expected_manifest.golden_cases)",
+  lineByLine: ['按模型族清单检查每个必要文件。', '哈希保证模型与词表/配置没有错配。', '最后跑冻结文本与参考输出，真实 API 以当前官方示例为准。'],
+  complexity: '部署验证成本约为候选精度/线程/后端配置数 × 回归文本数；峰值内存和延迟必须在目标设备实测。',
+  diagram: '训练模型 ─▶ 模型族支持确认 ─▶ 分子图导出 ─▶ FP32 一致性 ─▶ 支持的量化 ─▶ 目标设备\n词典 / tokens / config ───────────────── manifest + hash ───────────────────────┘',
+  references: [{ title: 'sherpa-onnx TTS FAQ and official examples', url: 'https://k2-fsa.github.io/sherpa/onnx/tts/faq.html' }, { title: 'sherpa-onnx C API TTS model configurations', url: 'https://k2-fsa.github.io/sherpa/onnx/c-api/html/tts.html' }],
+  edgeCases: ['动态文本长度导出后被固定成单一 shape。', '量化校准/范围估计未覆盖方言、长句或极端音高。', 'CPU provider 偷偷回退某算子导致延迟长尾。'],
+  pitfalls: ['写一个 OfflineTts(model=path, provider=coreml) 通用构造函数；真实配置因模型族不同。', '只比较模型大小，不检查量化后的漏读、爆音和真实硬件速度。'],
+  followUps: [{ question: 'INT8 为什么可能不更快？', answer: '目标后端若缺少对应 kernel、发生反量化或算子 fallback，额外转换会抵消收益。' }, { question: '为什么要先做 FP32 ONNX 一致性？', answer: '否则量化后出错时无法区分是导出、算子实现还是量化造成。' }],
 };

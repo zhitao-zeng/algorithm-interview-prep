@@ -1,58 +1,19 @@
 export default {
-  "id": "tts-vocoder",
-  "category": "语音合成",
-  "difficulty": "Medium",
-  "title": "神经声码器 HiFi-GAN 原理",
-  "prompt": "以 HiFi-GAN 为例，神经声码器如何把梅尔谱高效还原为波形，兼顾质量与速度？",
-  "quickAnswer": "HiFi-GAN 用多周期判别器(MPD)与多尺度判别器(MSD)对抗训练，生成器通过一维转置卷积逐级上采样梅尔到波形，推理极快且保真度高。",
-  "code": "import torch.nn as nn\n\nclass HiFiGANGenerator(nn.Module):\n    def __init__(self, upsample_rates=(8, 8, 2, 2)):\n        self.ups = nn.ModuleList([\n            nn.ConvTranspose1d(1024, 512, k, k) for k in upsample_rates\n        ])\n    def forward(self, mel):\n        x = mel\n        for up in self.ups:\n            x = torch.tanh(up(x))\n        return x  # 波形",
-  "complexity": "时间 O(t·r)，空间 O(t)（t 帧，r 上采样率）",
-  "beginnerSummary": "声码器像把\"乐谱\"(梅尔谱)快速演奏成真实声音，HiFi-GAN 用多个评委(判别器)逼着它奏得更像真人。",
-  "derivation": [
-    "为什么需要：Griffin-Lim 等传统方法音质差、有相位问题，需神经声码器还原细节。",
-    "怎么实现：生成器转置卷积上采样，MPD+MSD 多视角对抗；加特征匹配损失稳定训练。",
-    "有什么代价：对抗训练易模式崩塌；上采样率乘积需等于总倍数。",
-    "怎么评测：MOS、PESQ/STOI 客观指标与逐层特征匹配误差。"
-  ],
-  "edgeCases": [
-    "静音段产生的底噪需要抑制。",
-    "高采样率(48k)下高频伪影更明显。",
-    "输入梅尔缺失高频能量导致发闷。",
-    "训练数据分布外的音色易失真。"
-  ],
-  "pitfalls": [
-    "上采样率乘积算错导致输出长度与音频不匹配。",
-    "只用 MSD 忽略周期结构，高频容易糊。"
-  ],
-  "prerequisites": [
-    "梅尔谱与短时傅里叶变换",
-    "GAN 与判别器设计"
-  ],
-  "workedExample": [
-    "输入 80 维梅尔(帧×80)→生成器逐级上采样到波形。",
-    "判别器对真实/生成波形打分，反向更新生成器逼近真实分布。"
-  ],
-  "lineByLine": [
-    "class HiFiGANGenerator(nn.Module)：定义生成器。",
-    "self.ups = nn.ModuleList([...])：按上采样率堆叠转置卷积。",
-    "x = torch.tanh(up(x))：逐级上采样并激活。",
-    "return x：输出时域波形。"
-  ],
-  "followUps": [
-    {
-      "question": "MPD 与 MSD 有什么区别与作用？",
-      "answer": "MPD 在不同周期上切分序列捕捉周期结构，MSD 在多分辨率上捕捉整体结构，二者互补提升音质。"
-    },
-    {
-      "question": "如何把 HiFi-GAN 部署到端侧？",
-      "answer": "转 ONNX 并做 INT8 量化，配合轻量推理后端如 sherpa-onnx 在 CPU/移动端运行。"
-    }
-  ],
-  "followUpAnswers": [
-    "MPD 在不同周期上切分序列捕捉周期结构，MSD 在多分辨率上捕捉整体结构，二者互补提升音质。",
-    "转 ONNX 并做 INT8 量化，配合轻量推理后端如 sherpa-onnx 在 CPU/移动端运行。"
-  ],
-  "explanationFocus": "是什么：神经声码器把声学模型输出的梅尔谱还原成时域波形；HiFi-GAN 以生成器+多判别器对抗训练实现高保真、低延迟合成。",
-  "approach": "用一维转置卷积生成器逐级上采样梅尔，配合多周期与多尺度判别器的对抗损失与特征匹配损失，逼近真实波形分布。",
-  "kind": "concept"
+  id: 'tts-vocoder', category: '语音合成', difficulty: 'Medium', kind: 'concept',
+  title: '声码器交付：条件一致性、伪影与泛化',
+  prompt: '声码器除了“mel 转波形”还要解决哪些系统问题？怎样判断错误来自声学模型还是 vocoder？',
+  quickAnswer: '声码器必须与声学模型在采样率、STFT/mel 参数、幅度归一化和 hop_length 上完全一致。评测要同时用真值 mel 与预测 mel：真值 mel 也差，优先查 vocoder；真值好、预测 mel 差，则多半是条件分布偏移或上游声学模型。还要检查高频噪声、周期 buzz、边界爆音、unseen speaker 和目标设备 RTF。',
+  beginnerSummary: '声码器像把“频谱乐谱”演奏成声音。乐谱格式对不上，哪怕演奏器本身很好也会变调或爆音；所以要分别给它标准乐谱和模型画出的乐谱测试。',
+  explanationFocus: '这张卡关注 vocoder 与上游/设备的接口和归因，不重复 HiFi-GAN 的内部结构。',
+  approach: '冻结 mel 配置与归一化元数据；建立 ground-truth mel、predicted mel、跨说话人和跨设备四组回归。',
+  derivation: ['为什么需要：声学模型通常不直接输出可播放波形。', '怎么实现：使用 GAN、flow、diffusion 等 vocoder 条件生成波形，并与训练 mel 口径绑定。', '有什么代价：高保真模型可能更慢，轻量化与量化可能引入高频或边界伪影。', '怎么评测：盲听、ASR 回识、频谱/周期诊断、真值/预测 mel 差距、RTF 和峰值内存。'],
+  prerequisites: ['mel 频谱与 STFT', 'GAN 与判别器', 'ONNX 与端侧推理'],
+  workedExample: ['同一条真音频先提 mel 再重建；若仍有稳定 buzz，说明 vocoder 或 mel 参数有问题。', '真值 mel 重建清晰、声学模型 mel 重建漏字时，不能靠继续调 vocoder 修复文本对齐。'],
+  code: "def diagnose_vocoder(vocoder, ground_truth_mel, predicted_mel):\n    from_ground_truth = vocoder(ground_truth_mel)\n    from_prediction = vocoder(predicted_mel)\n    return compare_audio(from_ground_truth, from_prediction)",
+  lineByLine: ['分别输入真值与预测 mel。', '比较两路音频的可懂度、伪影和听感。', '真实归因还需保存相同文本、说话人和响度条件。'],
+  complexity: '生成成本与波形长度、网络通道和采样方法有关；GAN 常单次并行前向，diffusion/flow vocoder 可能需要多次函数评估。',
+  diagram: 'text ─▶ acoustic model ─▶ predicted mel ─┐\nreal audio ─▶ same mel frontend ─▶ ground-truth mel ─┴▶ vocoder ─▶ 对比归因',
+  edgeCases: ['声学模型与 vocoder 的 mel fmax 不一致。', '48 kHz 模型在 16 kHz 播放链被错误重采样。', '分块 vocoder 未保存卷积上下文导致每块接缝爆音。'],
+  pitfalls: ['与 HiFi-GAN 卡重复背 MPD/MSD，却不解释接口失配。', '把 PESQ/STOI 当成通用 TTS 自然度裁判；它们的适用范围和相关性有限。'],
+  followUps: [{ question: '为什么 predicted mel 更难？', answer: '训练 vocoder 常见到真实语音提取的 mel，而声学模型输出可能更平滑、错位或超出幅度分布。' }, { question: '声码器量化先看什么？', answer: '先检查高频、静音底噪、爆破音和不同说话人切片，再看模型大小和真实硬件延迟。' }],
 };
