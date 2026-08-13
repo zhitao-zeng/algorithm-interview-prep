@@ -1,4 +1,4 @@
-import { categories, questions } from './questions.js?v=fe94e40e';
+import { categories, questions } from './questions.js?v=5ed7e15f';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
@@ -14,6 +14,13 @@ function categoryLabel(category) { return categoryLabels.get(category) || catego
 
 function isResumeQuestion(question) { return /^(?:asr|tts|edge|perf|lead)-resume-/.test(question.id); }
 const resumeQuestions = questions.filter(isResumeQuestion);
+const resumeLevelOptions = [
+  { key: 'direct', label: '真实项目', short: '只看我做过的', description: '简历有明确原文依据，优先练成可以脱口而出的项目故事。' },
+  { key: 'supporting', label: '关联补课', short: '理解相关原理', description: '和简历技术栈有关，但不默认代表我实现过内部算法。' },
+  { key: 'general', label: '通用方法', short: '不要说成做过', description: '更规范的面试或工程方法，只能按“如果让我做”回答。' },
+];
+const directResumeQuestions = resumeQuestions.filter((question) => question.experienceLevel === 'direct');
+const resumeLevelInfo = (level) => resumeLevelOptions.find((option) => option.key === level) || resumeLevelOptions[0];
 const personalTracks = [
   {
     code: '01', title: '简历证据与项目答辩', resume: true,
@@ -39,7 +46,7 @@ const personalTracks = [
 
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
-  mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
+  resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
   remaining: 2700, timerId: null,
 };
 
@@ -54,7 +61,9 @@ function loadMastered() {
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
 function activeQuestions() {
   if (state.mode === 'mock') return state.mockQuestions;
-  const source = state.view === 'resume' ? resumeQuestions : questions;
+  const source = state.view === 'resume'
+    ? resumeQuestions.filter((question) => question.experienceLevel === state.resumeLevel)
+    : questions;
   return filterQuestions(source, state.category, state.query, state.kind);
 }
 function selectedQuestion() { return activeQuestions().find((q) => q.id === state.selectedId) || activeQuestions()[0]; }
@@ -81,9 +90,9 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
-  buttons.push(navButton(`◎ 简历专项 · ${resumeQuestions.length}`, state.view === 'resume', () => {
-    state.view = 'resume'; state.category = '全部';
-    selectQuestion(filterQuestions(resumeQuestions, '全部', state.query, state.kind)[0]?.id); render();
+  buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
+    state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
+    selectQuestion(activeQuestions()[0]?.id); render();
   }, 'nav-lead nav-resume'));
   buttons.push(navButton('全部知识库', state.view === 'list' && state.category === '全部', () => {
     state.view = 'list'; state.category = '全部';
@@ -117,7 +126,7 @@ function renderList() {
   el('result-count').textContent = `${items.length} 题`;
   el('list-title').textContent = state.mode === 'mock'
     ? '本轮模拟'
-    : (state.view === 'resume' ? '简历专项' : (state.category === '全部' ? '全部知识库' : categoryLabel(state.category)));
+    : (state.view === 'resume' ? resumeLevelInfo(state.resumeLevel).label : (state.category === '全部' ? '全部知识库' : categoryLabel(state.category)));
   if (empty.visible) return;
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
@@ -427,7 +436,7 @@ function renderDetail() {
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
     const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
     const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
-    const p2 = document.createElement('p'); p2.textContent = `先用 ${resumeQuestions.length} 道简历专项打磨证据链，再按个人主线调用 ${questions.length} 道知识卡；面试变化时只需调整优先级，不必重建一套题库。`;
+    const p2 = document.createElement('p'); p2.textContent = `先用 ${directResumeQuestions.length} 张真实项目卡讲清自己做过的事，再从 ${resumeQuestions.length - directResumeQuestions.length} 张关联补课与通用方法中按需补齐；其余 ${questions.length} 道知识卡用于长期扩展。`;
     tip.append(h, p1, p2);
     pane.append(tip);
     return;
@@ -503,17 +512,31 @@ function renderCategoryThread(pane, list) {
     const banner = document.createElement('section');
     banner.id = 'category-thread'; banner.className = 'thread-banner heavy resume-thread';
     const head = document.createElement('div'); head.className = 'thread-head';
-    const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '个人证据链';
-    const title = document.createElement('h3'); title.textContent = `${resumeQuestions.length} 道简历专项`;
+    const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '先分清做过与没做过';
+    const title = document.createElement('h3'); title.textContent = `${directResumeQuestions.length} 张真实项目卡 + ${resumeQuestions.length - directResumeQuestions.length} 张补课卡`;
     head.append(tag, title);
     const oneliner = document.createElement('p'); oneliner.className = 'thread-oneliner';
-    oneliner.textContent = '不背抽象标准答案：用真实项目把问题、决策、数据、贡献、失败和复盘讲完整。';
-    const ol = document.createElement('ol'); ol.className = 'thread-steps';
-    ['多语种 ASR · 12 题', '中文 TTS · 8 题', '端侧感知与部署 · 8 题', '实验与统计可信度 · 5 题', 'Tech Lead 与项目答辩 · 7 题']
-      .forEach((step) => { const li = document.createElement('li'); li.textContent = step; ol.append(li); });
+    oneliner.textContent = '默认只展示简历能够证明的真实经历；原理补课和通用方法分开放，避免背成不存在的项目。';
+    const switcher = document.createElement('div'); switcher.className = 'resume-level-switch';
+    resumeLevelOptions.forEach((option) => {
+      const count = resumeQuestions.filter((question) => question.experienceLevel === option.key).length;
+      const button = document.createElement('button');
+      button.className = `resume-level-card ${option.key} ${state.resumeLevel === option.key ? 'active' : ''}`;
+      button.setAttribute('aria-pressed', String(state.resumeLevel === option.key));
+      const strong = document.createElement('strong'); strong.textContent = `${option.label} · ${count}`;
+      const small = document.createElement('span'); small.textContent = option.short;
+      const copy = document.createElement('small'); copy.textContent = option.description;
+      button.append(strong, small, copy);
+      button.addEventListener('click', () => {
+        state.resumeLevel = option.key;
+        selectQuestion(activeQuestions()[0]?.id);
+        render();
+      });
+      switcher.append(button);
+    });
     const hint = document.createElement('p'); hint.className = 'thread-hint';
-    hint.textContent = '每次回答都补一条可验证证据；无法验证的数字，明确口径与不确定性。';
-    banner.append(head, oneliner, ol, hint);
+    hint.textContent = `${resumeLevelInfo(state.resumeLevel).label}：${resumeLevelInfo(state.resumeLevel).description}`;
+    banner.append(head, oneliner, switcher, hint);
     pane.insertBefore(banner, list);
     return;
   }
@@ -553,6 +576,7 @@ function renderMap(container) {
 
 function openCollection(view, category = '全部') {
   state.view = view; state.category = category; state.query = '';
+  if (view === 'resume') state.resumeLevel = 'direct';
   const searchInput = el('search-input'); if (searchInput) searchInput.value = '';
   selectQuestion(activeQuestions()[0]?.id); render();
 }
@@ -568,7 +592,7 @@ function renderPersonalDashboard() {
   copy.append(kicker, title, summary);
   const stats = document.createElement('div'); stats.className = 'personal-stats';
   [
-    [questions.length, '全部题卡'], [resumeQuestions.length, '简历专项'], [domains.length, '能力主题'], [state.masteredIds.size, '已掌握'],
+    [questions.length, '全部题卡'], [directResumeQuestions.length, '真实项目卡'], [domains.length, '能力主题'], [state.masteredIds.size, '已掌握'],
   ].forEach(([value, label]) => {
     const item = document.createElement('div');
     const strong = document.createElement('strong'); strong.textContent = String(value);
@@ -591,7 +615,7 @@ function renderPersonalDashboard() {
     const description = document.createElement('p'); description.textContent = track.summary;
     card.append(code, name, description);
     if (track.resume) {
-      const button = document.createElement('button'); button.className = 'personal-open'; button.textContent = `进入 ${resumeQuestions.length} 道专项题`;
+      const button = document.createElement('button'); button.className = 'personal-open'; button.textContent = `先练 ${directResumeQuestions.length} 张真实项目卡`;
       button.addEventListener('click', () => openCollection('resume'));
       card.append(button);
     } else {

@@ -118,6 +118,16 @@
 .thread-tag { background: var(--blue); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: .5px; }
 .thread-banner.heavy .thread-tag { background: var(--orange); }
 .resume-thread .thread-steps { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.resume-level-switch { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.resume-level-card { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.resume-level-card strong, .resume-level-card span, .resume-level-card small { display: block; }
+.resume-level-card strong { margin-bottom: 2px; font-size: 13px; }
+.resume-level-card span { color: var(--muted); font-size: 11px; font-weight: 750; }
+.resume-level-card small { margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.resume-level-card.direct.active { border-color: #58ad88; box-shadow: 0 0 0 2px #ccebdc; }
+.resume-level-card.supporting.active { border-color: #d8ad45; box-shadow: 0 0 0 2px #faeabc; }
+.resume-level-card.general.active { border-color: #d88972; box-shadow: 0 0 0 2px #f7d5ca; }
+.resume-level-card:focus-visible { outline: 3px solid #8db9f5; outline-offset: 2px; }
 .thread-head h3 { margin: 0; font-size: 18px; color: var(--navy); }
 .thread-oneliner { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .thread-steps { margin: 0; padding-left: 22px; display: grid; gap: 5px; }
@@ -142,6 +152,7 @@
   .personal-track-grid { grid-template-columns: 1fr; }
   .personal-track > p { min-height: 0; }
   .resume-thread .thread-steps { grid-template-columns: 1fr; }
+  .resume-level-switch { grid-template-columns: 1fr; }
 }
 
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
@@ -5315,8 +5326,10 @@ const questions = [
     "id": "asr-resume-backbone-audit",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "Whisper、Qwen3-ASR 与 FireRedASR2 统一横评",
-    "prompt": "如何公平比较 Whisper、Qwen3-ASR、FireRedASR2、Zipformer 和 Paraformer，而不把模型规模、提示能力和测试口径混在一起？",
+    "title": "我怎样横评多种 ASR 模型并完成选型",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "Whisper、Qwen3-ASR 与 FireRedASR2 统一横评",
+    "technicalPrompt": "如何公平比较 Whisper、Qwen3-ASR、FireRedASR2、Zipformer 和 Paraformer，而不把模型规模、提示能力和测试口径混在一起？",
     "quickAnswer": "先统一音频前处理、文本归一化、语言与标点口径，再区分 encoder-decoder、Transducer、非自回归等范式；把参数量、可流式性、提示依赖、延迟、显存和各语种错误切片放进同一 scorecard。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -5397,7 +5410,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "Qwen3-ASR 重标注结果怎么筛选和验证",
-    "prompt": "西语标签清洗时，为什么不能直接把 Qwen3-ASR 的输出全部替换原标签？你实际怎样判断新标签是否值得采用？",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "Qwen3-ASR 重标注结果怎么筛选和验证",
+    "technicalPrompt": "西语标签清洗时，为什么不能直接把 Qwen3-ASR 的输出全部替换原标签？你实际怎样判断新标签是否值得采用？",
     "quickAnswer": "我没有把模型输出直接当真值，而是结合模型置信度、与原标注是否一致和抽样复听筛选；最关键的验证是把候选新标签回灌训练，再看独立验证集是否稳定提升。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -5477,8 +5492,10 @@ const questions = [
     "id": "asr-resume-domain-mixture",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "新域适配、Replay 与回归门禁",
-    "prompt": "如何解释新域 CER 19.27%→12.24%，同时旧域 9.31%→9.03%？数据配比、采样和门禁应怎样设计？",
+    "title": "我怎样提升业务域 ASR，又避免通用能力退化",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "新域适配、Replay 与回归门禁",
+    "technicalPrompt": "如何解释新域 CER 19.27%→12.24%，同时旧域 9.31%→9.03%？数据配比、采样和门禁应怎样设计？",
     "quickAnswer": "训练中按目标比例混合新域、通用 replay 和难例，必要时冻结底层或使用较小学习率；发布条件同时约束新域增益、旧域不退化和关键切片稳定，不能只优化新域平均 CER。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -5558,8 +5575,10 @@ const questions = [
     "id": "asr-resume-error-attribution",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "ASR 负收益归因与统一 Scorecard",
-    "prompt": "ChinaVoices 横评出现某模型负收益时，如何定位是语料正字法、decoder-only、外部数据、Reference Set 还是 LID 梯度干扰？",
+    "title": "ChinaVoices 负收益是怎样定位出来的",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "ASR 负收益归因与统一 Scorecard",
+    "technicalPrompt": "ChinaVoices 横评出现某模型负收益时，如何定位是语料正字法、decoder-only、外部数据、Reference Set 还是 LID 梯度干扰？",
     "quickAnswer": "先冻结输入、normalizer、reference 和 decoder 模式形成受控主表，再逐项加入外部数据、提示和多任务头；用 S/D/I、正字法映射、LID 混淆和 hard-focus 切片把负收益归因到可验证机制。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -5640,7 +5659,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "icefall 与 Lhotse 训练流水线",
-    "prompt": "从 Lhotse manifest、动态采样、特征、checkpoint 到 k2 解码，讲清一个可复现的 icefall ASR recipe。",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "icefall 与 Lhotse 训练流水线",
+    "technicalPrompt": "从 Lhotse manifest、动态采样、特征、checkpoint 到 k2 解码，讲清一个可复现的 icefall ASR recipe。",
     "quickAnswer": "Lhotse 用 Recording/Supervision/Cut manifest 把音频、标注和切片版本化；sampler 依时长动态组 batch，icefall 负责模型训练、断点恢复和 k2 解码，配置、随机种子与数据清单共同决定可复现性。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -5721,7 +5742,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "k2 FSA/FST 解码图与剪枝",
-    "prompt": "简历写了 k2/icefall：请解释 FSA、FST、semiring、compose/intersect 与 pruning 在 ASR 解码中的作用。",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "k2 FSA/FST 解码图与剪枝",
+    "technicalPrompt": "简历写了 k2/icefall：请解释 FSA、FST、semiring、compose/intersect 与 pruning 在 ASR 解码中的作用。",
     "quickAnswer": "k2 用张量化 FSA 表示候选路径，把 acoustic lattice 与 token、lexicon、语言模型约束组合后求最优或 N-best；剪枝保留分数接近最优的活跃路径，控制显存与时延。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -5801,8 +5824,10 @@ const questions = [
     "id": "asr-resume-label-noise-audit",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "8.2% 标签噪声的审计设计",
-    "prompt": "简历中的“西语 10k 抽样识别出 8.2% 真实标签噪声”应如何抽样、复听、估计区间并避免把模型错误当标签错误？",
+    "title": "西语数据中 8.2% 标签噪声是怎样确认的",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "8.2% 标签噪声的审计设计",
+    "technicalPrompt": "简历中的“西语 10k 抽样识别出 8.2% 真实标签噪声”应如何抽样、复听、估计区间并避免把模型错误当标签错误？",
     "quickAnswer": "应按来源、时长、口音、置信度和模型分歧分层抽样，由至少两名标注者盲审音频与原标签，分歧仲裁；8.2% 必须同时给分母、噪声定义、加权方式和置信区间。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -5883,7 +5908,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "CER/WER 差值的配对显著性检验",
-    "prompt": "模型 A 比 B 的 CER 低 0.2%，如何判断不是测试集抽样波动？为什么应按 utterance 做 paired bootstrap？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "CER/WER 差值的配对显著性检验",
+    "technicalPrompt": "模型 A 比 B 的 CER 低 0.2%，如何判断不是测试集抽样波动？为什么应按 utterance 做 paired bootstrap？",
     "quickAnswer": "A/B 在同一批 utterance 上产生相关误差，必须成对重采样句子并每次重新聚合编辑距离；观察 ΔCER 分布、置信区间与胜率，不能把 token 当独立样本。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -5964,7 +5991,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "Paraformer 与 CIF 非自回归对齐",
-    "prompt": "Paraformer 为什么能非自回归解码？请解释 CIF 如何把帧级声学表示变成 token 级表示，以及预测长度错误会怎样传播。",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "Paraformer 与 CIF 非自回归对齐",
+    "technicalPrompt": "Paraformer 为什么能非自回归解码？请解释 CIF 如何把帧级声学表示变成 token 级表示，以及预测长度错误会怎样传播。",
     "quickAnswer": "CIF 为每帧预测权重并累加到阈值，触发一次 fire 得到一个 token 级声学向量；Paraformer 据此并行预测 token，速度快但长度和边界预测错误会造成整句插删错。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -6044,8 +6073,10 @@ const questions = [
     "id": "asr-resume-rir-signal-chain",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "RIR、频响、AGC、Codec 与 Clipping 信道仿真",
-    "prompt": "怎样按真实播放链路构造 RIR、频响、AGC、Codec、Clipping 失真，为什么顺序和响度归一化会影响训练收益？",
+    "title": "我怎样模拟真实信道并降低 WER",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "RIR、频响、AGC、Codec 与 Clipping 信道仿真",
+    "technicalPrompt": "怎样按真实播放链路构造 RIR、频响、AGC、Codec、Clipping 失真，为什么顺序和响度归一化会影响训练收益？",
     "quickAnswer": "应先依据真实链路确定顺序：卷积 RIR/设备频响，再做增益或 AGC、非线性 clipping 与 codec；每步保存参数并在合理响度范围内归一化，避免把伪影或音量捷径当鲁棒性。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -6126,7 +6157,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "RNN-T Beam Search 与热词 Context Graph",
-    "prompt": "如何在 RNN-T 解码中注入热词，同时避免前缀只匹配一半时错误加分和 blank 路径分数失真？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "RNN-T Beam Search 与热词 Context Graph",
+    "technicalPrompt": "如何在 RNN-T 解码中注入热词，同时避免前缀只匹配一半时错误加分和 blank 路径分数失真？",
     "quickAnswer": "把热词 token 序列构造成 trie/FSA，beam 中每条 hypothesis 携带 context 状态；匹配弧时增量加分，失败或回退时撤销未完成奖励，并保持 blank 只推进 encoder 时间、不推进预测网络标签状态。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -6207,7 +6240,9 @@ const questions = [
     "category": "ASR 专项",
     "difficulty": "Hard",
     "title": "Zipformer 内部结构与流式状态",
-    "prompt": "简历写了 Zipformer-Transducer：请从多尺度帧率、模块堆叠、流式缓存和计算量解释为什么它适合端侧 ASR。",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "Zipformer 内部结构与流式状态",
+    "technicalPrompt": "简历写了 Zipformer-Transducer：请从多尺度帧率、模块堆叠、流式缓存和计算量解释为什么它适合端侧 ASR。",
     "quickAnswer": "Zipformer 在不同 stack 使用不同时间分辨率，让高帧率层保留局部细节、低帧率层承担长上下文建模，再通过跨尺度连接融合；流式部署必须显式维护卷积与注意力左上下文状态。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -11854,8 +11889,10 @@ const questions = [
     "id": "edge-resume-buffer-concurrency",
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
-    "title": "Buffer 复用、峰值内存与并发安全",
-    "prompt": "简历写“buffer 复用降低约 220 MiB HWM”：为什么复用能降峰值？并发请求下怎样避免数据竞争和隐式重新分配？",
+    "title": "我怎样通过 Buffer 复用降低 220 MiB 峰值内存",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "Buffer 复用、峰值内存与并发安全",
+    "technicalPrompt": "简历写“buffer 复用降低约 220 MiB HWM”：为什么复用能降峰值？并发请求下怎样避免数据竞争和隐式重新分配？",
     "quickAnswer": "预先按 profile 上界分配输入、输出和 workspace，生命周期跨请求复用，可避免 allocator 水位、碎片和短时双份 buffer；并发时必须为每个 execution context 配独立 buffer，或用有界池显式租借。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -11935,8 +11972,10 @@ const questions = [
     "id": "edge-resume-cpu-profiling",
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
-    "title": "端侧 CPU 线程、亲和性与算子 Profiling",
-    "prompt": "MNN/ORT 在 CPU 上线程越多为何可能越慢？如何拆分预处理、推理、后处理并定位 3.1 倍加速来自哪里？",
+    "title": "OCR 端侧推理 3.1 倍加速是怎样得到的",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "端侧 CPU 线程、亲和性与算子 Profiling",
+    "technicalPrompt": "MNN/ORT 在 CPU 上线程越多为何可能越慢？如何拆分预处理、推理、后处理并定位 3.1 倍加速来自哪里？",
     "quickAnswer": "线程过多会产生调度、缓存争用和应用线程抢核；应固定大小核/频率条件，分别测预处理、runtime node、内存拷贝和后处理，扫描 intra/inter-op 线程与 affinity，报告端到端而非只报 kernel。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -12017,7 +12056,9 @@ const questions = [
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
     "title": "Dynamic Shape、Opset 与 Shape Tensor",
-    "prompt": "ASR/TTS/OCR 输入长度变化时，ONNX/TensorRT 的 dynamic axis、optimization profile 和 shape tensor 如何设计？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "Dynamic Shape、Opset 与 Shape Tensor",
+    "technicalPrompt": "ASR/TTS/OCR 输入长度变化时，ONNX/TensorRT 的 dynamic axis、optimization profile 和 shape tensor 如何设计？",
     "quickAnswer": "ONNX dynamic axis 只声明维度可变，TensorRT 还需为每个动态输入配置 min/opt/max profile；依赖运行时长度的 reshape/slice 应使用合法 shape tensor，并验证所有边界 shape。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -12098,7 +12139,9 @@ const questions = [
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
     "title": "PyTorch→ONNX 数值一致性与逐层定位",
-    "prompt": "模型导出 ONNX 后整体精度下降，如何区分预处理、算子语义、动态 shape、精度格式和后处理差异？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "PyTorch→ONNX 数值一致性与逐层定位",
+    "technicalPrompt": "模型导出 ONNX 后整体精度下降，如何区分预处理、算子语义、动态 shape、精度格式和后处理差异？",
     "quickAnswer": "先冻结同一输入与预后处理，比较 PyTorch/ONNX 的最终输出；再为关键层导出中间张量，寻找首个超容差节点，并核对 eval 状态、opset、padding、resize、normalization 和 dtype。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -12178,8 +12221,10 @@ const questions = [
     "id": "edge-resume-int8-calibration",
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
-    "title": "INT8 校准集、敏感层与混合精度回退",
-    "prompt": "端侧 INT8 为什么可能总体指标不变但长尾小字、低能量音素或深度边界明显退化？如何做校准和敏感层回退？",
+    "title": "我怎样完成 TTS 模型量化和端侧交付",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "INT8 校准集、敏感层与混合精度回退",
+    "technicalPrompt": "端侧 INT8 为什么可能总体指标不变但长尾小字、低能量音素或深度边界明显退化？如何做校准和敏感层回退？",
     "quickAnswer": "校准集若缺少长尾动态范围，scale 会让稀有激活被截断或量化到同一格；应分切片覆盖真实分布，逐层做 FP32/FP16 回退敏感性实验，并用任务级 hard set 守护。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -12260,7 +12305,9 @@ const questions = [
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
     "title": "端侧模型灰度、监控与可恢复回滚",
-    "prompt": "端侧模型不像服务端能随时热修，如何设计模型包灰度、兼容校验、线上指标和回滚？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "端侧模型灰度、监控与可恢复回滚",
+    "technicalPrompt": "端侧模型不像服务端能随时热修，如何设计模型包灰度、兼容校验、线上指标和回滚？",
     "quickAnswer": "模型包需签名、版本化并声明 runtime/设备兼容；分设备和人群逐级灰度，监控崩溃、加载失败、延迟、内存和任务代理指标；保留上一稳定包与原子切换，失败自动回退。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -12340,8 +12387,10 @@ const questions = [
     "id": "edge-resume-runtime-selection",
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
-    "title": "MNN、ONNX Runtime、TensorRT 与 sherpa-onnx 选型",
-    "prompt": "同一个 ASR/TTS/OCR 模型何时选 MNN、ONNX Runtime、TensorRT 或 sherpa-onnx？请给出硬件、算子、流式状态和维护成本的选型矩阵。",
+    "title": "我怎样为边缘端选择推理框架",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "MNN、ONNX Runtime、TensorRT 与 sherpa-onnx 选型",
+    "technicalPrompt": "同一个 ASR/TTS/OCR 模型何时选 MNN、ONNX Runtime、TensorRT 或 sherpa-onnx？请给出硬件、算子、流式状态和维护成本的选型矩阵。",
     "quickAnswer": "TensorRT 适合 NVIDIA GPU 极致性能，MNN 偏移动/嵌入式多后端，ONNX Runtime 适合通用跨平台与多 EP，sherpa-onnx 提供语音前后处理和流式状态封装；最终应以目标设备实测而非框架名决定。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -12421,8 +12470,10 @@ const questions = [
     "id": "edge-resume-sherpa-streaming",
     "category": "ONNX/TensorRT",
     "difficulty": "Hard",
-    "title": "sherpa-onnx 流式状态与端到端打包",
-    "prompt": "ASR/TTS 用 sherpa-onnx 端侧交付时，如何管理 stream state、chunk、tokenizer、模型资产、取消与错误恢复？",
+    "title": "我怎样处理流式会话，并在结果变差时回退",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "sherpa-onnx 流式状态与端到端打包",
+    "technicalPrompt": "ASR/TTS 用 sherpa-onnx 端侧交付时，如何管理 stream state、chunk、tokenizer、模型资产、取消与错误恢复？",
     "quickAnswer": "模型、tokens、配置和前后处理必须作为版本化原子资产；每会话拥有独立 stream state，chunk 按模型约束推进；取消时清空队列与缓存，异常后不得复用污染状态。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -14800,8 +14851,10 @@ const questions = [
     "category": "Tech Lead 与项目答辩",
     "difficulty": "Hard",
     "order": 1,
-    "title": "Tech Lead 的模型选型决策",
-    "prompt": "面对 Zipformer、Paraformer、Whisper、Qwen3-ASR 等候选，Tech Lead 如何从业务目标走到可审计的选型结论？",
+    "title": "作为 Tech Lead，我怎样做模型选型",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "Tech Lead 的模型选型决策",
+    "technicalPrompt": "面对 Zipformer、Paraformer、Whisper、Qwen3-ASR 等候选，Tech Lead 如何从业务目标走到可审计的选型结论？",
     "quickAnswer": "先把业务约束翻译成精度、延迟、内存、可流式、许可、维护和数据要求，再分硬门槛与可优化指标；用冻结 scorecard 和代表性 PoC 选 Pareto 解，而非追单一榜单第一。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -14883,7 +14936,9 @@ const questions = [
     "difficulty": "Hard",
     "order": 2,
     "title": "实验优先级、时间盒与停止条件",
-    "prompt": "算力和人力有限时，如何决定先做数据、模型、解码还是部署优化？什么情况下应停止一个实验方向？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "实验优先级、时间盒与停止条件",
+    "technicalPrompt": "算力和人力有限时，如何决定先做数据、模型、解码还是部署优化？什么情况下应停止一个实验方向？",
     "quickAnswer": "按预期业务价值×成功概率÷成本排序，同时考虑信息增益和关键依赖；每个实验预设时间盒、主指标、护栏和停止条件，先做能最大幅度缩小不确定性的便宜实验。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -14964,8 +15019,10 @@ const questions = [
     "category": "Tech Lead 与项目答辩",
     "difficulty": "Hard",
     "order": 3,
-    "title": "两人算法小组的任务拆解与 Bus Factor",
-    "prompt": "带领 2 人算法小组时，如何拆分研究、数据、评测与交付，既并行推进又避免只有一个人懂关键模块？",
+    "title": "我怎样带两人小组推进算法与交付",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "两人算法小组的任务拆解与 Bus Factor",
+    "technicalPrompt": "带领 2 人算法小组时，如何拆分研究、数据、评测与交付，既并行推进又避免只有一个人懂关键模块？",
     "quickAnswer": "按可独立验收的接口拆工作而非按文件拆；每项有 owner 和 reviewer，关键链路双人可运行；通过短设计文档、复现实验和轮换 on-call 降低 bus factor。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -15046,8 +15103,10 @@ const questions = [
     "category": "Tech Lead 与项目答辩",
     "difficulty": "Hard",
     "order": 4,
-    "title": "算法、端侧与产品的跨团队交付",
-    "prompt": "算法模型离线达标后，如何推动端侧集成、产品验收和灰度，避免“算法已完成”但项目仍不能上线？",
+    "title": "我怎样推动算法、端侧和产品一起完成交付",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "算法、端侧与产品的跨团队交付",
+    "technicalPrompt": "算法模型离线达标后，如何推动端侧集成、产品验收和灰度，避免“算法已完成”但项目仍不能上线？",
     "quickAnswer": "从项目开始就共同定义端到端 DoD：模型资产、SDK 接口、设备矩阵、质量/性能 SLA、埋点、错误码和回滚；每个里程碑交付可运行 artifact，而不是只交 checkpoint。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -15129,7 +15188,9 @@ const questions = [
     "difficulty": "Hard",
     "order": 5,
     "title": "算法线上事故的止损、归因与复盘",
-    "prompt": "新模型灰度后某方言 CER 或端侧崩溃率异常，Tech Lead 前 30 分钟、当天和一周内分别做什么？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "算法线上事故的止损、归因与复盘",
+    "technicalPrompt": "新模型灰度后某方言 CER 或端侧崩溃率异常，Tech Lead 前 30 分钟、当天和一周内分别做什么？",
     "quickAnswer": "先停止扩量并按预案回滚，保护用户；随后冻结证据、按版本/设备/域切片定位，建立最小复现；修复需通过原事故集和完整回归，复盘关注系统防线而非追责个人。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -15211,7 +15272,9 @@ const questions = [
     "difficulty": "Hard",
     "order": 6,
     "title": "技术分歧、反馈与成员培养",
-    "prompt": "成员坚持更大模型，端侧坚持更低延迟，产品坚持尽快上线时，Tech Lead 如何决策并让团队成长？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "技术分歧、反馈与成员培养",
+    "technicalPrompt": "成员坚持更大模型，端侧坚持更低延迟，产品坚持尽快上线时，Tech Lead 如何决策并让团队成长？",
     "quickAnswer": "先把立场翻译成共同指标和不可违反约束，用小型可证伪实验减少争论；明确 DRI 和决策期限，记录取舍；反馈针对行为与影响，并让成员拥有方案和复盘，而非只执行答案。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -15293,7 +15356,9 @@ const questions = [
     "difficulty": "Hard",
     "order": 7,
     "title": "把简历 Bullet 讲成可追问的 STAR-L",
-    "prompt": "如何把“CER 下降、F1 提升、端侧加速”等简历 bullet 讲成 3 分钟主线，并承受 15 分钟技术追问？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "把简历 Bullet 讲成可追问的 STAR-L",
+    "technicalPrompt": "如何把“CER 下降、F1 提升、端侧加速”等简历 bullet 讲成 3 分钟主线，并承受 15 分钟技术追问？",
     "quickAnswer": "用 Situation/Task 交代约束，Action 只讲本人关键决策和机制，Result 给口径完整的数字，最后 Learning 说明失败、取舍和下一步；每个数字准备数据、消融、统计、部署四层证据。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -40697,8 +40762,10 @@ const questions = [
     "id": "perf-resume-ablation-design",
     "category": "服务性能评测",
     "difficulty": "Hard",
-    "title": "单变量消融、交互项与收益归因",
-    "prompt": "RIR、数据混合、模型替换和 decoder 调参同时变化后指标提升，怎样设计消融才能说明各自贡献？",
+    "title": "我怎样用消融实验定位收益和负收益",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "单变量消融、交互项与收益归因",
+    "technicalPrompt": "RIR、数据混合、模型替换和 decoder 调参同时变化后指标提升，怎样设计消融才能说明各自贡献？",
     "quickAnswer": "先定义共同 baseline，做 one-at-a-time 主效应，再对可能交互的关键因素做小型 factorial；所有 run 固定数据、seed、评测链和预算，报告增量与组合是否非加性。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -40779,7 +40846,9 @@ const questions = [
     "category": "服务性能评测",
     "difficulty": "Hard",
     "title": "简历指标的口径、分母与 Metric Contract",
-    "prompt": "CER、WER、F1、Judge mean、RTF、FPS 和 23 min/segment 如何写成不可歧义、可复算的 metric contract？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "简历指标的口径、分母与 Metric Contract",
+    "technicalPrompt": "CER、WER、F1、Judge mean、RTF、FPS 和 23 min/segment 如何写成不可歧义、可复算的 metric contract？",
     "quickAnswer": "每个指标必须固定输入集合、过滤规则、分母、聚合方式、硬件、并发、预热、版本和失败样本处理；同时保存逐样本结果，使任何人可从原始记录复算简历数字。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -40860,7 +40929,9 @@ const questions = [
     "category": "服务性能评测",
     "difficulty": "Hard",
     "title": "样本量、检验功效与多重比较",
-    "prompt": "横评 5 个模型、11 个语种和多个切片时，怎样避免“总能找到一个显著提升”？测试集需要多大？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "样本量、检验功效与多重比较",
+    "technicalPrompt": "横评 5 个模型、11 个语种和多个切片时，怎样避免“总能找到一个显著提升”？测试集需要多大？",
     "quickAnswer": "先指定主假设与最小业务效应，按历史方差估功效和样本量；次级切片使用 FDR/Bonferroni 或分层模型控制多重比较，并同时报告效应大小和区间。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -40941,7 +41012,9 @@ const questions = [
     "category": "服务性能评测",
     "difficulty": "Hard",
     "title": "实验可复现的 Run Manifest 与证据链",
-    "prompt": "半年后如何复现简历中的最好结果？一个 run manifest 至少应保存哪些模型、数据、环境和评测信息？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "实验可复现的 Run Manifest 与证据链",
+    "technicalPrompt": "半年后如何复现简历中的最好结果？一个 run manifest 至少应保存哪些模型、数据、环境和评测信息？",
     "quickAnswer": "必须固化 git SHA、配置、数据/标签 hash、tokenizer、预训练权重、随机种子、容器与驱动、硬件、训练日志、checkpoint、原始输出和评测脚本版本，形成从结论回溯到样本的证据链。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -41021,8 +41094,10 @@ const questions = [
     "id": "perf-resume-slice-gate",
     "category": "服务性能评测",
     "difficulty": "Hard",
-    "title": "平均指标、关键切片与回归门禁",
-    "prompt": "为什么平均 CER/F1 提升仍可能不能上线？如何定义语种、噪声、设备、长句和高代价实体的 regression gate？",
+    "title": "我为什么不只看平均指标，怎样决定模型放行",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "平均指标、关键切片与回归门禁",
+    "technicalPrompt": "为什么平均 CER/F1 提升仍可能不能上线？如何定义语种、噪声、设备、长句和高代价实体的 regression gate？",
     "quickAnswer": "平均值会被大切片支配，应预注册关键切片和业务代价，分别设置不退化上限、最小样本量和区间；发布需要主指标提升且所有硬门禁通过。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -52497,8 +52572,10 @@ const questions = [
     "id": "tts-resume-codeswitch-phoneme",
     "category": "语音合成",
     "difficulty": "Hard",
-    "title": "中英混读的语言切分与共享音素空间",
-    "prompt": "中文、英文和中英混读三路交付时，split_by_lang、G2P、音素表与韵律上下文怎样协同，避免语言边界处突变？",
+    "title": "我怎样交付中文、英文和中英混读 TTS",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "中英混读的语言切分与共享音素空间",
+    "technicalPrompt": "中文、英文和中英混读三路交付时，split_by_lang、G2P、音素表与韵律上下文怎样协同，避免语言边界处突变？",
     "quickAnswer": "先做保留实体的语言/脚本分段，各段进入对应 G2P，再映射到共享或带 language ID 的音素空间；声学模型必须看到跨段上下文，边界处单独约束时长、F0 和能量连续。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -52578,8 +52655,10 @@ const questions = [
     "id": "tts-resume-g2pw-calibration",
     "category": "语音合成",
     "difficulty": "Hard",
-    "title": "G2PW 置信度、词典与三级回退校准",
-    "prompt": "双层词典→G2PW→pypinyin 的三级回退如何定阈值？怎样避免低置信回退反而把正确上下文读音改错？",
+    "title": "我怎样处理多音字和低置信词组",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "G2PW 置信度、词典与三级回退校准",
+    "technicalPrompt": "双层词典→G2PW→pypinyin 的三级回退如何定阈值？怎样避免低置信回退反而把正确上下文读音改错？",
     "quickAnswer": "词典只覆盖高精度固定词组；G2PW 输出需在多音字金标集上校准；pypinyin 是保证可读的最后兜底而非准确率上限。阈值应按词频、实体类型和错误代价分组选择。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -52660,7 +52739,9 @@ const questions = [
     "category": "语音合成",
     "difficulty": "Hard",
     "title": "MOS、CMOS、ABX 与 TTS 显著性",
-    "prompt": "如何设计能支持模型定版的 TTS 主观听测，避免说话人、句子顺序、响度和评测者偏好造成结论偏差？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "MOS、CMOS、ABX 与 TTS 显著性",
+    "technicalPrompt": "如何设计能支持模型定版的 TTS 主观听测，避免说话人、句子顺序、响度和评测者偏好造成结论偏差？",
     "quickAnswer": "冻结代表性文本和音频后处理，随机化并盲化模型身份，按评测者与句子平衡分配；MOS 测绝对质量，CMOS/AB 测成对偏好，ABX 可检验相似性，并用分层 bootstrap 或 mixed-effects 模型给区间。",
     "resumeCard": true,
     "experienceLevel": "general",
@@ -52741,7 +52822,9 @@ const questions = [
     "category": "语音合成",
     "difficulty": "Hard",
     "title": "Matcha-TTS 的条件 Flow Matching",
-    "prompt": "请从概率路径、速度场训练、ODE 采样和步数解释 Matcha-TTS，不能只说“它比 diffusion 快”。",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "Matcha-TTS 的条件 Flow Matching",
+    "technicalPrompt": "请从概率路径、速度场训练、ODE 采样和步数解释 Matcha-TTS，不能只说“它比 diffusion 快”。",
     "quickAnswer": "Matcha 在文本和时长条件下学习把简单噪声分布沿连续概率路径运输到 mel 分布的速度场；训练随机采样时间 t 回归目标速度，推理从噪声用 ODE solver 积分少量步得到 mel。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -52821,8 +52904,10 @@ const questions = [
     "id": "tts-resume-small-speaker-finetune",
     "category": "语音合成",
     "difficulty": "Hard",
-    "title": "小数据方言声线微调与崩坏回归",
-    "prompt": "北京话、河南话、天津话专属声色微调时，如何归因噪声、混响、采样率和 code-switch 偏移，并避免音色提高但可懂度崩坏？",
+    "title": "我怎样完成三种方言声线微调",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "小数据方言声线微调与崩坏回归",
+    "technicalPrompt": "北京话、河南话、天津话专属声色微调时，如何归因噪声、混响、采样率和 code-switch 偏移，并避免音色提高但可懂度崩坏？",
     "quickAnswer": "先统一采样率、响度、切分和标注，按说话人/信道/文本覆盖做数据审计；从条件 embedding 和少量层开始微调，保留通用 replay，并以音色、可懂度、韵律和稳定性四类指标共同选型。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -52902,8 +52987,10 @@ const questions = [
     "id": "tts-resume-text-normalization",
     "category": "语音合成",
     "difficulty": "Hard",
-    "title": "中文 TTS 文本归一化的确定性规则",
-    "prompt": "“概率模型 + 确定性规则”如何处理日期、金额、电话、单位和编号？为什么 TTS 前端不能完全交给大模型自由改写？",
+    "title": "我怎样用规则和模型处理中文长尾读音",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "中文 TTS 文本归一化的确定性规则",
+    "technicalPrompt": "“概率模型 + 确定性规则”如何处理日期、金额、电话、单位和编号？为什么 TTS 前端不能完全交给大模型自由改写？",
     "quickAnswer": "先识别实体类型与上下文，再由可审计规则生成候选读法；概率模型只负责歧义分类，最终输出必须满足 schema、长度和字符守卫，不能擅自改动姓名、日期与数字。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -52983,8 +53070,10 @@ const questions = [
     "id": "tts-resume-tone-prosody",
     "category": "语音合成",
     "difficulty": "Hard",
-    "title": "变调、轻声、儿化与韵律边界",
-    "prompt": "中文 TTS 前端怎样区分词典音、表层变调和声学韵律？读音标签从 8 类扩到 18 类时应如何验证确有收益？",
+    "title": "读音标签从 8 类扩到 18 类，我怎样验证收益",
+    "prompt": "请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。",
+    "technicalTitle": "变调、轻声、儿化与韵律边界",
+    "technicalPrompt": "中文 TTS 前端怎样区分词典音、表层变调和声学韵律？读音标签从 8 类扩到 18 类时应如何验证确有收益？",
     "quickAnswer": "先输出词典层音素，再根据分词、词性和句法应用三声变调、“一/不”变调、轻声与儿化；韵律边界单独建模停顿、重音和时长。标签扩展必须有清晰语义、可靠标注和逐类收益。",
     "resumeCard": true,
     "experienceLevel": "direct",
@@ -53065,7 +53154,9 @@ const questions = [
     "category": "语音合成",
     "difficulty": "Hard",
     "title": "VITS-Melo 的损失、对齐与推理路径",
-    "prompt": "VITS-Melo 中 posterior encoder、text prior、flow、duration predictor、decoder 和 discriminator 各自做什么？训练与推理路径为何不同？",
+    "prompt": "先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。",
+    "technicalTitle": "VITS-Melo 的损失、对齐与推理路径",
+    "technicalPrompt": "VITS-Melo 中 posterior encoder、text prior、flow、duration predictor、decoder 和 discriminator 各自做什么？训练与推理路径为何不同？",
     "quickAnswer": "训练时 posterior 从真实语音提取潜变量，flow 将其对齐到文本条件 prior，MAS/时长模块学习单调对齐，decoder 与多尺度/多周期判别器重建波形；推理时没有真实语音，只从文本 prior 和预测时长采样后经逆 flow/decoder 出声。",
     "resumeCard": true,
     "experienceLevel": "supporting",
@@ -57572,6 +57663,7 @@ function detailSections(card, level = 'quick') {
       ['resumeSource', '简历原文依据', 'text'],
       ['safeAnswer', '我可以安全地这样回答', 'text'],
       ['claimBoundary', '不要越界', 'text'],
+      ['technicalPrompt', '深入时，面试官可能这样问', 'text'],
       ['interviewAnswer', '被追问时的回答顺序', 'steps'],
       ['prerequisites', '术语拆解', 'concepts'],
       ['evidenceChain', evidenceTitle, 'steps'],
@@ -57770,7 +57862,7 @@ function validateQuestionCard(card, { beginner = false } = {}) {
   }
 
   if (card?.resumeCard) {
-    for (const field of ['experienceLevel', 'experienceLabel', 'resumeSource', 'safeAnswer', 'claimBoundary']) {
+    for (const field of ['experienceLevel', 'experienceLabel', 'resumeSource', 'safeAnswer', 'claimBoundary', 'technicalTitle', 'technicalPrompt']) {
       if (!isNonEmptyString(card?.[field])) addMissing(field);
     }
     if (!['direct', 'supporting', 'general'].includes(card.experienceLevel)) addMissing('experienceLevel');
@@ -57908,7 +58000,7 @@ const domains = [
 ];
 
 const learningPath = [
-  { stage: 1, domain: '简历证据与项目答辩', why: '先把已经做过的事讲深：指标口径、个人贡献、消融、失败与上线证据', invest: '面试前最高频，40 道简历专项滚动复盘' },
+  { stage: 1, domain: '简历证据与项目答辩', why: '先把已经做过的事讲深：指标口径、个人贡献、消融、失败与上线证据', invest: '先练 21 张真实项目卡，再按需补 19 张关联知识与通用方法' },
   { stage: 2, domain: 'E. 语音与多模态主航道', why: 'ASR、TTS、语音大模型、OCR、深度和生成式 AI 是个人履历最强信号', invest: '长期主线，按真实项目串讲' },
   { stage: 3, domain: 'D. 推理与端侧交付', why: '把模型从离线指标推进到 ONNX、TensorRT、MNN、sherpa-onnx 与线上稳定性', invest: '重点，必须能讲性能与回滚' },
   { stage: 4, domain: 'B/C. 模型原理与训练体系', why: '为架构选型、微调、稳定性和新模型迁移补齐可推导的底座', invest: '按薄弱项系统补全' },
@@ -58711,6 +58803,13 @@ function categoryLabel(category) { return categoryLabels.get(category) || catego
 
 function isResumeQuestion(question) { return /^(?:asr|tts|edge|perf|lead)-resume-/.test(question.id); }
 const resumeQuestions = questions.filter(isResumeQuestion);
+const resumeLevelOptions = [
+  { key: 'direct', label: '真实项目', short: '只看我做过的', description: '简历有明确原文依据，优先练成可以脱口而出的项目故事。' },
+  { key: 'supporting', label: '关联补课', short: '理解相关原理', description: '和简历技术栈有关，但不默认代表我实现过内部算法。' },
+  { key: 'general', label: '通用方法', short: '不要说成做过', description: '更规范的面试或工程方法，只能按“如果让我做”回答。' },
+];
+const directResumeQuestions = resumeQuestions.filter((question) => question.experienceLevel === 'direct');
+const resumeLevelInfo = (level) => resumeLevelOptions.find((option) => option.key === level) || resumeLevelOptions[0];
 const personalTracks = [
   {
     code: '01', title: '简历证据与项目答辩', resume: true,
@@ -58736,7 +58835,7 @@ const personalTracks = [
 
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
-  mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
+  resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
   remaining: 2700, timerId: null,
 };
 
@@ -58751,7 +58850,9 @@ function loadMastered() {
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
 function activeQuestions() {
   if (state.mode === 'mock') return state.mockQuestions;
-  const source = state.view === 'resume' ? resumeQuestions : questions;
+  const source = state.view === 'resume'
+    ? resumeQuestions.filter((question) => question.experienceLevel === state.resumeLevel)
+    : questions;
   return filterQuestions(source, state.category, state.query, state.kind);
 }
 function selectedQuestion() { return activeQuestions().find((q) => q.id === state.selectedId) || activeQuestions()[0]; }
@@ -58778,9 +58879,9 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
-  buttons.push(navButton(`◎ 简历专项 · ${resumeQuestions.length}`, state.view === 'resume', () => {
-    state.view = 'resume'; state.category = '全部';
-    selectQuestion(filterQuestions(resumeQuestions, '全部', state.query, state.kind)[0]?.id); render();
+  buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
+    state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
+    selectQuestion(activeQuestions()[0]?.id); render();
   }, 'nav-lead nav-resume'));
   buttons.push(navButton('全部知识库', state.view === 'list' && state.category === '全部', () => {
     state.view = 'list'; state.category = '全部';
@@ -58814,7 +58915,7 @@ function renderList() {
   el('result-count').textContent = `${items.length} 题`;
   el('list-title').textContent = state.mode === 'mock'
     ? '本轮模拟'
-    : (state.view === 'resume' ? '简历专项' : (state.category === '全部' ? '全部知识库' : categoryLabel(state.category)));
+    : (state.view === 'resume' ? resumeLevelInfo(state.resumeLevel).label : (state.category === '全部' ? '全部知识库' : categoryLabel(state.category)));
   if (empty.visible) return;
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
@@ -59124,7 +59225,7 @@ function renderDetail() {
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
     const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
     const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
-    const p2 = document.createElement('p'); p2.textContent = `先用 ${resumeQuestions.length} 道简历专项打磨证据链，再按个人主线调用 ${questions.length} 道知识卡；面试变化时只需调整优先级，不必重建一套题库。`;
+    const p2 = document.createElement('p'); p2.textContent = `先用 ${directResumeQuestions.length} 张真实项目卡讲清自己做过的事，再从 ${resumeQuestions.length - directResumeQuestions.length} 张关联补课与通用方法中按需补齐；其余 ${questions.length} 道知识卡用于长期扩展。`;
     tip.append(h, p1, p2);
     pane.append(tip);
     return;
@@ -59200,17 +59301,31 @@ function renderCategoryThread(pane, list) {
     const banner = document.createElement('section');
     banner.id = 'category-thread'; banner.className = 'thread-banner heavy resume-thread';
     const head = document.createElement('div'); head.className = 'thread-head';
-    const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '个人证据链';
-    const title = document.createElement('h3'); title.textContent = `${resumeQuestions.length} 道简历专项`;
+    const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '先分清做过与没做过';
+    const title = document.createElement('h3'); title.textContent = `${directResumeQuestions.length} 张真实项目卡 + ${resumeQuestions.length - directResumeQuestions.length} 张补课卡`;
     head.append(tag, title);
     const oneliner = document.createElement('p'); oneliner.className = 'thread-oneliner';
-    oneliner.textContent = '不背抽象标准答案：用真实项目把问题、决策、数据、贡献、失败和复盘讲完整。';
-    const ol = document.createElement('ol'); ol.className = 'thread-steps';
-    ['多语种 ASR · 12 题', '中文 TTS · 8 题', '端侧感知与部署 · 8 题', '实验与统计可信度 · 5 题', 'Tech Lead 与项目答辩 · 7 题']
-      .forEach((step) => { const li = document.createElement('li'); li.textContent = step; ol.append(li); });
+    oneliner.textContent = '默认只展示简历能够证明的真实经历；原理补课和通用方法分开放，避免背成不存在的项目。';
+    const switcher = document.createElement('div'); switcher.className = 'resume-level-switch';
+    resumeLevelOptions.forEach((option) => {
+      const count = resumeQuestions.filter((question) => question.experienceLevel === option.key).length;
+      const button = document.createElement('button');
+      button.className = `resume-level-card ${option.key} ${state.resumeLevel === option.key ? 'active' : ''}`;
+      button.setAttribute('aria-pressed', String(state.resumeLevel === option.key));
+      const strong = document.createElement('strong'); strong.textContent = `${option.label} · ${count}`;
+      const small = document.createElement('span'); small.textContent = option.short;
+      const copy = document.createElement('small'); copy.textContent = option.description;
+      button.append(strong, small, copy);
+      button.addEventListener('click', () => {
+        state.resumeLevel = option.key;
+        selectQuestion(activeQuestions()[0]?.id);
+        render();
+      });
+      switcher.append(button);
+    });
     const hint = document.createElement('p'); hint.className = 'thread-hint';
-    hint.textContent = '每次回答都补一条可验证证据；无法验证的数字，明确口径与不确定性。';
-    banner.append(head, oneliner, ol, hint);
+    hint.textContent = `${resumeLevelInfo(state.resumeLevel).label}：${resumeLevelInfo(state.resumeLevel).description}`;
+    banner.append(head, oneliner, switcher, hint);
     pane.insertBefore(banner, list);
     return;
   }
@@ -59250,6 +59365,7 @@ function renderMap(container) {
 
 function openCollection(view, category = '全部') {
   state.view = view; state.category = category; state.query = '';
+  if (view === 'resume') state.resumeLevel = 'direct';
   const searchInput = el('search-input'); if (searchInput) searchInput.value = '';
   selectQuestion(activeQuestions()[0]?.id); render();
 }
@@ -59265,7 +59381,7 @@ function renderPersonalDashboard() {
   copy.append(kicker, title, summary);
   const stats = document.createElement('div'); stats.className = 'personal-stats';
   [
-    [questions.length, '全部题卡'], [resumeQuestions.length, '简历专项'], [domains.length, '能力主题'], [state.masteredIds.size, '已掌握'],
+    [questions.length, '全部题卡'], [directResumeQuestions.length, '真实项目卡'], [domains.length, '能力主题'], [state.masteredIds.size, '已掌握'],
   ].forEach(([value, label]) => {
     const item = document.createElement('div');
     const strong = document.createElement('strong'); strong.textContent = String(value);
@@ -59288,7 +59404,7 @@ function renderPersonalDashboard() {
     const description = document.createElement('p'); description.textContent = track.summary;
     card.append(code, name, description);
     if (track.resume) {
-      const button = document.createElement('button'); button.className = 'personal-open'; button.textContent = `进入 ${resumeQuestions.length} 道专项题`;
+      const button = document.createElement('button'); button.className = 'personal-open'; button.textContent = `先练 ${directResumeQuestions.length} 张真实项目卡`;
       button.addEventListener('click', () => openCollection('resume'));
       card.append(button);
     } else {

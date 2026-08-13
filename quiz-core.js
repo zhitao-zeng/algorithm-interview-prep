@@ -47,6 +47,7 @@ export function detailSections(card, level = 'quick') {
       ['resumeSource', '简历原文依据', 'text'],
       ['safeAnswer', '我可以安全地这样回答', 'text'],
       ['claimBoundary', '不要越界', 'text'],
+      ['technicalPrompt', '深入时，面试官可能这样问', 'text'],
       ['interviewAnswer', '被追问时的回答顺序', 'steps'],
       ['prerequisites', '术语拆解', 'concepts'],
       ['evidenceChain', evidenceTitle, 'steps'],
@@ -245,7 +246,7 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
   }
 
   if (card?.resumeCard) {
-    for (const field of ['experienceLevel', 'experienceLabel', 'resumeSource', 'safeAnswer', 'claimBoundary']) {
+    for (const field of ['experienceLevel', 'experienceLabel', 'resumeSource', 'safeAnswer', 'claimBoundary', 'technicalTitle', 'technicalPrompt']) {
       if (!isNonEmptyString(card?.[field])) addMissing(field);
     }
     if (!['direct', 'supporting', 'general'].includes(card.experienceLevel)) addMissing('experienceLevel');

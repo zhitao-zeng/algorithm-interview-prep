@@ -60,6 +60,30 @@ const cards = {
   'perf-resume-slice-gate': ['direct', '简历写明按语种、真实信道、业务域、独立业务集和旧域回归判断模型是否放行。', '我不只看平均指标，而是同时看关键语种、信道和旧域；主指标提升但关键切片退化时不放行。'],
 };
 
+const directTitles = {
+  'asr-resume-backbone-audit': '我怎样横评多种 ASR 模型并完成选型',
+  'asr-resume-confidence-calibration': 'Qwen3-ASR 重标注结果怎么筛选和验证',
+  'asr-resume-domain-mixture': '我怎样提升业务域 ASR，又避免通用能力退化',
+  'asr-resume-error-attribution': 'ChinaVoices 负收益是怎样定位出来的',
+  'asr-resume-label-noise-audit': '西语数据中 8.2% 标签噪声是怎样确认的',
+  'asr-resume-rir-signal-chain': '我怎样模拟真实信道并降低 WER',
+  'tts-resume-codeswitch-phoneme': '我怎样交付中文、英文和中英混读 TTS',
+  'tts-resume-g2pw-calibration': '我怎样处理多音字和低置信词组',
+  'tts-resume-small-speaker-finetune': '我怎样完成三种方言声线微调',
+  'tts-resume-text-normalization': '我怎样用规则和模型处理中文长尾读音',
+  'tts-resume-tone-prosody': '读音标签从 8 类扩到 18 类，我怎样验证收益',
+  'edge-resume-buffer-concurrency': '我怎样通过 Buffer 复用降低 220 MiB 峰值内存',
+  'edge-resume-cpu-profiling': 'OCR 端侧推理 3.1 倍加速是怎样得到的',
+  'edge-resume-int8-calibration': '我怎样完成 TTS 模型量化和端侧交付',
+  'edge-resume-runtime-selection': '我怎样为边缘端选择推理框架',
+  'edge-resume-sherpa-streaming': '我怎样处理流式会话，并在结果变差时回退',
+  'lead-resume-model-selection': '作为 Tech Lead，我怎样做模型选型',
+  'lead-resume-small-team': '我怎样带两人小组推进算法与交付',
+  'lead-resume-cross-team': '我怎样推动算法、端侧和产品一起完成交付',
+  'perf-resume-ablation-design': '我怎样用消融实验定位收益和负收益',
+  'perf-resume-slice-gate': '我为什么不只看平均指标，怎样决定模型放行',
+};
+
 export function resumeGrounding(id) {
   const entry = cards[id];
   if (!entry) throw new Error(`简历专项 ${id} 缺少经历边界说明`);
@@ -69,6 +93,7 @@ export function resumeGrounding(id) {
     label: levelInfo[level].label,
     source,
     safeAnswer,
+    plainTitle: directTitles[id] || null,
     boundary: levelInfo[level].boundary,
   };
 }

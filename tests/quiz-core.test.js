@@ -130,6 +130,8 @@ test('40 道简历专项使用教学卡 V2，不再复制通用假代码与占�
     assert.ok(card.resumeSource.length >= 20, card.id);
     assert.ok(card.safeAnswer.length >= 20, card.id);
     assert.ok(card.claimBoundary.length >= 20, card.id);
+    assert.ok(card.technicalTitle.length >= 8, card.id);
+    assert.ok(card.technicalPrompt.length >= 12, card.id);
     assert.equal('code' in card, false, `${card.id} 不应展示与主题无关的通用 Python`);
     assert.equal('lineByLine' in card, false, `${card.id} 不应保留通用逐行说明`);
     assert.equal('diagram' in card, false, `${card.id} 不应保留重复占位图`);
@@ -139,10 +141,15 @@ test('40 道简历专项使用教学卡 V2，不再复制通用假代码与占�
     assert.ok(card.prerequisites.every((term) => term.includes('：') && term.length >= 24), card.id);
     assert.deepEqual(
       detailSections(card, 'deep').map((section) => section.key),
-      ['beginnerSummary', 'resumeSource', 'safeAnswer', 'claimBoundary', 'interviewAnswer', 'prerequisites', 'evidenceChain', 'derivation', 'workedExample', 'comparison', 'complexity', 'edgeCases', 'followUps', 'pitfalls'],
+      ['beginnerSummary', 'resumeSource', 'safeAnswer', 'claimBoundary', 'technicalPrompt', 'interviewAnswer', 'prerequisites', 'evidenceChain', 'derivation', 'workedExample', 'comparison', 'complexity', 'edgeCases', 'followUps', 'pitfalls'],
       card.id,
     );
   }
+
+  const directCards = resumeCards.filter((card) => card.experienceLevel === 'direct');
+  assert.equal(directCards.length, 21);
+  assert.ok(directCards.every((card) => card.prompt.startsWith('请按“项目问题')));
+  assert.ok(directCards.every((card) => card.title.length <= 30), '真实项目卡标题应先口语化');
 
   const pseudoLabel = questions.find((q) => q.id === 'asr-resume-confidence-calibration');
   assert.equal(pseudoLabel.experienceLevel, 'direct');
@@ -195,9 +202,12 @@ test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
   assert.match(appSource, /mapTab:\s*'personal'/);
   assert.match(appSource, /const personalTracks = \[/);
   assert.match(appSource, /const resumeQuestions = questions\.filter\(isResumeQuestion\)/);
+  assert.match(appSource, /resumeLevel:\s*'direct'/);
+  assert.match(appSource, /question\.experienceLevel === state\.resumeLevel/);
+  assert.match(appSource, /真实项目.*关联补课.*通用方法/s);
   assert.match(appSource, /zeng-interview-mastered-ids/);
   assert.match(appSource, /byte-interview-mastered-ids/);
-  assert.match(appSource, /◎ 简历专项/);
+  assert.match(appSource, /◎ 简历项目/);
   assert.doesNotMatch(mapSource, /岗位特性|【岗重】/);
 });
 

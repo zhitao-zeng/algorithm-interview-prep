@@ -22,6 +22,11 @@ export function makeResumeCard({
 }) {
   const grounding = resumeGrounding(id);
   const direct = grounding.level === 'direct';
+  const technicalTitle = title;
+  const technicalPrompt = prompt;
+  const plainPrompt = direct
+    ? '请按“项目问题 → 我的做法 → 实际结果”讲清这段经历，只说自己能够确认做过的部分。'
+    : '先说明它和简历的关系，再回答需要理解的知识；不要把补课内容说成已经做过的项目。';
   const evidenceChain = direct
     ? [
       `要证明的主张：${title}`,
@@ -42,8 +47,10 @@ export function makeResumeCard({
     category,
     difficulty,
     ...(order ? { order } : {}),
-    title,
-    prompt,
+    title: grounding.plainTitle || title,
+    prompt: plainPrompt,
+    technicalTitle,
+    technicalPrompt,
     quickAnswer,
     resumeCard: true,
     experienceLevel: grounding.level,
@@ -51,7 +58,7 @@ export function makeResumeCard({
     resumeSource: grounding.source,
     safeAnswer: grounding.safeAnswer,
     claimBoundary: grounding.boundary,
-    explanationFocus: `这道题真正考察的不是名词记忆，而是你能否解释“${title}”背后的判断依据，并用可复核证据说明结论。${why}`,
+    explanationFocus: `这道题真正考察的不是名词记忆，而是你能否解释“${technicalTitle}”背后的判断依据，并用可复核证据说明结论。${why}`,
     approach: implementation,
     complexity,
     beginnerSummary: `${grounding.label}。${grounding.safeAnswer}`,

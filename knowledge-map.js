@@ -109,7 +109,7 @@ export const domains = [
 ];
 
 export const learningPath = [
-  { stage: 1, domain: '简历证据与项目答辩', why: '先把已经做过的事讲深：指标口径、个人贡献、消融、失败与上线证据', invest: '面试前最高频，40 道简历专项滚动复盘' },
+  { stage: 1, domain: '简历证据与项目答辩', why: '先把已经做过的事讲深：指标口径、个人贡献、消融、失败与上线证据', invest: '先练 21 张真实项目卡，再按需补 19 张关联知识与通用方法' },
   { stage: 2, domain: 'E. 语音与多模态主航道', why: 'ASR、TTS、语音大模型、OCR、深度和生成式 AI 是个人履历最强信号', invest: '长期主线，按真实项目串讲' },
   { stage: 3, domain: 'D. 推理与端侧交付', why: '把模型从离线指标推进到 ONNX、TensorRT、MNN、sherpa-onnx 与线上稳定性', invest: '重点，必须能讲性能与回滚' },
   { stage: 4, domain: 'B/C. 模型原理与训练体系', why: '为架构选型、微调、稳定性和新模型迁移补齐可推导的底座', invest: '按薄弱项系统补全' },

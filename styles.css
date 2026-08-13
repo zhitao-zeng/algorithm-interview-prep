@@ -107,6 +107,16 @@
 .thread-tag { background: var(--blue); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: .5px; }
 .thread-banner.heavy .thread-tag { background: var(--orange); }
 .resume-thread .thread-steps { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.resume-level-switch { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.resume-level-card { min-width: 0; padding: 11px; border: 1px solid var(--line); border-radius: 9px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }
+.resume-level-card strong, .resume-level-card span, .resume-level-card small { display: block; }
+.resume-level-card strong { margin-bottom: 2px; font-size: 13px; }
+.resume-level-card span { color: var(--muted); font-size: 11px; font-weight: 750; }
+.resume-level-card small { margin-top: 7px; color: var(--muted); font-size: 11px; line-height: 1.45; }
+.resume-level-card.direct.active { border-color: #58ad88; box-shadow: 0 0 0 2px #ccebdc; }
+.resume-level-card.supporting.active { border-color: #d8ad45; box-shadow: 0 0 0 2px #faeabc; }
+.resume-level-card.general.active { border-color: #d88972; box-shadow: 0 0 0 2px #f7d5ca; }
+.resume-level-card:focus-visible { outline: 3px solid #8db9f5; outline-offset: 2px; }
 .thread-head h3 { margin: 0; font-size: 18px; color: var(--navy); }
 .thread-oneliner { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .thread-steps { margin: 0; padding-left: 22px; display: grid; gap: 5px; }
@@ -131,6 +141,7 @@
   .personal-track-grid { grid-template-columns: 1fr; }
   .personal-track > p { min-height: 0; }
   .resume-thread .thread-steps { grid-template-columns: 1fr; }
+  .resume-level-switch { grid-template-columns: 1fr; }
 }
 
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
