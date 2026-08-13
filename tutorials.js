@@ -1,6 +1,7 @@
-export const tutorials = [
+export let tutorials = [
   {
     id: 'project-defense-tech-lead',
+    trackId: 'personal', order: 1, primaryCategories: ['Tech Lead 与项目答辩'], prerequisiteIds: [],
     title: '项目答辩与 Tech Lead',
     eyebrow: 'COURSE 01 · EXPERIENCE TO EVIDENCE',
     summary: '把简历项目组织成能承受追问的证据链，再把技术决策、实验、协作与交付讲成完整的 Tech Lead 闭环。',
@@ -112,6 +113,7 @@ export const tutorials = [
   },
   {
     id: 'asr-from-audio-to-delivery',
+    trackId: 'speech', order: 2, primaryCategories: ['ASR 专项'], prerequisiteIds: [],
     title: 'ASR：从音频到可交付识别系统',
     eyebrow: 'COURSE 02 · AUDIO TO RELIABLE ASR',
     summary: '沿一条真实识别链路学习 ASR：音频与标签 → CTC/RNN-T → 模型选型 → 解码与热词 → 流式会话 → 数据治理 → 多域鲁棒 → 评测交付。',
@@ -244,6 +246,7 @@ export const tutorials = [
   },
   {
     id: 'tts-from-text-to-streaming-speech',
+    trackId: 'speech', order: 3, primaryCategories: ['语音合成'], prerequisiteIds: [],
     title: 'TTS：从文字到可交付语音',
     eyebrow: 'COURSE 03 · TEXT TO EXPRESSIVE SPEECH',
     summary: '沿一条完整合成链路学习 TTS：文本规范化 → G2P 与韵律 → 对齐和时长 → 声学模型 → 声码器 → 多语种与音色 → 流式部署 → 听测放行。',
@@ -363,6 +366,7 @@ export const tutorials = [
   },
   {
     id: 'speech-llm-from-representation-to-duplex',
+    trackId: 'speech', order: 4, primaryCategories: ['语音大模型'], prerequisiteIds: ['asr-from-audio-to-delivery', 'tts-from-text-to-streaming-speech', 'transformer-long-context'],
     title: '语音大模型：从表示到实时双工',
     eyebrow: 'COURSE 04 · SPEECH TOKENS TO REAL-TIME DIALOGUE',
     summary: '在 ASR 与 TTS 基础上学习语音大模型：系统契约 → 连续/离散表示 → 语义与声学 Token → Thinker–Talker → 分阶段训练 → 流式双工 → 分层评测。',
@@ -468,6 +472,378 @@ export const tutorials = [
     ]
   }
 ];
+
+export const tutorialTracks = [
+  { id: 'personal', order: 1, title: '个人项目与答辩', summary: '先把真实经历讲成可核验的技术决策。' },
+  { id: 'speech', order: 2, title: '语音与实时交互', summary: '从听、说到端到端实时语音智能。' },
+  { id: 'deployment', order: 3, title: '端侧、推理与交付', summary: '把模型跑得快、跑得稳、跑得省。' },
+  { id: 'foundation', order: 4, title: '模型原理、训练与安全', summary: '补齐 Transformer、训练、对齐和安全底座。' },
+  { id: 'multimodal', order: 5, title: '多模态理解与生成', summary: '贯通视觉、视频、生成、数据和具身智能。' },
+  { id: 'applications', order: 6, title: '推荐、增长与智能应用', summary: '把算法连接到业务、知识系统和 Agent。' },
+  { id: 'fundamentals', order: 7, title: '算法手撕与系统基础', summary: '保持编码、建模与底层实现能力。' },
+];
+
+const generatedTutorialBlueprints = [
+  { id: 'edge-inference-chip-delivery', trackId: 'deployment', order: 5, title: '端侧推理与芯片适配', categories: ['ONNX/TensorRT', '推理芯片适配', '量化推理'], prerequisites: [], chapters: ['交付契约', 'ONNX 导出', '数值一致性', 'Dynamic Shape', 'TensorRT Engine', 'Plugin 与 NPU 编译', 'FP16、INT8 与 INT4', '跨芯片精度对齐', '性能、内存与异步流水', '灰度、降级与回滚'] },
+  { id: 'ocr-depth-obstacle-delivery', trackId: 'deployment', order: 6, title: 'OCR、深度与障碍物感知', categories: ['OCR 文字检测与识别', '单目深度与障碍物感知'], prerequisites: ['edge-inference-chip-delivery'], chapters: ['OCR 全链路', '文本检测', '文本识别', 'Oracle 定位与局部 Refinement', '单目深度建模', '尺度校准与评测', '障碍物融合及端侧交付'] },
+  { id: 'llm-inference-scheduling', trackId: 'deployment', order: 7, title: '大模型推理与调度', categories: ['大模型推理原理', 'KV Cache', 'Continuous Batching', 'PagedAttention', '流式推理工程'], prerequisites: ['transformer-long-context'], chapters: ['Prefill 与 Decode', 'Roofline 与性能瓶颈', 'KV Cache 计算', 'GQA 与 KV 优化', 'Continuous Batching', 'PagedAttention', 'Chunked Prefill 与 PD 分离', '投机解码与多 Token 预测', '流式正确性、背压与取消', '完整推理系统设计'] },
+  { id: 'inference-framework-performance', trackId: 'deployment', order: 8, title: '推理框架与性能评测', categories: ['推理框架', '服务性能评测'], prerequisites: ['llm-inference-scheduling'], chapters: ['推理框架边界', '负载与指标契约', '吞吐和延迟', '压测工具与脚本', '饱和度与容量规划', '资源利用率、显存与冷启动', '流式、SLA 与成本', '框架选型与发布决策'] },
+  { id: 'distributed-multigpu-moe', trackId: 'foundation', order: 9, title: '分布式训练、多 GPU 与 MoE', categories: ['分布式训练', '多GPU并行', 'MoE 架构'], prerequisites: ['transformer-long-context', 'training-finetuning-data'], chapters: ['通信基础与成本模型', '数据并行与 ZeRO', '张量并行', '流水线并行', '序列与上下文并行', 'MoE Router 与负载均衡', '专家并行', '3D 并行选型与故障定位'] },
+  { id: 'transformer-long-context', trackId: 'foundation', order: 10, title: 'Transformer 与长上下文', categories: ['Transformer 架构', '长上下文与位置编码'], prerequisites: [], chapters: ['Token 与 Embedding', '缩放点积注意力', 'MHA、MQA 与 GQA', '位置编码与 RoPE', 'Norm、残差与训练稳定', 'FFN 与 SwiGLU', 'FlashAttention', '长上下文外推与评测'] },
+  { id: 'training-finetuning-data', trackId: 'foundation', order: 11, title: '训练、微调与数据构建', categories: ['训练与微调', '训练稳定性', '合成数据'], prerequisites: ['transformer-long-context'], chapters: ['训练目标与数据契约', 'SFT 与 Loss Mask', 'LoRA', 'QLoRA', '蒸馏', '数据配比与 Scaling', '训练稳定性', '合成数据闭环', '持续学习与灾难性遗忘'] },
+  { id: 'rl-alignment-evaluation', trackId: 'foundation', order: 12, title: 'RL 后训练与对齐评测', categories: ['RL 后训练', '评测与对齐安全'], prerequisites: ['training-finetuning-data'], chapters: ['MDP 与价值函数', '策略梯度与 Actor-Critic', '奖励模型', 'PPO', 'DPO', 'GRPO', '对齐、安全与能力回归'] },
+  { id: 'constrained-generation-redteam', trackId: 'foundation', order: 13, title: '约束生成与安全红队', categories: ['LLM 约束生成与自动评测', '安全红队'], prerequisites: ['transformer-long-context'], chapters: ['结构化输出', '约束解码', '自动 Judge', 'Prompt Injection', 'Jailbreak', '工具调用与数据泄漏', '红队放行闭环'] },
+  { id: 'multimodal-understanding', trackId: 'multimodal', order: 14, title: '多模态理解', categories: ['多模态模型', '视觉与视频理解'], prerequisites: ['transformer-long-context'], chapters: ['ViT 与视觉编码', 'CLIP 对齐', 'Connector 与 Q-Former', '多模态融合架构', '高分辨率与多图', '视频时序与 Token 压缩', '音频接入', '多模态幻觉', '评测与部署'] },
+  { id: 'generative-image-video', trackId: 'multimodal', order: 15, title: '生成式图像与视频系统', categories: ['生成式模型', '视频生成', '多模态生成应用'], prerequisites: ['multimodal-understanding', 'training-finetuning-data'], chapters: ['VAE、GAN 与 Diffusion', '扩散过程与训练目标', 'Latent Diffusion 与条件控制', 'Flow Matching', '视频时序建模', '人物一致性与 LoRA', '音频驱动生成', '多模态生成应用系统', '质量、安全与效率评测'] },
+  { id: 'multimodal-data-engineering', trackId: 'multimodal', order: 16, title: '多模态数据工程', categories: ['多模态数据工程'], prerequisites: ['multimodal-understanding'], chapters: ['数据来源、许可与版权', '统一 Schema', '去重与泄漏控制', '质量过滤', '图文交错与负样本', '标注和合成数据', '版本、血缘与回归'] },
+  { id: 'world-model-multimodal-agent', trackId: 'multimodal', order: 17, title: '世界模型与多模态 Agent', categories: ['世界模型', '多模态Agent'], prerequisites: ['multimodal-understanding', 'agent-workflow-engineering'], chapters: ['世界模型定义', '潜空间动力学', '规划与想象', '具身交互', '多模态 Agent Loop', '记忆与工具', '评测、安全与现实落差'] },
+  { id: 'industrial-search-recommendation', trackId: 'applications', order: 18, title: '工业搜索与推荐系统', categories: ['搜索推荐', '推荐系统'], prerequisites: [], chapters: ['业务目标与推荐漏斗', '多路召回', '双塔与向量检索', '粗排、精排与 LTR', '多目标学习', '偏差与校正', '实时特征', '冷启动、多样性与探索', 'LLM 与生成式推荐', '系统架构与评测'] },
+  { id: 'causal-live-growth', trackId: 'applications', order: 19, title: '因果推断与直播增长', categories: ['因果推断与树模型', '因果推断', '直播变现与增长'], prerequisites: ['industrial-search-recommendation', 'rl-alignment-evaluation'], chapters: ['直播业务漏斗', '统计、因子与树模型', 'DAG 与识别假设', 'A/B 实验', 'Uplift 与 CATE', 'LTV 与概率校准', 'Bandit 与在线 RL', '生成式个性化', '流批服务、全球化与风险'] },
+  { id: 'rag-knowledge-systems', trackId: 'applications', order: 20, title: 'RAG 与知识系统', categories: ['RAG'], prerequisites: ['transformer-long-context'], chapters: ['文档解析、索引与切块', '稀疏、向量与混合检索', '查询改写与 HyDE', '重排和上下文压缩', 'Self-RAG 与 CRAG', '评测及与微调的取舍'] },
+  { id: 'agent-workflow-engineering', trackId: 'applications', order: 21, title: 'Agent Workflow 工程', categories: ['Agent Workflow'], prerequisites: ['rag-knowledge-systems'], chapters: ['Agent 边界', 'ReAct', 'Planning 与 Reflection', '工具协议与参数校验', '记忆与上下文', '编排与多 Agent', 'MCP 与 Function Calling', '安全与 Human-in-the-loop', '可观测性和成本', '生产评测与恢复'] },
+  { id: 'algorithm-system-design', trackId: 'applications', order: 22, title: '算法系统设计', categories: ['系统设计'], prerequisites: ['inference-framework-performance'], chapters: ['需求澄清与容量估算', '在线推理服务', '推荐系统设计', '多模态理解服务', '向量检索与知识服务', '特征 Pipeline 与实时流', 'A/B 实验平台', '可靠性、限流、降级与合规'] },
+  { id: 'algorithms-linear-retrieval', trackId: 'fundamentals', order: 23, title: '算法手撕Ⅰ：线性结构与检索', categories: ['链表', '数组/窗口', '二分/TopK'], prerequisites: [], chapters: ['复杂度、输入契约与测试', '链表基础', '链表综合', '数组与哈希', '滑动窗口', '前缀和与单调结构', '二分边界', '堆与 TopK', 'QuickSelect 与综合题'] },
+  { id: 'algorithms-tree-graph-dp', trackId: 'fundamentals', order: 24, title: '算法手撕Ⅱ：树、图与动态规划', categories: ['二叉树', '搜索/图', '动态规划'], prerequisites: ['algorithms-linear-retrieval'], chapters: ['树遍历', '树的构造', 'BST 与 LCA', '序列化与路径问题', '图的 DFS 与 BFS', '拓扑、并查集与最短路', '回溯', '线性与序列 DP', '背包与区间 DP'] },
+  { id: 'model-implementation', trackId: 'fundamentals', order: 25, title: '模型手写', categories: ['模型手写'], prerequisites: ['algorithms-linear-retrieval'], chapters: ['Tensor 形状与数值契约', 'Softmax 与 Loss', 'Norm 与 Dropout', '卷积尺寸与实现', 'IoU、NMS 与 KMeans', '采样与 Beam Search', 'Attention 与 RoPE'] },
+  { id: 'computer-systems-foundation', trackId: 'fundamentals', order: 26, title: '计算机系统基础', categories: ['计算机系统基础'], prerequisites: [], chapters: ['进程、线程、协程与 GIL', 'Mutex、Spinlock 与 Atomic', '内存模型、缓存与伪共享', '虚拟内存、Pinned Memory 与 GPU 显存', '异步 I/O、零拷贝与数据搬运', '并发故障与性能定位'] },
+];
+
+const courseChapterCategoryHints = {
+  'edge-inference-chip-delivery': [[], ['ONNX/TensorRT'], ['ONNX/TensorRT'], ['ONNX/TensorRT'], ['ONNX/TensorRT'], ['ONNX/TensorRT', '推理芯片适配'], ['量化推理'], ['推理芯片适配', '量化推理'], [], []],
+  'ocr-depth-obstacle-delivery': [['OCR 文字检测与识别'], ['OCR 文字检测与识别'], ['OCR 文字检测与识别'], ['OCR 文字检测与识别'], ['单目深度与障碍物感知'], ['单目深度与障碍物感知'], []],
+  'llm-inference-scheduling': [['大模型推理原理'], ['大模型推理原理'], ['KV Cache'], ['KV Cache'], ['Continuous Batching'], ['PagedAttention'], ['流式推理工程', '大模型推理原理'], ['流式推理工程'], ['流式推理工程'], []],
+  'inference-framework-performance': [['推理框架'], ['服务性能评测'], ['服务性能评测'], ['服务性能评测'], ['服务性能评测'], ['推理框架', '服务性能评测'], ['推理框架', '服务性能评测'], []],
+  'distributed-multigpu-moe': [[], ['分布式训练'], ['多GPU并行'], ['多GPU并行', '分布式训练'], ['多GPU并行', '分布式训练'], ['MoE 架构'], ['MoE 架构'], []],
+  'transformer-long-context': [['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['长上下文与位置编码']],
+  'training-finetuning-data': [['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练稳定性'], ['合成数据'], ['训练与微调']],
+  'rl-alignment-evaluation': [['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['评测与对齐安全']],
+  'constrained-generation-redteam': [['LLM 约束生成与自动评测'], ['LLM 约束生成与自动评测'], ['LLM 约束生成与自动评测'], ['安全红队'], ['安全红队'], ['安全红队'], ['安全红队']],
+  'multimodal-understanding': [['多模态模型'], ['多模态模型'], ['多模态模型'], ['多模态模型'], ['多模态模型'], ['视觉与视频理解'], ['多模态模型'], ['多模态模型'], ['视觉与视频理解', '多模态模型']],
+  'generative-image-video': [['生成式模型'], ['生成式模型'], ['生成式模型'], ['生成式模型'], ['视频生成'], ['生成式模型', '视频生成'], ['视频生成', '多模态生成应用'], ['多模态生成应用'], []],
+  'world-model-multimodal-agent': [['世界模型'], ['世界模型'], ['世界模型'], ['世界模型'], ['多模态Agent'], ['多模态Agent'], []],
+  'causal-live-growth': [['直播变现与增长'], ['因果推断与树模型'], ['因果推断'], ['因果推断', '直播变现与增长'], ['因果推断'], ['因果推断'], ['直播变现与增长'], ['直播变现与增长'], ['直播变现与增长']],
+  'algorithms-linear-retrieval': [[], ['链表'], ['链表'], ['数组/窗口'], ['数组/窗口'], ['数组/窗口'], ['二分/TopK'], ['二分/TopK'], ['二分/TopK']],
+  'algorithms-tree-graph-dp': [['二叉树'], ['二叉树'], ['二叉树'], ['二叉树'], ['搜索/图'], ['搜索/图'], ['搜索/图'], ['动态规划'], ['动态规划']],
+};
+
+const chapterSemanticHints = {
+  '交付契约': '端侧 边缘端 推理框架 部署流程 部署痛点 验收 指标 回退',
+  'ONNX 导出': 'ONNX 导出 opset 算子集 多框架',
+  '数值一致性': '数值一致 逐层 对齐 误差 精度',
+  'Dynamic Shape': 'dynamic shape 动态 batch shape tensor',
+  'TensorRT Engine': 'TensorRT engine 构建 引擎 转换 图优化',
+  'Plugin 与 NPU 编译': 'plugin 自定义算子 NPU 图编译 算子移植',
+  'FP16、INT8 与 INT4': 'FP16 INT8 INT4 PTQ QAT AWQ GPTQ 校准',
+  '跨芯片精度对齐': '跨芯片 精度对齐 benchmark 国产卡 HBM',
+  '性能、内存与异步流水': '性能 内存 Buffer 复用 异步 双缓冲 利用率',
+  '灰度、降级与回滚': '灰度 降级 回滚 监控 可恢复 fallback',
+  'OCR 全链路': 'OCR 全链路 数据 评测 pipeline',
+  '文本检测': '检测 DBNet EAST CTPN spotting',
+  '文本识别': '识别 CRNN CTC Attention',
+  'Oracle 定位与局部 Refinement': 'Oracle GT-crop 定位 refinement 多行 FP',
+  '单目深度建模': '单目深度 视觉 Transformer 家族 建模',
+  '尺度校准与评测': '尺度 校准 相对深度 度量深度 RMSE 评测',
+  '障碍物融合及端侧交付': '障碍物 融合 分割 检测 端侧 F1',
+  'Prefill 与 Decode': 'prefill decode 首 token TTFT TPOT',
+  'Roofline 与性能瓶颈': 'roofline arithmetic intensity compute bound memory bound 性能瓶颈',
+  'KV Cache 计算': 'KV Cache 缓存 大小 增长 计算',
+  'GQA 与 KV 优化': 'GQA MQA MHA KV 量化 prefix 复用',
+  'Continuous Batching': 'continuous batching 连续批处理 调度 preemption padding',
+  'PagedAttention': 'PagedAttention 分页 block table COW 碎片 vLLM',
+  'Chunked Prefill 与 PD 分离': 'chunked prefill PD 分离 disaggregation',
+  '投机解码与多 Token 预测': 'speculative decoding MTP Medusa EAGLE Lookahead 投机 多头预测',
+  '流式正确性、背压与取消': '流式 tokenizer detokenizer 背压 取消 stop 截断',
+  '完整推理系统设计': '调度 请求 生命周期 SLA 完整系统',
+  '推理框架边界': '框架 vLLM SGLang TensorRT-LLM kernel 能力边界',
+  '负载与指标契约': '负载 指标 TTFT TPOT 吞吐 并发 SLA 口径',
+  '吞吐和延迟': '吞吐 延迟 QPS TPS percentile 并发',
+  '压测工具与脚本': '压测 benchmark locust 脚本',
+  '饱和度与容量规划': '饱和 容量 OOM 并发 拐点',
+  '资源利用率、显存与冷启动': 'GPU 利用率 MFU 显存 冷启动 预热 CUDA Graph',
+  '流式、SLA 与成本': '流式 SLA 达标率 成本 每千 token',
+  '框架选型与发布决策': '框架选型 放行 发布 评测 回归',
+  '通信基础与成本模型': '通信 NCCL all-reduce all-gather all-to-all NVLink IB 成本',
+  '数据并行与 ZeRO': 'DP 数据并行 ZeRO FSDP 分片',
+  '张量并行': 'TP 张量并行 矩阵切分 all-reduce',
+  '流水线并行': 'PP 流水线 1F1B micro-batch bubble',
+  '序列与上下文并行': 'SP CP 序列并行 上下文并行 Ring Attention',
+  'MoE Router 与负载均衡': 'MoE Router 路由 负载均衡 z-loss capacity',
+  '专家并行': 'EP Expert Parallel All-to-All 专家容量',
+  '3D 并行选型与故障定位': '3D 并行 Megatron 选型 拓扑 故障',
+  'Token 与 Embedding': 'token embedding 输入表示 因果 mask 序列',
+  '缩放点积注意力': '缩放点积 attention Q K V 复杂度',
+  'MHA、MQA 与 GQA': 'MHA MQA GQA head',
+  '位置编码与 RoPE': '位置编码 RoPE sinusoidal ALiBi 多维',
+  'Norm、残差与训练稳定': 'norm RMSNorm LayerNorm Pre-LN Post-LN 残差',
+  'FFN 与 SwiGLU': 'FFN SwiGLU 门控 前馈',
+  'FlashAttention': 'FlashAttention IO 复杂度 tile',
+  '长上下文外推与评测': '外推 插值 PI NTK YaRN Passkey Needle 长上下文',
+  '训练目标与数据契约': '预训练 微调 对齐 数据 目标 断点 容错',
+  'SFT 与 Loss Mask': 'SFT loss mask 指令 多轮',
+  'LoRA': 'LoRA 低秩 rank alpha merge',
+  'QLoRA': 'QLoRA 4-bit NF4 paged optimizer',
+  '蒸馏': '蒸馏 KD teacher student',
+  '数据配比与 Scaling': '数据配比 scaling Chinchilla token 去重 质量',
+  '训练稳定性': 'NaN loss 突刺 bf16 梯度 裁剪 初始化 监控',
+  '合成数据闭环': '合成数据 自举 筛选 数据飞轮 recaption',
+  '持续学习与灾难性遗忘': '持续学习 灾难性遗忘 replay EWC curriculum',
+  'MDP 与价值函数': 'MDP Bellman V Q advantage 价值函数',
+  '策略梯度与 Actor-Critic': '策略梯度 REINFORCE Actor-Critic',
+  '奖励模型': '奖励模型 reward model RLHF 偏好',
+  'PPO': 'PPO clip KL advantage',
+  'DPO': 'DPO preference beta',
+  'GRPO': 'GRPO 分组 相对优势',
+  '对齐、安全与能力回归': '对齐 安全 能力回归 benchmark judge 红队',
+  '结构化输出': '结构化 Schema JSON validator best-of-N',
+  '约束解码': '约束解码 grammar JSON constrained decoding',
+  '自动 Judge': '自动评测 judge 人工校准 事实约束',
+  'Prompt Injection': 'Prompt Injection 指令注入 系统提示',
+  'Jailbreak': 'Jailbreak 越狱 对抗 绕过',
+  '工具调用与数据泄漏': '工具 权限 数据泄漏 隐私 prompt 泄露',
+  '红队放行闭环': '红队 护栏 分类器 放行 回归',
+  'ViT 与视觉编码': 'ViT patch 视觉编码器 token',
+  'CLIP 对齐': 'CLIP 对比学习 图文 对齐',
+  'Connector 与 Q-Former': 'connector Q-Former projector 连接器',
+  '多模态融合架构': '融合 cross attention early late architecture',
+  '高分辨率与多图': '高分辨率 多图 dynamic resolution 文档 图表',
+  '视频时序与 Token 压缩': '视频 时序 光流 TSM token 压缩 sampling',
+  '音频接入': '音频 audio speech encoder 多模态',
+  '多模态幻觉': '幻觉 grounding 事实 对齐',
+  '评测与部署': '评测 benchmark 延迟 部署 视觉 LLM',
+  'VAE、GAN 与 Diffusion': 'VAE GAN Diffusion DDPM 生成模型',
+  '扩散过程与训练目标': 'DDPM 噪声 epsilon score loss DDIM',
+  'Latent Diffusion 与条件控制': 'Latent Diffusion LDM ControlNet DiT 条件',
+  'Flow Matching': 'Flow Matching Rectified Flow ODE',
+  '视频时序建模': '视频 时序 3D attention 因果 长视频',
+  '人物一致性与 LoRA': '人物 一致性 identity LoRA DreamBooth',
+  '音频驱动生成': '音频驱动 lip sync Audio Guidance',
+  '多模态生成应用系统': '应用 系统 ComfyUI FastAPI 工作流 队列',
+  '质量、安全与效率评测': 'FID IS FVD CLIP score 质量 安全 效率',
+  '世界模型定义': '世界模型 定义 JEPA 视频预测',
+  '潜空间动力学': '潜空间 dynamics RSSM PlaNet Dreamer',
+  '规划与想象': '规划 imagination rollout sim2real',
+  '具身交互': '具身 embodied 仿真 感知 决策',
+  '多模态 Agent Loop': '多模态 Agent loop 感知 计划 行动',
+  '记忆与工具': '记忆 工具 Toolformer AppAgent',
+  '评测、安全与现实落差': '评测 benchmark 安全 sim2real 现实',
+  '业务目标与推荐漏斗': '业务目标 漏斗 北极星 CTR CVR 时长',
+  '多路召回': '召回 recall 多路 融合',
+  '双塔与向量检索': '双塔 two-tower ANN Faiss embedding',
+  '粗排、精排与 LTR': '粗排 精排 ranking LTR CTR DIN DeepFM',
+  '多目标学习': '多目标 MMoE CTR CVR 时长 帕累托',
+  '偏差与校正': '偏差 position selection calibration 校正 去偏',
+  '实时特征': '实时 特征 流处理 线上线下一致',
+  '冷启动、多样性与探索': '冷启动 多样性 探索 负采样 序列',
+  'LLM 与生成式推荐': 'LLM 生成式推荐 TIGER recommender',
+  '系统架构与评测': '系统 架构 AUC GAUC Recall 覆盖率 评测',
+  '直播业务漏斗': '直播 变现 漏斗 北极星 互动 付费',
+  '统计、因子与树模型': '因子 聚类 Boosting 树模型 XGBoost Random Forest',
+  'DAG 与识别假设': 'DAG 因果图 后门 前门 混杂 可识别',
+  'A/B 实验': 'A/B RCT 实验 增量 显著性',
+  'Uplift 与 CATE': 'uplift CATE T-learner S-learner X-learner GRF',
+  'LTV 与概率校准': 'LTV 校准 propensity 倾向得分 选择偏差',
+  'Bandit 与在线 RL': 'Bandit 在线 RL 探索 安全',
+  '生成式个性化': '生成式 个性化 千人千面 直播推荐',
+  '流批服务、全球化与风险': 'Flink Spark Hive 流批 全球化 风险 降级',
+  '复杂度、输入契约与测试': '复杂度 边界 测试 输入 空 重复',
+  '链表基础': '反转链表 合并链表 快慢指针 环',
+  '链表综合': 'LRU K组 区间反转 合并K个 相交',
+  '数组与哈希': '数组 哈希 两数之和 前缀',
+  '滑动窗口': '滑动窗口 无重复 子串 窗口最大值',
+  '前缀和与单调结构': '前缀和 单调栈 单调队列 接雨水',
+  '二分边界': '二分 旋转数组 边界 峰值 中位数',
+  '堆与 TopK': '堆 topK 高频 第K大 数据流中位数',
+  'QuickSelect 与综合题': 'QuickSelect 快选 第K大 综合',
+  '树遍历': '树遍历 层序 前序 中序 后序 BFS DFS',
+  '树的构造': '构造二叉树 前序 中序',
+  'BST 与 LCA': 'BST 二叉搜索树 LCA 最近公共祖先 第K小',
+  '序列化与路径问题': '序列化 反序列化 最大路径 路径和',
+  '图的 DFS 与 BFS': '岛屿 DFS BFS 腐烂橘子 连通分量',
+  '拓扑、并查集与最短路': '拓扑 并查集 Dijkstra 最短路',
+  '回溯': '回溯 组合 全排列 子集 单词搜索',
+  '线性与序列 DP': '动态规划 最大子数组 股票 打家劫舍 LCS 编辑距离',
+  '背包与区间 DP': '背包 分割等和 单词拆分 区间DP',
+  'Tensor 形状与数值契约': 'tensor shape 维度 数值 输入 输出',
+  'Softmax 与 Loss': 'softmax BCE Cross Entropy loss 数值稳定',
+  'Norm 与 Dropout': 'BatchNorm RMSNorm Dropout 训练 推理',
+  '卷积尺寸与实现': '卷积 1D 2D padding stride dilation 输出尺寸',
+  'IoU、NMS 与 KMeans': 'IoU NMS K-Means 聚类 检测',
+  '采样与 Beam Search': 'Top-K Sampling Beam Search 采样 解码',
+  'Attention 与 RoPE': 'Attention 正弦位置编码 RoPE QKV',
+  '进程、线程、协程与 GIL': '进程 线程 协程 GIL 线程池 调度',
+  'Mutex、Spinlock 与 Atomic': 'Mutex Spinlock Atomic CAS 锁 无锁',
+  '内存模型、缓存与伪共享': '内存模型 cache 缓存一致性 伪共享 编译 链接',
+  '虚拟内存、Pinned Memory 与 GPU 显存': '虚拟内存 地址空间 Pinned Pageable GPU 显存',
+  '异步 I/O、零拷贝与数据搬运': 'IO 多路复用 零拷贝 磁盘 网络 RPC',
+  '并发故障与性能定位': '并发 故障 死锁 CPU 亲和 性能 定位',
+};
+
+function normalizeCourseSection(section) {
+  if (section.blocks) return section;
+  const blocks = [];
+  (section.paragraphs || []).forEach((text) => blocks.push({ type: 'paragraph', text }));
+  if (section.steps) blocks.push({ type: 'steps', items: section.steps });
+  if (section.callout) blocks.push({ type: 'callout', text: section.callout });
+  return { title: section.title, blocks };
+}
+
+function normalizeCourse(tutorial) {
+  return {
+    ...tutorial,
+    primaryCategories: tutorial.primaryCategories || [],
+    prerequisiteIds: tutorial.prerequisiteIds || [],
+    chapters: tutorial.chapters.map((chapter) => {
+      const sections = chapter.sections.map(normalizeCourseSection);
+      if (sections.length < 4) sections.push({
+        title: '失败边界与复习方法',
+        blocks: [
+          { type: 'paragraph', text: '学完本章后，不要只记最终结论；应能说明结论依赖的输入、版本、数据和约束，并主动给出一个失败条件。' },
+          { type: 'callout', text: `复习提示：回到本章关联题卡，用“问题 → 机制 → 例子 → 边界”的顺序口述“${chapter.title}”，遇到没有经历依据的部分明确按通用方案回答。` },
+        ],
+      });
+      return { ...chapter, sections };
+    }),
+  };
+}
+
+function chapterTerms(title) {
+  const compact = title.replace(/[\s、，：；（）()\/·与和及]/g, '');
+  const terms = title.split(/[\s、，：；（）()\/·与和及]+/).filter((item) => item.length > 1);
+  for (let index = 0; index < compact.length - 1; index += 1) terms.push(compact.slice(index, index + 2));
+  return [...new Set(terms)];
+}
+
+function questionSearchText(question) {
+  return [question.title, question.technicalTitle, question.prompt, question.technicalPrompt, question.quickAnswer, question.beginnerSummary]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+
+function chapterScore(card, blueprint, index) {
+  const title = blueprint.chapters[index];
+  const fullText = questionSearchText(card);
+  const titleText = [card.title, card.technicalTitle].filter(Boolean).join(' ').toLowerCase();
+  const hintedTerms = (chapterSemanticHints[title] || '').split(/\s+/).filter(Boolean);
+  const terms = [...new Set([...chapterTerms(title), ...hintedTerms])];
+  let score = terms.reduce((sum, term) => {
+    const key = term.toLowerCase();
+    if (titleText.includes(key)) return sum + 18 + Math.min(12, key.length * 2);
+    if (fullText.includes(key)) return sum + 3 + Math.min(8, key.length);
+    return sum;
+  }, 0);
+  const categoryHint = courseChapterCategoryHints[blueprint.id]?.[index];
+  if (categoryHint?.length) score += categoryHint.includes(card.category) ? 100 : -120;
+  return score;
+}
+
+function assignCourseQuestions(cards, blueprint) {
+  const buckets = blueprint.chapters.map(() => []);
+  const remaining = cards.map((card) => ({
+    card,
+    best: Math.max(...blueprint.chapters.map((_, index) => chapterScore(card, blueprint, index))),
+  })).sort((a, b) => b.best - a.best || String(a.card.id).localeCompare(String(b.card.id)));
+
+  remaining.forEach(({ card }) => {
+    const scored = blueprint.chapters.map((_, index) => ({ index, score: chapterScore(card, blueprint, index) - buckets[index].length * 6 }))
+      .sort((a, b) => b.score - a.score || buckets[a.index].length - buckets[b.index].length || a.index - b.index);
+    buckets[scored[0]?.index ?? 0].push(card);
+  });
+  buckets.forEach((bucket, index) => {
+    if (bucket.length) return;
+    const fallback = cards.map((card) => ({ card, score: chapterScore(card, blueprint, index) }))
+      .sort((a, b) => b.score - a.score || String(a.card.id).localeCompare(String(b.card.id)))[0]?.card;
+    if (fallback) bucket.push(fallback);
+  });
+  return buckets;
+}
+
+function firstText(values, fallback) {
+  return values.flat(Infinity).filter((value) => typeof value === 'string' && value.trim()).at(0) || fallback;
+}
+
+function collectText(cards, fields, limit = 6) {
+  const output = [];
+  cards.forEach((card) => fields.forEach((field) => {
+    const value = card[field];
+    if (Array.isArray(value)) value.forEach((item) => { if (typeof item === 'string') output.push(item); });
+    else if (typeof value === 'string') output.push(value);
+  }));
+  return [...new Set(output.filter(Boolean))].slice(0, limit);
+}
+
+function buildGeneratedChapter(blueprint, title, number, cards) {
+  const summaries = collectText(cards, ['beginnerSummary', 'quickAnswer'], 3);
+  const mechanisms = collectText(cards, ['quickAnswer', 'approach', 'invariant'], 6);
+  const derivation = collectText(cards, ['derivation', 'prerequisites', 'walkthrough', 'complexity'], 6);
+  const examples = collectText(cards, ['workedExample', 'walkthrough'], 4);
+  const failures = collectText(cards, ['edgeCases', 'pitfalls'], 6);
+  const representative = cards[0];
+  const evidenceLabels = [...new Set(cards.map((card) => card.experienceLabel).filter(Boolean))];
+  const exampleText = examples.length
+    ? `教学示例：${examples.join(' ')}`
+    : `教学示例：以“${representative.title}”为主线，先固定输入、版本和评测口径，再改变一个关键变量并记录失败样本。`;
+  const richBlocks = [{ type: 'callout', text: exampleText }];
+  if (representative.code) richBlocks.push({ type: 'code', language: 'python', source: representative.code });
+  if (representative.diagram) richBlocks.push({ type: 'diagram', source: representative.diagram });
+  const formulaSource = collectText(cards, ['complexity', 'derivation'], 12).find((text) => /\$[^$]+\$|\\\(|O\(/.test(text));
+  if (formulaSource) richBlocks.push({ type: 'formula', text: formulaSource });
+  return {
+    id: `${blueprint.id}-chapter-${String(number).padStart(2, '0')}`,
+    number,
+    title,
+    duration: `${Math.max(35, Math.min(75, 30 + cards.length * 5))} 分钟`,
+    goal: `掌握“${title}”的核心问题、实现路径、取舍和验证方法，并能把本章 ${cards.length} 张题卡串成一段连续回答。`,
+    bridge: number === 1
+      ? `本章先建立《${blueprint.title}》的共同输入、输出和评价标准，为后续章节提供同一套坐标系。`
+      : `上一章解决了前置机制；本章继续进入“${title}”，把原理推进到实现、失败边界和可复核证据。`,
+    sections: [
+      { title: '问题与动机', blocks: [{ type: 'paragraph', text: summaries.join(' ') || `本章围绕 ${cards.map((card) => card.title).join('、')} 建立问题边界。` }] },
+      { title: '核心机制', blocks: [{ type: 'steps', items: mechanisms.length ? mechanisms : cards.map((card) => card.title) }] },
+      { title: '推导与具体例子', blocks: [{ type: 'steps', items: derivation.length ? derivation : ['先固定输入与基线。', '再改变一个关键变量。', '最后检查平均指标、关键切片和失败样本。'] }, ...richBlocks] },
+      { title: '失败边界与取舍', blocks: [
+        { type: 'steps', items: failures.length ? failures : ['不要只报告最好结果。', '不要混用不同数据、设备或版本。', '结论必须说明适用边界和回退方式。'] },
+        { type: 'table', headers: ['本章题卡', '难度', '经历边界'], rows: cards.slice(0, 6).map((card) => [card.title, card.difficulty || '—', card.experienceLabel || '通用知识']) },
+        ...(evidenceLabels.length ? [{ type: 'callout', text: `经历边界：${evidenceLabels.join('；')}。只有题卡明确标注的事实可以说成个人做过，其余内容按原理或方案回答。` }] : []),
+      ] },
+    ],
+    exercise: {
+      title: `练习：完成“${title}”一页讲解`,
+      prompt: `不看答案，用问题 → 机制 → 例子 → 失败边界的顺序串讲 ${cards.map((card) => `“${card.title}”`).join('、')}，再打开关联题卡承受追问。`,
+      checks: ['是否先定义输入、输出和口径', '是否给出具体数值、代码追踪或状态变化', '是否说明失败条件、代价和验证方法'],
+    },
+    questionIds: cards.map((card) => card.id),
+  };
+}
+
+function buildGeneratedTutorial(blueprint, questionBank) {
+  const cards = blueprint.categories.flatMap((category) => questionBank.filter((question) => question.category === category));
+  const buckets = assignCourseQuestions(cards, blueprint);
+  return normalizeCourse({
+    id: blueprint.id,
+    trackId: blueprint.trackId,
+    order: blueprint.order,
+    primaryCategories: blueprint.categories,
+    prerequisiteIds: blueprint.prerequisites,
+    title: blueprint.title,
+    eyebrow: `COURSE ${String(blueprint.order).padStart(2, '0')} · COMPLETE LEARNING PATH`,
+    summary: `把 ${blueprint.categories.join('、')} 的 ${cards.length} 张题卡组织成 ${blueprint.chapters.length} 个连续章节，从核心原理推进到实现、评测和失败恢复。`,
+    outcome: `完成后，你应能独立串讲 ${blueprint.title}，并使用关联题卡回答原理、实现、复杂度、系统取舍和故障定位追问。`,
+    audience: '适合第一次系统学习、面试前串讲和按章节查漏；教学示例不自动代表个人项目经历。',
+    chapters: blueprint.chapters.map((title, index) => buildGeneratedChapter(blueprint, title, index + 1, buckets[index])),
+    capstone: {
+      title: `结课综合任务：${blueprint.title}`,
+      prompt: `选择一个完整场景，在 12 分钟内讲清需求、输入输出、核心机制、关键实现、指标、失败边界与回退。随后从本课程关联题卡中随机抽取 8 题追问。`,
+      checklist: ['问题与约束明确', '关键机制可以推导', '实现包含数据流或状态变化', '指标带口径与切片', '至少分析一个失败案例', '说明资源与效率代价', '给出降级或回退', '不把教学方案说成个人经历'],
+    },
+  });
+}
+
+export function extendTutorials(questionBank) {
+  if (tutorials.length === 26) return tutorials;
+  const authored = tutorials.map(normalizeCourse);
+  const generated = generatedTutorialBlueprints.map((blueprint) => buildGeneratedTutorial(blueprint, questionBank));
+  tutorials = [...authored, ...generated].sort((a, b) => a.order - b.order);
+  return tutorials;
+}
 
 export function tutorialById(id) {
   return tutorials.find((tutorial) => tutorial.id === id);

@@ -9,7 +9,7 @@
   <title>曾志涛的面试准备系统 · Interview OS</title>
   <style>
 /* BYTEPREP_STANDALONE_STYLES */
-:root{--ink:#17202b;--muted:#647182;--line:#dfe5ea;--paper:#f5f7f8;--navy:#142b45;--blue:#1967d2;--mint:#c9f0df;--orange:#ff8a4c;--code:#101923}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,"Microsoft YaHei",Arial,sans-serif}.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--navy);color:#fff}.brand{color:#fff;text-decoration:none;letter-spacing:1px;font-weight:800}.brand span{color:var(--mint)}.topbar-actions{display:flex;align-items:center;gap:10px}.timer{font:600 17px ui-monospace,Consolas;color:var(--mint);padding-right:8px}.button{border:0;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer}.primary{background:var(--mint);color:#102636}.ghost{background:transparent;border:1px solid #6a7b8b;color:#fff}.app-shell{min-height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(280px,.9fr) minmax(420px,1.4fr);max-width:1600px;margin:auto}.sidebar{padding:30px 20px;background:#fff;border-right:1px solid var(--line)}.eyebrow{margin:0 0 6px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.3px}.sidebar h1{font-size:28px;line-height:1.14;margin:0 0 14px}.sidebar h1 em{font-family:Georgia,serif;color:var(--orange);font-weight:400}.intro{font-size:13px;color:var(--muted);margin:0 0 22px}.search-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font:inherit}.categories{display:grid;gap:4px;margin:20px 0}.category{width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px;cursor:pointer;color:#405064;font:inherit}.category:hover,.category.active{background:#e8f0fe;color:var(--blue);font-weight:700}.progress-card{margin-top:22px;padding:13px;background:#f0f5f3;border-radius:8px}.progress-card p{margin:0;color:var(--muted);font-size:12px}.progress-card strong{font-size:21px}.progress-card small{display:block;color:var(--muted);font-size:11px;margin-top:7px}.progress-track{height:5px;background:#d6e0db;border-radius:999px}.progress-track i{display:block;height:100%;background:#27966a;border-radius:inherit;width:0}.question-pane{padding:30px 20px;border-right:1px solid var(--line);background:#fbfcfd}.pane-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.pane-heading h2{margin:0;font-size:23px}.count{color:var(--muted);font-size:13px}.question-list{display:grid;gap:9px}.question-card{background:#fff;border:1px solid var(--line);border-left:3px solid transparent;border-radius:8px;padding:13px;cursor:pointer;transition:.15s}.question-card:hover,.question-card.active{border-left-color:var(--blue);box-shadow:0 5px 14px #142b4510}.question-card.active{background:#f4f8ff}.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.badge{color:var(--blue);font-weight:800}.question-card h3{margin:5px 0 4px;font-size:16px}.question-card p{margin:0;color:var(--muted);font-size:13px}.detail-pane{padding:34px 38px;background:#fff;overflow:auto}.detail-head{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:22px}.detail-head h2{margin:7px 0;font-size:28px;line-height:1.2}.detail-head p{margin:0;color:var(--muted)}.tag-row{display:flex;gap:7px;align-items:center}.tag{border-radius:99px;padding:3px 8px;background:#eef3f8;color:#405064;font-size:11px;font-weight:700}.tag.difficulty{background:#fff0e8;color:#b55316}.detail-section{margin:23px 0}.detail-section h3{font-size:13px;letter-spacing:.7px;color:var(--blue);margin:0 0 8px}.detail-section p{margin:0}.code-wrap{position:relative;background:var(--code);border-radius:8px;overflow:auto}.code-wrap pre{margin:0;padding:17px;color:#eaf2fa;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.detail-list{padding-left:19px;margin:0}.detail-list li{margin:5px 0}.answer-gate{margin:32px 0;padding:30px;border:1px dashed #a7b7c6;border-radius:10px;text-align:center;background:#f8fafc}.answer-gate p{color:var(--muted);margin:0 0 14px}.master-row{display:flex;gap:9px;align-items:center;margin-top:28px}.mastered{background:var(--mint);color:#123f31}.text-button{border:0;background:transparent;color:var(--blue);font-weight:700;cursor:pointer;padding:0}.empty-state{text-align:center;padding:60px 15px;color:var(--muted)}.mock-note{background:#fff5ea;border-left:3px solid var(--orange);border-radius:5px;padding:10px 12px;margin-bottom:12px;color:#864009;font-size:13px}@media(max-width:920px){.app-shell{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar h1{font-size:24px}.categories{display:flex;overflow-x:auto;margin:14px -4px}.category{white-space:nowrap;width:auto}.progress-card{display:none}.question-pane{border-right:0}.detail-pane{padding:26px 20px}.topbar{padding:0 16px}}@media(max-width:500px){.topbar{height:58px}.app-shell{min-height:calc(100vh - 58px)}.primary,.ghost{padding:7px 10px}.brand{font-size:13px}.detail-head h2{font-size:24px}}.detail-level-switch{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;margin:-2px 0 4px}.detail-level-button{border:0;border-radius:6px;background:transparent;color:var(--muted);padding:7px 10px;font:700 13px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif;cursor:pointer}.detail-level-button:hover{color:var(--blue);background:#e8f0fe}.detail-level-button.active{background:var(--navy);color:#fff;box-shadow:0 2px 5px #142b4530}.detail-level-button:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.derivation-list{counter-reset:derivation;list-style:none;padding:0;margin:0;display:grid;gap:9px}.derivation-list li{counter-increment:derivation;display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;padding:10px 12px;background:#f5f8fc;border-left:3px solid var(--blue);border-radius:0 7px 7px 0}.derivation-list li::before{content:counter(derivation);display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:800}.edge-case-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.edge-case-list li{padding:10px 11px;border:1px solid #ffd4bf;border-radius:8px;background:#fff7f2;color:#77401e}.edge-case-list li::before{content:"边界";display:block;color:#b55316;font-size:10px;font-weight:800;letter-spacing:.6px;margin-bottom:3px}
+:root{--ink:#17202b;--muted:#647182;--line:#dfe5ea;--paper:#f5f7f8;--navy:#142b45;--blue:#1967d2;--mint:#c9f0df;--orange:#ff8a4c;--code:#101923}*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,"Microsoft YaHei",Arial,sans-serif}.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--navy);color:#fff}.brand{color:#fff;text-decoration:none;letter-spacing:1px;font-weight:800}.brand span{color:var(--mint)}.topbar-actions{display:flex;align-items:center;gap:10px}.timer{font:600 17px ui-monospace,Consolas;color:var(--mint);padding-right:8px}.button{border:0;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer}.primary{background:var(--mint);color:#102636}.ghost{background:transparent;border:1px solid #6a7b8b;color:#fff}.app-shell{min-height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(280px,.9fr) minmax(420px,1.4fr);max-width:1600px;margin:auto}.sidebar{padding:30px 20px;background:#fff;border-right:1px solid var(--line)}.eyebrow{margin:0 0 6px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.3px}.sidebar h1{font-size:28px;line-height:1.14;margin:0 0 14px}.sidebar h1 em{font-family:Georgia,serif;color:var(--orange);font-weight:400}.intro{font-size:13px;color:var(--muted);margin:0 0 22px}.search-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font:inherit}.categories{display:grid;gap:4px;margin:20px 0}.category{width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px;cursor:pointer;color:#405064;font:inherit}.category:hover,.category.active{background:#e8f0fe;color:var(--blue);font-weight:700}.progress-card{margin-top:22px;padding:13px;background:#f0f5f3;border-radius:8px}.progress-card p{margin:0;color:var(--muted);font-size:12px}.progress-card strong{font-size:21px}.progress-card small{display:block;color:var(--muted);font-size:11px;margin-top:7px}.progress-track{height:5px;background:#d6e0db;border-radius:999px}.progress-track i{display:block;height:100%;background:#27966a;border-radius:inherit;width:0}.question-pane{padding:30px 20px;border-right:1px solid var(--line);background:#fbfcfd}.pane-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.pane-heading h2{margin:0;font-size:23px}.count{color:var(--muted);font-size:13px}.question-list{display:grid;gap:9px}.question-card{background:#fff;border:1px solid var(--line);border-left:3px solid transparent;border-radius:8px;padding:13px;cursor:pointer;transition:.15s}.question-card:hover,.question-card.active{border-left-color:var(--blue);box-shadow:0 5px 14px #142b4510}.question-card.active{background:#f4f8ff}.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.badge{color:var(--blue);font-weight:800}.question-card h3{margin:5px 0 4px;font-size:16px}.question-card p{margin:0;color:var(--muted);font-size:13px}.detail-pane{padding:34px 38px;background:#fff;overflow:auto}.detail-head{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:22px}.detail-head h2{margin:7px 0;font-size:28px;line-height:1.2}.detail-head p{margin:0;color:var(--muted)}.tag-row{display:flex;gap:7px;align-items:center}.tag{border-radius:99px;padding:3px 8px;background:#eef3f8;color:#405064;font-size:11px;font-weight:700}.tag.difficulty{background:#fff0e8;color:#b55316}.detail-section{margin:23px 0}.detail-section h3{font-size:13px;letter-spacing:.7px;color:var(--blue);margin:0 0 8px}.detail-section p{margin:0}.code-wrap{position:relative;background:var(--code);border-radius:8px;overflow:auto}.code-wrap pre{margin:0;padding:17px;color:#eaf2fa;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.detail-list{padding-left:19px;margin:0}.detail-list li{margin:5px 0}.answer-gate{margin:32px 0;padding:30px;border:1px dashed #a7b7c6;border-radius:10px;text-align:center;background:#f8fafc}.answer-gate p{color:var(--muted);margin:0 0 14px}.master-row{display:flex;gap:9px;align-items:center;margin-top:28px}.mastered{background:var(--mint);color:#123f31}.text-button{border:0;background:transparent;color:var(--blue);font-weight:700;cursor:pointer;padding:0}.empty-state{text-align:center;padding:60px 15px;color:var(--muted)}.mock-note{background:#fff5ea;border-left:3px solid var(--orange);border-radius:5px;padding:10px 12px;margin-bottom:12px;color:#864009;font-size:13px}@media(max-width:920px){.app-shell{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar h1{font-size:24px}.categories{display:flex;overflow-x:auto;margin:14px -4px}.category{white-space:nowrap;width:auto}.progress-card{display:none}.question-pane{border-right:0}.detail-pane{padding:26px 20px}.topbar{padding:0 16px}}@media(max-width:500px){.topbar{height:58px}.app-shell{min-height:calc(100vh - 58px)}.primary,.ghost{padding:7px 10px}.brand{font-size:13px}.detail-head h2{font-size:24px}}.detail-level-switch{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;margin:-2px 0 4px}.detail-level-button{border:0;border-radius:6px;background:transparent;color:var(--muted);padding:7px 10px;font:700 13px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif;cursor:pointer}.detail-level-button:hover{color:var(--blue);background:#e8f0fe}.detail-level-button.active{background:var(--navy);color:#fff;box-shadow:0 2px 5px #142b4530}.detail-level-button:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.derivation-list{counter-reset:derivation;list-style:none;padding:0;margin:0;display:grid;gap:9px}.derivation-list li{counter-increment:derivation;display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;padding:10px 12px;background:#f5f8fc;border-left:3px solid var(--blue);border-radius:0 7px 7px 0}.derivation-list li::before{content:counter(derivation);display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:800}.edge-case-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.edge-case-list li{padding:10px 11px;border:1px solid #ffd4bf;border-radius:8px;background:#fff7f2;color:#77401e}.edge-case-list li::before{content:"边界";display:block;color:#b55316;font-size:10px;font-weight:800;letter-spacing:.6px;margin-bottom:3px}
 :root{--ink:#17202b;--muted:#647182;--line:#dfe5ea;--paper:#f5f7f8;--navy:#142b45;--blue:#1967d2;--mint:#c9f0df;--orange:#ff8a4c;--code:#101923}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,"Microsoft YaHei",Arial,sans-serif}.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--navy);color:#fff}.brand{color:#fff;text-decoration:none;letter-spacing:1px;font-weight:800}.brand span{color:var(--mint)}.topbar-actions{display:flex;align-items:center;gap:10px}.timer{font:600 17px ui-monospace,Consolas;color:var(--mint);padding-right:8px}.button{border:0;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer}.primary{background:var(--mint);color:#102636}.ghost{background:transparent;border:1px solid #6a7b8b;color:#fff}.app-shell{min-height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(280px,.9fr) minmax(420px,1.4fr);max-width:1600px;margin:auto}.sidebar{padding:30px 20px;background:#fff;border-right:1px solid var(--line)}.eyebrow{margin:0 0 6px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.3px}.sidebar h1{font-size:28px;line-height:1.14;margin:0 0 14px}.sidebar h1 em{font-family:Georgia,serif;color:var(--orange);font-weight:400}.intro{font-size:13px;color:var(--muted);margin:0 0 22px}.search-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font:inherit}.categories{display:grid;gap:4px;margin:20px 0}.category{width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px;cursor:pointer;color:#405064;font:inherit}.category:hover,.category.active{background:#e8f0fe;color:var(--blue);font-weight:700}.progress-card{margin-top:22px;padding:13px;background:#f0f5f3;border-radius:8px}.progress-card p{margin:0;color:var(--muted);font-size:12px}.progress-card strong{font-size:21px}.progress-card small{display:block;color:var(--muted);font-size:11px;margin-top:7px}.progress-track{height:5px;background:#d6e0db;border-radius:999px}.progress-track i{display:block;height:100%;background:#27966a;border-radius:inherit;width:0}.question-pane{padding:30px 20px;border-right:1px solid var(--line);background:#fbfcfd}.pane-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.pane-heading h2{margin:0;font-size:23px}.count{color:var(--muted);font-size:13px}.question-list{display:grid;gap:9px}.question-card{background:#fff;border:1px solid var(--line);border-left:3px solid transparent;border-radius:8px;padding:13px;cursor:pointer;transition:.15s}.question-card:hover,.question-card.active{border-left-color:var(--blue);box-shadow:0 5px 14px #142b4510}.question-card.active{background:#f4f8ff}.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.badge{color:var(--blue);font-weight:800}.question-card h3{margin:5px 0 4px;font-size:16px}.question-card p{margin:0;color:var(--muted);font-size:13px}.detail-pane{padding:34px 38px;background:#fff;overflow:auto}.detail-head{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:22px}.detail-head h2{margin:7px 0;font-size:28px;line-height:1.2}.detail-head p{margin:0;color:var(--muted)}.tag-row{display:flex;gap:7px;align-items:center}.tag{border-radius:99px;padding:3px 8px;background:#eef3f8;color:#405064;font-size:11px;font-weight:700}.tag.difficulty{background:#fff0e8;color:#b55316}.detail-section{margin:23px 0}.detail-section h3{font-size:13px;letter-spacing:.7px;color:var(--blue);margin:0 0 8px}.detail-section p{margin:0}.code-wrap{position:relative;background:var(--code);border-radius:8px;overflow:auto}.code-wrap pre{margin:0;padding:17px;color:#eaf2fa;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.detail-list{padding-left:19px;margin:0}.detail-list li{margin:5px 0}.answer-gate{margin:32px 0;padding:30px;border:1px dashed #a7b7c6;border-radius:10px;text-align:center;background:#f8fafc}.answer-gate p{color:var(--muted);margin:0 0 14px}.master-row{display:flex;gap:9px;align-items:center;margin-top:28px}.mastered{background:var(--mint);color:#123f31}.text-button{border:0;background:transparent;color:var(--blue);font-weight:700;cursor:pointer;padding:0}.empty-state{text-align:center;padding:60px 15px;color:var(--muted)}.mock-note{background:#fff5ea;border-left:3px solid var(--orange);border-radius:5px;padding:10px 12px;margin-bottom:12px;color:#864009;font-size:13px}@media(max-width:920px){.app-shell{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar h1{font-size:24px}.categories{display:flex;overflow-x:auto;margin:14px -4px}.category{white-space:nowrap;width:auto}.progress-card{display:none}.question-pane{border-right:0}.detail-pane{padding:26px 20px}.topbar{padding:0 16px}}@media(max-width:500px){.topbar{height:58px}.app-shell{min-height:calc(100vh - 58px)}.primary,.ghost{padding:7px 10px}.brand{font-size:13px}.detail-head h2{font-size:24px}}.detail-level-switch{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;margin:-2px 0 4px}.detail-level-button{border:0;border-radius:6px;background:transparent;color:var(--muted);padding:7px 10px;font:700 13px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif;cursor:pointer}.detail-level-button:hover{color:var(--blue);background:#e8f0fe}.detail-level-button.active{background:var(--navy);color:#fff;box-shadow:0 2px 5px #142b4530}.detail-level-button:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.derivation-list{counter-reset:derivation;list-style:none;padding:0;margin:0;display:grid;gap:9px}.derivation-list li{counter-increment:derivation;display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;padding:10px 12px;background:#f5f8fc;border-left:3px solid var(--blue);border-radius:0 7px 7px 0}.derivation-list li::before{content:counter(derivation);display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:800}.edge-case-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.edge-case-list li{padding:10px 11px;border:1px solid #ffd4bf;border-radius:8px;background:#fff7f2;color:#77401e}.edge-case-list li::before{content:"边界";display:block;color:#b55316;font-size:10px;font-weight:800;letter-spacing:.6px;margin-bottom:3px}
 .concept-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}.concept-list li{padding:12px 14px;background:#eef5ff;border:1px solid #c9dcf8;border-radius:8px;color:#24456c;font-weight:600}.line-notes{list-style:none;padding:0;margin:0;display:grid;gap:6px}.line-notes li{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:start;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fbfcfd}.line-notes code{color:var(--blue);font:700 11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}.qa-section details{border:1px solid var(--line);border-radius:7px;background:#fbfcfd;margin:7px 0;padding:0 12px}.qa-section summary{cursor:pointer;padding:10px 2px;font-weight:700;color:#294663}.qa-section summary:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.qa-answer{margin:0 2px 11px;padding:9px 10px;border-left:3px solid var(--mint);background:#f0f8f4;color:#355449}.reveal-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:26px 0 8px;padding:14px 16px;border:1px solid #ffd4bf;border-radius:9px;background:#fffaf5}.reveal-controls p{margin:0;color:#864009;font-size:13px}.reveal-complete{color:#27966a;font-weight:700;font-size:13px}@media(max-width:500px){.concept-list{grid-template-columns:1fr}.line-notes li{grid-template-columns:1fr;gap:3px}.reveal-controls{align-items:flex-start;flex-direction:column}} .diagram-block{margin:6px 0 0;padding:14px 16px;background:#0f1b26;color:#d7e6f5;border-radius:8px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto}
 
@@ -225,6 +225,12 @@
 .course-section { margin: 34px 0; }
 .course-section h3, .course-exercise h3, .course-related h3, .course-capstone h3 { margin: 0 0 12px; color: var(--navy); font-size: 20px; line-height: 1.3; }
 .course-section p { margin: 10px 0; color: #36485a; font-size: 16px; line-height: 1.85; }
+.course-formula { margin: 14px 0; padding: 14px; border: 1px solid #d8e5f3; border-radius: 10px; background: #f8fbff; overflow-x: auto; text-align: center; }
+.course-table-wrap { max-width: 100%; margin: 14px 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.course-table { width: 100%; border-collapse: collapse; min-width: 560px; font-size: 12px; }
+.course-table th, .course-table td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.course-table th { background: #f4f7fa; color: var(--navy); }
+.course-return-button { margin: 0 0 14px; padding: 8px 11px; border: 1px solid #b9d7ca; border-radius: 8px; background: #f2faf6; color: #287f63; cursor: pointer; font-weight: 800; }
 .course-steps { counter-reset: course-step; list-style: none; display: grid; gap: 9px; padding: 0; }
 .course-steps li { counter-increment: course-step; display: grid; grid-template-columns: 30px 1fr; gap: 11px; align-items: start; padding: 13px 15px; border-left: 3px solid #4a9c7e; border-radius: 0 9px 9px 0; background: #f3f8f6; color: #304d42; }
 .course-steps li::before { content: counter(course-step); display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #287f63; color: #fff; font-size: 11px; font-weight: 800; }
@@ -249,6 +255,7 @@
 
 /* 首页教程入口 */
 .course-library { display: grid; gap: 13px; }
+.all-courses-button { width: 100%; padding: 13px; border: 1px dashed #95b8aa; border-radius: 11px; background: #f8fcfa; color: #287f63; cursor: pointer; font: inherit; font-weight: 850; }
 .featured-course { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 23px 25px; border: 1px solid #9fd2bd; border-radius: 16px; background: radial-gradient(circle at 90% 0, rgba(95, 197, 158, .18), transparent 31%), linear-gradient(145deg, #f6fcf9, #edf8f3); box-shadow: 0 8px 24px rgba(40, 127, 99, .08); }
 .featured-course span { display: block; color: #2b8969; font-size: 11px; font-weight: 850; }
 .featured-course > div:first-child > span { font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.2px; }
@@ -277,12 +284,55 @@
 .featured-course.is-speech-llm > div:last-child span { color: #7f725e; }
 .featured-course.is-speech-llm button { background: #a56d22; }
 
+/* 完整课程目录 */
+.course-catalog { max-width: 1240px; }
+.catalog-hero { padding: 30px; border-radius: 20px; background: linear-gradient(145deg, #132f48, #0d2235); color: #fff; }
+.catalog-hero > p:first-child { margin: 0 0 8px; color: #7ce5c0; font: 850 10px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: 1.2px; }
+.catalog-hero h2 { max-width: 760px; margin: 0; font-size: clamp(28px,4vw,43px); line-height: 1.12; }
+.catalog-hero > p:nth-child(3) { max-width: 760px; color: #d2dee7; line-height: 1.7; }
+.catalog-stats { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 10px; margin-top: 20px; }
+.catalog-stats div { padding: 12px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.05); }
+.catalog-stats strong, .catalog-stats span { display: block; }
+.catalog-stats strong { font: 850 22px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.catalog-stats span { margin-top: 5px; color: #b9c9d5; font-size: 10px; }
+.catalog-controls { display: flex; justify-content: space-between; gap: 14px; margin: 20px 0 10px; }
+.catalog-controls input { flex: 1; min-width: 180px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 9px; font: inherit; }
+.catalog-status, .catalog-track-tabs { display: flex; gap: 6px; overflow-x: auto; }
+.catalog-status button, .catalog-track-tabs button { flex: 0 0 auto; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #526477; cursor: pointer; font: inherit; font-size: 11px; font-weight: 750; }
+.catalog-status button.active, .catalog-track-tabs button.active { border-color: #287f63; background: #287f63; color: #fff; }
+.catalog-track-tabs { padding: 4px 0 12px; }
+.catalog-track-section { margin: 24px 0 34px; }
+.catalog-track-head h3 { margin: 0; color: var(--navy); font-size: 22px; }
+.catalog-track-head p { margin: 5px 0 13px; color: var(--muted); }
+.catalog-track-progress { display: inline-flex; margin: -5px 0 13px; padding: 4px 9px; border-radius: 999px; background: #eef3f8; color: #405064; font: 750 11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.course-catalog-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.course-catalog-card { min-width: 0; padding: 19px; border: 1px solid var(--line); border-top: 4px solid #287f63; border-radius: 13px; background: #fff; box-shadow: 0 5px 18px rgba(19,47,72,.05); }
+.course-card-meta { color: #287f63; font: 850 9px/1.3 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: .8px; }
+.course-catalog-card h3 { margin: 7px 0; color: var(--navy); font-size: 19px; }
+.course-catalog-card > p { margin: 7px 0; color: #56697a; font-size: 12px; line-height: 1.6; }
+.course-card-metrics { color: #30485c; font-size: 11px; font-weight: 800; }
+.course-prerequisites { min-height: 38px; }
+.course-progress.compact { height: 5px; margin: 12px 0; }
+.course-catalog-card.track-speech { border-top-color: #2879b4; }
+.course-catalog-card.track-deployment { border-top-color: #2e7d68; }
+.course-catalog-card.track-foundation { border-top-color: #6558a5; }
+.course-catalog-card.track-multimodal { border-top-color: #9c557d; }
+.course-catalog-card.track-applications { border-top-color: #a56d22; }
+.course-catalog-card.track-fundamentals { border-top-color: #536b7e; }
+
+[data-course-track="deployment"] .course-hero { background: radial-gradient(circle at 88% 10%, rgba(83,207,167,.2), transparent 31%), linear-gradient(145deg,#184b41,#102f2a 74%); }
+[data-course-track="foundation"] .course-hero { background: radial-gradient(circle at 88% 10%, rgba(158,143,236,.2), transparent 31%), linear-gradient(145deg,#38305f,#231f42 74%); }
+[data-course-track="multimodal"] .course-hero { background: radial-gradient(circle at 88% 10%, rgba(236,137,188,.2), transparent 31%), linear-gradient(145deg,#573047,#34202e 74%); }
+[data-course-track="applications"] .course-hero { background: radial-gradient(circle at 88% 10%, rgba(238,180,77,.2), transparent 31%), linear-gradient(145deg,#58411f,#352814 74%); }
+[data-course-track="fundamentals"] .course-hero { background: radial-gradient(circle at 88% 10%, rgba(150,181,202,.2), transparent 31%), linear-gradient(145deg,#334959,#202f39 74%); }
+
 @media (max-width: 900px) {
   .course-hero { grid-template-columns: 1fr; }
   .course-shell { grid-template-columns: 1fr; }
   .course-rail { position: static; display: flex; overflow-x: auto; padding: 10px; }
   .course-rail > strong { display: none; }
   .course-chapter-link { flex: 0 0 235px; }
+  .course-catalog-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 560px) {
@@ -297,6 +347,8 @@
   .course-controls .button:last-child { width: 100%; margin-left: 0; }
   .featured-course { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
   .featured-course > div:last-child { text-align: left; }
+  .catalog-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .catalog-controls { flex-direction: column; }
 }
 
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
@@ -58905,9 +58957,10 @@ for (const d of domains) {
   for (const c of d.categories) categoryThread[c.name] = { oneliner: c.oneliner, steps: c.steps, domain: d.name, heavy: d.heavy };
 }
 
-const tutorials = [
+let tutorials = [
   {
     id: 'project-defense-tech-lead',
+    trackId: 'personal', order: 1, primaryCategories: ['Tech Lead 与项目答辩'], prerequisiteIds: [],
     title: '项目答辩与 Tech Lead',
     eyebrow: 'COURSE 01 · EXPERIENCE TO EVIDENCE',
     summary: '把简历项目组织成能承受追问的证据链，再把技术决策、实验、协作与交付讲成完整的 Tech Lead 闭环。',
@@ -59019,6 +59072,7 @@ const tutorials = [
   },
   {
     id: 'asr-from-audio-to-delivery',
+    trackId: 'speech', order: 2, primaryCategories: ['ASR 专项'], prerequisiteIds: [],
     title: 'ASR：从音频到可交付识别系统',
     eyebrow: 'COURSE 02 · AUDIO TO RELIABLE ASR',
     summary: '沿一条真实识别链路学习 ASR：音频与标签 → CTC/RNN-T → 模型选型 → 解码与热词 → 流式会话 → 数据治理 → 多域鲁棒 → 评测交付。',
@@ -59151,6 +59205,7 @@ const tutorials = [
   },
   {
     id: 'tts-from-text-to-streaming-speech',
+    trackId: 'speech', order: 3, primaryCategories: ['语音合成'], prerequisiteIds: [],
     title: 'TTS：从文字到可交付语音',
     eyebrow: 'COURSE 03 · TEXT TO EXPRESSIVE SPEECH',
     summary: '沿一条完整合成链路学习 TTS：文本规范化 → G2P 与韵律 → 对齐和时长 → 声学模型 → 声码器 → 多语种与音色 → 流式部署 → 听测放行。',
@@ -59270,6 +59325,7 @@ const tutorials = [
   },
   {
     id: 'speech-llm-from-representation-to-duplex',
+    trackId: 'speech', order: 4, primaryCategories: ['语音大模型'], prerequisiteIds: ['asr-from-audio-to-delivery', 'tts-from-text-to-streaming-speech', 'transformer-long-context'],
     title: '语音大模型：从表示到实时双工',
     eyebrow: 'COURSE 04 · SPEECH TOKENS TO REAL-TIME DIALOGUE',
     summary: '在 ASR 与 TTS 基础上学习语音大模型：系统契约 → 连续/离散表示 → 语义与声学 Token → Thinker–Talker → 分阶段训练 → 流式双工 → 分层评测。',
@@ -59375,6 +59431,378 @@ const tutorials = [
     ]
   }
 ];
+
+const tutorialTracks = [
+  { id: 'personal', order: 1, title: '个人项目与答辩', summary: '先把真实经历讲成可核验的技术决策。' },
+  { id: 'speech', order: 2, title: '语音与实时交互', summary: '从听、说到端到端实时语音智能。' },
+  { id: 'deployment', order: 3, title: '端侧、推理与交付', summary: '把模型跑得快、跑得稳、跑得省。' },
+  { id: 'foundation', order: 4, title: '模型原理、训练与安全', summary: '补齐 Transformer、训练、对齐和安全底座。' },
+  { id: 'multimodal', order: 5, title: '多模态理解与生成', summary: '贯通视觉、视频、生成、数据和具身智能。' },
+  { id: 'applications', order: 6, title: '推荐、增长与智能应用', summary: '把算法连接到业务、知识系统和 Agent。' },
+  { id: 'fundamentals', order: 7, title: '算法手撕与系统基础', summary: '保持编码、建模与底层实现能力。' },
+];
+
+const generatedTutorialBlueprints = [
+  { id: 'edge-inference-chip-delivery', trackId: 'deployment', order: 5, title: '端侧推理与芯片适配', categories: ['ONNX/TensorRT', '推理芯片适配', '量化推理'], prerequisites: [], chapters: ['交付契约', 'ONNX 导出', '数值一致性', 'Dynamic Shape', 'TensorRT Engine', 'Plugin 与 NPU 编译', 'FP16、INT8 与 INT4', '跨芯片精度对齐', '性能、内存与异步流水', '灰度、降级与回滚'] },
+  { id: 'ocr-depth-obstacle-delivery', trackId: 'deployment', order: 6, title: 'OCR、深度与障碍物感知', categories: ['OCR 文字检测与识别', '单目深度与障碍物感知'], prerequisites: ['edge-inference-chip-delivery'], chapters: ['OCR 全链路', '文本检测', '文本识别', 'Oracle 定位与局部 Refinement', '单目深度建模', '尺度校准与评测', '障碍物融合及端侧交付'] },
+  { id: 'llm-inference-scheduling', trackId: 'deployment', order: 7, title: '大模型推理与调度', categories: ['大模型推理原理', 'KV Cache', 'Continuous Batching', 'PagedAttention', '流式推理工程'], prerequisites: ['transformer-long-context'], chapters: ['Prefill 与 Decode', 'Roofline 与性能瓶颈', 'KV Cache 计算', 'GQA 与 KV 优化', 'Continuous Batching', 'PagedAttention', 'Chunked Prefill 与 PD 分离', '投机解码与多 Token 预测', '流式正确性、背压与取消', '完整推理系统设计'] },
+  { id: 'inference-framework-performance', trackId: 'deployment', order: 8, title: '推理框架与性能评测', categories: ['推理框架', '服务性能评测'], prerequisites: ['llm-inference-scheduling'], chapters: ['推理框架边界', '负载与指标契约', '吞吐和延迟', '压测工具与脚本', '饱和度与容量规划', '资源利用率、显存与冷启动', '流式、SLA 与成本', '框架选型与发布决策'] },
+  { id: 'distributed-multigpu-moe', trackId: 'foundation', order: 9, title: '分布式训练、多 GPU 与 MoE', categories: ['分布式训练', '多GPU并行', 'MoE 架构'], prerequisites: ['transformer-long-context', 'training-finetuning-data'], chapters: ['通信基础与成本模型', '数据并行与 ZeRO', '张量并行', '流水线并行', '序列与上下文并行', 'MoE Router 与负载均衡', '专家并行', '3D 并行选型与故障定位'] },
+  { id: 'transformer-long-context', trackId: 'foundation', order: 10, title: 'Transformer 与长上下文', categories: ['Transformer 架构', '长上下文与位置编码'], prerequisites: [], chapters: ['Token 与 Embedding', '缩放点积注意力', 'MHA、MQA 与 GQA', '位置编码与 RoPE', 'Norm、残差与训练稳定', 'FFN 与 SwiGLU', 'FlashAttention', '长上下文外推与评测'] },
+  { id: 'training-finetuning-data', trackId: 'foundation', order: 11, title: '训练、微调与数据构建', categories: ['训练与微调', '训练稳定性', '合成数据'], prerequisites: ['transformer-long-context'], chapters: ['训练目标与数据契约', 'SFT 与 Loss Mask', 'LoRA', 'QLoRA', '蒸馏', '数据配比与 Scaling', '训练稳定性', '合成数据闭环', '持续学习与灾难性遗忘'] },
+  { id: 'rl-alignment-evaluation', trackId: 'foundation', order: 12, title: 'RL 后训练与对齐评测', categories: ['RL 后训练', '评测与对齐安全'], prerequisites: ['training-finetuning-data'], chapters: ['MDP 与价值函数', '策略梯度与 Actor-Critic', '奖励模型', 'PPO', 'DPO', 'GRPO', '对齐、安全与能力回归'] },
+  { id: 'constrained-generation-redteam', trackId: 'foundation', order: 13, title: '约束生成与安全红队', categories: ['LLM 约束生成与自动评测', '安全红队'], prerequisites: ['transformer-long-context'], chapters: ['结构化输出', '约束解码', '自动 Judge', 'Prompt Injection', 'Jailbreak', '工具调用与数据泄漏', '红队放行闭环'] },
+  { id: 'multimodal-understanding', trackId: 'multimodal', order: 14, title: '多模态理解', categories: ['多模态模型', '视觉与视频理解'], prerequisites: ['transformer-long-context'], chapters: ['ViT 与视觉编码', 'CLIP 对齐', 'Connector 与 Q-Former', '多模态融合架构', '高分辨率与多图', '视频时序与 Token 压缩', '音频接入', '多模态幻觉', '评测与部署'] },
+  { id: 'generative-image-video', trackId: 'multimodal', order: 15, title: '生成式图像与视频系统', categories: ['生成式模型', '视频生成', '多模态生成应用'], prerequisites: ['multimodal-understanding', 'training-finetuning-data'], chapters: ['VAE、GAN 与 Diffusion', '扩散过程与训练目标', 'Latent Diffusion 与条件控制', 'Flow Matching', '视频时序建模', '人物一致性与 LoRA', '音频驱动生成', '多模态生成应用系统', '质量、安全与效率评测'] },
+  { id: 'multimodal-data-engineering', trackId: 'multimodal', order: 16, title: '多模态数据工程', categories: ['多模态数据工程'], prerequisites: ['multimodal-understanding'], chapters: ['数据来源、许可与版权', '统一 Schema', '去重与泄漏控制', '质量过滤', '图文交错与负样本', '标注和合成数据', '版本、血缘与回归'] },
+  { id: 'world-model-multimodal-agent', trackId: 'multimodal', order: 17, title: '世界模型与多模态 Agent', categories: ['世界模型', '多模态Agent'], prerequisites: ['multimodal-understanding', 'agent-workflow-engineering'], chapters: ['世界模型定义', '潜空间动力学', '规划与想象', '具身交互', '多模态 Agent Loop', '记忆与工具', '评测、安全与现实落差'] },
+  { id: 'industrial-search-recommendation', trackId: 'applications', order: 18, title: '工业搜索与推荐系统', categories: ['搜索推荐', '推荐系统'], prerequisites: [], chapters: ['业务目标与推荐漏斗', '多路召回', '双塔与向量检索', '粗排、精排与 LTR', '多目标学习', '偏差与校正', '实时特征', '冷启动、多样性与探索', 'LLM 与生成式推荐', '系统架构与评测'] },
+  { id: 'causal-live-growth', trackId: 'applications', order: 19, title: '因果推断与直播增长', categories: ['因果推断与树模型', '因果推断', '直播变现与增长'], prerequisites: ['industrial-search-recommendation', 'rl-alignment-evaluation'], chapters: ['直播业务漏斗', '统计、因子与树模型', 'DAG 与识别假设', 'A/B 实验', 'Uplift 与 CATE', 'LTV 与概率校准', 'Bandit 与在线 RL', '生成式个性化', '流批服务、全球化与风险'] },
+  { id: 'rag-knowledge-systems', trackId: 'applications', order: 20, title: 'RAG 与知识系统', categories: ['RAG'], prerequisites: ['transformer-long-context'], chapters: ['文档解析、索引与切块', '稀疏、向量与混合检索', '查询改写与 HyDE', '重排和上下文压缩', 'Self-RAG 与 CRAG', '评测及与微调的取舍'] },
+  { id: 'agent-workflow-engineering', trackId: 'applications', order: 21, title: 'Agent Workflow 工程', categories: ['Agent Workflow'], prerequisites: ['rag-knowledge-systems'], chapters: ['Agent 边界', 'ReAct', 'Planning 与 Reflection', '工具协议与参数校验', '记忆与上下文', '编排与多 Agent', 'MCP 与 Function Calling', '安全与 Human-in-the-loop', '可观测性和成本', '生产评测与恢复'] },
+  { id: 'algorithm-system-design', trackId: 'applications', order: 22, title: '算法系统设计', categories: ['系统设计'], prerequisites: ['inference-framework-performance'], chapters: ['需求澄清与容量估算', '在线推理服务', '推荐系统设计', '多模态理解服务', '向量检索与知识服务', '特征 Pipeline 与实时流', 'A/B 实验平台', '可靠性、限流、降级与合规'] },
+  { id: 'algorithms-linear-retrieval', trackId: 'fundamentals', order: 23, title: '算法手撕Ⅰ：线性结构与检索', categories: ['链表', '数组/窗口', '二分/TopK'], prerequisites: [], chapters: ['复杂度、输入契约与测试', '链表基础', '链表综合', '数组与哈希', '滑动窗口', '前缀和与单调结构', '二分边界', '堆与 TopK', 'QuickSelect 与综合题'] },
+  { id: 'algorithms-tree-graph-dp', trackId: 'fundamentals', order: 24, title: '算法手撕Ⅱ：树、图与动态规划', categories: ['二叉树', '搜索/图', '动态规划'], prerequisites: ['algorithms-linear-retrieval'], chapters: ['树遍历', '树的构造', 'BST 与 LCA', '序列化与路径问题', '图的 DFS 与 BFS', '拓扑、并查集与最短路', '回溯', '线性与序列 DP', '背包与区间 DP'] },
+  { id: 'model-implementation', trackId: 'fundamentals', order: 25, title: '模型手写', categories: ['模型手写'], prerequisites: ['algorithms-linear-retrieval'], chapters: ['Tensor 形状与数值契约', 'Softmax 与 Loss', 'Norm 与 Dropout', '卷积尺寸与实现', 'IoU、NMS 与 KMeans', '采样与 Beam Search', 'Attention 与 RoPE'] },
+  { id: 'computer-systems-foundation', trackId: 'fundamentals', order: 26, title: '计算机系统基础', categories: ['计算机系统基础'], prerequisites: [], chapters: ['进程、线程、协程与 GIL', 'Mutex、Spinlock 与 Atomic', '内存模型、缓存与伪共享', '虚拟内存、Pinned Memory 与 GPU 显存', '异步 I/O、零拷贝与数据搬运', '并发故障与性能定位'] },
+];
+
+const courseChapterCategoryHints = {
+  'edge-inference-chip-delivery': [[], ['ONNX/TensorRT'], ['ONNX/TensorRT'], ['ONNX/TensorRT'], ['ONNX/TensorRT'], ['ONNX/TensorRT', '推理芯片适配'], ['量化推理'], ['推理芯片适配', '量化推理'], [], []],
+  'ocr-depth-obstacle-delivery': [['OCR 文字检测与识别'], ['OCR 文字检测与识别'], ['OCR 文字检测与识别'], ['OCR 文字检测与识别'], ['单目深度与障碍物感知'], ['单目深度与障碍物感知'], []],
+  'llm-inference-scheduling': [['大模型推理原理'], ['大模型推理原理'], ['KV Cache'], ['KV Cache'], ['Continuous Batching'], ['PagedAttention'], ['流式推理工程', '大模型推理原理'], ['流式推理工程'], ['流式推理工程'], []],
+  'inference-framework-performance': [['推理框架'], ['服务性能评测'], ['服务性能评测'], ['服务性能评测'], ['服务性能评测'], ['推理框架', '服务性能评测'], ['推理框架', '服务性能评测'], []],
+  'distributed-multigpu-moe': [[], ['分布式训练'], ['多GPU并行'], ['多GPU并行', '分布式训练'], ['多GPU并行', '分布式训练'], ['MoE 架构'], ['MoE 架构'], []],
+  'transformer-long-context': [['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['Transformer 架构'], ['长上下文与位置编码']],
+  'training-finetuning-data': [['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练与微调'], ['训练稳定性'], ['合成数据'], ['训练与微调']],
+  'rl-alignment-evaluation': [['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['RL 后训练'], ['评测与对齐安全']],
+  'constrained-generation-redteam': [['LLM 约束生成与自动评测'], ['LLM 约束生成与自动评测'], ['LLM 约束生成与自动评测'], ['安全红队'], ['安全红队'], ['安全红队'], ['安全红队']],
+  'multimodal-understanding': [['多模态模型'], ['多模态模型'], ['多模态模型'], ['多模态模型'], ['多模态模型'], ['视觉与视频理解'], ['多模态模型'], ['多模态模型'], ['视觉与视频理解', '多模态模型']],
+  'generative-image-video': [['生成式模型'], ['生成式模型'], ['生成式模型'], ['生成式模型'], ['视频生成'], ['生成式模型', '视频生成'], ['视频生成', '多模态生成应用'], ['多模态生成应用'], []],
+  'world-model-multimodal-agent': [['世界模型'], ['世界模型'], ['世界模型'], ['世界模型'], ['多模态Agent'], ['多模态Agent'], []],
+  'causal-live-growth': [['直播变现与增长'], ['因果推断与树模型'], ['因果推断'], ['因果推断', '直播变现与增长'], ['因果推断'], ['因果推断'], ['直播变现与增长'], ['直播变现与增长'], ['直播变现与增长']],
+  'algorithms-linear-retrieval': [[], ['链表'], ['链表'], ['数组/窗口'], ['数组/窗口'], ['数组/窗口'], ['二分/TopK'], ['二分/TopK'], ['二分/TopK']],
+  'algorithms-tree-graph-dp': [['二叉树'], ['二叉树'], ['二叉树'], ['二叉树'], ['搜索/图'], ['搜索/图'], ['搜索/图'], ['动态规划'], ['动态规划']],
+};
+
+const chapterSemanticHints = {
+  '交付契约': '端侧 边缘端 推理框架 部署流程 部署痛点 验收 指标 回退',
+  'ONNX 导出': 'ONNX 导出 opset 算子集 多框架',
+  '数值一致性': '数值一致 逐层 对齐 误差 精度',
+  'Dynamic Shape': 'dynamic shape 动态 batch shape tensor',
+  'TensorRT Engine': 'TensorRT engine 构建 引擎 转换 图优化',
+  'Plugin 与 NPU 编译': 'plugin 自定义算子 NPU 图编译 算子移植',
+  'FP16、INT8 与 INT4': 'FP16 INT8 INT4 PTQ QAT AWQ GPTQ 校准',
+  '跨芯片精度对齐': '跨芯片 精度对齐 benchmark 国产卡 HBM',
+  '性能、内存与异步流水': '性能 内存 Buffer 复用 异步 双缓冲 利用率',
+  '灰度、降级与回滚': '灰度 降级 回滚 监控 可恢复 fallback',
+  'OCR 全链路': 'OCR 全链路 数据 评测 pipeline',
+  '文本检测': '检测 DBNet EAST CTPN spotting',
+  '文本识别': '识别 CRNN CTC Attention',
+  'Oracle 定位与局部 Refinement': 'Oracle GT-crop 定位 refinement 多行 FP',
+  '单目深度建模': '单目深度 视觉 Transformer 家族 建模',
+  '尺度校准与评测': '尺度 校准 相对深度 度量深度 RMSE 评测',
+  '障碍物融合及端侧交付': '障碍物 融合 分割 检测 端侧 F1',
+  'Prefill 与 Decode': 'prefill decode 首 token TTFT TPOT',
+  'Roofline 与性能瓶颈': 'roofline arithmetic intensity compute bound memory bound 性能瓶颈',
+  'KV Cache 计算': 'KV Cache 缓存 大小 增长 计算',
+  'GQA 与 KV 优化': 'GQA MQA MHA KV 量化 prefix 复用',
+  'Continuous Batching': 'continuous batching 连续批处理 调度 preemption padding',
+  'PagedAttention': 'PagedAttention 分页 block table COW 碎片 vLLM',
+  'Chunked Prefill 与 PD 分离': 'chunked prefill PD 分离 disaggregation',
+  '投机解码与多 Token 预测': 'speculative decoding MTP Medusa EAGLE Lookahead 投机 多头预测',
+  '流式正确性、背压与取消': '流式 tokenizer detokenizer 背压 取消 stop 截断',
+  '完整推理系统设计': '调度 请求 生命周期 SLA 完整系统',
+  '推理框架边界': '框架 vLLM SGLang TensorRT-LLM kernel 能力边界',
+  '负载与指标契约': '负载 指标 TTFT TPOT 吞吐 并发 SLA 口径',
+  '吞吐和延迟': '吞吐 延迟 QPS TPS percentile 并发',
+  '压测工具与脚本': '压测 benchmark locust 脚本',
+  '饱和度与容量规划': '饱和 容量 OOM 并发 拐点',
+  '资源利用率、显存与冷启动': 'GPU 利用率 MFU 显存 冷启动 预热 CUDA Graph',
+  '流式、SLA 与成本': '流式 SLA 达标率 成本 每千 token',
+  '框架选型与发布决策': '框架选型 放行 发布 评测 回归',
+  '通信基础与成本模型': '通信 NCCL all-reduce all-gather all-to-all NVLink IB 成本',
+  '数据并行与 ZeRO': 'DP 数据并行 ZeRO FSDP 分片',
+  '张量并行': 'TP 张量并行 矩阵切分 all-reduce',
+  '流水线并行': 'PP 流水线 1F1B micro-batch bubble',
+  '序列与上下文并行': 'SP CP 序列并行 上下文并行 Ring Attention',
+  'MoE Router 与负载均衡': 'MoE Router 路由 负载均衡 z-loss capacity',
+  '专家并行': 'EP Expert Parallel All-to-All 专家容量',
+  '3D 并行选型与故障定位': '3D 并行 Megatron 选型 拓扑 故障',
+  'Token 与 Embedding': 'token embedding 输入表示 因果 mask 序列',
+  '缩放点积注意力': '缩放点积 attention Q K V 复杂度',
+  'MHA、MQA 与 GQA': 'MHA MQA GQA head',
+  '位置编码与 RoPE': '位置编码 RoPE sinusoidal ALiBi 多维',
+  'Norm、残差与训练稳定': 'norm RMSNorm LayerNorm Pre-LN Post-LN 残差',
+  'FFN 与 SwiGLU': 'FFN SwiGLU 门控 前馈',
+  'FlashAttention': 'FlashAttention IO 复杂度 tile',
+  '长上下文外推与评测': '外推 插值 PI NTK YaRN Passkey Needle 长上下文',
+  '训练目标与数据契约': '预训练 微调 对齐 数据 目标 断点 容错',
+  'SFT 与 Loss Mask': 'SFT loss mask 指令 多轮',
+  'LoRA': 'LoRA 低秩 rank alpha merge',
+  'QLoRA': 'QLoRA 4-bit NF4 paged optimizer',
+  '蒸馏': '蒸馏 KD teacher student',
+  '数据配比与 Scaling': '数据配比 scaling Chinchilla token 去重 质量',
+  '训练稳定性': 'NaN loss 突刺 bf16 梯度 裁剪 初始化 监控',
+  '合成数据闭环': '合成数据 自举 筛选 数据飞轮 recaption',
+  '持续学习与灾难性遗忘': '持续学习 灾难性遗忘 replay EWC curriculum',
+  'MDP 与价值函数': 'MDP Bellman V Q advantage 价值函数',
+  '策略梯度与 Actor-Critic': '策略梯度 REINFORCE Actor-Critic',
+  '奖励模型': '奖励模型 reward model RLHF 偏好',
+  'PPO': 'PPO clip KL advantage',
+  'DPO': 'DPO preference beta',
+  'GRPO': 'GRPO 分组 相对优势',
+  '对齐、安全与能力回归': '对齐 安全 能力回归 benchmark judge 红队',
+  '结构化输出': '结构化 Schema JSON validator best-of-N',
+  '约束解码': '约束解码 grammar JSON constrained decoding',
+  '自动 Judge': '自动评测 judge 人工校准 事实约束',
+  'Prompt Injection': 'Prompt Injection 指令注入 系统提示',
+  'Jailbreak': 'Jailbreak 越狱 对抗 绕过',
+  '工具调用与数据泄漏': '工具 权限 数据泄漏 隐私 prompt 泄露',
+  '红队放行闭环': '红队 护栏 分类器 放行 回归',
+  'ViT 与视觉编码': 'ViT patch 视觉编码器 token',
+  'CLIP 对齐': 'CLIP 对比学习 图文 对齐',
+  'Connector 与 Q-Former': 'connector Q-Former projector 连接器',
+  '多模态融合架构': '融合 cross attention early late architecture',
+  '高分辨率与多图': '高分辨率 多图 dynamic resolution 文档 图表',
+  '视频时序与 Token 压缩': '视频 时序 光流 TSM token 压缩 sampling',
+  '音频接入': '音频 audio speech encoder 多模态',
+  '多模态幻觉': '幻觉 grounding 事实 对齐',
+  '评测与部署': '评测 benchmark 延迟 部署 视觉 LLM',
+  'VAE、GAN 与 Diffusion': 'VAE GAN Diffusion DDPM 生成模型',
+  '扩散过程与训练目标': 'DDPM 噪声 epsilon score loss DDIM',
+  'Latent Diffusion 与条件控制': 'Latent Diffusion LDM ControlNet DiT 条件',
+  'Flow Matching': 'Flow Matching Rectified Flow ODE',
+  '视频时序建模': '视频 时序 3D attention 因果 长视频',
+  '人物一致性与 LoRA': '人物 一致性 identity LoRA DreamBooth',
+  '音频驱动生成': '音频驱动 lip sync Audio Guidance',
+  '多模态生成应用系统': '应用 系统 ComfyUI FastAPI 工作流 队列',
+  '质量、安全与效率评测': 'FID IS FVD CLIP score 质量 安全 效率',
+  '世界模型定义': '世界模型 定义 JEPA 视频预测',
+  '潜空间动力学': '潜空间 dynamics RSSM PlaNet Dreamer',
+  '规划与想象': '规划 imagination rollout sim2real',
+  '具身交互': '具身 embodied 仿真 感知 决策',
+  '多模态 Agent Loop': '多模态 Agent loop 感知 计划 行动',
+  '记忆与工具': '记忆 工具 Toolformer AppAgent',
+  '评测、安全与现实落差': '评测 benchmark 安全 sim2real 现实',
+  '业务目标与推荐漏斗': '业务目标 漏斗 北极星 CTR CVR 时长',
+  '多路召回': '召回 recall 多路 融合',
+  '双塔与向量检索': '双塔 two-tower ANN Faiss embedding',
+  '粗排、精排与 LTR': '粗排 精排 ranking LTR CTR DIN DeepFM',
+  '多目标学习': '多目标 MMoE CTR CVR 时长 帕累托',
+  '偏差与校正': '偏差 position selection calibration 校正 去偏',
+  '实时特征': '实时 特征 流处理 线上线下一致',
+  '冷启动、多样性与探索': '冷启动 多样性 探索 负采样 序列',
+  'LLM 与生成式推荐': 'LLM 生成式推荐 TIGER recommender',
+  '系统架构与评测': '系统 架构 AUC GAUC Recall 覆盖率 评测',
+  '直播业务漏斗': '直播 变现 漏斗 北极星 互动 付费',
+  '统计、因子与树模型': '因子 聚类 Boosting 树模型 XGBoost Random Forest',
+  'DAG 与识别假设': 'DAG 因果图 后门 前门 混杂 可识别',
+  'A/B 实验': 'A/B RCT 实验 增量 显著性',
+  'Uplift 与 CATE': 'uplift CATE T-learner S-learner X-learner GRF',
+  'LTV 与概率校准': 'LTV 校准 propensity 倾向得分 选择偏差',
+  'Bandit 与在线 RL': 'Bandit 在线 RL 探索 安全',
+  '生成式个性化': '生成式 个性化 千人千面 直播推荐',
+  '流批服务、全球化与风险': 'Flink Spark Hive 流批 全球化 风险 降级',
+  '复杂度、输入契约与测试': '复杂度 边界 测试 输入 空 重复',
+  '链表基础': '反转链表 合并链表 快慢指针 环',
+  '链表综合': 'LRU K组 区间反转 合并K个 相交',
+  '数组与哈希': '数组 哈希 两数之和 前缀',
+  '滑动窗口': '滑动窗口 无重复 子串 窗口最大值',
+  '前缀和与单调结构': '前缀和 单调栈 单调队列 接雨水',
+  '二分边界': '二分 旋转数组 边界 峰值 中位数',
+  '堆与 TopK': '堆 topK 高频 第K大 数据流中位数',
+  'QuickSelect 与综合题': 'QuickSelect 快选 第K大 综合',
+  '树遍历': '树遍历 层序 前序 中序 后序 BFS DFS',
+  '树的构造': '构造二叉树 前序 中序',
+  'BST 与 LCA': 'BST 二叉搜索树 LCA 最近公共祖先 第K小',
+  '序列化与路径问题': '序列化 反序列化 最大路径 路径和',
+  '图的 DFS 与 BFS': '岛屿 DFS BFS 腐烂橘子 连通分量',
+  '拓扑、并查集与最短路': '拓扑 并查集 Dijkstra 最短路',
+  '回溯': '回溯 组合 全排列 子集 单词搜索',
+  '线性与序列 DP': '动态规划 最大子数组 股票 打家劫舍 LCS 编辑距离',
+  '背包与区间 DP': '背包 分割等和 单词拆分 区间DP',
+  'Tensor 形状与数值契约': 'tensor shape 维度 数值 输入 输出',
+  'Softmax 与 Loss': 'softmax BCE Cross Entropy loss 数值稳定',
+  'Norm 与 Dropout': 'BatchNorm RMSNorm Dropout 训练 推理',
+  '卷积尺寸与实现': '卷积 1D 2D padding stride dilation 输出尺寸',
+  'IoU、NMS 与 KMeans': 'IoU NMS K-Means 聚类 检测',
+  '采样与 Beam Search': 'Top-K Sampling Beam Search 采样 解码',
+  'Attention 与 RoPE': 'Attention 正弦位置编码 RoPE QKV',
+  '进程、线程、协程与 GIL': '进程 线程 协程 GIL 线程池 调度',
+  'Mutex、Spinlock 与 Atomic': 'Mutex Spinlock Atomic CAS 锁 无锁',
+  '内存模型、缓存与伪共享': '内存模型 cache 缓存一致性 伪共享 编译 链接',
+  '虚拟内存、Pinned Memory 与 GPU 显存': '虚拟内存 地址空间 Pinned Pageable GPU 显存',
+  '异步 I/O、零拷贝与数据搬运': 'IO 多路复用 零拷贝 磁盘 网络 RPC',
+  '并发故障与性能定位': '并发 故障 死锁 CPU 亲和 性能 定位',
+};
+
+function normalizeCourseSection(section) {
+  if (section.blocks) return section;
+  const blocks = [];
+  (section.paragraphs || []).forEach((text) => blocks.push({ type: 'paragraph', text }));
+  if (section.steps) blocks.push({ type: 'steps', items: section.steps });
+  if (section.callout) blocks.push({ type: 'callout', text: section.callout });
+  return { title: section.title, blocks };
+}
+
+function normalizeCourse(tutorial) {
+  return {
+    ...tutorial,
+    primaryCategories: tutorial.primaryCategories || [],
+    prerequisiteIds: tutorial.prerequisiteIds || [],
+    chapters: tutorial.chapters.map((chapter) => {
+      const sections = chapter.sections.map(normalizeCourseSection);
+      if (sections.length < 4) sections.push({
+        title: '失败边界与复习方法',
+        blocks: [
+          { type: 'paragraph', text: '学完本章后，不要只记最终结论；应能说明结论依赖的输入、版本、数据和约束，并主动给出一个失败条件。' },
+          { type: 'callout', text: `复习提示：回到本章关联题卡，用“问题 → 机制 → 例子 → 边界”的顺序口述“${chapter.title}”，遇到没有经历依据的部分明确按通用方案回答。` },
+        ],
+      });
+      return { ...chapter, sections };
+    }),
+  };
+}
+
+function chapterTerms(title) {
+  const compact = title.replace(/[\s、，：；（）()\/·与和及]/g, '');
+  const terms = title.split(/[\s、，：；（）()\/·与和及]+/).filter((item) => item.length > 1);
+  for (let index = 0; index < compact.length - 1; index += 1) terms.push(compact.slice(index, index + 2));
+  return [...new Set(terms)];
+}
+
+function questionSearchText(question) {
+  return [question.title, question.technicalTitle, question.prompt, question.technicalPrompt, question.quickAnswer, question.beginnerSummary]
+    .filter(Boolean).join(' ').toLowerCase();
+}
+
+function chapterScore(card, blueprint, index) {
+  const title = blueprint.chapters[index];
+  const fullText = questionSearchText(card);
+  const titleText = [card.title, card.technicalTitle].filter(Boolean).join(' ').toLowerCase();
+  const hintedTerms = (chapterSemanticHints[title] || '').split(/\s+/).filter(Boolean);
+  const terms = [...new Set([...chapterTerms(title), ...hintedTerms])];
+  let score = terms.reduce((sum, term) => {
+    const key = term.toLowerCase();
+    if (titleText.includes(key)) return sum + 18 + Math.min(12, key.length * 2);
+    if (fullText.includes(key)) return sum + 3 + Math.min(8, key.length);
+    return sum;
+  }, 0);
+  const categoryHint = courseChapterCategoryHints[blueprint.id]?.[index];
+  if (categoryHint?.length) score += categoryHint.includes(card.category) ? 100 : -120;
+  return score;
+}
+
+function assignCourseQuestions(cards, blueprint) {
+  const buckets = blueprint.chapters.map(() => []);
+  const remaining = cards.map((card) => ({
+    card,
+    best: Math.max(...blueprint.chapters.map((_, index) => chapterScore(card, blueprint, index))),
+  })).sort((a, b) => b.best - a.best || String(a.card.id).localeCompare(String(b.card.id)));
+
+  remaining.forEach(({ card }) => {
+    const scored = blueprint.chapters.map((_, index) => ({ index, score: chapterScore(card, blueprint, index) - buckets[index].length * 6 }))
+      .sort((a, b) => b.score - a.score || buckets[a.index].length - buckets[b.index].length || a.index - b.index);
+    buckets[scored[0]?.index ?? 0].push(card);
+  });
+  buckets.forEach((bucket, index) => {
+    if (bucket.length) return;
+    const fallback = cards.map((card) => ({ card, score: chapterScore(card, blueprint, index) }))
+      .sort((a, b) => b.score - a.score || String(a.card.id).localeCompare(String(b.card.id)))[0]?.card;
+    if (fallback) bucket.push(fallback);
+  });
+  return buckets;
+}
+
+function firstText(values, fallback) {
+  return values.flat(Infinity).filter((value) => typeof value === 'string' && value.trim()).at(0) || fallback;
+}
+
+function collectText(cards, fields, limit = 6) {
+  const output = [];
+  cards.forEach((card) => fields.forEach((field) => {
+    const value = card[field];
+    if (Array.isArray(value)) value.forEach((item) => { if (typeof item === 'string') output.push(item); });
+    else if (typeof value === 'string') output.push(value);
+  }));
+  return [...new Set(output.filter(Boolean))].slice(0, limit);
+}
+
+function buildGeneratedChapter(blueprint, title, number, cards) {
+  const summaries = collectText(cards, ['beginnerSummary', 'quickAnswer'], 3);
+  const mechanisms = collectText(cards, ['quickAnswer', 'approach', 'invariant'], 6);
+  const derivation = collectText(cards, ['derivation', 'prerequisites', 'walkthrough', 'complexity'], 6);
+  const examples = collectText(cards, ['workedExample', 'walkthrough'], 4);
+  const failures = collectText(cards, ['edgeCases', 'pitfalls'], 6);
+  const representative = cards[0];
+  const evidenceLabels = [...new Set(cards.map((card) => card.experienceLabel).filter(Boolean))];
+  const exampleText = examples.length
+    ? `教学示例：${examples.join(' ')}`
+    : `教学示例：以“${representative.title}”为主线，先固定输入、版本和评测口径，再改变一个关键变量并记录失败样本。`;
+  const richBlocks = [{ type: 'callout', text: exampleText }];
+  if (representative.code) richBlocks.push({ type: 'code', language: 'python', source: representative.code });
+  if (representative.diagram) richBlocks.push({ type: 'diagram', source: representative.diagram });
+  const formulaSource = collectText(cards, ['complexity', 'derivation'], 12).find((text) => /\$[^$]+\$|\\\(|O\(/.test(text));
+  if (formulaSource) richBlocks.push({ type: 'formula', text: formulaSource });
+  return {
+    id: `${blueprint.id}-chapter-${String(number).padStart(2, '0')}`,
+    number,
+    title,
+    duration: `${Math.max(35, Math.min(75, 30 + cards.length * 5))} 分钟`,
+    goal: `掌握“${title}”的核心问题、实现路径、取舍和验证方法，并能把本章 ${cards.length} 张题卡串成一段连续回答。`,
+    bridge: number === 1
+      ? `本章先建立《${blueprint.title}》的共同输入、输出和评价标准，为后续章节提供同一套坐标系。`
+      : `上一章解决了前置机制；本章继续进入“${title}”，把原理推进到实现、失败边界和可复核证据。`,
+    sections: [
+      { title: '问题与动机', blocks: [{ type: 'paragraph', text: summaries.join(' ') || `本章围绕 ${cards.map((card) => card.title).join('、')} 建立问题边界。` }] },
+      { title: '核心机制', blocks: [{ type: 'steps', items: mechanisms.length ? mechanisms : cards.map((card) => card.title) }] },
+      { title: '推导与具体例子', blocks: [{ type: 'steps', items: derivation.length ? derivation : ['先固定输入与基线。', '再改变一个关键变量。', '最后检查平均指标、关键切片和失败样本。'] }, ...richBlocks] },
+      { title: '失败边界与取舍', blocks: [
+        { type: 'steps', items: failures.length ? failures : ['不要只报告最好结果。', '不要混用不同数据、设备或版本。', '结论必须说明适用边界和回退方式。'] },
+        { type: 'table', headers: ['本章题卡', '难度', '经历边界'], rows: cards.slice(0, 6).map((card) => [card.title, card.difficulty || '—', card.experienceLabel || '通用知识']) },
+        ...(evidenceLabels.length ? [{ type: 'callout', text: `经历边界：${evidenceLabels.join('；')}。只有题卡明确标注的事实可以说成个人做过，其余内容按原理或方案回答。` }] : []),
+      ] },
+    ],
+    exercise: {
+      title: `练习：完成“${title}”一页讲解`,
+      prompt: `不看答案，用问题 → 机制 → 例子 → 失败边界的顺序串讲 ${cards.map((card) => `“${card.title}”`).join('、')}，再打开关联题卡承受追问。`,
+      checks: ['是否先定义输入、输出和口径', '是否给出具体数值、代码追踪或状态变化', '是否说明失败条件、代价和验证方法'],
+    },
+    questionIds: cards.map((card) => card.id),
+  };
+}
+
+function buildGeneratedTutorial(blueprint, questionBank) {
+  const cards = blueprint.categories.flatMap((category) => questionBank.filter((question) => question.category === category));
+  const buckets = assignCourseQuestions(cards, blueprint);
+  return normalizeCourse({
+    id: blueprint.id,
+    trackId: blueprint.trackId,
+    order: blueprint.order,
+    primaryCategories: blueprint.categories,
+    prerequisiteIds: blueprint.prerequisites,
+    title: blueprint.title,
+    eyebrow: `COURSE ${String(blueprint.order).padStart(2, '0')} · COMPLETE LEARNING PATH`,
+    summary: `把 ${blueprint.categories.join('、')} 的 ${cards.length} 张题卡组织成 ${blueprint.chapters.length} 个连续章节，从核心原理推进到实现、评测和失败恢复。`,
+    outcome: `完成后，你应能独立串讲 ${blueprint.title}，并使用关联题卡回答原理、实现、复杂度、系统取舍和故障定位追问。`,
+    audience: '适合第一次系统学习、面试前串讲和按章节查漏；教学示例不自动代表个人项目经历。',
+    chapters: blueprint.chapters.map((title, index) => buildGeneratedChapter(blueprint, title, index + 1, buckets[index])),
+    capstone: {
+      title: `结课综合任务：${blueprint.title}`,
+      prompt: `选择一个完整场景，在 12 分钟内讲清需求、输入输出、核心机制、关键实现、指标、失败边界与回退。随后从本课程关联题卡中随机抽取 8 题追问。`,
+      checklist: ['问题与约束明确', '关键机制可以推导', '实现包含数据流或状态变化', '指标带口径与切片', '至少分析一个失败案例', '说明资源与效率代价', '给出降级或回退', '不把教学方案说成个人经历'],
+    },
+  });
+}
+
+function extendTutorials(questionBank) {
+  if (tutorials.length === 26) return tutorials;
+  const authored = tutorials.map(normalizeCourse);
+  const generated = generatedTutorialBlueprints.map((blueprint) => buildGeneratedTutorial(blueprint, questionBank));
+  tutorials = [...authored, ...generated].sort((a, b) => a.order - b.order);
+  return tutorials;
+}
 
 function tutorialById(id) {
   return tutorials.find((tutorial) => tutorial.id === id);
@@ -60152,6 +60580,8 @@ const categoryLabels = new Map([
   ['语音合成', 'TTS 语音合成'],
 ]);
 
+extendTutorials(questions);
+
 function categoryLabel(category) { return categoryLabels.get(category) || category; }
 
 function isResumeQuestion(question) { return /^(?:asr|tts|edge|perf|lead)-resume-/.test(question.id); }
@@ -60191,18 +60621,20 @@ const personalTracks = [
 ];
 
 const savedTutorialProgress = loadTutorialProgress();
-const initialTutorialId = tutorialById(savedTutorialProgress.currentTutorialId)?.id || tutorials[0].id;
+const hashParts = typeof location === 'undefined' ? [] : decodeURIComponent(location.hash.slice(1)).split('/');
+const hashTutorial = hashParts[0] === 'course' ? tutorialById(hashParts[1]) : null;
+const initialTutorialId = hashTutorial?.id || tutorialById(savedTutorialProgress.currentTutorialId)?.id || tutorials[0].id;
 const initialTutorialChapters = { ...(savedTutorialProgress.currentChapterByTutorial || {}) };
 if (initialTutorialChapters[tutorials[0].id] == null && Number.isInteger(savedTutorialProgress.currentChapter)) {
   initialTutorialChapters[tutorials[0].id] = savedTutorialProgress.currentChapter;
 }
 
 const state = {
-  mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
+  mode: 'review', view: hashTutorial ? 'course' : (hashParts[0] === 'courses' ? 'courses' : 'map'), mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
-  tutorialId: initialTutorialId, tutorialChapter: initialTutorialChapters[initialTutorialId] || 0,
+  tutorialId: initialTutorialId, tutorialChapter: hashTutorial ? Math.max(0, hashTutorial.chapters.findIndex((chapter) => chapter.id === hashParts[2])) : (initialTutorialChapters[initialTutorialId] || 0),
   tutorialChapterById: initialTutorialChapters,
-  completedTutorialChapters: new Set(savedTutorialProgress.completed || []), remaining: 2700, timerId: null,
+  completedTutorialChapters: new Set(savedTutorialProgress.completed || []), courseTrack: 'all', courseStatus: 'all', courseQuery: '', tutorialReturn: null, remaining: 2700, timerId: null,
 };
 
 function loadMastered() {
@@ -60258,10 +60690,7 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
-  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course' && state.tutorialId === 'project-defense-tech-lead', () => openTutorial('project-defense-tech-lead'), 'nav-lead nav-course'));
-  buttons.push(navButton('▣ 教程 · ASR', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery', () => openTutorial('asr-from-audio-to-delivery'), 'nav-lead nav-course nav-course-asr'));
-  buttons.push(navButton('▣ 教程 · TTS', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech', () => openTutorial('tts-from-text-to-streaming-speech'), 'nav-lead nav-course nav-course-tts'));
-  buttons.push(navButton('▣ 教程 · 语音大模型', state.view === 'course' && state.tutorialId === 'speech-llm-from-representation-to-duplex', () => openTutorial('speech-llm-from-representation-to-duplex'), 'nav-lead nav-course nav-course-speech-llm'));
+  buttons.push(navButton(`▣ 连续教程 · ${tutorials.length}`, state.view === 'course' || state.view === 'courses', () => openCourseCatalog(), 'nav-lead nav-course'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -60603,9 +61032,9 @@ function renderDetailLevelSwitch() {
 function renderDetail() {
   const pane = el('question-detail');
   document.body.classList.remove('diagram-open');
-  if (state.view === 'map' || state.view === 'course') {
+  if (state.view === 'map' || state.view === 'course' || state.view === 'courses') {
     pane.replaceChildren();
-    if (state.view === 'course') return;
+    if (state.view === 'course' || state.view === 'courses') return;
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
     const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
     const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
@@ -60616,6 +61045,15 @@ function renderDetail() {
   }
   const q = selectedQuestion(); pane.replaceChildren();
   if (!q) { pane.textContent = '请选择一道题目'; return; }
+  if (state.tutorialReturn) {
+    const returnButton = document.createElement('button'); returnButton.className = 'course-return-button'; returnButton.textContent = '← 返回教程原章节';
+    returnButton.addEventListener('click', () => {
+      const target = state.tutorialReturn; state.tutorialReturn = null;
+      openTutorial(target.tutorialId, target.chapterIndex);
+      if (typeof window !== 'undefined') setTimeout(() => window.scrollTo({ top: target.scrollY }), 0);
+    });
+    pane.append(returnButton);
+  }
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
   const questionId = q.kind === 'code' && /^\d+$/.test(q.id) ? `LC ${q.id}` : `ID ${q.id}`;
@@ -60654,7 +61092,7 @@ function renderQuestionPane() {
   const searchLabel = document.querySelector('.search-label');
   const searchInput = el('search-input');
   const kindList = el('kind-list');
-  if (state.view === 'map' || state.view === 'course') {
+  if (state.view === 'map' || state.view === 'course' || state.view === 'courses') {
     heading.hidden = true;
     mockNote.hidden = true;
     list.hidden = true;
@@ -60668,8 +61106,9 @@ function renderQuestionPane() {
     mapView.hidden = state.view !== 'map';
     let courseView = el('course-view');
     if (!courseView) { courseView = document.createElement('div'); courseView.id = 'course-view'; courseView.className = 'course-view'; pane.append(courseView); }
-    courseView.hidden = state.view !== 'course';
+    courseView.hidden = state.view === 'map';
     if (state.view === 'map') renderMap(mapView);
+    else if (state.view === 'courses') renderCourseCatalog(courseView);
     else renderTutorialCourse(courseView);
     return;
   }
@@ -60762,10 +61201,20 @@ function openCollection(view, category = '全部') {
 function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
 
 function tutorialThemeClass(tutorial) {
-  if (tutorial.id === 'asr-from-audio-to-delivery') return 'is-asr';
-  if (tutorial.id === 'tts-from-text-to-streaming-speech') return 'is-tts';
-  if (tutorial.id === 'speech-llm-from-representation-to-duplex') return 'is-speech-llm';
-  return '';
+  const special = tutorial.id === 'asr-from-audio-to-delivery' ? 'is-asr'
+    : tutorial.id === 'tts-from-text-to-streaming-speech' ? 'is-tts'
+      : tutorial.id === 'speech-llm-from-representation-to-duplex' ? 'is-speech-llm' : '';
+  return `${special} track-${tutorial.trackId}`.trim();
+}
+
+function setAppHash(value) {
+  if (typeof history !== 'undefined') history.replaceState(null, '', `${location.pathname}${location.search}#${value}`);
+}
+
+function openCourseCatalog() {
+  state.mode = 'review'; state.view = 'courses';
+  setAppHash('courses'); render();
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
@@ -60775,6 +61224,7 @@ function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
   state.mode = 'review'; state.view = 'course';
   state.tutorialChapter = Math.max(0, Math.min(targetChapter, tutorial.chapters.length - 1));
   state.tutorialChapterById[tutorial.id] = state.tutorialChapter;
+  setAppHash(`course/${encodeURIComponent(tutorial.id)}/${encodeURIComponent(tutorial.chapters[state.tutorialChapter].id)}`);
   saveTutorialProgress(); render();
   if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -60782,6 +61232,7 @@ function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
 function openTutorialQuestion(questionId) {
   const question = questions.find((item) => item.id === questionId);
   if (!question) return;
+  state.tutorialReturn = { tutorialId: state.tutorialId, chapterIndex: state.tutorialChapter, scrollY: typeof window === 'undefined' ? 0 : window.scrollY };
   state.mode = 'review'; state.query = ''; state.kind = '全部'; state.selectedId = question.id; state.detailLevel = 'deep';
   if (question.resumeCard) {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = question.experienceLevel;
@@ -60795,25 +61246,91 @@ function openTutorialQuestion(questionId) {
 function tutorialSection(section) {
   const wrap = document.createElement('section'); wrap.className = 'course-section';
   const heading = document.createElement('h3'); heading.textContent = section.title; wrap.append(heading);
-  if (section.paragraphs) section.paragraphs.forEach((value) => { const p = document.createElement('p'); p.textContent = value; wrap.append(p); });
-  if (section.steps) {
-    const ol = document.createElement('ol'); ol.className = 'course-steps';
-    section.steps.forEach((value) => { const li = document.createElement('li'); li.textContent = value; ol.append(li); });
-    wrap.append(ol);
-  }
-  if (section.callout) { const callout = document.createElement('div'); callout.className = 'course-callout'; callout.textContent = section.callout; wrap.append(callout); }
+  (section.blocks || []).forEach((block) => {
+    if (block.type === 'paragraph') { const p = appendRichText(document.createElement('p'), block.text); wrap.append(p); }
+    else if (block.type === 'steps') {
+      const ol = document.createElement('ol'); ol.className = 'course-steps';
+      block.items.forEach((value) => { const li = appendRichText(document.createElement('li'), value); ol.append(li); }); wrap.append(ol);
+    } else if (block.type === 'callout') { const callout = appendRichText(document.createElement('div'), block.text); callout.className = 'course-callout'; wrap.append(callout); }
+    else if (block.type === 'formula') { const formula = appendRichText(document.createElement('div'), block.text); formula.className = 'course-formula rich-text'; wrap.append(formula); }
+    else if (block.type === 'diagram') wrap.append(diagramSection('本章图解', block.source));
+    else if (block.type === 'code') wrap.append(codeSection('本章代码与执行入口', block.source));
+    else if (block.type === 'table') {
+      const viewport = document.createElement('div'); viewport.className = 'course-table-wrap'; const table = document.createElement('table'); table.className = 'course-table';
+      const thead = document.createElement('thead'); const headRow = document.createElement('tr'); block.headers.forEach((value) => { const th = document.createElement('th'); th.textContent = value; headRow.append(th); }); thead.append(headRow);
+      const tbody = document.createElement('tbody'); block.rows.forEach((row) => { const tr = document.createElement('tr'); row.forEach((value) => { const td = document.createElement('td'); td.textContent = value; tr.append(td); }); tbody.append(tr); });
+      table.append(thead, tbody); viewport.append(table); wrap.append(viewport);
+    }
+  });
   return wrap;
+}
+
+function completedTutorialCount(tutorial) {
+  return tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
+}
+
+function courseCatalogCard(tutorial) {
+  const completed = completedTutorialCount(tutorial); const track = tutorialTracks.find((item) => item.id === tutorial.trackId);
+  const card = document.createElement('article'); card.className = `course-catalog-card ${tutorialThemeClass(tutorial)}`;
+  const meta = document.createElement('div'); meta.className = 'course-card-meta'; meta.textContent = `COURSE ${String(tutorial.order).padStart(2, '0')} · ${track?.title || ''}`;
+  const title = document.createElement('h3'); title.textContent = tutorial.title;
+  const summary = document.createElement('p'); summary.textContent = tutorial.summary;
+  const metrics = document.createElement('div'); metrics.className = 'course-card-metrics';
+  const questionCount = tutorial.primaryCategories.reduce((sum, category) => sum + questions.filter((question) => question.category === category).length, 0);
+  metrics.textContent = `${tutorial.chapters.length} 章 · ${questionCount} 张主卡 · ${completed}/${tutorial.chapters.length} 已完成`;
+  const prerequisites = document.createElement('p'); prerequisites.className = 'course-prerequisites';
+  prerequisites.textContent = tutorial.prerequisiteIds.length ? `建议先学：${tutorial.prerequisiteIds.map((id) => tutorialById(id)?.title).filter(Boolean).join('、')}` : '可直接开始';
+  const progress = document.createElement('div'); progress.className = 'course-progress compact'; const bar = document.createElement('i'); bar.style.width = `${completed / tutorial.chapters.length * 100}%`; progress.append(bar);
+  const button = document.createElement('button'); button.className = 'button primary'; button.textContent = completed ? '继续学习 →' : '开始课程 →'; button.addEventListener('click', () => openTutorial(tutorial.id));
+  card.append(meta, title, summary, metrics, prerequisites, progress, button); return card;
+}
+
+function renderCourseCatalog(container) {
+  container.replaceChildren(); container.className = 'course-view course-catalog';
+  const totalChapters = tutorials.reduce((sum, tutorial) => sum + tutorial.chapters.length, 0);
+  const completed = tutorials.reduce((sum, tutorial) => sum + completedTutorialCount(tutorial), 0);
+  const completedCourses = tutorials.filter((tutorial) => completedTutorialCount(tutorial) === tutorial.chapters.length).length;
+  const hero = document.createElement('header'); hero.className = 'catalog-hero';
+  const kicker = document.createElement('p'); kicker.textContent = 'COMPLETE LEARNING SYSTEM';
+  const title = document.createElement('h2'); title.textContent = '26 门连续教程，把 855 张题卡连成知识体系';
+  const summary = document.createElement('p'); summary.textContent = '第一次学习按章节走，面试前再回题库做检索、随机抽问和模拟面试。前置课程是建议，不是硬锁。';
+  const stats = document.createElement('div'); stats.className = 'catalog-stats'; [[tutorials.length, '课程'], [totalChapters, '章节'], [questions.length, '题卡'], [`${completedCourses}/${tutorials.length}`, '课程完成'], [`${completed}/${totalChapters}`, '全站章节']].forEach(([value, label]) => { const item = document.createElement('div'); const strong = document.createElement('strong'); strong.textContent = value; const span = document.createElement('span'); span.textContent = label; item.append(strong, span); stats.append(item); });
+  hero.append(kicker, title, summary, stats); container.append(hero);
+
+  const controls = document.createElement('div'); controls.className = 'catalog-controls';
+  const input = document.createElement('input'); input.type = 'search'; input.placeholder = '搜索课程或分类'; input.value = state.courseQuery; input.addEventListener('input', (event) => { state.courseQuery = event.target.value; renderCourseCatalog(container); });
+  const status = document.createElement('div'); status.className = 'catalog-status'; [['all', '全部'], ['active', '学习中'], ['done', '已完成'], ['todo', '未开始']].forEach(([value, label]) => { const button = document.createElement('button'); button.className = value === state.courseStatus ? 'active' : ''; button.textContent = label; button.addEventListener('click', () => { state.courseStatus = value; renderCourseCatalog(container); }); status.append(button); });
+  controls.append(input, status); container.append(controls);
+
+  const tracks = document.createElement('div'); tracks.className = 'catalog-track-tabs';
+  [['all', '全部主线'], ...tutorialTracks.map((track) => [track.id, track.title])].forEach(([value, label]) => { const button = document.createElement('button'); button.className = value === state.courseTrack ? 'active' : ''; button.textContent = label; button.addEventListener('click', () => { state.courseTrack = value; renderCourseCatalog(container); }); tracks.append(button); }); container.append(tracks);
+
+  const query = state.courseQuery.trim().toLowerCase();
+  tutorialTracks.forEach((track) => {
+    if (state.courseTrack !== 'all' && state.courseTrack !== track.id) return;
+    const items = tutorials.filter((tutorial) => tutorial.trackId === track.id).filter((tutorial) => {
+      const done = completedTutorialCount(tutorial); const matchesStatus = state.courseStatus === 'all' || (state.courseStatus === 'done' && done === tutorial.chapters.length) || (state.courseStatus === 'active' && done > 0 && done < tutorial.chapters.length) || (state.courseStatus === 'todo' && done === 0);
+      const haystack = `${tutorial.title} ${tutorial.summary} ${tutorial.primaryCategories.join(' ')}`.toLowerCase(); return matchesStatus && (!query || haystack.includes(query));
+    });
+    if (!items.length) return;
+    const trackCourses = tutorials.filter((tutorial) => tutorial.trackId === track.id);
+    const trackChapterCount = trackCourses.reduce((sum, tutorial) => sum + tutorial.chapters.length, 0);
+    const trackCompletedChapters = trackCourses.reduce((sum, tutorial) => sum + completedTutorialCount(tutorial), 0);
+    const trackCompletedCourses = trackCourses.filter((tutorial) => completedTutorialCount(tutorial) === tutorial.chapters.length).length;
+    const section = document.createElement('section'); section.className = 'catalog-track-section'; const head = document.createElement('div'); head.className = 'catalog-track-head'; const h = document.createElement('h3'); h.textContent = `${String(track.order).padStart(2, '0')} · ${track.title}`; const p = document.createElement('p'); p.textContent = track.summary; const progress = document.createElement('span'); progress.className = 'catalog-track-progress'; progress.textContent = `${trackCompletedChapters}/${trackChapterCount} 章 · ${trackCompletedCourses}/${trackCourses.length} 门`; head.append(h, p, progress);
+    const grid = document.createElement('div'); grid.className = 'course-catalog-grid'; items.forEach((tutorial) => grid.append(courseCatalogCard(tutorial))); section.append(head, grid); container.append(section);
+  });
 }
 
 function renderTutorialCourse(container) {
   const tutorial = tutorialById(state.tutorialId) || tutorials[0];
   const chapter = tutorial.chapters[state.tutorialChapter] || tutorial.chapters[0];
   const completedCount = tutorial.chapters.filter((item) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, item))).length;
-  container.replaceChildren();
+  container.replaceChildren(); container.className = 'course-view';
 
   const top = document.createElement('div'); top.className = 'course-topbar';
-  const back = document.createElement('button'); back.className = 'course-back'; back.textContent = '← 返回个人首页';
-  back.addEventListener('click', () => { state.view = 'map'; state.mapTab = 'personal'; render(); });
+  const back = document.createElement('button'); back.className = 'course-back'; back.textContent = '← 返回课程目录';
+  back.addEventListener('click', openCourseCatalog);
   const progressCopy = document.createElement('span'); progressCopy.textContent = `已完成 ${completedCount} / ${tutorial.chapters.length} 章`;
   top.append(back, progressCopy); container.append(top);
 
@@ -60912,11 +61429,11 @@ function renderPersonalDashboard() {
   hero.append(copy, stats); wrap.append(hero);
 
   const courseLibrary = document.createElement('div'); courseLibrary.className = 'course-library';
-  tutorials.forEach((tutorial, index) => {
+  [tutorialById(state.tutorialId) || tutorials[0]].forEach((tutorial) => {
     const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
     const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorialThemeClass(tutorial)}`;
     const courseCopy = document.createElement('div');
-    const courseKicker = document.createElement('span'); courseKicker.textContent = index === 0 ? 'FIRST GUIDED COURSE' : `GUIDED COURSE ${String(index + 1).padStart(2, '0')}`;
+    const courseKicker = document.createElement('span'); courseKicker.textContent = 'CONTINUE LEARNING';
     const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
     const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
     courseCopy.append(courseKicker, courseTitle, courseText);
@@ -60926,6 +61443,7 @@ function renderPersonalDashboard() {
     const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial(tutorial.id));
     courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); courseLibrary.append(courseCard);
   });
+  const allCourses = document.createElement('button'); allCourses.className = 'all-courses-button'; allCourses.textContent = `查看全部 ${tutorials.length} 门连续教程 →`; allCourses.addEventListener('click', openCourseCatalog); courseLibrary.append(allCourses);
   wrap.append(courseLibrary);
 
   const heading = document.createElement('div'); heading.className = 'personal-section-head';
@@ -61035,10 +61553,11 @@ function renderMapPriority() {
 
 function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
-  document.body.classList.toggle('course-mode', state.view === 'course');
+  document.body.classList.toggle('course-mode', state.view === 'course' || state.view === 'courses');
   document.body.classList.toggle('course-asr-mode', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery');
   document.body.classList.toggle('course-tts-mode', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech');
   document.body.classList.toggle('course-speech-llm-mode', state.view === 'course' && state.tutorialId === 'speech-llm-from-representation-to-duplex');
+  document.body.dataset.courseTrack = state.view === 'course' ? (tutorialById(state.tutorialId)?.trackId || '') : '';
   renderMode();
   renderCategories();
   renderKindSwitch();
@@ -61065,6 +61584,14 @@ document.addEventListener('keydown', (event) => {
   else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 window.addEventListener('resize', () => updateDiagramOverflow());
+window.addEventListener('hashchange', () => {
+  const parts = decodeURIComponent(location.hash.slice(1)).split('/');
+  if (parts[0] === 'courses') { state.view = 'courses'; render(); return; }
+  if (parts[0] !== 'course') return;
+  const tutorial = tutorialById(parts[1]); if (!tutorial) return;
+  const chapterIndex = Math.max(0, tutorial.chapters.findIndex((chapter) => chapter.id === parts[2]));
+  state.tutorialId = tutorial.id; state.tutorialChapter = chapterIndex; state.tutorialChapterById[tutorial.id] = chapterIndex; state.view = 'course'; saveTutorialProgress(); render();
+});
 render();
 
 </script>

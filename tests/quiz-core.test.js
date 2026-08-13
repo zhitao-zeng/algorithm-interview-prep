@@ -4,11 +4,13 @@ import test from 'node:test';
 import { questions } from '../questions.js';
 import { detailSections, validateQuestionCard } from '../quiz-core.js';
 import { categoryThread, domains } from '../knowledge-map.js';
-import { tutorials, tutorialById } from '../tutorials.js';
+import { tutorials, tutorialById, tutorialTracks, extendTutorials } from '../tutorials.js';
 import { resumeGlossarySize } from '../cards/_resume-glossary.js';
 import { resumeGroundingCounts } from '../cards/_resume-grounding.js';
 import { speechPrerequisiteExplanation, speechTeachingCategoryCount } from '../cards/_speech-teaching.js';
 import { readFileSync } from 'node:fs';
+
+extendTutorials(questions);
 
 const beginnerFixture = {
   id: 'fixture',
@@ -98,7 +100,7 @@ test('直播变现与增长模块覆盖两份 JD 的业务、算法与工程闭�
 
 test('项目答辩与 Tech Lead 教程形成连续章节并关联全部真实项目卡', () => {
   const tutorial = tutorialById('project-defense-tech-lead');
-  assert.equal(tutorials.length, 4);
+  assert.equal(tutorials.length, 26);
   assert.equal(tutorial.chapters.length, 8);
   assert.equal(new Set(tutorial.chapters.map((chapter) => chapter.id)).size, 8);
   assert.deepEqual(tutorial.chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -129,7 +131,7 @@ test('ASR 教程按依赖形成连续主线并覆盖全部 34 张专项卡', () 
     assert.ok(chapter.goal.length >= 20, chapter.id);
     assert.ok(chapter.bridge.length >= 20, chapter.id);
     assert.ok(chapter.sections.length >= 4, chapter.id);
-    assert.ok(chapter.sections.some((section) => section.callout), `${chapter.id} 应包含具体例子`);
+    assert.ok(chapter.sections.some((section) => section.blocks.some((block) => block.type === 'callout')), `${chapter.id} 应包含具体例子`);
     assert.ok(chapter.exercise.checks.length >= 3, chapter.id);
     assert.ok(chapter.questionIds.length >= 3, chapter.id);
     assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), chapter.id);
@@ -153,7 +155,7 @@ test('TTS 教程沿生成链路覆盖全部 28 张语音合成卡', () => {
     assert.ok(chapter.goal.length >= 20, chapter.id);
     assert.ok(chapter.bridge.length >= 20, chapter.id);
     assert.ok(chapter.sections.length >= 4, chapter.id);
-    assert.ok(chapter.sections.some((section) => section.callout), `${chapter.id} 应包含具体例子`);
+    assert.ok(chapter.sections.some((section) => section.blocks.some((block) => block.type === 'callout')), `${chapter.id} 应包含具体例子`);
     assert.ok(chapter.exercise.checks.length >= 3, chapter.id);
     assert.ok(chapter.questionIds.length >= 2, chapter.id);
     assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), chapter.id);
@@ -177,7 +179,7 @@ test('语音大模型教程覆盖全部 16 张卡并衔接 ASR/TTS 到实时双�
     assert.ok(chapter.goal.length >= 20, chapter.id);
     assert.ok(chapter.bridge.length >= 20, chapter.id);
     assert.ok(chapter.sections.length >= 4, chapter.id);
-    assert.ok(chapter.sections.some((section) => section.callout), `${chapter.id} 应包含数值或系统例子`);
+    assert.ok(chapter.sections.some((section) => section.blocks.some((block) => block.type === 'callout')), `${chapter.id} 应包含数值或系统例子`);
     assert.ok(chapter.exercise.checks.length >= 3, chapter.id);
     assert.ok(chapter.questionIds.length >= 1, chapter.id);
     assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), chapter.id);
@@ -189,6 +191,76 @@ test('语音大模型教程覆盖全部 16 张卡并衔接 ASR/TTS 到实时双�
   assert.match(tutorial.chapters.map((chapter) => chapter.title).join('\n'), /级联.*连续还是离散.*语音 Token.*Thinker–Talker.*分阶段训练.*实时双工.*分层评测/s);
   assert.match(`${tutorial.audience}\n${tutorial.capstone.prompt}`, /不默认代表|不把未有履历证据/);
   assert.ok(tutorial.capstone.checklist.length >= 8);
+});
+
+test('完整教程体系包含 7 条主线、26 门课程和 212 章', () => {
+  assert.equal(tutorialTracks.length, 7);
+  assert.equal(tutorials.length, 26);
+  assert.equal(tutorials.reduce((sum, tutorial) => sum + tutorial.chapters.length, 0), 212);
+  assert.deepEqual(tutorials.map((tutorial) => tutorial.order), Array.from({ length: 26 }, (_, index) => index + 1));
+  assert.equal(new Set(tutorials.map((tutorial) => tutorial.id)).size, 26);
+});
+
+test('52 个分类各自归属唯一主课程且覆盖全部 855 张题卡', () => {
+  const owners = new Map();
+  tutorials.forEach((tutorial) => tutorial.primaryCategories.forEach((category) => {
+    assert.equal(owners.has(category), false, `${category} 不应归属多门主课程`);
+    owners.set(category, tutorial.id);
+  }));
+  assert.equal(owners.size, 52);
+  const actualCategories = new Set(questions.map((question) => question.category));
+  assert.deepEqual(new Set(owners.keys()), actualCategories);
+  for (const question of questions) {
+    const owner = tutorialById(owners.get(question.category));
+    const relatedIds = new Set(owner.chapters.flatMap((chapter) => chapter.questionIds));
+    assert.ok(relatedIds.has(question.id), `${question.id} 未出现在主课程 ${owner.title}`);
+  }
+});
+
+test('212 个章节均满足教程内容、练习与题卡契约', () => {
+  const chapterIds = new Set();
+  tutorials.forEach((tutorial) => tutorial.chapters.forEach((chapter) => {
+    const key = `${tutorial.id}:${chapter.id}`;
+    assert.equal(chapterIds.has(key), false, key); chapterIds.add(key);
+    assert.ok(chapter.goal.length >= 20, key);
+    assert.ok(chapter.bridge.length >= 20, key);
+    assert.ok(chapter.sections.length >= 4, key);
+    assert.ok(chapter.sections.every((section) => section.blocks?.length), key);
+    assert.ok(chapter.sections.some((section) => section.blocks.some((block) => block.type === 'callout')), key);
+    assert.ok(chapter.exercise.checks.length >= 3, key);
+    assert.ok(chapter.questionIds.length >= 1, key);
+    assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), key);
+  }));
+});
+
+test('课程前置依赖、主线与分类引用全部有效', () => {
+  const trackIds = new Set(tutorialTracks.map((track) => track.id));
+  const courseIds = new Set(tutorials.map((tutorial) => tutorial.id));
+  const categoryIds = new Set(questions.map((question) => question.category));
+  tutorials.forEach((tutorial) => {
+    assert.ok(trackIds.has(tutorial.trackId), tutorial.id);
+    assert.ok(tutorial.prerequisiteIds.every((id) => courseIds.has(id) && id !== tutorial.id), tutorial.id);
+    assert.ok(tutorial.primaryCategories.every((category) => categoryIds.has(category)), tutorial.id);
+  });
+});
+
+test('教程 Block 覆盖文字、步骤、例子、公式、图、代码和表格渲染类型', () => {
+  const types = new Set(tutorials.flatMap((tutorial) => tutorial.chapters).flatMap((chapter) => chapter.sections).flatMap((section) => section.blocks).map((block) => block.type));
+  for (const type of ['paragraph', 'steps', 'callout', 'formula', 'diagram', 'code', 'table']) assert.ok(types.has(type), type);
+});
+
+test('自动编排章节遵守分类边界与关键主题，不把数量达标当成教程完成', () => {
+  const cardById = new Map(questions.map((question) => [question.id, question]));
+  const cardsFor = (courseId, chapterTitle) => tutorialById(courseId).chapters
+    .find((chapter) => chapter.title === chapterTitle).questionIds.map((id) => cardById.get(id));
+
+  assert.ok(cardsFor('edge-inference-chip-delivery', '交付契约').some((card) => /交付|部署|框架/.test(card.title)));
+  assert.ok(cardsFor('llm-inference-scheduling', 'Continuous Batching').every((card) => card.category === 'Continuous Batching' || /Continuous Batching/.test(card.title)));
+  assert.ok(cardsFor('llm-inference-scheduling', 'PagedAttention').every((card) => card.category === 'PagedAttention'));
+  assert.ok(cardsFor('transformer-long-context', '长上下文外推与评测').every((card) => card.category === '长上下文与位置编码'));
+  assert.ok(cardsFor('rl-alignment-evaluation', '对齐、安全与能力回归').every((card) => card.category === '评测与对齐安全'));
+  assert.ok(cardsFor('algorithms-tree-graph-dp', '回溯').every((card) => card.category === '搜索/图'));
+  assert.ok(cardsFor('model-implementation', 'Norm 与 Dropout').some((card) => card.title === 'RMSNorm'));
 });
 
 test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', () => {
@@ -359,14 +431,26 @@ test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
   assert.match(appSource, /zeng-interview-mastered-ids/);
   assert.match(appSource, /byte-interview-mastered-ids/);
   assert.match(appSource, /◎ 简历项目/);
-  assert.match(appSource, /教程 · 项目答辩/);
-  assert.match(appSource, /教程 · ASR/);
-  assert.match(appSource, /教程 · TTS/);
-  assert.match(appSource, /教程 · 语音大模型/);
+  assert.match(appSource, /连续教程/);
+  assert.match(appSource, /renderCourseCatalog/);
+  assert.match(appSource, /courseTrack/);
+  assert.match(appSource, /courseStatus/);
+  assert.match(appSource, /catalog-track-progress/);
+  assert.match(appSource, /trackCompletedChapters/);
+  assert.match(appSource, /completedCourses/);
+  assert.match(appSource, /course\/.*chapter/);
   assert.match(appSource, /currentChapterByTutorial/);
   assert.match(appSource, /zeng-interview-tutorial-progress/);
   assert.match(appSource, /完成本章，进入下一章/);
   assert.doesNotMatch(mapSource, /岗位特性|【岗重】/);
+});
+
+test('自包含站点保留完整课程入口且体积低于 8 MiB', () => {
+  const indexSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(Buffer.byteLength(indexSource, 'utf8') < 8 * 1024 * 1024);
+  assert.match(indexSource, /▣ 连续教程 · \$\{tutorials\.length\}/);
+  assert.match(indexSource, /查看全部 \$\{tutorials\.length\} 门连续教程/);
+  assert.match(indexSource, /26 门连续教程，把 855 张题卡连成知识体系/);
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
