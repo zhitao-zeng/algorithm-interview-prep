@@ -545,15 +545,52 @@ export function parseSimpleFlowChain(value) {
   return labels;
 }
 
+// 在简单短链之外，识别带边说明的单行流程（如 A --pause--> B）。
+// 仍然只处理短、单行、无分支结构；复杂图继续使用原始 ASCII 蓝图，避免猜错拓扑。
+export function parseFlowDiagram(value) {
+  const source = String(value == null ? '' : value).trim();
+  if (!source || source.includes('\n') || source.length > 240 || /[;；{}]/.test(source)) return null;
+  const simpleNodes = parseSimpleFlowChain(source);
+  if (simpleNodes) return {
+    nodes: simpleNodes,
+    edges: simpleNodes.slice(1).map(() => ({ label: '' })),
+  };
+  if (/<->|<--|↔|\.\.\.|…|\s{3,}\S/.test(source)) return null;
+  const edgePattern = /--([^-<>\n]{1,32})-->|─+(\[[^\]\n]{1,32}\]|\([^\)\n]{1,32}\)|[\p{L}\p{N}_-]{1,24})─+[▶►>]|-->|->|→|⇒|==>|=>|─+[▶►>]/gu;
+  const nodes = [];
+  const edges = [];
+  let hasLabel = false;
+  let cursor = 0;
+
+  for (const match of source.matchAll(edgePattern)) {
+    const node = source.slice(cursor, match.index).trim();
+    if (!node || node.length > 48 || hasUnsafeTopLevelLabel(node)) return null;
+    nodes.push(node);
+    const edgeLabel = (match[1] || match[2] || '').trim();
+    if (edgeLabel) hasLabel = true;
+    edges.push({ label: edgeLabel });
+    cursor = match.index + match[0].length;
+  }
+  const last = source.slice(cursor).trim();
+  if (!last || last.length > 48 || hasUnsafeTopLevelLabel(last)) return null;
+  nodes.push(last);
+
+  if (!hasLabel || nodes.length < 2 || nodes.length > 8 || edges.length !== nodes.length - 1) return null;
+  if (edges.some((edge) => edge.label.length > 24 || /[`"']/u.test(edge.label))) return null;
+  return { nodes, edges };
+}
+
 export function diagramHtml(value) {
   const source = String(value == null ? '' : value);
-  const tokenPattern = /(-->|->|→|⇒|↔|==>|=>|─+[>▶►]|\[[^\]\n]{1,64}\]|[┌┐└┘├┤┬┴┼│─╭╮╰╯╱╲]+)/gu;
+  const tokenPattern = /(-->|->|→|⇒|↔|==>|=>|─+[>▶►]|\[[^\]\n]{1,64}\]|\([^()\n]{1,48}\)|[┌┐└┘├┤┬┴┼│─╭╮╰╯╱╲]+)/gu;
   let html = '';
   let cursor = 0;
   for (const match of source.matchAll(tokenPattern)) {
     html += escapeHtml(source.slice(cursor, match.index));
     const token = match[0];
-    const className = token.startsWith('[') ? 'diagram-node' : /(?:>|▶|►|→|⇒|↔)$/.test(token) ? 'arrow' : 'diagram-connector';
+    const className = token.startsWith('[') ? 'diagram-node'
+      : token.startsWith('(') ? 'diagram-caption'
+        : /(?:>|▶|►|→|⇒|↔)$/.test(token) ? 'arrow' : 'diagram-connector';
     html += `<span class="${className}">${escapeHtml(token)}</span>`;
     cursor = match.index + token.length;
   }

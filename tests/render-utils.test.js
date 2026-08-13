@@ -9,6 +9,7 @@ import {
   complexityView,
   diagramHtml,
   extractEquationClauses,
+  parseFlowDiagram,
   parseSimpleFlowChain,
   plainMathToLatex,
   splitMathText,
@@ -176,10 +177,27 @@ test('只把明确的一行短链识别为原生流程图', () => {
   for (const value of rejected) assert.equal(parseSimpleFlowChain(value), null, value);
 });
 
+test('带边说明的单行流程会保留节点与边标签，分支和多行图不会被误转', () => {
+  assert.deepEqual(parseFlowDiagram('Agent --pause--> Human --decision--> Agent'), {
+    nodes: ['Agent', 'Human', 'Agent'],
+    edges: [{ label: 'pause' }, { label: 'decision' }],
+  });
+  assert.deepEqual(parseFlowDiagram('视频 ─▶ 采样帧 ─▶ 逐帧编码 ─(时戳)─▶ 拼接'), {
+    nodes: ['视频', '采样帧', '逐帧编码', '拼接'],
+    edges: [{ label: '' }, { label: '' }, { label: '(时戳)' }],
+  });
+  assert.equal(parseFlowDiagram('Budget --guard--> stop; Cache --hit--> skip retrieve'), null);
+  assert.equal(parseFlowDiagram('A -> B\nB -> C'), null);
+});
+
 test('ASCII 图只高亮箭头，并在写入 HTML 前完整转义', () => {
   assert.equal(
     diagramHtml('A --> B <script>'),
     'A <span class="arrow">--&gt;</span> B &lt;script&gt;',
+  );
+  assert.equal(
+    diagramHtml('[输入] -> (循环)'),
+    '<span class="diagram-node">[输入]</span> <span class="arrow">-&gt;</span> <span class="diagram-caption">(循环)</span>',
   );
 });
 
@@ -198,6 +216,7 @@ test('题库源数据已恢复：没有脚本生成的 Mermaid，也没有数学
   assert.match(ddpm.workedExample.join('\n'), /\\bar\{\\alpha\}_\{500\}/);
   assert.ok(ddpm.derivation.flatMap(splitMathText).some((segment) => segment.type === 'math'));
   assert.ok(questions.filter((question) => parseSimpleFlowChain(question.diagram)).length >= 25, '明确短链应获得结构化视图');
+  assert.ok(questions.filter((question) => parseFlowDiagram(question.diagram)).length >= 30, '带边说明的短链也应获得结构化视图');
 });
 
 test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () => {
@@ -212,6 +231,8 @@ test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () 
   assert.match(appSource, /displayMode: true/);
   assert.match(appSource, /strict: 'error', trust: false/);
   assert.match(appSource, /className = 'flow-chain'/);
+  assert.match(appSource, /className = 'flow-step'/);
+  assert.match(appSource, /className = 'flow-edge-label'/);
   assert.match(appSource, /className = 'diagram-card'/);
   assert.match(appSource, /'全屏查看'/);
   assert.match(appSource, /sizeButton\('A−'/);
@@ -219,6 +240,8 @@ test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () 
   assert.match(appSource, /event\.key !== 'Tab'/);
   assert.doesNotMatch(appSource, /mermaid/i);
   assert.match(stylesSource, /\.diagram-block[^}]*white-space:\s*pre;/);
+  assert.match(stylesSource, /\.diagram-viewport[^}]*background-image:/);
+  assert.match(stylesSource, /\.flow-node\.is-start/);
   assert.match(stylesSource, /--diagram-font-size:\s*14px/);
   assert.match(stylesSource, /\.formula-list\s*\{[^}]*grid-template-columns:\s*1fr/);
   assert.match(stylesSource, /@media\s*\(max-width:\s*1040px\)/);

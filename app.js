@@ -1,7 +1,7 @@
 import { categories, questions } from './questions.js?v=efa6419d';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
-import { complexityView, diagramHtml, parseSimpleFlowChain, splitRichText } from './render-utils.js';
+import { complexityView, diagramHtml, parseFlowDiagram, splitRichText } from './render-utils.js';
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
@@ -173,14 +173,23 @@ function diagramSection(title, diagram) {
   if (!diagram) return document.createDocumentFragment();
   const block = document.createElement('section'); block.className = 'detail-section';
   const h = document.createElement('h3'); h.textContent = title;
-  const labels = parseSimpleFlowChain(diagram);
-  if (labels) {
+  const flowDiagram = parseFlowDiagram(diagram);
+  if (flowDiagram) {
     const flow = document.createElement('div'); flow.className = 'flow-chain'; flow.setAttribute('role', 'img');
     flow.dataset.source = String(diagram);
-    flow.setAttribute('aria-label', `${title}：${labels.join(' 到 ')}`);
-    labels.forEach((label, index) => {
-      if (index) { const arrow = document.createElement('span'); arrow.className = 'flow-arrow'; arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '→'; flow.append(arrow); }
-      const node = document.createElement('span'); node.className = 'flow-node'; node.textContent = label; flow.append(node);
+    flow.setAttribute('aria-label', `${title}：${flowDiagram.nodes.join(' 到 ')}`);
+    flowDiagram.nodes.forEach((label, index) => {
+      if (index) {
+        const connector = document.createElement('span'); connector.className = 'flow-connector'; connector.setAttribute('aria-hidden', 'true');
+        const edgeLabel = flowDiagram.edges[index - 1]?.label;
+        if (edgeLabel) { const badge = document.createElement('span'); badge.className = 'flow-edge-label'; badge.textContent = edgeLabel; connector.append(badge); }
+        const arrow = document.createElement('span'); arrow.className = 'flow-arrow'; arrow.textContent = '→'; connector.append(arrow); flow.append(connector);
+      }
+      const node = document.createElement('span');
+      node.className = `flow-node ${index === 0 ? 'is-start' : index === flowDiagram.nodes.length - 1 ? 'is-end' : ''}`.trim();
+      const step = document.createElement('span'); step.className = 'flow-step'; step.textContent = String(index + 1).padStart(2, '0');
+      const copy = document.createElement('span'); copy.className = 'flow-label'; copy.textContent = label;
+      node.append(step, copy); flow.append(node);
     });
     block.append(h, flow); return block;
   }
@@ -190,7 +199,7 @@ function diagramSection(title, diagram) {
   const card = document.createElement('div'); card.className = 'diagram-card';
   card.style.setProperty('--diagram-font-size', '14px');
   const toolbar = document.createElement('div'); toolbar.className = 'diagram-toolbar';
-  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `结构图 · ${lineCount} 行`;
+  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `STRUCTURE MAP · ${lineCount} 行`;
   const actions = document.createElement('div'); actions.className = 'diagram-actions';
   const viewport = document.createElement('div'); viewport.className = 'diagram-viewport';
   const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title);

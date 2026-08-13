@@ -117,23 +117,30 @@
 .complexity-copy { margin: 0; color: #425a70; line-height: 1.75; text-align: left; }
 .formula-section > .complexity-copy { margin-top: 7px; padding-top: 0; border-top: 0; }
 
-/* 复杂图使用浅色阅读画布；字号可调、可全屏，窄屏保留水平滚动。 */
-.diagram-card { --diagram-font-size: 14px; position: relative; margin-top: 8px; border: 1px solid #d5e0eb; border-radius: 11px; background: #f7f9fc; overflow: hidden; box-shadow: 0 2px 8px rgba(31, 60, 88, .05); }
-.diagram-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; padding: 7px 10px 7px 14px; border-bottom: 1px solid #dbe4ee; background: #eef3f8; }
-.diagram-meta { color: #526b82; font-size: 11px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+/* 复杂图使用深色蓝图画布；字号可调、可全屏，窄屏保留水平滚动。 */
+.diagram-card { --diagram-font-size: 14px; position: relative; margin-top: 9px; border: 1px solid #203b53; border-radius: 14px; background: #0d1b2a; overflow: hidden; box-shadow: 0 12px 28px rgba(12, 29, 46, .16), 0 2px 6px rgba(12, 29, 46, .12); }
+.diagram-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 46px; padding: 8px 10px 8px 15px; border-bottom: 1px solid rgba(151, 184, 211, .16); background: linear-gradient(180deg, #183149, #12283c); }
+.diagram-meta { display: inline-flex; align-items: center; gap: 8px; color: #9ebbd3; font-size: 10px; font-weight: 850; letter-spacing: .11em; white-space: nowrap; }
+.diagram-meta::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #68e0b7; box-shadow: 0 0 0 4px rgba(104, 224, 183, .12), 0 0 14px rgba(104, 224, 183, .65); }
 .diagram-actions { display: flex; align-items: center; gap: 4px; }
-.diagram-tool { border: 1px solid #c6d3e0; border-radius: 6px; background: #fff; color: #294a68; min-height: 29px; padding: 4px 8px; font: 750 11px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif; cursor: pointer; }
-.diagram-tool:hover { border-color: var(--blue); color: var(--blue); background: #f7fbff; }
+.diagram-tool { border: 1px solid rgba(158, 187, 211, .26); border-radius: 7px; background: rgba(255, 255, 255, .06); color: #d8e7f3; min-height: 29px; padding: 4px 8px; font: 750 11px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif; cursor: pointer; transition: .15s ease; }
+.diagram-tool:hover { border-color: #68e0b7; color: #8af0cc; background: rgba(104, 224, 183, .09); transform: translateY(-1px); }
 .diagram-tool:focus-visible { outline: 3px solid #8db9f5; outline-offset: 1px; }
-.diagram-size { min-width: 34px; color: #6b7d8d; text-align: center; font: 700 10px/1 ui-monospace, monospace; }
+.diagram-size { min-width: 34px; color: #8eaabe; text-align: center; font: 700 10px/1 ui-monospace, monospace; }
 .diagram-close { display: none; }
-.diagram-viewport { overflow: auto; overscroll-behavior: contain; }
-.diagram-block { display: table; min-width: 100%; margin: 0; padding: 20px; border: 0; background: transparent; color: #20364d; font: 600 var(--diagram-font-size)/1.7 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; font-variant-ligatures: none; white-space: pre; overflow: visible; }
-.diagram-block .arrow { color: #b6531d; font-weight: 900; }
-.diagram-block .diagram-connector { color: #6d8296; font-weight: 750; }
-.diagram-block .diagram-node { color: #174f86; font-weight: 850; }
-.diagram-scroll-hint { display: none; position: absolute; right: 9px; bottom: 7px; padding: 3px 7px; border-radius: 999px; background: rgba(20, 43, 69, .86); color: #fff; font-size: 10px; pointer-events: none; }
-.diagram-card.is-expanded { position: fixed; z-index: 1000; inset: 0; display: flex; flex-direction: column; width: 100dvw; height: 100dvh; margin: 0; border: 0; border-radius: 0; background: #f7f9fc; }
+.diagram-viewport { overflow: auto; overscroll-behavior: contain; background-color: #0d1b2a; background-image: linear-gradient(rgba(110, 157, 193, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(110, 157, 193, .055) 1px, transparent 1px), radial-gradient(circle at 15% 0%, rgba(36, 111, 163, .16), transparent 42%); background-size: 24px 24px, 24px 24px, 100% 100%; scrollbar-color: #426580 #102234; }
+.diagram-viewport::-webkit-scrollbar, .flow-chain::-webkit-scrollbar { width: 6px; height: 6px; }
+.diagram-viewport::-webkit-scrollbar-track { background: #102234; }
+.diagram-viewport::-webkit-scrollbar-thumb { border-radius: 999px; background: #426580; }
+.flow-chain::-webkit-scrollbar-track { background: #eaf2f9; }
+.flow-chain::-webkit-scrollbar-thumb { border-radius: 999px; background: #a9bed2; }
+.diagram-block { display: table; min-width: 100%; margin: 0; padding: 24px; border: 0; background: transparent; color: #dbe8f3; font: 620 var(--diagram-font-size)/1.75 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; font-variant-ligatures: none; white-space: pre; overflow: visible; text-shadow: 0 1px 0 rgba(0, 0, 0, .35); }
+.diagram-block .arrow { color: #ff9b65; font-weight: 900; text-shadow: 0 0 12px rgba(255, 155, 101, .35); }
+.diagram-block .diagram-connector { color: #6f94af; font-weight: 750; }
+.diagram-block .diagram-node { color: #72e2bd; font-weight: 850; text-shadow: 0 0 12px rgba(114, 226, 189, .25); }
+.diagram-block .diagram-caption { color: #a9b9ff; font-weight: 750; }
+.diagram-scroll-hint { display: none; position: absolute; right: 10px; bottom: 8px; padding: 4px 8px; border: 1px solid rgba(104, 224, 183, .28); border-radius: 999px; background: rgba(12, 35, 51, .9); color: #8af0cc; font-size: 10px; pointer-events: none; box-shadow: 0 5px 18px rgba(0, 0, 0, .24); }
+.diagram-card.is-expanded { position: fixed; z-index: 1000; inset: 0; display: flex; flex-direction: column; width: 100dvw; height: 100dvh; margin: 0; border: 0; border-radius: 0; background: #0d1b2a; }
 .diagram-card.is-expanded .diagram-toolbar { flex: 0 0 auto; padding: 10px 18px; }
 .diagram-card.is-expanded .diagram-viewport { flex: 1 1 auto; display: grid; align-items: center; }
 .diagram-card.is-expanded .diagram-block { min-width: max-content; min-height: 100%; padding: 32px; }
@@ -142,10 +149,18 @@
 .diagram-card.is-expanded .diagram-scroll-hint { display: none; }
 body.diagram-open { overflow: hidden; }
 
-/* 明确的一行短链用原生节点显示，不依赖 Mermaid 或网络资源。 */
-.flow-chain { display: flex; align-items: center; justify-content: safe center; gap: 9px; flex-wrap: nowrap; margin-top: 8px; padding: 20px 16px; border: 1px solid #d2e0ef; border-radius: 11px; background: linear-gradient(180deg,#fbfdff,#f3f8fd); overflow-x: auto; }
-.flow-node { flex: 0 0 auto; padding: 9px 13px; border: 1px solid #9ebfe2; border-radius: 8px; background: #fff; color: #234b75; font-size: 14px; font-weight: 800; box-shadow: 0 3px 8px rgba(42, 91, 141, .09); }
-.flow-arrow { color: #bd5e27; font-size: 21px; font-weight: 900; line-height: 1; }
+/* 明确的一行短链用原生步骤节点显示，不依赖 Mermaid 或网络资源。 */
+.flow-chain { display: flex; align-items: stretch; justify-content: safe center; gap: 7px; flex-wrap: nowrap; margin-top: 9px; padding: 20px; border: 1px solid #c7daed; border-radius: 14px; background-color: #f7fbff; background-image: linear-gradient(rgba(74, 132, 184, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(74, 132, 184, .055) 1px, transparent 1px), radial-gradient(circle at 0 0, rgba(38, 116, 181, .12), transparent 42%); background-size: 22px 22px, 22px 22px, 100% 100%; overflow-x: auto; scrollbar-color: #a9bed2 #eaf2f9; box-shadow: inset 0 1px 0 #fff, 0 7px 20px rgba(32, 81, 126, .08); scroll-snap-type: x proximity; }
+.flow-node { flex: 0 0 auto; display: grid; grid-template-columns: 27px auto; align-items: center; gap: 8px; min-height: 52px; max-width: 172px; padding: 9px 12px 9px 9px; border: 1px solid #afc8df; border-top: 3px solid #4388c5; border-radius: 10px; background: rgba(255, 255, 255, .94); color: #234b75; font-size: 13px; font-weight: 800; box-shadow: 0 5px 14px rgba(42, 91, 141, .10); scroll-snap-align: center; }
+.flow-step { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px; background: #e7f1fb; color: #3979b2; font: 800 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.flow-label { line-height: 1.35; }
+.flow-node.is-start { border-color: #1d4466; border-top-color: #68e0b7; background: linear-gradient(145deg, #173b5a, #102d47); color: #fff; }
+.flow-node.is-start .flow-step { background: rgba(104, 224, 183, .15); color: #8af0cc; }
+.flow-node.is-end { border-color: #9fcfbe; border-top-color: #2ba87d; background: linear-gradient(145deg, #f5fffb, #e8f8f1); color: #21624d; }
+.flow-node.is-end .flow-step { background: #d8f1e7; color: #24775d; }
+.flow-connector { flex: 0 0 auto; align-self: center; display: grid; justify-items: center; gap: 2px; min-width: 28px; }
+.flow-edge-label { max-width: 92px; padding: 2px 6px; border: 1px solid #cbdcf0; border-radius: 999px; background: #fff; color: #607c96; font-size: 9px; font-weight: 800; line-height: 1.35; white-space: nowrap; }
+.flow-arrow { color: #cf6530; font-size: 20px; font-weight: 900; line-height: 1; filter: drop-shadow(0 2px 3px rgba(207, 101, 48, .16)); }
 
 @media (max-width: 1040px) {
   .app-shell { display: flex; flex-direction: column; }
@@ -173,6 +188,9 @@ body.diagram-open { overflow: hidden; }
   .diagram-block { padding: 18px 13px 30px; }
   .diagram-card.is-overflowing .diagram-scroll-hint { display: block; }
   .diagram-card.is-expanded .diagram-toolbar { padding: max(10px, env(safe-area-inset-top)) 10px 10px; }
+  .flow-chain { justify-content: flex-start; padding: 16px 14px 19px; }
+  .flow-node { min-height: 48px; max-width: 150px; padding: 8px 10px 8px 8px; font-size: 12px; }
+  .flow-edge-label { max-width: 72px; overflow: hidden; text-overflow: ellipsis; }
 }
 
 </style>
@@ -53889,15 +53907,52 @@ function parseSimpleFlowChain(value) {
   return labels;
 }
 
+// 在简单短链之外，识别带边说明的单行流程（如 A --pause--> B）。
+// 仍然只处理短、单行、无分支结构；复杂图继续使用原始 ASCII 蓝图，避免猜错拓扑。
+function parseFlowDiagram(value) {
+  const source = String(value == null ? '' : value).trim();
+  if (!source || source.includes('\n') || source.length > 240 || /[;；{}]/.test(source)) return null;
+  const simpleNodes = parseSimpleFlowChain(source);
+  if (simpleNodes) return {
+    nodes: simpleNodes,
+    edges: simpleNodes.slice(1).map(() => ({ label: '' })),
+  };
+  if (/<->|<--|↔|\.\.\.|…|\s{3,}\S/.test(source)) return null;
+  const edgePattern = /--([^-<>\n]{1,32})-->|─+(\[[^\]\n]{1,32}\]|\([^\)\n]{1,32}\)|[\p{L}\p{N}_-]{1,24})─+[▶►>]|-->|->|→|⇒|==>|=>|─+[▶►>]/gu;
+  const nodes = [];
+  const edges = [];
+  let hasLabel = false;
+  let cursor = 0;
+
+  for (const match of source.matchAll(edgePattern)) {
+    const node = source.slice(cursor, match.index).trim();
+    if (!node || node.length > 48 || hasUnsafeTopLevelLabel(node)) return null;
+    nodes.push(node);
+    const edgeLabel = (match[1] || match[2] || '').trim();
+    if (edgeLabel) hasLabel = true;
+    edges.push({ label: edgeLabel });
+    cursor = match.index + match[0].length;
+  }
+  const last = source.slice(cursor).trim();
+  if (!last || last.length > 48 || hasUnsafeTopLevelLabel(last)) return null;
+  nodes.push(last);
+
+  if (!hasLabel || nodes.length < 2 || nodes.length > 8 || edges.length !== nodes.length - 1) return null;
+  if (edges.some((edge) => edge.label.length > 24 || /[`"']/u.test(edge.label))) return null;
+  return { nodes, edges };
+}
+
 function diagramHtml(value) {
   const source = String(value == null ? '' : value);
-  const tokenPattern = /(-->|->|→|⇒|↔|==>|=>|─+[>▶►]|\[[^\]\n]{1,64}\]|[┌┐└┘├┤┬┴┼│─╭╮╰╯╱╲]+)/gu;
+  const tokenPattern = /(-->|->|→|⇒|↔|==>|=>|─+[>▶►]|\[[^\]\n]{1,64}\]|\([^()\n]{1,48}\)|[┌┐└┘├┤┬┴┼│─╭╮╰╯╱╲]+)/gu;
   let html = '';
   let cursor = 0;
   for (const match of source.matchAll(tokenPattern)) {
     html += escapeHtml(source.slice(cursor, match.index));
     const token = match[0];
-    const className = token.startsWith('[') ? 'diagram-node' : /(?:>|▶|►|→|⇒|↔)$/.test(token) ? 'arrow' : 'diagram-connector';
+    const className = token.startsWith('[') ? 'diagram-node'
+      : token.startsWith('(') ? 'diagram-caption'
+        : /(?:>|▶|►|→|⇒|↔)$/.test(token) ? 'arrow' : 'diagram-connector';
     html += `<span class="${className}">${escapeHtml(token)}</span>`;
     cursor = match.index + token.length;
   }
@@ -54079,14 +54134,23 @@ function diagramSection(title, diagram) {
   if (!diagram) return document.createDocumentFragment();
   const block = document.createElement('section'); block.className = 'detail-section';
   const h = document.createElement('h3'); h.textContent = title;
-  const labels = parseSimpleFlowChain(diagram);
-  if (labels) {
+  const flowDiagram = parseFlowDiagram(diagram);
+  if (flowDiagram) {
     const flow = document.createElement('div'); flow.className = 'flow-chain'; flow.setAttribute('role', 'img');
     flow.dataset.source = String(diagram);
-    flow.setAttribute('aria-label', `${title}：${labels.join(' 到 ')}`);
-    labels.forEach((label, index) => {
-      if (index) { const arrow = document.createElement('span'); arrow.className = 'flow-arrow'; arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '→'; flow.append(arrow); }
-      const node = document.createElement('span'); node.className = 'flow-node'; node.textContent = label; flow.append(node);
+    flow.setAttribute('aria-label', `${title}：${flowDiagram.nodes.join(' 到 ')}`);
+    flowDiagram.nodes.forEach((label, index) => {
+      if (index) {
+        const connector = document.createElement('span'); connector.className = 'flow-connector'; connector.setAttribute('aria-hidden', 'true');
+        const edgeLabel = flowDiagram.edges[index - 1]?.label;
+        if (edgeLabel) { const badge = document.createElement('span'); badge.className = 'flow-edge-label'; badge.textContent = edgeLabel; connector.append(badge); }
+        const arrow = document.createElement('span'); arrow.className = 'flow-arrow'; arrow.textContent = '→'; connector.append(arrow); flow.append(connector);
+      }
+      const node = document.createElement('span');
+      node.className = `flow-node ${index === 0 ? 'is-start' : index === flowDiagram.nodes.length - 1 ? 'is-end' : ''}`.trim();
+      const step = document.createElement('span'); step.className = 'flow-step'; step.textContent = String(index + 1).padStart(2, '0');
+      const copy = document.createElement('span'); copy.className = 'flow-label'; copy.textContent = label;
+      node.append(step, copy); flow.append(node);
     });
     block.append(h, flow); return block;
   }
@@ -54096,7 +54160,7 @@ function diagramSection(title, diagram) {
   const card = document.createElement('div'); card.className = 'diagram-card';
   card.style.setProperty('--diagram-font-size', '14px');
   const toolbar = document.createElement('div'); toolbar.className = 'diagram-toolbar';
-  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `结构图 · ${lineCount} 行`;
+  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `STRUCTURE MAP · ${lineCount} 行`;
   const actions = document.createElement('div'); actions.className = 'diagram-actions';
   const viewport = document.createElement('div'); viewport.className = 'diagram-viewport';
   const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title);
