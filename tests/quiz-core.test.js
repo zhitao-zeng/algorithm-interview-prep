@@ -98,7 +98,7 @@ test('直播变现与增长模块覆盖两份 JD 的业务、算法与工程闭�
 
 test('项目答辩与 Tech Lead 教程形成连续章节并关联全部真实项目卡', () => {
   const tutorial = tutorialById('project-defense-tech-lead');
-  assert.equal(tutorials.length, 2);
+  assert.equal(tutorials.length, 3);
   assert.equal(tutorial.chapters.length, 8);
   assert.equal(new Set(tutorial.chapters.map((chapter) => chapter.id)).size, 8);
   assert.deepEqual(tutorial.chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -141,6 +141,30 @@ test('ASR 教程按依赖形成连续主线并覆盖全部 34 张专项卡', () 
   assert.match(tutorial.chapters.map((chapter) => chapter.title).join('\n'), /CTC.*RNN-T.*流式.*数据.*评测/s);
   assert.match(tutorial.chapters[6].sections.map((section) => JSON.stringify(section)).join('\n'), /伪标签.*不是.*真值|伪标签.*候选/s);
   assert.ok(tutorial.capstone.checklist.length >= 7);
+});
+
+test('TTS 教程沿生成链路覆盖全部 28 张语音合成卡', () => {
+  const tutorial = tutorialById('tts-from-text-to-streaming-speech');
+  assert.ok(tutorial);
+  assert.equal(tutorial.chapters.length, 8);
+  assert.equal(new Set(tutorial.chapters.map((chapter) => chapter.id)).size, 8);
+  assert.deepEqual(tutorial.chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5, 6, 7, 8]);
+  for (const chapter of tutorial.chapters) {
+    assert.ok(chapter.goal.length >= 20, chapter.id);
+    assert.ok(chapter.bridge.length >= 20, chapter.id);
+    assert.ok(chapter.sections.length >= 4, chapter.id);
+    assert.ok(chapter.sections.some((section) => section.callout), `${chapter.id} 应包含具体例子`);
+    assert.ok(chapter.exercise.checks.length >= 3, chapter.id);
+    assert.ok(chapter.questionIds.length >= 2, chapter.id);
+    assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), chapter.id);
+  }
+  const relatedIds = new Set(tutorial.chapters.flatMap((chapter) => chapter.questionIds));
+  const ttsIds = questions.filter((question) => question.category === '语音合成').map((question) => question.id);
+  assert.equal(ttsIds.length, 28);
+  assert.ok(ttsIds.every((id) => relatedIds.has(id)), '教程应把 28 张 TTS 语音合成卡全部编入相关章节');
+  assert.match(tutorial.chapters.map((chapter) => chapter.title).join('\n'), /文本前端.*对齐.*声学模型.*声码器.*流式.*评测/s);
+  assert.match(tutorial.chapters[5].sections.map((section) => JSON.stringify(section)).join('\n'), /简历明确支持.*中英混读.*三种方言/s);
+  assert.ok(tutorial.capstone.checklist.length >= 8);
 });
 
 test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', () => {
@@ -313,6 +337,7 @@ test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
   assert.match(appSource, /◎ 简历项目/);
   assert.match(appSource, /教程 · 项目答辩/);
   assert.match(appSource, /教程 · ASR/);
+  assert.match(appSource, /教程 · TTS/);
   assert.match(appSource, /currentChapterByTutorial/);
   assert.match(appSource, /zeng-interview-tutorial-progress/);
   assert.match(appSource, /完成本章，进入下一章/);

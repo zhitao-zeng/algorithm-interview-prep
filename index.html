@@ -162,6 +162,9 @@
 .nav-course-asr { color: #28567d; background: #eef6fc; border-color: #c7dff2; }
 .nav-course-asr:hover { color: #17496f; background: #e3f1fb; border-color: #79add1; }
 .nav-course-asr.active { color: #fff; background: #2873a8; border-color: #2873a8; }
+.nav-course-tts { color: #774b78; background: #faf1fa; border-color: #e7cee7; }
+.nav-course-tts:hover { color: #653966; background: #f5e7f5; border-color: #c995c9; }
+.nav-course-tts.active { color: #fff; background: #8b548b; border-color: #8b548b; }
 .course-mode .question-pane { grid-column: 2 / 4; border-right: 0; padding-inline: clamp(22px, 4vw, 58px); }
 .course-mode .detail-pane { display: none; }
 .course-view { max-width: 1180px; margin: 0 auto; padding: 2px 0 54px; }
@@ -184,6 +187,14 @@
 .course-asr-mode .course-goal { color: #285a7b; background: #edf7fd; }
 .course-asr-mode .course-steps li { color: #304f66; border-left-color: #438ebd; background: #f1f7fb; }
 .course-asr-mode .course-steps li::before { background: #2879b4; }
+.course-tts-mode .course-hero { background: radial-gradient(circle at 88% 10%, rgba(237, 153, 225, .21), transparent 31%), linear-gradient(145deg, #513456, #30223f 74%); }
+.course-tts-mode .course-eyebrow, .course-tts-mode .course-meta strong { color: #f0aee7; }
+.course-tts-mode .course-progress i { background: linear-gradient(90deg, #8f568e, #d18ac7); }
+.course-tts-mode .course-chapter-link.active { color: #6a3f6a; border-color: #dec4de; background: #faf2fa; }
+.course-tts-mode .course-chapter-link.active > span:first-child { background: #8f568e; }
+.course-tts-mode .course-goal { color: #674766; background: #faf2fa; }
+.course-tts-mode .course-steps li { color: #5f485f; border-left-color: #a96fa6; background: #faf5fa; }
+.course-tts-mode .course-steps li::before { background: #8f568e; }
 .course-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 22px; align-items: start; }
 .course-rail { position: sticky; top: 82px; display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 6px 20px rgba(20, 43, 69, .055); }
 .course-rail > strong { padding: 5px 7px 9px; color: var(--navy); font-size: 13px; }
@@ -242,6 +253,12 @@
 .featured-course.is-asr > div:last-child strong { color: #2873a8; }
 .featured-course.is-asr > div:last-child span { color: #61798a; }
 .featured-course.is-asr button { background: #2873a8; }
+.featured-course.is-tts { border-color: #dec2dc; background: radial-gradient(circle at 90% 0, rgba(190, 111, 181, .16), transparent 31%), linear-gradient(145deg, #fff9ff, #faf1fa); box-shadow: 0 8px 24px rgba(133, 75, 132, .08); }
+.featured-course.is-tts span { color: #8c5689; }
+.featured-course.is-tts p { color: #756075; }
+.featured-course.is-tts > div:last-child strong { color: #8b548b; }
+.featured-course.is-tts > div:last-child span { color: #816c80; }
+.featured-course.is-tts button { background: #8b548b; }
 
 @media (max-width: 900px) {
   .course-hero { grid-template-columns: 1fr; }
@@ -59114,6 +59131,125 @@ const tutorials = [
         questionIds: ['asr-eval-metrics', 'asr-resume-paired-bootstrap', 'asr-resume-backbone-audit', 'asr-architecture-compare']
       }
     ]
+  },
+  {
+    id: 'tts-from-text-to-streaming-speech',
+    title: 'TTS：从文字到可交付语音',
+    eyebrow: 'COURSE 03 · TEXT TO EXPRESSIVE SPEECH',
+    summary: '沿一条完整合成链路学习 TTS：文本规范化 → G2P 与韵律 → 对齐和时长 → 声学模型 → 声码器 → 多语种与音色 → 流式部署 → 听测放行。',
+    outcome: '完成后，你应能解释一句文字如何变成波形，比较 Tacotron、FastSpeech、VITS、MeloTTS 与 Matcha-TTS，并设计支持中英混读、方言音色和端侧流式的可评测系统。',
+    audience: '适合语音合成算法面、生成模型原理面、端侧部署面，以及围绕个人中文、英文、中英混读与方言 TTS 项目的深挖答辩。',
+    capstone: {
+      title: '结课设计：交付一套中英混读、三种方言音色的流式 TTS',
+      prompt: '为端侧语音助手设计一套 TTS：输入包含数字、日期、多音字和中英混读，要求三种方言音色、可取消、低首包延迟。请用 10 分钟讲清前端仲裁、音素与韵律表示、声学模型和声码器选型、流式状态、设备验收、主客观评测和回退方案。涉及个人经历时，只把标为“简历明确经历”的内容说成做过。',
+      checklist: ['能追踪一句文本从原文到波形的全部中间表示', '能区分读音错误、时长对齐错误与声码器伪影', '架构选型同时考虑自然度、稳定性、首包与端侧成本', '中英混读说明语言跨度、音素冲突和数据分布', '小数据音色微调防止学到信道与文本偏差', '流式接口包含 backpressure、cancel 和资源释放', 'MOS/CMOS/ABX 与自动门禁各司其职', '真实项目事实和课程补充方案边界清楚']
+    },
+    chapters: [
+      {
+        id: 'tts-contract', number: 1, title: '先看全链路：一句文字怎样变成波形', duration: '45 分钟',
+        goal: '建立文本、音素、韵律、时长、Mel 频谱和波形的共同坐标系，知道每个模块负责什么、错误会听成什么。',
+        bridge: '如果不知道错误产生在哪一层，后面无论换模型还是调损失，都容易把前端读错、声学对齐和声码器伪影混在一起。',
+        sections: [
+          { title: '经典两阶段链路', steps: ['文本前端把原文规范成可读文本，再生成音素、声调、语言和韵律边界。', '声学模型把离散符号与控制条件展开成带时间轴的 Mel 频谱或其他声学表示。', '声码器把 Mel 等条件转换为波形；播放层再处理分块、缓冲、取消和设备采样率。'] },
+          { title: '中间表示是一份调试接口', paragraphs: ['“声音不好”太笼统。先听或检查规范化文本，再看音素与多音字，再看时长/对齐和 Mel，最后单独检查声码器。每一层都保存版本化中间产物，才能做最小归因。', '端到端模型可能把多个模块联合训练，但概念上的职责仍然存在：它依然要决定读什么、读多久、以什么音高能量说，并生成可播放波形。'] },
+          { title: '贯穿例子：2026 年 8 月 13 日读什么', callout: '原文“会议定在 2026/8/13 10:30，地点 Bank A”先被 TN 展开为日期和时间；G2P 决定中文数字读法及 Bank 的英语音素；韵律模块决定停顿；时长模块把音素展开到帧；声码器才负责把 Mel 变成声音。若把日期读成逐位数字，换 HiFi-GAN 不会修好。' },
+          { title: '先写产品契约', paragraphs: ['输入是否允许 SSML、emoji、缩写和混合语言，输出采样率、响度、首包、实时率、最大文本长度和取消语义，都应在选模型前确定。否则模型“效果好”没有共同标准。'] }
+        ],
+        exercise: { title: '练习：画一条可观测 TTS 链路', prompt: '选一句含日期、多音字和英文的文本，写出原文、TN 结果、音素、韵律边界、预测时长、Mel 和波形七层产物，并为每层列一个典型故障。', checks: ['每个错误是否能归到明确模块', '是否保留原始文本和中间产物', '质量、延迟与接口契约是否同时定义'] },
+        questionIds: ['tts-matcha-melo', 'tts-frontend-prosody', 'tts-vocoder']
+      },
+      {
+        id: 'frontend-g2p', number: 2, title: '文本前端：TN、G2P、多音字与韵律怎样仲裁', duration: '65 分钟',
+        goal: '从规则、词典、上下文模型和置信回退构建可解释前端，并能处理中文长尾读音与中英混合边界。',
+        bridge: '全链路中最早发生的离散错误会一路放大；声学模型通常无法把错误音素自动纠正成正确读音。',
+        sections: [
+          { title: 'TN 不是简单替换', paragraphs: ['数字可能是日期、金额、电话、编号或小数，同一串字符读法不同。稳健 TN 通常用高精度规则覆盖确定场景，用分类或序列模型处理歧义，再为未知格式保留安全回退。', '规则负责可解释与强约束，模型负责上下文泛化。冲突时应记录命中的规则、模型版本和最终仲裁结果，便于回放。'] },
+          { title: 'G2P 的三层仲裁', steps: ['词典优先处理已确认专名和固定词组。', '上下文模型判断多音字与未登录词，并输出读音及置信信息。', '低置信、规则冲突或高风险词组进入回退、白名单或人工修订；不能把模型 top-1 永远当真。'] },
+          { title: '具体例子：“银行行长走了一行字”', callout: '四个“行”分别依赖词组和句法上下文：银行 háng、行长 háng、走 xíng、一行 háng。逐字词典无法解决；只看单个邻字也可能失败。调试时先看分词与上下文窗口，再看 G2P 输出，最后才听合成音频。' },
+          { title: '韵律标签解决“哪里停、哪里重”', paragraphs: ['音素正确不代表自然。词边界、短语边界、句调、重音和语速会改变时长与 F0。个人项目中把读音/韵律标签从 8 类扩到 18 类属于真实经历；新增标签的价值必须通过切片和听测证明，而不是类别更多就一定更好。'] }
+        ],
+        exercise: { title: '练习：建立 20 句前端挑战集', prompt: '覆盖日期、金额、电话、单位、多音字、英文缩写和中英边界；逐句写期望 TN、音素和韵律，并给低置信样本规定回退行为。', checks: ['规则与模型的优先级是否明确', '挑战集是否包含真实长尾而非随机句', '新增标签是否有独立收益证据'] },
+        questionIds: ['tts-g2p', 'tts-frontend-prosody', 'tts-patent', 'tts-resume-text-normalization', 'tts-resume-g2pw-calibration', 'tts-resume-tone-prosody']
+      },
+      {
+        id: 'alignment-duration', number: 3, title: '对齐与时长：模型怎样知道每个音素说多久', duration: '60 分钟',
+        goal: '理解注意力对齐、显式 duration、length regulator 与 variance adaptor，能从对齐图定位漏字、重复和节奏异常。',
+        bridge: '前端确定了“读什么”，声学模型还必须把 U 个音素展开成 T 帧声学序列；这是 TTS 最核心的长度不匹配问题。',
+        sections: [
+          { title: 'Tacotron 的隐式注意力', paragraphs: ['自回归 decoder 逐帧生成 Mel，并用 attention 决定当前读到哪个输入 token。它能学习灵活对齐，却可能在长句、重复文本或域外输入上跳步、回退，表现为漏字、重复或停不下来。', '对齐矩阵理想上接近单调对角线；出现竖直停滞、水平跳跃或多头混乱时，应先查 attention，而不是只调声码器。'] },
+          { title: 'FastSpeech 的显式展开', steps: ['Duration predictor 为每个音素预测帧数。', 'Length regulator 按时长重复音素表示，把 U 个 token 展开为约 T 帧。', 'Variance adaptor 注入 F0、energy、duration 等变化，使非自回归并行生成仍有韵律控制。'] },
+          { title: '手算例子：三个音素怎样变成六帧', callout: '音素 /n i h/ 的预测时长为 [2, 1, 3]，length regulator 输出 [n,n,i,h,h,h] 共 6 帧。若四舍五入后得到 [1,0,3]，/i/ 会消失；因此训练目标、最小时长约束和总长度修正都会直接影响可懂度。' },
+          { title: '时长、音高和能量要分别看', paragraphs: ['语速过快可能是 duration 偏短；机器人腔可能是 F0/energy 方差不足；局部拖音也可能来自错误韵律边界。把它们压成一个“自然度 loss”会失去定位能力。'] }
+        ],
+        exercise: { title: '练习：手推 Length Regulator', prompt: '给 5 个音素设置浮点时长，完成取整、最小时长保护和总帧数校正；再画一个含漏字和重复的注意力对齐图并说明诊断。', checks: ['展开后的总帧数是否可核对', '是否能从对齐图区分跳步与停滞', '是否分别检查 duration、F0 和 energy'] },
+        questionIds: ['tts-tacotron', 'tts-fastspeech', 'tts-phoneme-prosody']
+      },
+      {
+        id: 'acoustic-models', number: 4, title: '声学模型：VITS、MeloTTS 与 Matcha-TTS 怎么选', duration: '70 分钟',
+        goal: '拆开训练路径和推理路径，理解 VAE/GAN/flow、条件 Flow Matching 与不同模型族的工程取舍。',
+        bridge: '理解显式和隐式对齐后，才能看懂现代模型把时长、潜变量、生成路径和声码器怎样重新组合。',
+        sections: [
+          { title: 'VITS 训练和推理不是同一条路', paragraphs: ['训练时 posterior encoder 从真实音频获得潜变量，normalizing flow 对齐先验与后验，并用 duration、重建、KL、对抗和 feature matching 等目标联合优化；推理时没有真实音频，只能从文本先验采样，再经 flow 逆变换和 decoder 生成波形。', '如果面试只背一串 loss，却解释不了真实音频为何只在训练出现，就没有理解 VITS 的生成闭环。MeloTTS 可以使用 VITS 系路线，但它还包含多语种前端、说话人和工程配置，不能和 Matcha 画成同一个模型。'] },
+          { title: 'Matcha-TTS 的条件 Flow Matching', paragraphs: ['Matcha 学习一个随时间变化的速度场，把简单基分布沿 ODE 轨迹运到目标 Mel 分布；训练可在随机时间点回归目标向量场，推理用若干 ODE 步积分。', '步数更少通常更快，但离散误差可能增大。它输出的是 Mel，仍需独立声码器；这与 VITS 联合生成波形的系统边界不同。'] },
+          { title: '直觉例子：生成路径像怎样导航', callout: '把噪声看作城市 A、真实 Mel 看作城市 B。扩散常学习每一步怎样去噪；Flow Matching 直接学习任意时刻该往哪个方向走。推理用 4 步还是 16 步，就像用更粗或更细的路标积分：速度和质量需要实测，不能只说“flow 更快”。' },
+          { title: '稳定性要按层归因', paragraphs: ['训练 loss NaN 先查数值、数据和优化器；对齐崩坏查时长/attention/MAS；推理爆音查声学条件范围和声码器；只在长句失败则查位置、长度分布和内存。一次同时改学习率、数据和解码无法形成结论。'] }
+        ],
+        exercise: { title: '练习：画两张训练/推理图', prompt: '分别画 VITS 与 Matcha 的训练和推理数据流，标出真实音频只在哪条路径出现；再为端侧低延迟和离线高自然度各做一次选型。', checks: ['是否区分 posterior 与 prior', '是否说明 Matcha 后面仍需声码器', '稳定性问题是否按训练、对齐和推理分层'] },
+        questionIds: ['tts-vits', 'tts-matcha-melo', 'tts-resume-vits-melo-loss', 'tts-resume-matcha-cfm', 'tts-stability']
+      },
+      {
+        id: 'vocoder', number: 5, title: '声码器：Mel 正确，为什么波形仍会有伪影', duration: '55 分钟',
+        goal: '理解 HiFi-GAN 生成器、MPD/MSD 与 feature matching，并建立条件一致性、频谱和听感相结合的声码器验收。',
+        bridge: '声学模型生成的是声学条件，不是最终声音；最后一步可以让清楚的 Mel 变得自然，也可以引入金属感、嗡声和断裂。',
+        sections: [
+          { title: 'HiFi-GAN 三类角色', steps: ['Generator 用转置卷积和多感受野残差块把低时间分辨率 Mel 上采样为波形。', 'MPD 按多个周期重排波形，敏感于基频、谐波与周期结构。', 'MSD 在多个时间尺度看原始和下采样波形，约束整体频谱与局部细节；feature matching 稳定生成器训练。'] },
+          { title: '声码器最怕条件分布错位', paragraphs: ['用真实 Mel 训练、用预测 Mel 推理时，声学模型的平滑、范围和归一化偏差会造成 train-test mismatch。单独在 ground-truth Mel 上听起来很好，不能证明整链路可用。', '采样率、hop length、n_fft、Mel 上下限和 log/归一化必须逐项匹配；任何一个不一致都可能造成严重伪影。'] },
+          { title: '倍率例子：上采样必须对齐 hop length', callout: '若 Mel 每帧对应 256 个波形采样点，生成器各层上采样倍率 [8,8,2,2] 的乘积正好是 256。若错误导出成 [8,8,2]，每帧只生成 128 点，时长和音高都会异常；这不是“模型泛化差”。' },
+          { title: '怎样定位伪影', paragraphs: ['先用同一声码器比较真实 Mel 与预测 Mel：前者也坏，优先查声码器与配置；只有后者坏，优先查声学条件分布。再结合频谱、F0、响度、削波率和听测，不用单个 loss 替代耳朵。'] }
+        ],
+        exercise: { title: '练习：做一次 Vocoder Swap Test', prompt: '准备真实 Mel、基线预测 Mel、候选预测 Mel，并分别送入同一声码器；再把同一 Mel 送入两个声码器，形成最小 2×3 对照。', checks: ['特征配置是否逐项一致', '是否能分离声学模型和声码器责任', '自动指标是否有对应听感样本'] },
+        questionIds: ['tts-hifigan', 'tts-vocoder']
+      },
+      {
+        id: 'speaker-language-style', number: 6, title: '音色、语言与情感：多个控制条件怎样不串扰', duration: '65 分钟',
+        goal: '理解 speaker/language/style 条件注入、小数据方言微调和中英音素冲突，并能设计覆盖交叉组合的训练与评测。',
+        bridge: '单一普通话说话人跑通后，真实产品会同时要求“谁在说、说哪种语言、以什么情绪说”，这些因素很容易被数据偏差纠缠。',
+        sections: [
+          { title: '中英混读不是拼两个词典', paragraphs: ['语言跨度决定哪个音素表和前端规则生效；共享 IPA 能复用发音结构，但同一符号在不同语言中的实现仍可能不同；语言专属音素更可控，却增加稀疏和切换成本。', '训练数据若只有中文说话人讲中文、英文说话人讲英文，模型会把语言与音色绑定。需要 code-switch、跨语言同说话人或显式 language/speaker 条件打破相关性。'] },
+          { title: '小数据音色微调的三个风险', steps: ['信道泄漏：模型学到录音棚、麦克风或底噪，而不是音色。', '文本覆盖偏差：数据只含有限音素和韵律，域外文本发音不稳。', '灾难性遗忘：只优化新说话人后，基础语言能力或其他音色退化。'] },
+          { title: '具体例子：数据相关性怎样造成串扰', callout: '若快乐数据全是英语、悲伤数据全是中文，模型收到 emotion=happy 时可能同时提高英语概率。应构造 language × speaker × emotion 的交叉评测格，至少保留反事实组合，不能只在训练中出现过的组合上听。' },
+          { title: '个人经历的可信边界', paragraphs: ['简历明确支持中文、英文和中英混读 TTS 交付，以及三种方言声线微调；具体 embedding 位置、复杂 disentanglement loss 或正式情感控制流程若没有记录，只能作为现在的设计方案。'] }
+        ],
+        exercise: { title: '练习：画一个 3×2×3 条件矩阵', prompt: '用三种音色、两种语言和三种情感设计训练覆盖与评测覆盖；标出缺失组合、补数策略和不能声称做过的部分。', checks: ['语言与说话人是否被数据绑定', '小数据集是否控制信道和文本覆盖', '评测是否包含未见组合与基础能力回归'] },
+        questionIds: ['tts-codeswitch', 'tts-dialect-finetune', 'tts-emotion', 'tts-multilingual-emotion', 'tts-resume-codeswitch-phoneme', 'tts-resume-small-speaker-finetune']
+      },
+      {
+        id: 'streaming-deployment', number: 7, title: '流式与端侧交付：首包快不等于播得稳', duration: '65 分钟',
+        goal: '把模型分块、声码器边界、播放缓冲、backpressure、cancel 和 sherpa-onnx 资产组织成完整交付协议。',
+        bridge: '离线生成一段 wav 只证明模型能跑；实时交互还要处理生产速度、消费速度、块边界和中途取消。',
+        sections: [
+          { title: '流式链路的三个时钟', steps: ['文本/声学模型何时产生第一批稳定帧。', '声码器何时把 Mel chunk 转成可播放波形，以及相邻 chunk 是否有足够上下文。', '播放器何时积累到安全水位并开始消费，生产慢于消费时怎样避免 underrun。'] },
+          { title: '边界连续性不能靠简单拼接', paragraphs: ['卷积声码器在 chunk 边界需要上下文或 overlap；独立生成后硬拼可能出现爆点、相位不连续和韵律断裂。可以保留状态、重叠裁剪/cross-fade，或使用模型原生流式结构，但都要测额外延迟。', '取消请求后，应停止后续声学/声码器任务、清空待播 buffer、释放 session，并防止旧 chunk 在新请求开始后继续播放。'] },
+          { title: '时间线例子：为什么首包 120 ms 仍会卡', callout: '模型 120 ms 产出首个 200 ms 音频块，看似首包很好；但之后每个 200 ms 块要 240 ms 才生成，播放每块都会欠 40 ms，最终周期性断音。除了 TTFA，还要看稳态 RTF、buffer 水位和长文本 p99。' },
+          { title: 'sherpa-onnx 交付先匹配模型族', paragraphs: ['交付包至少包含模型、tokens、前端/G2P 配置、说话人或语言参数、采样率和版本清单。先确认导出图与 runtime 支持的模型族、动态 shape 和算子，再谈 INT8；量化若只让包变小却破坏韵律或无法执行，没有交付价值。'] }
+        ],
+        exercise: { title: '练习：设计一个可取消的流式 API', prompt: '写 start(text, controls)、pull/push chunk、finish、cancel 和 error 的状态机；给文本前端、声学、声码器、队列、播放分配 p50/p99 预算。', checks: ['首包和稳态生产速度是否分别测量', 'chunk 边界是否有连续性方案', 'cancel 后是否停止计算、清空播放并释放状态'] },
+        questionIds: ['tts-streaming', 'tts-onnx-deploy']
+      },
+      {
+        id: 'evaluation-release', number: 8, title: '评测与放行：自动指标、听测和生成式新路线', duration: '65 分钟',
+        goal: '用前端正确率、可懂度、自然度、相似度、韵律、性能和稳定性组成放行证据，并理解 Codec LM TTS 的新变量。',
+        bridge: '最终用户听到的是整条链路；单个 loss 或几条好样例不能证明读音正确、自然、像目标说话人且能稳定实时运行。',
+        sections: [
+          { title: '不同听测回答不同问题', steps: ['MOS 让听者对单条样本的自然度等绝对维度打分，适合描述水平但受量表与听者偏差影响。', 'CMOS 直接比较候选与基线的相对偏好，适合小版本差异；顺序必须随机。', 'ABX 给出 A/B 参考和 X，常用于判断音色或属性更接近谁；它不是自然度评分。'] },
+          { title: '自动门禁负责广度，听测负责感知', paragraphs: ['前端挑战集检查 TN/G2P；ASR 回识别近似检查可懂度；speaker embedding 相似度辅助看音色；F0、duration、energy 与停顿看韵律；削波、静音、NaN、时长比和延迟检测工程失败。', '这些代理指标都可能被钻空子，必须保留盲听、随机化、足够样本和置信区间。简历没有明确正式 MOS 实施证据时，应把标准听测流程说成通用方法。'] },
+          { title: '数值例子：平均 MOS 为什么会骗人', callout: 'A 的 MOS 4.1、B 为 4.0，但 95% 区间大量重叠；同时 B 的多音字错误从 3% 降到 1%。正确结论不是简单宣布 A 胜出，而是自然度差异尚不确定、B 在关键读音切片有明确价值，再结合业务权重决策。' },
+          { title: 'Codec LM TTS 改变了什么', paragraphs: ['语音 tokenizer 把波形压成离散 codec token，语言模型学习文本/语义条件下的 token 序列，decoder 再还原波形。Tokenizer 决定信息瓶颈，不等于生成器；码率、层级码本、长序列成本和说话人/内容泄漏都是新取舍。', '无论路线多新，仍要回到同一放行框架：读对、自然、像、可控、快、稳，并能定位失败。'] }
+        ],
+        exercise: { title: '结课前演练：设计一轮盲测与 Release Gate', prompt: '比较基线和候选 TTS：写 100 句分层样本、MOS/CMOS 或 ABX 任务、随机化方式、自动指标、性能预算、显著性判断和阻断条件。', checks: ['每个指标是否回答明确问题', '听测是否盲化、随机并报告不确定性', '是否包含长尾前端、音色、韵律和端侧稳定性', '结论是否区分真实项目与通用方法'] },
+        questionIds: ['tts-eval', 'tts-eval-prosody', 'tts-resume-listening-test', 'tts-llm-tts']
+      }
+    ]
   }
 ];
 
@@ -60001,6 +60137,7 @@ function renderCategories() {
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
   buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course' && state.tutorialId === 'project-defense-tech-lead', () => openTutorial('project-defense-tech-lead'), 'nav-lead nav-course'));
   buttons.push(navButton('▣ 教程 · ASR', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery', () => openTutorial('asr-from-audio-to-delivery'), 'nav-lead nav-course nav-course-asr'));
+  buttons.push(navButton('▣ 教程 · TTS', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech', () => openTutorial('tts-from-text-to-streaming-speech'), 'nav-lead nav-course nav-course-tts'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -60500,6 +60637,12 @@ function openCollection(view, category = '全部') {
 
 function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
 
+function tutorialThemeClass(tutorial) {
+  if (tutorial.id === 'asr-from-audio-to-delivery') return 'is-asr';
+  if (tutorial.id === 'tts-from-text-to-streaming-speech') return 'is-tts';
+  return '';
+}
+
 function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
   const tutorial = tutorialById(tutorialId) || tutorials[0];
   state.tutorialId = tutorial.id;
@@ -60646,7 +60789,7 @@ function renderPersonalDashboard() {
   const courseLibrary = document.createElement('div'); courseLibrary.className = 'course-library';
   tutorials.forEach((tutorial, index) => {
     const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
-    const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorial.id === 'asr-from-audio-to-delivery' ? 'is-asr' : ''}`;
+    const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorialThemeClass(tutorial)}`;
     const courseCopy = document.createElement('div');
     const courseKicker = document.createElement('span'); courseKicker.textContent = index === 0 ? 'FIRST GUIDED COURSE' : `GUIDED COURSE ${String(index + 1).padStart(2, '0')}`;
     const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
@@ -60769,6 +60912,7 @@ function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
   document.body.classList.toggle('course-mode', state.view === 'course');
   document.body.classList.toggle('course-asr-mode', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery');
+  document.body.classList.toggle('course-tts-mode', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech');
   renderMode();
   renderCategories();
   renderKindSwitch();

@@ -120,6 +120,7 @@ function renderCategories() {
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
   buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course' && state.tutorialId === 'project-defense-tech-lead', () => openTutorial('project-defense-tech-lead'), 'nav-lead nav-course'));
   buttons.push(navButton('▣ 教程 · ASR', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery', () => openTutorial('asr-from-audio-to-delivery'), 'nav-lead nav-course nav-course-asr'));
+  buttons.push(navButton('▣ 教程 · TTS', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech', () => openTutorial('tts-from-text-to-streaming-speech'), 'nav-lead nav-course nav-course-tts'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -619,6 +620,12 @@ function openCollection(view, category = '全部') {
 
 function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
 
+function tutorialThemeClass(tutorial) {
+  if (tutorial.id === 'asr-from-audio-to-delivery') return 'is-asr';
+  if (tutorial.id === 'tts-from-text-to-streaming-speech') return 'is-tts';
+  return '';
+}
+
 function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
   const tutorial = tutorialById(tutorialId) || tutorials[0];
   state.tutorialId = tutorial.id;
@@ -765,7 +772,7 @@ function renderPersonalDashboard() {
   const courseLibrary = document.createElement('div'); courseLibrary.className = 'course-library';
   tutorials.forEach((tutorial, index) => {
     const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
-    const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorial.id === 'asr-from-audio-to-delivery' ? 'is-asr' : ''}`;
+    const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorialThemeClass(tutorial)}`;
     const courseCopy = document.createElement('div');
     const courseKicker = document.createElement('span'); courseKicker.textContent = index === 0 ? 'FIRST GUIDED COURSE' : `GUIDED COURSE ${String(index + 1).padStart(2, '0')}`;
     const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
@@ -888,6 +895,7 @@ function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
   document.body.classList.toggle('course-mode', state.view === 'course');
   document.body.classList.toggle('course-asr-mode', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery');
+  document.body.classList.toggle('course-tts-mode', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech');
   renderMode();
   renderCategories();
   renderKindSwitch();
