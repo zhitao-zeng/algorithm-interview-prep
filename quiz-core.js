@@ -80,6 +80,7 @@ export function detailSections(card, level = 'quick') {
     ['workedExample', '示例场景', 'steps'],
     ['code', '示意代码（公式）', 'code'],
     ['comparison', '对比一览', 'compare'],
+    ['complexity', '公式与复杂度', 'text'],
     ['references', '延伸阅读', 'refs'],
     ['edgeCases', '边界情况', 'cards'],
     ['followUps', '常见追问', 'qa'],

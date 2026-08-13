@@ -80,3 +80,80 @@
   .domain-grid { grid-template-columns: 1fr; }
   .map-table { display: block; overflow-x: auto; }
 }
+
+/* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
+.formula-panel { margin-top: 8px; padding: 14px; border: 1px solid #c9dcf8; border-left: 4px solid var(--blue); border-radius: 11px; background: linear-gradient(180deg, #f8fbff, #eef5ff); }
+.formula-label { display: block; margin-bottom: 10px; color: #496987; font-size: 12px; font-weight: 850; letter-spacing: .08em; }
+.formula-list { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.formula-item { position: relative; min-width: 0; padding-top: 9px; }
+.formula-metric { position: absolute; z-index: 1; top: 0; left: 12px; padding: 2px 8px; border: 1px solid #b9d2ef; border-radius: 999px; background: #edf5ff; color: #255d96; font-size: 11px; font-weight: 850; line-height: 1.4; }
+.formula-item[data-metric="时间"] .formula-metric, .formula-item[data-metric="延迟"] .formula-metric { border-color: #f1c09f; background: #fff1e7; color: #954715; }
+.formula-item[data-metric="空间"] .formula-metric, .formula-item[data-metric="显存"] .formula-metric { border-color: #d5c4ee; background: #f5f0ff; color: #65439a; }
+.formula-item[data-metric="通信"] .formula-metric, .formula-item[data-metric="访存"] .formula-metric { border-color: #b9ddd1; background: #ebf8f4; color: #246b57; }
+.formula-item[data-metric="成本"] .formula-metric { border-color: #ead29a; background: #fff7df; color: #785800; }
+.formula-line { display: grid; place-items: center; min-width: 0; min-height: 64px; padding: 17px 14px 12px; border: 1px solid #d4e2f3; border-radius: 9px; background: #fff; color: #183b66; text-align: center; overflow-x: auto; }
+.formula-line .katex { font-size: clamp(18px, 1.35vw, 22px); }
+.formula-line .katex-display { margin: 0; overflow-x: auto; overflow-y: hidden; }
+.formula-fallback { place-items: start; min-height: 0; font: 650 14px/1.65 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; text-align: left; white-space: pre-wrap; }
+.complexity-note { margin-top: 12px; padding-top: 10px; border-top: 1px solid #d8e5f6; }
+.complexity-note-label { display: block; margin-bottom: 3px; color: #667d92; font-size: 11px; font-weight: 800; }
+.complexity-copy { margin: 0; color: #425a70; line-height: 1.75; text-align: left; }
+.formula-section > .complexity-copy { margin-top: 7px; padding-top: 0; border-top: 0; }
+
+/* 复杂图使用浅色阅读画布；字号可调、可全屏，窄屏保留水平滚动。 */
+.diagram-card { --diagram-font-size: 14px; position: relative; margin-top: 8px; border: 1px solid #d5e0eb; border-radius: 11px; background: #f7f9fc; overflow: hidden; box-shadow: 0 2px 8px rgba(31, 60, 88, .05); }
+.diagram-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; padding: 7px 10px 7px 14px; border-bottom: 1px solid #dbe4ee; background: #eef3f8; }
+.diagram-meta { color: #526b82; font-size: 11px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.diagram-actions { display: flex; align-items: center; gap: 4px; }
+.diagram-tool { border: 1px solid #c6d3e0; border-radius: 6px; background: #fff; color: #294a68; min-height: 29px; padding: 4px 8px; font: 750 11px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif; cursor: pointer; }
+.diagram-tool:hover { border-color: var(--blue); color: var(--blue); background: #f7fbff; }
+.diagram-tool:focus-visible { outline: 3px solid #8db9f5; outline-offset: 1px; }
+.diagram-size { min-width: 34px; color: #6b7d8d; text-align: center; font: 700 10px/1 ui-monospace, monospace; }
+.diagram-close { display: none; }
+.diagram-viewport { overflow: auto; overscroll-behavior: contain; }
+.diagram-block { display: table; min-width: 100%; margin: 0; padding: 20px; border: 0; background: transparent; color: #20364d; font: 600 var(--diagram-font-size)/1.7 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; font-variant-ligatures: none; white-space: pre; overflow: visible; }
+.diagram-block .arrow { color: #b6531d; font-weight: 900; }
+.diagram-block .diagram-connector { color: #6d8296; font-weight: 750; }
+.diagram-block .diagram-node { color: #174f86; font-weight: 850; }
+.diagram-scroll-hint { display: none; position: absolute; right: 9px; bottom: 7px; padding: 3px 7px; border-radius: 999px; background: rgba(20, 43, 69, .86); color: #fff; font-size: 10px; pointer-events: none; }
+.diagram-card.is-expanded { position: fixed; z-index: 1000; inset: 0; display: flex; flex-direction: column; width: 100dvw; height: 100dvh; margin: 0; border: 0; border-radius: 0; background: #f7f9fc; }
+.diagram-card.is-expanded .diagram-toolbar { flex: 0 0 auto; padding: 10px 18px; }
+.diagram-card.is-expanded .diagram-viewport { flex: 1 1 auto; display: grid; align-items: center; }
+.diagram-card.is-expanded .diagram-block { min-width: max-content; min-height: 100%; padding: 32px; }
+.diagram-card.is-expanded .diagram-expand { display: none; }
+.diagram-card.is-expanded .diagram-close { display: inline-block; }
+.diagram-card.is-expanded .diagram-scroll-hint { display: none; }
+body.diagram-open { overflow: hidden; }
+
+/* 明确的一行短链用原生节点显示，不依赖 Mermaid 或网络资源。 */
+.flow-chain { display: flex; align-items: center; justify-content: safe center; gap: 9px; flex-wrap: nowrap; margin-top: 8px; padding: 20px 16px; border: 1px solid #d2e0ef; border-radius: 11px; background: linear-gradient(180deg,#fbfdff,#f3f8fd); overflow-x: auto; }
+.flow-node { flex: 0 0 auto; padding: 9px 13px; border: 1px solid #9ebfe2; border-radius: 8px; background: #fff; color: #234b75; font-size: 14px; font-weight: 800; box-shadow: 0 3px 8px rgba(42, 91, 141, .09); }
+.flow-arrow { color: #bd5e27; font-size: 21px; font-weight: 900; line-height: 1; }
+
+@media (max-width: 1040px) {
+  .app-shell { display: flex; flex-direction: column; }
+  .sidebar { order: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sidebar h1 { font-size: 24px; }
+  .categories { display: flex; overflow-x: auto; margin: 14px -4px; }
+  .category { white-space: nowrap; width: auto; }
+  .progress-card { display: none; }
+  .detail-pane { order: 1; min-width: 0; overflow: visible; padding: 30px clamp(20px, 6vw, 64px); }
+  .question-pane { order: 2; min-width: 0; border-right: 0; }
+  .topbar { padding: 0 16px; }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 16px; line-height: 1.7; }
+  .detail-pane { padding: 24px 16px; }
+  .detail-section { margin: 27px 0; }
+  .detail-section h3 { font-size: 14px; }
+  .formula-panel { padding: 12px; }
+  .formula-list { grid-template-columns: 1fr; }
+  .formula-line .katex { font-size: 18px; }
+  .diagram-toolbar { align-items: flex-start; }
+  .diagram-meta { padding-top: 7px; }
+  .diagram-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .diagram-block { padding: 18px 13px 30px; }
+  .diagram-card.is-overflowing .diagram-scroll-hint { display: block; }
+  .diagram-card.is-expanded .diagram-toolbar { padding: max(10px, env(safe-area-inset-top)) 10px 10px; }
+}

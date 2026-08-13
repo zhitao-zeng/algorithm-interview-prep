@@ -87,6 +87,7 @@ test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/�
   assert.ok(codeDeepKeys.includes('walkthrough'), '代码题 deep 应含 执行追踪');
   assert.ok(conceptQuickKeys.includes('explanationFocus'), '概念题 quick 应含 是什么');
   assert.ok(conceptQuickKeys.includes('approach'), '概念题 quick 应含 核心思路');
+  assert.ok(conceptDeepKeys.includes('complexity'), '概念题 deep 应展示公式与复杂度');
   assert.ok(!conceptDeepKeys.includes('invariant'), '概念题 deep 不应含 循环不变量');
 });
 

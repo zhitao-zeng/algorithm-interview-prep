@@ -1,9 +1,11 @@
 import { categories, questions } from './questions.js?v=c4567533';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
+import { complexityView, diagramHtml, parseSimpleFlowChain } from './render-utils.js';
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
+
 const state = {
   mode: 'review', view: 'map', mapTab: 'domains', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   mockQuestions: [], revealIndex: 0, detailLevel: 'deep', masteredIds: loadMastered(),
@@ -86,14 +88,108 @@ function renderList() {
   }));
 }
 function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = text; block.append(h, p); return block; }
+function complexitySection(title, text) {
+  const block = document.createElement('section'); block.className = 'detail-section formula-section';
+  const h = document.createElement('h3'); h.textContent = title;
+  const view = complexityView(text);
+  const formulas = [...new Map(view.formulas.map((formula) => [`${formula.label || ''}\u0000${formula.value}`, formula])).values()];
+  if (!formulas.length) {
+    const copy = document.createElement('p'); copy.className = 'complexity-copy'; copy.textContent = view.source;
+    block.append(h, copy); return block;
+  }
+
+  const panel = document.createElement('div'); panel.className = 'formula-panel';
+  const label = document.createElement('span'); label.className = 'formula-label'; label.textContent = '复杂度速览';
+  const formulaList = document.createElement('div'); formulaList.className = 'formula-list';
+  formulas.forEach((formula) => {
+    const item = document.createElement('div'); item.className = 'formula-item';
+    item.dataset.metric = formula.label || '复杂度';
+    const metric = document.createElement('span'); metric.className = 'formula-metric'; metric.textContent = item.dataset.metric;
+    const line = document.createElement('div'); line.className = 'formula-line';
+    line.setAttribute('aria-label', formula.value);
+    if (formula.latex && typeof katex !== 'undefined') {
+      try {
+        line.innerHTML = katex.renderToString(formula.latex, { displayMode: true, throwOnError: true, strict: 'error', trust: false });
+      } catch {
+        line.classList.add('formula-fallback'); line.textContent = formula.value;
+      }
+    } else {
+      line.classList.add('formula-fallback'); line.textContent = formula.value;
+    }
+    item.append(metric, line); formulaList.append(item);
+  });
+  const note = document.createElement('div'); note.className = 'complexity-note';
+  const noteLabel = document.createElement('span'); noteLabel.className = 'complexity-note-label'; noteLabel.textContent = '解释';
+  const copy = document.createElement('p'); copy.className = 'complexity-copy'; copy.textContent = view.source;
+  note.append(noteLabel, copy); panel.append(label, formulaList, note); block.append(h, panel); return block;
+}
 function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); li.textContent = item; list.append(li); }); block.append(h, list); return block; }
 function codeSection(title, code) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const wrap = document.createElement('div'); wrap.className = 'code-wrap'; const pre = document.createElement('pre'); const codeEl = document.createElement('code'); codeEl.setAttribute('aria-label', title); codeEl.textContent = code; pre.append(codeEl); wrap.append(pre); block.append(h, wrap); return block; }
+function closeExpandedDiagram(card) {
+  const trigger = card?.querySelector('.diagram-expand');
+  card?.classList.remove('is-expanded');
+  card?.removeAttribute('role'); card?.removeAttribute('aria-modal');
+  document.body.classList.remove('diagram-open');
+  trigger?.focus();
+}
+function updateDiagramOverflow(root = document) {
+  const cards = root.matches?.('.diagram-card') ? [root] : root.querySelectorAll('.diagram-card');
+  cards.forEach((card) => {
+    const viewport = card.querySelector('.diagram-viewport');
+    card.classList.toggle('is-overflowing', Boolean(viewport && viewport.scrollWidth > viewport.clientWidth + 2));
+  });
+}
 function diagramSection(title, diagram) {
   if (!diagram) return document.createDocumentFragment();
   const block = document.createElement('section'); block.className = 'detail-section';
   const h = document.createElement('h3'); h.textContent = title;
-  const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title); pre.textContent = diagram;
-  block.append(h, pre); return block;
+  const labels = parseSimpleFlowChain(diagram);
+  if (labels) {
+    const flow = document.createElement('div'); flow.className = 'flow-chain'; flow.setAttribute('role', 'img');
+    flow.dataset.source = String(diagram);
+    flow.setAttribute('aria-label', `${title}：${labels.join(' 到 ')}`);
+    labels.forEach((label, index) => {
+      if (index) { const arrow = document.createElement('span'); arrow.className = 'flow-arrow'; arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '→'; flow.append(arrow); }
+      const node = document.createElement('span'); node.className = 'flow-node'; node.textContent = label; flow.append(node);
+    });
+    block.append(h, flow); return block;
+  }
+  const source = String(diagram);
+  const visibleSource = source.replace(/^\n+|\n+$/g, '');
+  const lineCount = visibleSource ? visibleSource.split('\n').length : 0;
+  const card = document.createElement('div'); card.className = 'diagram-card';
+  card.style.setProperty('--diagram-font-size', '14px');
+  const toolbar = document.createElement('div'); toolbar.className = 'diagram-toolbar';
+  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `结构图 · ${lineCount} 行`;
+  const actions = document.createElement('div'); actions.className = 'diagram-actions';
+  const viewport = document.createElement('div'); viewport.className = 'diagram-viewport';
+  const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title);
+  pre.innerHTML = diagramHtml(source); viewport.append(pre);
+
+  let fontSize = 14;
+  const sizeLabel = document.createElement('span'); sizeLabel.className = 'diagram-size'; sizeLabel.textContent = '14px';
+  const sizeButton = (label, delta) => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'diagram-tool'; button.textContent = label;
+    button.setAttribute('aria-label', delta > 0 ? '放大图中文字' : '缩小图中文字');
+    button.addEventListener('click', () => {
+      fontSize = Math.max(12, Math.min(20, fontSize + delta));
+      card.style.setProperty('--diagram-font-size', `${fontSize}px`); sizeLabel.textContent = `${fontSize}px`;
+      const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
+      schedule(() => updateDiagramOverflow(card));
+    });
+    return button;
+  };
+  const expand = document.createElement('button'); expand.type = 'button'; expand.className = 'diagram-tool diagram-expand'; expand.textContent = '全屏查看';
+  expand.addEventListener('click', () => {
+    card.classList.add('is-expanded'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+    document.body.classList.add('diagram-open'); close.focus();
+  });
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'diagram-tool diagram-close'; close.textContent = '关闭全屏';
+  close.addEventListener('click', () => closeExpandedDiagram(card));
+  actions.append(sizeButton('A−', -2), sizeLabel, sizeButton('A+', 2), expand, close);
+  toolbar.append(meta, actions);
+  const hint = document.createElement('span'); hint.className = 'diagram-scroll-hint'; hint.textContent = '可左右滑动查看';
+  card.append(toolbar, viewport, hint); block.append(h, card); return block;
 }
 function lineNotesSection(title, notes) {
   const block = document.createElement('section'); block.className = 'detail-section';
@@ -146,6 +242,7 @@ function refsSection(title, items) {
 }
 function renderSection(section) {
   if (section.value == null) return document.createDocumentFragment();
+  if (section.key === 'complexity') return complexitySection(section.title, section.value);
   if (section.type === 'diagram') return diagramSection(section.title, section.value);
   if (section.type === 'code') return codeSection(section.title, section.value);
   if (section.type === 'lineNotes') return lineNotesSection(section.title, section.value);
@@ -169,6 +266,7 @@ function renderDetailLevelSwitch() {
 }
 function renderDetail() {
   const pane = el('question-detail');
+  document.body.classList.remove('diagram-open');
   if (state.view === 'map') {
     pane.replaceChildren();
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
@@ -191,6 +289,8 @@ function renderDetail() {
   const visibleCount = state.mode === 'mock' ? state.revealIndex : sections.length;
   if (state.mode !== 'mock') pane.append(renderDetailLevelSwitch());
   pane.append(...sections.slice(0, visibleCount).map(renderSection));
+  const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
+  schedule(() => updateDiagramOverflow(pane));
   if (state.mode === 'mock') {
     const gate = document.createElement('div'); gate.className = 'reveal-controls';
     const message = document.createElement('p'); message.textContent = state.revealIndex ? `已揭晓 ${state.revealIndex} / ${sections.length} 段` : '先独立思考，再按学习顺序揭晓答案。'; gate.append(message);
@@ -359,4 +459,18 @@ function startMock() { state.mode = 'mock'; state.view = 'list'; state.mockQuest
 function returnReview() { state.mode = 'review'; state.view = 'map'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
 el('search-input').addEventListener('input', (event) => { state.query = event.target.value; state.view = 'list'; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
 el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = 'list'; el('search-input').value = ''; selectQuestion(filterQuestions(questions, '全部', '', '全部')[0]?.id); render(); });
-el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview); render();
+el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview);
+document.addEventListener('keydown', (event) => {
+  const card = document.querySelector('.diagram-card.is-expanded');
+  if (!card) return;
+  if (event.key === 'Escape') { closeExpandedDiagram(card); return; }
+  if (event.key !== 'Tab') return;
+  const focusable = [...card.querySelectorAll('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')]
+    .filter((node) => getComputedStyle(node).display !== 'none');
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
+window.addEventListener('resize', () => updateDiagramOverflow());
+render();

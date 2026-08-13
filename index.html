@@ -8,6 +8,7 @@
   <meta http-equiv="Expires" content="0">
   <title>算法面试题库 · BytePrep</title>
   <style>
+/* BYTEPREP_STANDALONE_STYLES */
 :root{--ink:#17202b;--muted:#647182;--line:#dfe5ea;--paper:#f5f7f8;--navy:#142b45;--blue:#1967d2;--mint:#c9f0df;--orange:#ff8a4c;--code:#101923}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,"Microsoft YaHei",Arial,sans-serif}.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--navy);color:#fff}.brand{color:#fff;text-decoration:none;letter-spacing:1px;font-weight:800}.brand span{color:var(--mint)}.topbar-actions{display:flex;align-items:center;gap:10px}.timer{font:600 17px ui-monospace,Consolas;color:var(--mint);padding-right:8px}.button{border:0;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer}.primary{background:var(--mint);color:#102636}.ghost{background:transparent;border:1px solid #6a7b8b;color:#fff}.app-shell{min-height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(280px,.9fr) minmax(420px,1.4fr);max-width:1600px;margin:auto}.sidebar{padding:30px 20px;background:#fff;border-right:1px solid var(--line)}.eyebrow{margin:0 0 6px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.3px}.sidebar h1{font-size:28px;line-height:1.14;margin:0 0 14px}.sidebar h1 em{font-family:Georgia,serif;color:var(--orange);font-weight:400}.intro{font-size:13px;color:var(--muted);margin:0 0 22px}.search-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font:inherit}.categories{display:grid;gap:4px;margin:20px 0}.category{width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px;cursor:pointer;color:#405064;font:inherit}.category:hover,.category.active{background:#e8f0fe;color:var(--blue);font-weight:700}.progress-card{margin-top:22px;padding:13px;background:#f0f5f3;border-radius:8px}.progress-card p{margin:0;color:var(--muted);font-size:12px}.progress-card strong{font-size:21px}.progress-card small{display:block;color:var(--muted);font-size:11px;margin-top:7px}.progress-track{height:5px;background:#d6e0db;border-radius:999px}.progress-track i{display:block;height:100%;background:#27966a;border-radius:inherit;width:0}.question-pane{padding:30px 20px;border-right:1px solid var(--line);background:#fbfcfd}.pane-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.pane-heading h2{margin:0;font-size:23px}.count{color:var(--muted);font-size:13px}.question-list{display:grid;gap:9px}.question-card{background:#fff;border:1px solid var(--line);border-left:3px solid transparent;border-radius:8px;padding:13px;cursor:pointer;transition:.15s}.question-card:hover,.question-card.active{border-left-color:var(--blue);box-shadow:0 5px 14px #142b4510}.question-card.active{background:#f4f8ff}.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.badge{color:var(--blue);font-weight:800}.question-card h3{margin:5px 0 4px;font-size:16px}.question-card p{margin:0;color:var(--muted);font-size:13px}.detail-pane{padding:34px 38px;background:#fff;overflow:auto}.detail-head{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:22px}.detail-head h2{margin:7px 0;font-size:28px;line-height:1.2}.detail-head p{margin:0;color:var(--muted)}.tag-row{display:flex;gap:7px;align-items:center}.tag{border-radius:99px;padding:3px 8px;background:#eef3f8;color:#405064;font-size:11px;font-weight:700}.tag.difficulty{background:#fff0e8;color:#b55316}.detail-section{margin:23px 0}.detail-section h3{font-size:13px;letter-spacing:.7px;color:var(--blue);margin:0 0 8px}.detail-section p{margin:0}.code-wrap{position:relative;background:var(--code);border-radius:8px;overflow:auto}.code-wrap pre{margin:0;padding:17px;color:#eaf2fa;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.detail-list{padding-left:19px;margin:0}.detail-list li{margin:5px 0}.answer-gate{margin:32px 0;padding:30px;border:1px dashed #a7b7c6;border-radius:10px;text-align:center;background:#f8fafc}.answer-gate p{color:var(--muted);margin:0 0 14px}.master-row{display:flex;gap:9px;align-items:center;margin-top:28px}.mastered{background:var(--mint);color:#123f31}.text-button{border:0;background:transparent;color:var(--blue);font-weight:700;cursor:pointer;padding:0}.empty-state{text-align:center;padding:60px 15px;color:var(--muted)}.mock-note{background:#fff5ea;border-left:3px solid var(--orange);border-radius:5px;padding:10px 12px;margin-bottom:12px;color:#864009;font-size:13px}@media(max-width:920px){.app-shell{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar h1{font-size:24px}.categories{display:flex;overflow-x:auto;margin:14px -4px}.category{white-space:nowrap;width:auto}.progress-card{display:none}.question-pane{border-right:0}.detail-pane{padding:26px 20px}.topbar{padding:0 16px}}@media(max-width:500px){.topbar{height:58px}.app-shell{min-height:calc(100vh - 58px)}.primary,.ghost{padding:7px 10px}.brand{font-size:13px}.detail-head h2{font-size:24px}}.detail-level-switch{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;margin:-2px 0 4px}.detail-level-button{border:0;border-radius:6px;background:transparent;color:var(--muted);padding:7px 10px;font:700 13px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif;cursor:pointer}.detail-level-button:hover{color:var(--blue);background:#e8f0fe}.detail-level-button.active{background:var(--navy);color:#fff;box-shadow:0 2px 5px #142b4530}.detail-level-button:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.derivation-list{counter-reset:derivation;list-style:none;padding:0;margin:0;display:grid;gap:9px}.derivation-list li{counter-increment:derivation;display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;padding:10px 12px;background:#f5f8fc;border-left:3px solid var(--blue);border-radius:0 7px 7px 0}.derivation-list li::before{content:counter(derivation);display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:800}.edge-case-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.edge-case-list li{padding:10px 11px;border:1px solid #ffd4bf;border-radius:8px;background:#fff7f2;color:#77401e}.edge-case-list li::before{content:"边界";display:block;color:#b55316;font-size:10px;font-weight:800;letter-spacing:.6px;margin-bottom:3px}
 :root{--ink:#17202b;--muted:#647182;--line:#dfe5ea;--paper:#f5f7f8;--navy:#142b45;--blue:#1967d2;--mint:#c9f0df;--orange:#ff8a4c;--code:#101923}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,"Microsoft YaHei",Arial,sans-serif}.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--navy);color:#fff}.brand{color:#fff;text-decoration:none;letter-spacing:1px;font-weight:800}.brand span{color:var(--mint)}.topbar-actions{display:flex;align-items:center;gap:10px}.timer{font:600 17px ui-monospace,Consolas;color:var(--mint);padding-right:8px}.button{border:0;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer}.primary{background:var(--mint);color:#102636}.ghost{background:transparent;border:1px solid #6a7b8b;color:#fff}.app-shell{min-height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(280px,.9fr) minmax(420px,1.4fr);max-width:1600px;margin:auto}.sidebar{padding:30px 20px;background:#fff;border-right:1px solid var(--line)}.eyebrow{margin:0 0 6px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.3px}.sidebar h1{font-size:28px;line-height:1.14;margin:0 0 14px}.sidebar h1 em{font-family:Georgia,serif;color:var(--orange);font-weight:400}.intro{font-size:13px;color:var(--muted);margin:0 0 22px}.search-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font:inherit}.categories{display:grid;gap:4px;margin:20px 0}.category{width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px;cursor:pointer;color:#405064;font:inherit}.category:hover,.category.active{background:#e8f0fe;color:var(--blue);font-weight:700}.progress-card{margin-top:22px;padding:13px;background:#f0f5f3;border-radius:8px}.progress-card p{margin:0;color:var(--muted);font-size:12px}.progress-card strong{font-size:21px}.progress-card small{display:block;color:var(--muted);font-size:11px;margin-top:7px}.progress-track{height:5px;background:#d6e0db;border-radius:999px}.progress-track i{display:block;height:100%;background:#27966a;border-radius:inherit;width:0}.question-pane{padding:30px 20px;border-right:1px solid var(--line);background:#fbfcfd}.pane-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.pane-heading h2{margin:0;font-size:23px}.count{color:var(--muted);font-size:13px}.question-list{display:grid;gap:9px}.question-card{background:#fff;border:1px solid var(--line);border-left:3px solid transparent;border-radius:8px;padding:13px;cursor:pointer;transition:.15s}.question-card:hover,.question-card.active{border-left-color:var(--blue);box-shadow:0 5px 14px #142b4510}.question-card.active{background:#f4f8ff}.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.badge{color:var(--blue);font-weight:800}.question-card h3{margin:5px 0 4px;font-size:16px}.question-card p{margin:0;color:var(--muted);font-size:13px}.detail-pane{padding:34px 38px;background:#fff;overflow:auto}.detail-head{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:22px}.detail-head h2{margin:7px 0;font-size:28px;line-height:1.2}.detail-head p{margin:0;color:var(--muted)}.tag-row{display:flex;gap:7px;align-items:center}.tag{border-radius:99px;padding:3px 8px;background:#eef3f8;color:#405064;font-size:11px;font-weight:700}.tag.difficulty{background:#fff0e8;color:#b55316}.detail-section{margin:23px 0}.detail-section h3{font-size:13px;letter-spacing:.7px;color:var(--blue);margin:0 0 8px}.detail-section p{margin:0}.code-wrap{position:relative;background:var(--code);border-radius:8px;overflow:auto}.code-wrap pre{margin:0;padding:17px;color:#eaf2fa;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.detail-list{padding-left:19px;margin:0}.detail-list li{margin:5px 0}.answer-gate{margin:32px 0;padding:30px;border:1px dashed #a7b7c6;border-radius:10px;text-align:center;background:#f8fafc}.answer-gate p{color:var(--muted);margin:0 0 14px}.master-row{display:flex;gap:9px;align-items:center;margin-top:28px}.mastered{background:var(--mint);color:#123f31}.text-button{border:0;background:transparent;color:var(--blue);font-weight:700;cursor:pointer;padding:0}.empty-state{text-align:center;padding:60px 15px;color:var(--muted)}.mock-note{background:#fff5ea;border-left:3px solid var(--orange);border-radius:5px;padding:10px 12px;margin-bottom:12px;color:#864009;font-size:13px}@media(max-width:920px){.app-shell{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar h1{font-size:24px}.categories{display:flex;overflow-x:auto;margin:14px -4px}.category{white-space:nowrap;width:auto}.progress-card{display:none}.question-pane{border-right:0}.detail-pane{padding:26px 20px}.topbar{padding:0 16px}}@media(max-width:500px){.topbar{height:58px}.app-shell{min-height:calc(100vh - 58px)}.primary,.ghost{padding:7px 10px}.brand{font-size:13px}.detail-head h2{font-size:24px}}.detail-level-switch{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;margin:-2px 0 4px}.detail-level-button{border:0;border-radius:6px;background:transparent;color:var(--muted);padding:7px 10px;font:700 13px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif;cursor:pointer}.detail-level-button:hover{color:var(--blue);background:#e8f0fe}.detail-level-button.active{background:var(--navy);color:#fff;box-shadow:0 2px 5px #142b4530}.detail-level-button:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.derivation-list{counter-reset:derivation;list-style:none;padding:0;margin:0;display:grid;gap:9px}.derivation-list li{counter-increment:derivation;display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;padding:10px 12px;background:#f5f8fc;border-left:3px solid var(--blue);border-radius:0 7px 7px 0}.derivation-list li::before{content:counter(derivation);display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:800}.edge-case-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.edge-case-list li{padding:10px 11px;border:1px solid #ffd4bf;border-radius:8px;background:#fff7f2;color:#77401e}.edge-case-list li::before{content:"边界";display:block;color:#b55316;font-size:10px;font-weight:800;letter-spacing:.6px;margin-bottom:3px}
 .concept-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:9px}.concept-list li{padding:12px 14px;background:#eef5ff;border:1px solid #c9dcf8;border-radius:8px;color:#24456c;font-weight:600}.line-notes{list-style:none;padding:0;margin:0;display:grid;gap:6px}.line-notes li{display:grid;grid-template-columns:72px 1fr;gap:10px;align-items:start;padding:9px 11px;border:1px solid var(--line);border-radius:7px;background:#fbfcfd}.line-notes code{color:var(--blue);font:700 11px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace}.qa-section details{border:1px solid var(--line);border-radius:7px;background:#fbfcfd;margin:7px 0;padding:0 12px}.qa-section summary{cursor:pointer;padding:10px 2px;font-weight:700;color:#294663}.qa-section summary:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.qa-answer{margin:0 2px 11px;padding:9px 10px;border-left:3px solid var(--mint);background:#f0f8f4;color:#355449}.reveal-controls{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin:26px 0 8px;padding:14px 16px;border:1px solid #ffd4bf;border-radius:9px;background:#fffaf5}.reveal-controls p{margin:0;color:#864009;font-size:13px}.reveal-complete{color:#27966a;font-weight:700;font-size:13px}@media(max-width:500px){.concept-list{grid-template-columns:1fr}.line-notes li{grid-template-columns:1fr;gap:3px}.reveal-controls{align-items:flex-start;flex-direction:column}} .diagram-block{margin:6px 0 0;padding:14px 16px;background:#0f1b26;color:#d7e6f5;border-radius:8px;font:12.5px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre;overflow:auto}
@@ -91,7 +92,86 @@
   .map-table { display: block; overflow-x: auto; }
 }
 
+/* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
+.formula-panel { margin-top: 8px; padding: 14px; border: 1px solid #c9dcf8; border-left: 4px solid var(--blue); border-radius: 11px; background: linear-gradient(180deg, #f8fbff, #eef5ff); }
+.formula-label { display: block; margin-bottom: 10px; color: #496987; font-size: 12px; font-weight: 850; letter-spacing: .08em; }
+.formula-list { display: grid; grid-template-columns: 1fr; gap: 9px; }
+.formula-item { position: relative; min-width: 0; padding-top: 9px; }
+.formula-metric { position: absolute; z-index: 1; top: 0; left: 12px; padding: 2px 8px; border: 1px solid #b9d2ef; border-radius: 999px; background: #edf5ff; color: #255d96; font-size: 11px; font-weight: 850; line-height: 1.4; }
+.formula-item[data-metric="时间"] .formula-metric, .formula-item[data-metric="延迟"] .formula-metric { border-color: #f1c09f; background: #fff1e7; color: #954715; }
+.formula-item[data-metric="空间"] .formula-metric, .formula-item[data-metric="显存"] .formula-metric { border-color: #d5c4ee; background: #f5f0ff; color: #65439a; }
+.formula-item[data-metric="通信"] .formula-metric, .formula-item[data-metric="访存"] .formula-metric { border-color: #b9ddd1; background: #ebf8f4; color: #246b57; }
+.formula-item[data-metric="成本"] .formula-metric { border-color: #ead29a; background: #fff7df; color: #785800; }
+.formula-line { display: grid; place-items: center; min-width: 0; min-height: 64px; padding: 17px 14px 12px; border: 1px solid #d4e2f3; border-radius: 9px; background: #fff; color: #183b66; text-align: center; overflow-x: auto; }
+.formula-line .katex { font-size: clamp(18px, 1.35vw, 22px); }
+.formula-line .katex-display { margin: 0; overflow-x: auto; overflow-y: hidden; }
+.formula-fallback { place-items: start; min-height: 0; font: 650 14px/1.65 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; text-align: left; white-space: pre-wrap; }
+.complexity-note { margin-top: 12px; padding-top: 10px; border-top: 1px solid #d8e5f6; }
+.complexity-note-label { display: block; margin-bottom: 3px; color: #667d92; font-size: 11px; font-weight: 800; }
+.complexity-copy { margin: 0; color: #425a70; line-height: 1.75; text-align: left; }
+.formula-section > .complexity-copy { margin-top: 7px; padding-top: 0; border-top: 0; }
+
+/* 复杂图使用浅色阅读画布；字号可调、可全屏，窄屏保留水平滚动。 */
+.diagram-card { --diagram-font-size: 14px; position: relative; margin-top: 8px; border: 1px solid #d5e0eb; border-radius: 11px; background: #f7f9fc; overflow: hidden; box-shadow: 0 2px 8px rgba(31, 60, 88, .05); }
+.diagram-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; padding: 7px 10px 7px 14px; border-bottom: 1px solid #dbe4ee; background: #eef3f8; }
+.diagram-meta { color: #526b82; font-size: 11px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; }
+.diagram-actions { display: flex; align-items: center; gap: 4px; }
+.diagram-tool { border: 1px solid #c6d3e0; border-radius: 6px; background: #fff; color: #294a68; min-height: 29px; padding: 4px 8px; font: 750 11px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif; cursor: pointer; }
+.diagram-tool:hover { border-color: var(--blue); color: var(--blue); background: #f7fbff; }
+.diagram-tool:focus-visible { outline: 3px solid #8db9f5; outline-offset: 1px; }
+.diagram-size { min-width: 34px; color: #6b7d8d; text-align: center; font: 700 10px/1 ui-monospace, monospace; }
+.diagram-close { display: none; }
+.diagram-viewport { overflow: auto; overscroll-behavior: contain; }
+.diagram-block { display: table; min-width: 100%; margin: 0; padding: 20px; border: 0; background: transparent; color: #20364d; font: 600 var(--diagram-font-size)/1.7 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; font-variant-ligatures: none; white-space: pre; overflow: visible; }
+.diagram-block .arrow { color: #b6531d; font-weight: 900; }
+.diagram-block .diagram-connector { color: #6d8296; font-weight: 750; }
+.diagram-block .diagram-node { color: #174f86; font-weight: 850; }
+.diagram-scroll-hint { display: none; position: absolute; right: 9px; bottom: 7px; padding: 3px 7px; border-radius: 999px; background: rgba(20, 43, 69, .86); color: #fff; font-size: 10px; pointer-events: none; }
+.diagram-card.is-expanded { position: fixed; z-index: 1000; inset: 0; display: flex; flex-direction: column; width: 100dvw; height: 100dvh; margin: 0; border: 0; border-radius: 0; background: #f7f9fc; }
+.diagram-card.is-expanded .diagram-toolbar { flex: 0 0 auto; padding: 10px 18px; }
+.diagram-card.is-expanded .diagram-viewport { flex: 1 1 auto; display: grid; align-items: center; }
+.diagram-card.is-expanded .diagram-block { min-width: max-content; min-height: 100%; padding: 32px; }
+.diagram-card.is-expanded .diagram-expand { display: none; }
+.diagram-card.is-expanded .diagram-close { display: inline-block; }
+.diagram-card.is-expanded .diagram-scroll-hint { display: none; }
+body.diagram-open { overflow: hidden; }
+
+/* 明确的一行短链用原生节点显示，不依赖 Mermaid 或网络资源。 */
+.flow-chain { display: flex; align-items: center; justify-content: safe center; gap: 9px; flex-wrap: nowrap; margin-top: 8px; padding: 20px 16px; border: 1px solid #d2e0ef; border-radius: 11px; background: linear-gradient(180deg,#fbfdff,#f3f8fd); overflow-x: auto; }
+.flow-node { flex: 0 0 auto; padding: 9px 13px; border: 1px solid #9ebfe2; border-radius: 8px; background: #fff; color: #234b75; font-size: 14px; font-weight: 800; box-shadow: 0 3px 8px rgba(42, 91, 141, .09); }
+.flow-arrow { color: #bd5e27; font-size: 21px; font-weight: 900; line-height: 1; }
+
+@media (max-width: 1040px) {
+  .app-shell { display: flex; flex-direction: column; }
+  .sidebar { order: 0; border-right: 0; border-bottom: 1px solid var(--line); }
+  .sidebar h1 { font-size: 24px; }
+  .categories { display: flex; overflow-x: auto; margin: 14px -4px; }
+  .category { white-space: nowrap; width: auto; }
+  .progress-card { display: none; }
+  .detail-pane { order: 1; min-width: 0; overflow: visible; padding: 30px clamp(20px, 6vw, 64px); }
+  .question-pane { order: 2; min-width: 0; border-right: 0; }
+  .topbar { padding: 0 16px; }
+}
+
+@media (max-width: 560px) {
+  body { font-size: 16px; line-height: 1.7; }
+  .detail-pane { padding: 24px 16px; }
+  .detail-section { margin: 27px 0; }
+  .detail-section h3 { font-size: 14px; }
+  .formula-panel { padding: 12px; }
+  .formula-list { grid-template-columns: 1fr; }
+  .formula-line .katex { font-size: 18px; }
+  .diagram-toolbar { align-items: flex-start; }
+  .diagram-meta { padding-top: 7px; }
+  .diagram-actions { flex-wrap: wrap; justify-content: flex-end; }
+  .diagram-block { padding: 18px 13px 30px; }
+  .diagram-card.is-overflowing .diagram-scroll-hint { display: block; }
+  .diagram-card.is-expanded .diagram-toolbar { padding: max(10px, env(safe-area-inset-top)) 10px 10px; }
+}
+
 </style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
 </head>
 <body>
   <header class="topbar">
@@ -132,7 +212,8 @@
     <article id="question-detail" class="detail-pane" aria-live="polite"></article>
   </main>
   <script>
-/* 由 scripts/build-standalone.mjs 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / app.js */
+/* BYTEPREP_STANDALONE_BUNDLE */
+/* 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / render-utils.js / app.js */
 // AUTO-GENERATED by scripts/gen-cards.mjs — DO NOT EDIT BY HAND.
 // Source of truth = ./cards/<category>/<id>.js (one file per card, grouped by category).
 // Edit a card there, then run: npm run gen. This bundle is regenerated from cards/ on every build/test.
@@ -53016,6 +53097,7 @@ function detailSections(card, level = 'quick') {
     ['workedExample', '示例场景', 'steps'],
     ['code', '示意代码（公式）', 'code'],
     ['comparison', '对比一览', 'compare'],
+    ['complexity', '公式与复杂度', 'text'],
     ['references', '延伸阅读', 'refs'],
     ['edgeCases', '边界情况', 'cards'],
     ['followUps', '常见追问', 'qa'],
@@ -53254,12 +53336,275 @@ for (const d of domains) {
   for (const c of d.categories) categoryThread[c.name] = { oneliner: c.oneliner, steps: c.steps, domain: d.name, heavy: d.heavy };
 }
 
+// 纯展示层辅助函数：不修改题卡源数据，也不依赖 DOM。
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+const LEADERS = new Set(['O', 'Ω', 'Θ']);
+const BLOCKING_PREFIX = /[A-Za-z0-9_./\\]/;
+const BLOCKING_SUFFIX = /[A-Za-z0-9_./\\]/;
+const CJK = /[\u3400-\u9fff]/;
+
+const METRIC_KEYWORDS = [
+  ['时间', '时间'], ['time', '时间'],
+  ['空间', '空间'], ['space', '空间'], ['内存', '空间'],
+  ['显存', '显存'], ['vram', '显存'], ['gpu memory', '显存'],
+  ['通信', '通信'], ['all-reduce', '通信'], ['all-to-all', '通信'], ['reduce-scatter', '通信'], ['all-gather', '通信'], ['带宽', '带宽'],
+  ['hbm', '访存'], ['访存', '访存'],
+  ['延迟', '延迟'], ['耗时', '延迟'], ['latency', '延迟'], ['ttft', '延迟'], ['tpot', '延迟'],
+  ['成本', '成本'], ['cost', '成本'],
+  ['吞吐', '吞吐'], ['qps', '吞吐'],
+  ['参数量', '参数量'], ['参数规模', '参数量'], ['总参数', '参数量'], ['可训练参数', '参数量'], ['权重大小', '参数量'], ['parameter count', '参数量'], ['model size', '参数量'],
+  ['利用率', '利用率'], ['mfu', '利用率'],
+  ['气泡', '气泡'], ['bubble', '气泡'],
+  ['计算', '计算'], ['算力', '计算'],
+  ['平均', '平均'], ['最坏', '最坏'], ['最好', '最好'], ['摊还', '摊还'],
+  ['召回', '检索'], ['检索', '检索'],
+  ['prefill', 'Prefill'], ['decode', 'Decode'],
+  ['训练', '训练'], ['推理', '推理'], ['生成', '生成'], ['构建', '构建'], ['评测', '评测'], ['调度', '调度'],
+];
+
+function inferMetricLabel(context, fallback = '复杂度', anchor = String(context == null ? '' : context).length) {
+  const source = String(context == null ? '' : context).toLowerCase();
+  let best = { distance: Infinity, label: fallback };
+  for (const [keyword, label] of METRIC_KEYWORDS) {
+    let index = source.indexOf(keyword);
+    while (index !== -1) {
+      const distance = Math.abs(index + keyword.length / 2 - anchor);
+      if (distance < best.distance) best = { distance, label };
+      index = source.indexOf(keyword, index + keyword.length);
+    }
+  }
+  return best.label;
+}
+
+// 用括号深度扫描 O(...)/Ω(...)/Θ(...)，而不是用正则猜嵌套边界。
+// 返回的 source 永远来自原字符串；解析失败时不产生 formula，正文保持原样。
+function splitComplexity(value) {
+  const source = String(value == null ? '' : value);
+  const segments = [];
+  let textStart = 0;
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const leader = source[cursor];
+    const previous = cursor > 0 ? source[cursor - 1] : '';
+    if (!LEADERS.has(leader) || (previous && BLOCKING_PREFIX.test(previous))) {
+      cursor += 1;
+      continue;
+    }
+
+    let open = cursor + 1;
+    while (source[open] === ' ' || source[open] === '\t') open += 1;
+    if (source[open] !== '(') {
+      cursor += 1;
+      continue;
+    }
+
+    let depth = 0;
+    let close = -1;
+    for (let index = open; index < source.length; index += 1) {
+      if (source[index] === '(') depth += 1;
+      else if (source[index] === ')') {
+        depth -= 1;
+        if (depth === 0) {
+          close = index;
+          break;
+        }
+      }
+    }
+    if (close === -1) {
+      cursor = open + 1;
+      continue;
+    }
+    const next = source[close + 1] || '';
+    const afterNext = source[close + 2] || '';
+    const blockedSuffix = next && BLOCKING_SUFFIX.test(next)
+      && !(next === '/' && afterNext && !/[A-Za-z0-9_.\\]/.test(afterNext));
+    if (blockedSuffix) {
+      cursor = close + 1;
+      continue;
+    }
+
+    if (cursor > textStart) segments.push({ type: 'text', value: source.slice(textStart, cursor) });
+    const formulaSource = source.slice(cursor, close + 1);
+    segments.push({
+      type: 'formula',
+      value: formulaSource,
+      latex: complexityToLatex(formulaSource),
+      label: '复杂度',
+    });
+    cursor = close + 1;
+    textStart = cursor;
+  }
+
+  if (textStart < source.length) segments.push({ type: 'text', value: source.slice(textStart) });
+  if (!segments.length && source) segments.push({ type: 'text', value: source });
+  segments.forEach((segment, index) => {
+    if (segment.type !== 'formula') return;
+    const before = segments[index - 1]?.type === 'text' ? metricEdge(segments[index - 1].value, 'left') : '';
+    const after = segments[index + 1]?.type === 'text' ? metricEdge(segments[index + 1].value, 'right') : '';
+    segment.label = inferMetricLabel(`${before} ${after}`, '复杂度', before.length);
+  });
+  return segments;
+}
+
+function metricEdge(value, side) {
+  const parts = String(value == null ? '' : value).split(/[，,。；;、/|+]/);
+  const edge = side === 'left' ? parts.at(-1) : parts[0];
+  return side === 'left' ? edge.slice(-48) : edge.slice(0, 48);
+}
+
+function complexityToLatex(value) {
+  const source = String(value == null ? '' : value).trim();
+  if (!source || CJK.test(source) || /[$%"'`~]/.test(source)) return null;
+  if (!/^(?:O|Ω|Θ)\s*\([\s\S]*\)$/.test(source)) return null;
+  // 不把明显不完整的表达式交给 KaTeX，例如 O(h·)。
+  if (/[+\-*/·×]\s*\)$/.test(source)) return null;
+
+  const superscripts = {
+    '²': '^{2}', '³': '^{3}', '⁴': '^{4}', 'ⁿ': '^{n}', 'ᵏ': '^{k}', 'ᵐ': '^{m}',
+  };
+  return source
+    .replace(/^O/, '\\mathrm{O}')
+    .replace(/^Ω/, '\\Omega')
+    .replace(/^Θ/, '\\Theta')
+    .replace(/[²³⁴ⁿᵏᵐ]/g, (symbol) => superscripts[symbol])
+    .replace(/\^([A-Za-z0-9]+)/g, '^{$1}')
+    .replace(/·/g, '\\cdot ')
+    .replace(/×/g, '\\times ')
+    .replace(/≤/g, '\\le ')
+    .replace(/≥/g, '\\ge ')
+    .replace(/±/g, '\\pm ')
+    .replace(/√\s*([A-Za-z0-9]+)/g, '\\sqrt{$1}')
+    .replace(/([A-Za-z0-9}])′/g, '$1^{\\prime}')
+    .replace(/\blog\b/g, '\\log')
+    .replace(/\bmin\b/g, '\\min')
+    .replace(/\bmax\b/g, '\\max');
+}
+
+function complexityView(value) {
+  const source = String(value == null ? '' : value);
+  const segments = splitComplexity(source);
+  const bigOFormulas = segments.filter((segment) => segment.type === 'formula');
+  return {
+    source,
+    // 有 O/Ω/Θ 时优先展示这些结构化表达式；否则把明确的等式子句作为纯文本公式行。
+    // 后者不送入 KaTeX，既覆盖 “bubble ≈ ...” 等公式，也不会误猜中文 TeX。
+    formulas: bigOFormulas.length ? bigOFormulas : extractEquationClauses(source),
+  };
+}
+
+function extractEquationClauses(value) {
+  const source = String(value == null ? '' : value);
+  return source
+    .split(/[；;。]/)
+    .map(extractEquationClause)
+    .filter(Boolean);
+}
+
+function extractEquationClause(rawClause) {
+  let clause = String(rawClause).trim();
+  if (!clause || /例如|譬如|比如/.test(clause)) return null;
+  const operatorMatch = findTopLevelEquationOperator(clause);
+  if (!operatorMatch) return null;
+
+  // 公式后的说明从顶层逗号开始，不把整段中文解释塞进居中的公式行。
+  let depth = 0;
+  for (let index = operatorMatch.index + operatorMatch[0].length; index < clause.length; index += 1) {
+    if ('（(['.includes(clause[index])) depth += 1;
+    else if ('）)]'.includes(clause[index])) depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (clause[index] === '，' || clause[index] === ',')) {
+      clause = clause.slice(0, index).trim();
+      break;
+    }
+  }
+
+  const operator = findTopLevelEquationOperator(clause);
+  if (!operator) return null;
+  const lhs = clause.slice(0, operator.index).trim();
+  const rhs = clause.slice(operator.index + operator[0].length).trim();
+  if (!lhs || !rhs || /^[\d.,，]/.test(lhs) || lhs.length > 28 || rhs.length > 72 || clause.length > 96) return null;
+  if (/需|但是|但|因此|所以|建议|说明|可能|否则|意味着/.test(clause)) return null;
+  if (/\s(?:时|则|会)\b|时占用率/.test(rhs)) return null;
+
+  const shortLhs = lhs.replace(/^整体|^总/, '').trim();
+  const inferred = inferMetricLabel(lhs, '关系式');
+  const label = inferred === '关系式' && shortLhs.length <= 10 ? shortLhs : inferred;
+  return { type: 'formula', value: clause, latex: null, label };
+}
+
+function findTopLevelEquationOperator(source) {
+  let depth = 0;
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    if ('（(['.includes(char)) { depth += 1; continue; }
+    if ('）)]'.includes(char)) { depth = Math.max(0, depth - 1); continue; }
+    if (depth !== 0) continue;
+    if (char === '≈' || char === '∝') return { 0: char, index, length: 1 };
+    if (char === '=' && source[index - 1] !== '<' && source[index - 1] !== '>' && source[index - 1] !== '!' && source[index + 1] !== '=') {
+      return { 0: char, index, length: 1 };
+    }
+  }
+  return null;
+}
+
+const FLOW_ARROW = /\s*(?:-->|->|→|⇒|==>|=>|─+[>▶►])\s*/;
+
+function hasUnsafeTopLevelLabel(label) {
+  let depth = 0;
+  for (const char of label) {
+    if ('（(['.includes(char)) depth += 1;
+    else if ('）)]'.includes(char)) depth = Math.max(0, depth - 1);
+    else if (depth === 0 && (char === '/' || char === ',' || char === '，')) return true;
+  }
+  return depth !== 0;
+}
+
+// 只识别无分支、无标注、无回环的一行短链。复杂图保留原 ASCII，绝不猜结构。
+function parseSimpleFlowChain(value) {
+  const source = String(value == null ? '' : value).trim();
+  if (!source || source.includes('\n') || source.length > 240) return null;
+  if (/<->|<--|↔|-{3,}>|--[^>\n]+-->|─[^▶►>\n]{1,24}─+[▶►>]|\.{3}|…|[↑↓?{};；"'`]/.test(source)) return null;
+  const labels = source.split(FLOW_ARROW).map((label) => label.trim());
+  if (labels.length < 2 || labels.length > 8) return null;
+  if (labels.some((label) => !label || label.length > 42 || /--/.test(label) || hasUnsafeTopLevelLabel(label))) return null;
+  // 非末节点里的大段空白通常表示同一行画了第二条泳道，不能串成单链。
+  if (labels.slice(0, -1).some((label) => /\s{2,}\S/.test(label))) return null;
+  if (new Set(labels).size !== labels.length) return null;
+  return labels;
+}
+
+function diagramHtml(value) {
+  const source = String(value == null ? '' : value);
+  const tokenPattern = /(-->|->|→|⇒|↔|==>|=>|─+[>▶►]|\[[^\]\n]{1,64}\]|[┌┐└┘├┤┬┴┼│─╭╮╰╯╱╲]+)/gu;
+  let html = '';
+  let cursor = 0;
+  for (const match of source.matchAll(tokenPattern)) {
+    html += escapeHtml(source.slice(cursor, match.index));
+    const token = match[0];
+    const className = token.startsWith('[') ? 'diagram-node' : /(?:>|▶|►|→|⇒|↔)$/.test(token) ? 'arrow' : 'diagram-connector';
+    html += `<span class="${className}">${escapeHtml(token)}</span>`;
+    cursor = match.index + token.length;
+  }
+  return html + escapeHtml(source.slice(cursor));
+}
+
+
 
 
 
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
+
 const state = {
   mode: 'review', view: 'map', mapTab: 'domains', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   mockQuestions: [], revealIndex: 0, detailLevel: 'deep', masteredIds: loadMastered(),
@@ -53342,14 +53687,108 @@ function renderList() {
   }));
 }
 function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = text; block.append(h, p); return block; }
+function complexitySection(title, text) {
+  const block = document.createElement('section'); block.className = 'detail-section formula-section';
+  const h = document.createElement('h3'); h.textContent = title;
+  const view = complexityView(text);
+  const formulas = [...new Map(view.formulas.map((formula) => [`${formula.label || ''}\u0000${formula.value}`, formula])).values()];
+  if (!formulas.length) {
+    const copy = document.createElement('p'); copy.className = 'complexity-copy'; copy.textContent = view.source;
+    block.append(h, copy); return block;
+  }
+
+  const panel = document.createElement('div'); panel.className = 'formula-panel';
+  const label = document.createElement('span'); label.className = 'formula-label'; label.textContent = '复杂度速览';
+  const formulaList = document.createElement('div'); formulaList.className = 'formula-list';
+  formulas.forEach((formula) => {
+    const item = document.createElement('div'); item.className = 'formula-item';
+    item.dataset.metric = formula.label || '复杂度';
+    const metric = document.createElement('span'); metric.className = 'formula-metric'; metric.textContent = item.dataset.metric;
+    const line = document.createElement('div'); line.className = 'formula-line';
+    line.setAttribute('aria-label', formula.value);
+    if (formula.latex && typeof katex !== 'undefined') {
+      try {
+        line.innerHTML = katex.renderToString(formula.latex, { displayMode: true, throwOnError: true, strict: 'error', trust: false });
+      } catch {
+        line.classList.add('formula-fallback'); line.textContent = formula.value;
+      }
+    } else {
+      line.classList.add('formula-fallback'); line.textContent = formula.value;
+    }
+    item.append(metric, line); formulaList.append(item);
+  });
+  const note = document.createElement('div'); note.className = 'complexity-note';
+  const noteLabel = document.createElement('span'); noteLabel.className = 'complexity-note-label'; noteLabel.textContent = '解释';
+  const copy = document.createElement('p'); copy.className = 'complexity-copy'; copy.textContent = view.source;
+  note.append(noteLabel, copy); panel.append(label, formulaList, note); block.append(h, panel); return block;
+}
 function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); li.textContent = item; list.append(li); }); block.append(h, list); return block; }
 function codeSection(title, code) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const wrap = document.createElement('div'); wrap.className = 'code-wrap'; const pre = document.createElement('pre'); const codeEl = document.createElement('code'); codeEl.setAttribute('aria-label', title); codeEl.textContent = code; pre.append(codeEl); wrap.append(pre); block.append(h, wrap); return block; }
+function closeExpandedDiagram(card) {
+  const trigger = card?.querySelector('.diagram-expand');
+  card?.classList.remove('is-expanded');
+  card?.removeAttribute('role'); card?.removeAttribute('aria-modal');
+  document.body.classList.remove('diagram-open');
+  trigger?.focus();
+}
+function updateDiagramOverflow(root = document) {
+  const cards = root.matches?.('.diagram-card') ? [root] : root.querySelectorAll('.diagram-card');
+  cards.forEach((card) => {
+    const viewport = card.querySelector('.diagram-viewport');
+    card.classList.toggle('is-overflowing', Boolean(viewport && viewport.scrollWidth > viewport.clientWidth + 2));
+  });
+}
 function diagramSection(title, diagram) {
   if (!diagram) return document.createDocumentFragment();
   const block = document.createElement('section'); block.className = 'detail-section';
   const h = document.createElement('h3'); h.textContent = title;
-  const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title); pre.textContent = diagram;
-  block.append(h, pre); return block;
+  const labels = parseSimpleFlowChain(diagram);
+  if (labels) {
+    const flow = document.createElement('div'); flow.className = 'flow-chain'; flow.setAttribute('role', 'img');
+    flow.dataset.source = String(diagram);
+    flow.setAttribute('aria-label', `${title}：${labels.join(' 到 ')}`);
+    labels.forEach((label, index) => {
+      if (index) { const arrow = document.createElement('span'); arrow.className = 'flow-arrow'; arrow.setAttribute('aria-hidden', 'true'); arrow.textContent = '→'; flow.append(arrow); }
+      const node = document.createElement('span'); node.className = 'flow-node'; node.textContent = label; flow.append(node);
+    });
+    block.append(h, flow); return block;
+  }
+  const source = String(diagram);
+  const visibleSource = source.replace(/^\n+|\n+$/g, '');
+  const lineCount = visibleSource ? visibleSource.split('\n').length : 0;
+  const card = document.createElement('div'); card.className = 'diagram-card';
+  card.style.setProperty('--diagram-font-size', '14px');
+  const toolbar = document.createElement('div'); toolbar.className = 'diagram-toolbar';
+  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `结构图 · ${lineCount} 行`;
+  const actions = document.createElement('div'); actions.className = 'diagram-actions';
+  const viewport = document.createElement('div'); viewport.className = 'diagram-viewport';
+  const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title);
+  pre.innerHTML = diagramHtml(source); viewport.append(pre);
+
+  let fontSize = 14;
+  const sizeLabel = document.createElement('span'); sizeLabel.className = 'diagram-size'; sizeLabel.textContent = '14px';
+  const sizeButton = (label, delta) => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'diagram-tool'; button.textContent = label;
+    button.setAttribute('aria-label', delta > 0 ? '放大图中文字' : '缩小图中文字');
+    button.addEventListener('click', () => {
+      fontSize = Math.max(12, Math.min(20, fontSize + delta));
+      card.style.setProperty('--diagram-font-size', `${fontSize}px`); sizeLabel.textContent = `${fontSize}px`;
+      const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
+      schedule(() => updateDiagramOverflow(card));
+    });
+    return button;
+  };
+  const expand = document.createElement('button'); expand.type = 'button'; expand.className = 'diagram-tool diagram-expand'; expand.textContent = '全屏查看';
+  expand.addEventListener('click', () => {
+    card.classList.add('is-expanded'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+    document.body.classList.add('diagram-open'); close.focus();
+  });
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'diagram-tool diagram-close'; close.textContent = '关闭全屏';
+  close.addEventListener('click', () => closeExpandedDiagram(card));
+  actions.append(sizeButton('A−', -2), sizeLabel, sizeButton('A+', 2), expand, close);
+  toolbar.append(meta, actions);
+  const hint = document.createElement('span'); hint.className = 'diagram-scroll-hint'; hint.textContent = '可左右滑动查看';
+  card.append(toolbar, viewport, hint); block.append(h, card); return block;
 }
 function lineNotesSection(title, notes) {
   const block = document.createElement('section'); block.className = 'detail-section';
@@ -53402,6 +53841,7 @@ function refsSection(title, items) {
 }
 function renderSection(section) {
   if (section.value == null) return document.createDocumentFragment();
+  if (section.key === 'complexity') return complexitySection(section.title, section.value);
   if (section.type === 'diagram') return diagramSection(section.title, section.value);
   if (section.type === 'code') return codeSection(section.title, section.value);
   if (section.type === 'lineNotes') return lineNotesSection(section.title, section.value);
@@ -53425,6 +53865,7 @@ function renderDetailLevelSwitch() {
 }
 function renderDetail() {
   const pane = el('question-detail');
+  document.body.classList.remove('diagram-open');
   if (state.view === 'map') {
     pane.replaceChildren();
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
@@ -53447,6 +53888,8 @@ function renderDetail() {
   const visibleCount = state.mode === 'mock' ? state.revealIndex : sections.length;
   if (state.mode !== 'mock') pane.append(renderDetailLevelSwitch());
   pane.append(...sections.slice(0, visibleCount).map(renderSection));
+  const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
+  schedule(() => updateDiagramOverflow(pane));
   if (state.mode === 'mock') {
     const gate = document.createElement('div'); gate.className = 'reveal-controls';
     const message = document.createElement('p'); message.textContent = state.revealIndex ? `已揭晓 ${state.revealIndex} / ${sections.length} 段` : '先独立思考，再按学习顺序揭晓答案。'; gate.append(message);
@@ -53615,7 +54058,21 @@ function startMock() { state.mode = 'mock'; state.view = 'list'; state.mockQuest
 function returnReview() { state.mode = 'review'; state.view = 'map'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
 el('search-input').addEventListener('input', (event) => { state.query = event.target.value; state.view = 'list'; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
 el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = 'list'; el('search-input').value = ''; selectQuestion(filterQuestions(questions, '全部', '', '全部')[0]?.id); render(); });
-el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview); render();
+el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview);
+document.addEventListener('keydown', (event) => {
+  const card = document.querySelector('.diagram-card.is-expanded');
+  if (!card) return;
+  if (event.key === 'Escape') { closeExpandedDiagram(card); return; }
+  if (event.key !== 'Tab') return;
+  const focusable = [...card.querySelectorAll('button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])')]
+    .filter((node) => getComputedStyle(node).display !== 'none');
+  if (!focusable.length) return;
+  const first = focusable[0], last = focusable.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
+window.addEventListener('resize', () => updateDiagramOverflow());
+render();
 
 </script>
 </body>

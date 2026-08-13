@@ -1,5 +1,5 @@
 // 生成可双击打开（file://）的自包含 index.html。
-// 关键：把 questions.js / quiz-core.js / knowledge-map.js / app.js 全部内联进
+// 关键：把 questions.js / quiz-core.js / knowledge-map.js / render-utils.js / app.js 全部内联进
 // 一个【普通 <script>（非 module）】，并内联 styles.css。
 // 普通脚本在 file:// 下不受 CORS 限制，双击 index.html 即可运行，无需本地服务器。
 //
@@ -22,19 +22,40 @@ const stripImport = (src) => src.replace(/^\s*import\s.+$/gm, '');
 const questions = stripExport(read('questions.js'));
 const quizCore = stripExport(read('quiz-core.js'));
 const knowledgeMap = stripExport(read('knowledge-map.js'));
+const renderUtils = stripExport(read('render-utils.js'));
 const app = stripImport(read('app.js'));
 const css = read('styles.css');
+const styleMarker = '/* BYTEPREP_STANDALONE_STYLES */';
+const bundleMarker = '/* BYTEPREP_STANDALONE_BUNDLE */';
+const inlineStyle = `<style>\n${styleMarker}\n${css}\n</style>`;
 
-const bundle = `/* 由 scripts/build-standalone.mjs 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / app.js */
+const bundle = `${bundleMarker}
+/* 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / render-utils.js / app.js */
 ${questions}
 ${quizCore}
 ${knowledgeMap}
+${renderUtils}
 ${app}`;
 
 let indexHtml = read('index.html');
+// 页面已不再依赖 Mermaid；移除历史构建产物中的 CDN 标签。
+indexHtml = indexHtml.replace(/\s*<script\s+src="https:\/\/cdn\.jsdelivr\.net\/npm\/mermaid@[^\"]+"[^>]*><\/script>/g, '');
 
-// 移除外链样式表，改为内联 <style>
-indexHtml = indexHtml.replace(/<link rel="stylesheet" href="styles\.css">/, `<style>\n${css}\n</style>`);
+// 移除外链样式表，改为内联 <style>；若 index 已经是构建产物，也必须刷新旧的内联 CSS。
+if (indexHtml.includes('<link rel="stylesheet" href="styles.css">')) {
+  indexHtml = indexHtml.replace(/<link rel="stylesheet" href="styles\.css">/, inlineStyle);
+} else {
+  const generatedStyleIdx = indexHtml.indexOf(styleMarker);
+  const firstStyleOpen = indexHtml.indexOf('<style>');
+  const firstStyleClose = indexHtml.indexOf('</style>', firstStyleOpen);
+  if (firstStyleOpen === -1 || firstStyleClose === -1) {
+    throw new Error('找不到可替换的内联 <style>，请检查 index.html。');
+  }
+  // 兼容历史上没有 marker 的 standalone；首个 style 即项目 styles.css 产物。
+  const replaceFrom = generatedStyleIdx === -1 ? firstStyleOpen : indexHtml.lastIndexOf('<style>', generatedStyleIdx);
+  const replaceTo = indexHtml.indexOf('</style>', generatedStyleIdx === -1 ? firstStyleOpen : generatedStyleIdx);
+  indexHtml = indexHtml.slice(0, replaceFrom) + inlineStyle + indexHtml.slice(replaceTo + '</style>'.length);
+}
 
 // 情况 A：仍存在 module 外链脚本标签（源模板形态）→ 整段替换
 if (indexHtml.includes('<script type="module" src="app.js">')) {
@@ -44,8 +65,10 @@ if (indexHtml.includes('<script type="module" src="app.js">')) {
   );
 } else {
   // 情况 B：已经是内联形态 → 用自动生成注释锚点，替换整段 inline bundle <script>…</script>
-  const marker = '/* 由 scripts/build-standalone.mjs 自动生成';
-  const markerIdx = indexHtml.indexOf(marker);
+  const legacyBundleMarker = '/* 由 scripts/build-standalone.mjs 自动生成，请勿手改。源文件';
+  const markerIdx = indexHtml.includes(bundleMarker)
+    ? indexHtml.indexOf(bundleMarker)
+    : indexHtml.indexOf(legacyBundleMarker);
   if (markerIdx === -1) {
     throw new Error('找不到可替换的内联 bundle 锚点，也未发现 module 外链脚本，请检查 index.html。');
   }
