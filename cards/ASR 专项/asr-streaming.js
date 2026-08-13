@@ -1,60 +1,19 @@
 export default {
-  "id": "asr-streaming",
-  "category": "ASR 专项",
-  "difficulty": "Hard",
-  "title": "端侧流式 ASR 生命周期与解码",
-  "prompt": "把端侧具身短指令流式 ASR 拆为音频生命周期、VAD、DDS、解码四层后，如何修正 drain/flush、pre-roll 与常驻 session 陷阱？",
-  "quickAnswer": "把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
-  "code": "def streaming_decode(frame, session, vad, dds, fallback_to_whole=True):\n    \"\"\"端侧流式 ASR：VAD 触发、DDS 动态分块解码，force-flush 落空则回退整缓冲。\"\"\"\n    if vad.is_speech(frame):\n        session.feed(frame)\n        return dds.step(session)\n    result = dds.force_flush(session)\n    if not result and fallback_to_whole:\n        return session.decode_whole_buffer()\n    return result",
-  "complexity": "时间 O(f)（每帧）/ O(B)（解码，B 为缓冲），空间 O(B)",
-  "beginnerSummary": "像边听边写：耳朵（VAD）判断在不在说话，手写（DDS）边听边写，话停了抖一下笔（flush），写不出就整段重读（fallback）。",
-  "derivation": [
-    "为什么需要：具身短指令要求低延迟流式响应，但 drain/flush 时机错、pre-roll 丢开头、常驻 session 状态污染都会导致空结果或截断。",
-    "怎么实现：四层拆分——音频生命周期管资源、VAD 管起止、DDS 动态分块解码、解码层管 flush；force-flush 落空时回退 whole-buffer 解码。",
-    "有什么代价：常驻 session 占用端侧内存；fallback 整缓冲增加尾延迟；pre-roll 缓冲增加首字延迟。",
-    "怎么评测：在具身指令集测首字延迟与空结果率，force-flush 与 whole-buffer fallback 必须逐步回退，空结果恶化即触发回退。"
-  ],
-  "edgeCases": [
-    "静音段误判为结束触发过早 flush，丢失尾字。",
-    "pre-roll 缓冲不足，指令开头被截。",
-    "常驻 session 跨轮未重置，上轮状态污染本轮。",
-    "force-flush 返回空且 fallback 也空（极短/极噪），需兜底提示。"
-  ],
-  "pitfalls": [
-    "把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。",
-    "一味 flush 追求低延迟，空结果率上升却未接 whole-buffer 回退。"
-  ],
-  "prerequisites": [
-    "流式 ASR 与 VAD",
-    "动态解码分块（DDS）",
-    "端侧 session 生命周期管理"
-  ],
-  "workedExample": [
-    "步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
-    "步骤2：VAD 判静音，调用 force_flush 输出尾段。",
-    "步骤3：flush 为空则 decode_whole_buffer 回退，避免空结果。"
-  ],
-  "lineByLine": [
-    "if vad.is_speech(frame): 用 VAD 判定当前帧是否语音。",
-    "session.feed(frame); return dds.step(session) 语音帧喂入常驻 session 并增量解码。",
-    "result = dds.force_flush(session) 静音时强制刷新剩余缓冲。",
-    "if not result and fallback_to_whole: return session.decode_whole_buffer() flush 落空回退整缓冲。"
-  ],
-  "followUps": [
-    {
-      "question": "drain 和 flush 区别是什么？",
-      "answer": "drain 是排空解码器内部状态并复位用于停流，flush 是在不停 session 情况下强制输出当前缓冲文本；混淆二者会让常驻 session 状态残留。"
-    },
-    {
-      "question": "force-flush 空结果为什么要回退 whole-buffer？",
-      "answer": "flush 可能因分块边界出错返回空，whole-buffer 用整段重解当作兜底，避免把用户指令判成空导致误操作。"
-    }
-  ],
-  "followUpAnswers": [
-    "drain 是排空解码器内部状态并复位用于停流，flush 是在不停 session 情况下强制输出当前缓冲文本；混淆二者会让常驻 session 状态残留。",
-    "flush 可能因分块边界出错返回空，whole-buffer 用整段重解当作兜底，避免把用户指令判成空导致误操作。"
-  ],
-  "invariant": "对任意帧序列，若最终有语音内容，streaming_decode 在静音后必返回非空结果（要么 flush 成功，要么 whole-buffer 回退成功），不会静默丢指令。",
-  "walkthrough": "连续语音帧 → 每帧 feed+step 增量出字；末帧后静音 → force_flush 得尾字；若 flush 空 → decode_whole_buffer 返回整句，保证非空。",
-  "kind": "code"
+  id: 'asr-streaming', category: 'ASR 专项', difficulty: 'Hard', kind: 'code',
+  title: '流式 ASR 句尾不丢字：drain、flush 与 session',
+  prompt: '流式 ASR 在端点、短尾包和多会话下为什么会空结果或丢句尾？怎样设计生命周期和逐级回退？',
+  quickAnswer: '流式前端、encoder 和 decoder 都可能保留尚未消费的尾部状态。收到端点时应停止接收新音频，但先 drain 前端完整帧、补必要 padding、推进 encoder，再 flush decoder 并发 final，最后才能释放 session。pre-roll 用于补回 VAD 起点前语音；常驻 session 必须在句间重置句级状态，不能把上一句缓存带进下一句。',
+  beginnerSummary: '水管关阀后，管子里还有水。用户说完并不代表所有音频已经走完前端、模型和解码器；按错顺序释放，就会把最后几个字一起扔掉。',
+  explanationFocus: '端点是一次有序状态转换，不是直接调用 close。',
+  approach: '定义 CREATED→LISTENING→DRAINING→FINALIZING→CLOSED 状态机；每一步记录输入样本数、特征帧数、encoder 帧数和 final 事件。',
+  derivation: ['为什么需要：chunk 对齐、特征窗口和模型右上下文都会让句尾暂存在缓存中。', '怎么实现：端点后依次 drain frontend、pad/encode tail、flush decoder、emit final、reset/free。', '有什么代价：padding 与 fallback 增加少量尾延迟，状态机和幂等处理更复杂。', '怎么评测：短指令、尾部爆破音、连续多句和异常断流上测空结果率、句尾删除率与 final 延迟。'],
+  prerequisites: ['VAD 端点检测与 session', '流式 chunk 与缓存'],
+  workedExample: ['示意：最后 120 ms 不足一个特征块；drain 时补齐计算但用有效长度 mask，句尾字才进入 decoder。', '同一连接连续说两句时保留模型实例，但重置句级 decoder、VAD 和稳定前缀状态。'],
+  code: "def finalize_session(session):\n    session.transition('DRAINING')\n    tail_features = session.frontend.drain()\n    tail_encoded = session.encoder.drain(tail_features, session.encoder_state)\n    final_text = session.decoder.flush(tail_encoded, session.decoder_state)\n    session.transition('CLOSED')\n    return final_text",
+  lineByLine: ['先进入 DRAINING，拒绝重复写入。', '前端和 encoder 依次消费尾部缓存。', 'decoder.flush 生成 final 后才关闭；真实实现还需幂等与异常回退。'],
+  complexity: '正常 finalize 只处理尾部缓存，成本通常与剩余帧数成正比；whole-buffer fallback 会重复整句推理，只应作为受监控的最后回退。',
+  diagram: 'CREATED ─▶ LISTENING ──endpoint──▶ DRAINING ─▶ FINALIZING ─▶ CLOSED\n               ▲ pre-roll             frontend→encoder→decoder      emit final',
+  edgeCases: ['重复 endpoint/finalize 必须幂等，不能发两次 final。', '客户端断流没有正常端点时需要超时 finalize。', 'padding 帧若未 mask 可能生成额外字符。'],
+  pitfalls: ['用含义不清的 DDS 缩写代替具体状态机。', '端点一到就释放缓存，或每句都保留旧 decoder state 造成串句。'],
+  followUps: [{ question: 'pre-roll 应保存在哪里？', answer: '通常保存在 VAD 前的环形 PCM/特征缓冲；检测到起点后把前几百毫秒一并送入，具体长度由漏首字与延迟实测决定。' }, { question: '什么时候启用 whole-buffer fallback？', answer: '仅在增量路径异常或 final 为空、且业务允许额外尾延迟时；必须记录触发率，不能让回退掩盖主路径缺陷。' }],
 };

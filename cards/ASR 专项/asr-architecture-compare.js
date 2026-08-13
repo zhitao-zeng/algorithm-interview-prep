@@ -1,60 +1,20 @@
 export default {
-  "id": "asr-architecture-compare",
-  "category": "ASR 专项",
-  "difficulty": "Medium",
-  "title": "主流 ASR 架构横评与选型",
-  "prompt": "Whisper、Paraformer、Zipformer-Transducer 与 Qwen3-ASR 四类架构的核心差异是什么，如何按场景选型？",
-  "quickAnswer": "Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
-  "code": "class ASRBackbone:\n    \"\"\"统一不同架构（Whisper/Paraformer/Zipformer/Qwen3）的推理接口便于横评。\"\"\"\n    def __init__(self, arch: str):\n        self.arch = arch\n    def transcribe(self, audio):\n        return {\"whisper\": self._enc_dec,\n                \"paraformer\": self._san_parallel,\n                \"zipformer\": self._transducer,\n                \"qwen3-asr\": self._llm}.get(self.arch)(audio)",
-  "complexity": "时间 O(1)（路由）/ 推理随架构 O(N·L)，空间 O(1)",
-  "beginnerSummary": "四个“翻译官”各有绝活：Whisper 全能但慢，Paraformer 并行快，Zipformer 流式对齐好，Qwen3 大模型最聪明但最吃资源。",
-  "derivation": [
-    "为什么需要：四类架构在准确率、延迟、流式与端侧成本上权衡不同，统一接口才能公平横评并按场景选型。",
-    "怎么实现：Whisper 用 Encoder-Decoder+自回归；Paraformer 用 SAN 做非自回归并行预测；Zipformer-Transducer 做单元级流式对齐；Qwen3-ASR 走大模型化。统一 transcribe 接口横评。",
-    "有什么代价：大模型（Qwen3）准确高但显存/延迟大；Transducer 需对齐训练复杂；统一接口要适配各自前后处理。",
-    "怎么评测：在 11 语种盲测跑三层口径，按指标与端侧约束选：端侧用 Paraformer/Whisper-tiny，高准确用 Qwen3，流式用 Zipformer。"
-  ],
-  "edgeCases": [
-    "Whisper 自回归易重复解码（hallucination），长音频需 chunk。",
-    "Paraformer 非自回归对同音字易错，需语言模型兜底。",
-    "Zipformer-Transducer 训练需预测网络/对齐，调参复杂。",
-    "Qwen3-ASR 在端侧显存不足必须量化或回退。"
-  ],
-  "pitfalls": [
-    "把 Whisper 当万能，端侧硬上导致延迟爆表。",
-    "横评时前后处理不一致（归一化/采样率）导致指标不可比。"
-  ],
-  "prerequisites": [
-    "Encoder-Decoder 与自回归解码",
-    "Transducer 与 CTC 对齐",
-    "非自回归（NAR）建模"
-  ],
-  "workedExample": [
-    "步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
-    "步骤2：在盲测集跑三层口径，记录 CER 与延迟。",
-    "步骤3：端侧 200MB 选 Paraformer，高准确选 Qwen3-ASR。"
-  ],
-  "lineByLine": [
-    "class ASRBackbone: 定义统一基座封装类。",
-    "def __init__(self, arch): self.arch = arch 记录所选架构名。",
-    "def transcribe(self, audio): 对外统一推理接口。",
-    "return {...}.get(self.arch)(audio) 按架构名分发到对应内部实现。"
-  ],
-  "followUps": [
-    {
-      "question": "Paraformer 的 SAN 是什么？",
-      "answer": "SAN（Self-Attention Network）结合 CIF 预测时长，实现非自回归并行输出，去掉自回归延迟，推理快但需处理重复/漏字。"
-    },
-    {
-      "question": "Transducer 相比 CTC 好在哪？",
-      "answer": "Transducer 引入预测网络与联合网络做帧-标签单元级对齐，不要求帧独立假设，流式与长静音更稳，对齐更精细。"
-    }
-  ],
-  "followUpAnswers": [
-    "SAN（Self-Attention Network）结合 CIF 预测时长，实现非自回归并行输出，去掉自回归延迟，推理快但需处理重复/漏字。",
-    "Transducer 引入预测网络与联合网络做帧-标签单元级对齐，不要求帧独立假设，流式与长静音更稳，对齐更精细。"
-  ],
-  "invariant": "transcribe 对任意已知 arch 必分发到对应实现且返回解码文本，未知 arch 触发 KeyError 需调用方保证合法值。",
-  "walkthrough": "ASRBackbone('paraformer').transcribe(audio) → 查表命中 _san_parallel 并行解码返回文本；'qwen3-asr' → _llm 大模型解码。",
-  "kind": "code"
+  id: 'asr-architecture-compare', category: 'ASR 专项', difficulty: 'Medium', kind: 'code',
+  title: 'ASR 架构选型：先定约束再选模型',
+  prompt: 'Whisper、Paraformer、Zipformer-Transducer 和 Qwen3-ASR 应该怎样公平比较，而不是直接给每个场景指定赢家？',
+  quickAnswer: '先固定任务、数据、文本归一化和硬件，再比较准确率切片、流式能力、首包/完成延迟、吞吐、内存与部署成熟度。Whisper 是自回归 encoder-decoder，Paraformer 是借助 CIF predictor 的并行非自回归模型，Zipformer 常作为高效 encoder 搭配 Transducer，Qwen3-ASR 是较新的大规模多语种系列；这些结构特点不能替代目标设备上的实测。',
+  beginnerSummary: '选 ASR 像选车：不能只说哪辆“最强”。先问是在手机还是服务器、要不要边说边出字、有哪些语言、能用多少内存，再让候选在同一条赛道上跑。',
+  explanationFocus: '架构名称只是先验，真正的选型结论必须来自统一口径的能力—成本 Pareto 对比。',
+  approach: '建立 frozen test set 和统一 normalizer；每个模型同时跑官方推荐配置与受控配置，并记录输出、版本、参数和硬件。',
+  derivation: ['为什么需要：不同模型默认采样率、分段、提示词和后处理不同，直接抄榜单不可比。', '怎么实现：分成质量、流式交互、资源、运维四组指标，并保存逐样本结果。', '有什么代价：统一配置可能压低某模型上限，因此最好同时报告受控对照与最佳可用配置。', '怎么评测：画 CER/WER—延迟—内存 Pareto 图，再按业务硬门槛过滤候选。'],
+  prerequisites: ['Transformer 编码器-解码器', 'RNN-T 与 Transducer', '非自回归 NAR'],
+  workedExample: ['示意：客服离线转写先设“单卡显存、小时吞吐、长音频错误率”门槛，再比较模型。', '车机流式场景另设首个 committed 文本、峰值内存和断网可用性门槛，赢家可能不同。'],
+  code: "def compare_model(model, dataset, normalizer, device):\n    outputs, timings = run_frozen_eval(model, dataset, device)\n    return {\n        'error_rate': score(outputs, dataset.refs, normalizer),\n        'latency': summarize_latency(timings),\n        'memory': peak_memory(device),\n    }",
+  lineByLine: ['所有候选使用同一冻结测试集和文字归一化。', '保留逐样本输出与耗时，避免只剩一个平均数。', '准确率、延迟和内存分开报告，不强行压成单一分数。'],
+  complexity: '横评成本约为候选模型数 × 测试音频总时长；还要为不同并发和流式配置重复测试。',
+  diagram: '业务约束 ─▶ 冻结数据 / 统一口径 ─▶ 候选模型实测 ─▶ Pareto 前沿 ─▶ 选型\n                            ├▶ 质量切片\n                            ├▶ 延迟吞吐\n                            └▶ 内存与部署',
+  references: [{ title: 'Whisper paper', url: 'https://arxiv.org/abs/2212.04356' }, { title: 'Paraformer paper', url: 'https://arxiv.org/abs/2206.08317' }, { title: 'Zipformer paper', url: 'https://arxiv.org/abs/2310.11230' }, { title: 'Qwen3-ASR Technical Report', url: 'https://arxiv.org/abs/2601.21337' }],
+  edgeCases: ['某模型需要固定语言提示，另一模型自动 LID，必须分开记录。', '流式 API 名称相同但 committed 语义和右上下文可能不同。', '短句平均值可能掩盖长音频重复与幻觉。'],
+  pitfalls: ['直接写“端侧选 Paraformer、最高准确选 Qwen3”——没有硬件和数据就无法下结论。', '给不同模型使用不同文本归一化，再比较 CER/WER。'],
+  followUps: [{ question: '为什么要同时给推荐配置和受控配置？', answer: '推荐配置代表可达到的产品上限；受控配置帮助判断收益来自模型本身还是额外提示、语言模型和后处理。' }, { question: 'Qwen3-ASR 支持流式，是否就适合所有端侧？', answer: '不等于。官方系列有 0.6B/1.7B 和流式推理能力，但具体设备上的算子支持、内存、功耗和稳定延迟仍需实测。' }],
 };

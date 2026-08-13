@@ -3924,171 +3924,154 @@ const questions = [
     "id": "as-asr-codec",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "语音编解码与特征",
-    "prompt": "为什么现代 ASR 多用 log-Mel 滤波器组而非原始波形或裸 MFCC，且近年又出现神经音频 codec？",
-    "quickAnswer": "log-Mel 滤波器组贴近人耳临界带、降维且去相关性，比原始波形更易学习；神经 codec（如 EnCodec）把音频压成离散 token，使语音可作为“语言”被自回归模型直接生成，支撑语音合成与音频大模型。",
-    "approach": "前端先用 STFT 取幅度谱，经梅尔滤波器组加权再取 log 得 80 维特征供 ASR；codec 路线则训练 encoder-decoder + 残差矢量量化，把波形编码为多层离散 token，供下游生成/识别共享表征。",
-    "explanationFocus": "是什么：语音特征与编解码研究如何把波形表示为更适合模型的形式——传统用 log-Mel 滤波器组，新趋势用神经音频 codec 把语音压缩为离散 token，统一了识别、合成与生成。",
-    "bruteForce": "直接用原始 16kHz 波形喂模型，序列过长、冗余高，网络难以学到音素结构；或只用裸 MFCC 缺少相位与细粒度信息。",
-    "invariant": "无论特征如何变换，应能近似无损地重建可懂语音（codec 下），且同一音素的特征在同一说话人/信道下应保持聚类。",
-    "walkthrough": "预加重 → 分帧加窗 → STFT 得幅度谱 → 梅尔滤波组加权 → log 压缩得特征；codec 路线：encoder 下采样 + RVQ 量化 → token，解码器由 token 重建波形。",
-    "complexity": "log-Mel 计算为 O(T·n_fft·mel) 的轻量前端；神经 codec 训练需 encoder-decoder + 量化，推理为单次前向，token 率约 75Hz。",
-    "beginnerSummary": "语音特征就像把声音“翻译”成图片：log-Mel 是给机器看的频谱图，神经 codec 则把声音压成一串“字”，让 AI 能像写作文一样生成语音。",
-    "diagram": "waveform (16k)\n   |\nSTFT / fbank\n   |\ncodec tokens\n(e.g. EnCodec)",
-    "code": "import torch\n\ndef stft(x, n_fft=400, hop=160):\n    return torch.stft(x, n_fft, hop)",
+    "kind": "code",
+    "title": "ASR 输入：log-Mel、波形与 codec token",
+    "prompt": "为什么很多 ASR 使用 log-Mel？原始波形和神经音频 codec token 又分别适合什么情况？",
+    "quickAnswer": "log-Mel 用短时频谱保留语音的时间—频率结构，再按人耳频率分辨率压缩，序列比原始波形短，工程上成熟稳定。但原始波形并非不能用，自监督前端可以直接学习；codec token 主要为压缩和波形重建设计，也能用于语音模型，却不天然是最好的识别单位。",
+    "beginnerSummary": "同一段声音可以写成三种“笔记”：逐采样点的波形最细也最长；log-Mel 像按时间整理好的频谱摘要；codec token 像为还原声音准备的编号。ASR 选哪种，要看识别效果、延迟和模型结构。",
+    "explanationFocus": "输入表示是在信息保留、序列长度和前端可学习性之间取舍，不存在所有任务通吃的一种格式。",
+    "approach": "先固定采样率和分帧参数，建立 log-Mel 基线；若尝试波形或 codec token，要在相同数据与后端下比较识别错误、延迟、内存和噪声切片。",
     "derivation": [
-      "为什么需要：原始波形太长太冗余，直接学效率低；人耳对频率非线性感知，需要更符合听觉的特征表示。",
-      "怎么实现：用 STFT+梅尔滤波组+log 压缩得到低维特征；或用神经 codec 经 encoder+残差矢量量化把波形压成离散 token。",
-      "有什么代价：log-Mel 丢失相位、信息有损；codec 量化引入失真，且训练需配对音频与重建损失，token 率影响下游分辨率。",
-      "怎么评测：用特征分类/识别 WER 衡量表达力，用 codec 的重建 PESQ/STOI 与下游任务表现衡量保真度。"
-    ],
-    "edgeCases": [
-      "采样率不一致：16k 与 8k 模型特征尺度不同需重采样。",
-      "高静音占比：分帧后大量近零帧，需 VAD 前置。",
-      "codec 爆码：极低码率下量化失真致可懂度下降。",
-      "信道失真：电话语音与麦克风特征分布偏移。"
-    ],
-    "pitfalls": [
-      "忘记 log 压缩，线性幅度谱动态范围大、训练不稳定。",
-      "把 codec token 当文本直接对齐，忽略其多层残差量化结构。"
+      "为什么需要：16 kHz 波形每秒有 16000 个采样点，直接建模序列很长。",
+      "怎么实现：STFT 得到短时频谱，Mel 滤波器组压缩频率轴，取对数缩小动态范围。",
+      "有什么代价：手工特征可能丢掉部分细节；学习前端和 codec 又增加模型或码本训练成本。",
+      "怎么评测：固定后端与训练预算，对比 CER/WER、RTF、峰值内存和噪声/远场切片。"
     ],
     "prerequisites": [
-      "STFT 与梅尔尺度：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。",
-      "矢量量化（VQ）与自编码器：向量量化把连续音频表示映射为有限编号；RVQ 用多层码本逐步编码残差，以更多 token 换取更高保真。"
+      "log-Mel 与 STFT：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。",
+      "音频特征与声学表征：原始波形通常先变成按时间排列的向量序列，每一帧描述短时间内的频谱或学习特征。"
     ],
     "workedExample": [
-      "16kHz 语音用 n_fft=400、hop=160 提 80 维 log-Mel，送入 Conformer 做识别。",
-      "EnCodec 以 24kHz、7 层残差量化把音频压成 token，供语音生成模型自回归解码。"
+      "示意：1 秒 16 kHz 波形有 16000 点，10 ms hop 的 log-Mel 约有 100 帧。",
+      "同一后端分别接 log-Mel 与 codec token；若 token 更短但数字识别掉点，就不能只凭序列短判它更好。"
     ],
+    "code": "def log_mel_frontend(waveform, sample_rate):\n    waveform = resample_if_needed(waveform, sample_rate, 16000)\n    spectrum = stft(waveform, window_ms=25, hop_ms=10)\n    return log(mel_filterbank(abs(spectrum) ** 2) + 1e-10)",
     "lineByLine": [
-      "def stft(x, n_fft=400, hop=160)：封装 STFT，默认 25ms 窗、10ms 帧移。",
-      "torch.stft(x, n_fft, hop)：对波形分帧做短时傅里叶变换得复数谱。",
-      "返回谱后通常再取幅度、过梅尔滤波组、取 log 得最终特征。"
+      "先统一采样率，避免频率轴口径变化。",
+      "用短窗和步长把波形变成随时间变化的频谱。",
+      "映射到 Mel 滤波器组并取对数。"
     ],
-    "codeNotes": [
-      "实际 ASR 还会加预加重、汉明窗与归一化；codec 场景需接 RVQ 量化层。"
+    "complexity": "特征帧数约与音频时长成正比；具体计算量取决于 FFT 点数、hop 和 Mel 维度。",
+    "diagram": "波形 ─▶ 分帧 / STFT ─▶ Mel 滤波器组 ─▶ log-Mel ─▶ ASR Encoder\n  └──────── 学习前端 ───────────────────────▶ ASR Encoder\n  └──────── codec encoder ─▶ 离散 token ───▶ 语音模型",
+    "edgeCases": [
+      "采样率或声道未统一会让特征分布漂移。",
+      "静音处直接取 log(0) 会产生数值问题。",
+      "极低码率 codec 可能保留可懂度却损伤人名、数字等识别细节。"
+    ],
+    "pitfalls": [
+      "说“原始波形不能做 ASR”——学习式前端可以直接处理波形。",
+      "说“MFCC 不含相位所以不能识别”——ASR 常用的幅度谱特征本就不依赖相位重建。"
     ],
     "followUps": [
       {
-        "question": "log-Mel 与神经 codec 能互相替代吗？",
-        "answer": "不能简单替代：log-Mel 适合识别前端，codec token 适合生成/统一表征，常各自服务于识别与合成两端。"
+        "question": "log-Mel 和 MFCC 的主要区别是什么？",
+        "answer": "MFCC 会在 log-Mel 上再做 DCT，得到更紧凑、近似去相关的倒谱系数；深度模型常直接使用保留二维局部结构的 log-Mel。"
       },
       {
-        "question": "codec token 如何用于 ASR？",
-        "answer": "可把 codec token 当输入序列训练识别模型，或作为中间表征桥接识别与合成，实现语音到语音的端到端建模。"
+        "question": "codec token 什么时候值得尝试？",
+        "answer": "当系统本来就要统一识别、理解和生成，或上下文长度受限时值得比较；仍要用识别切片证明它没有丢关键内容。"
       }
     ],
-    "followUpAnswers": [
-      "不能简单替代：log-Mel 适合识别前端，codec token 适合生成/统一表征，常各自服务于识别与合成两端。",
-      "可把 codec token 当输入序列训练识别模型，或作为中间表征桥接识别与合成，实现语音到语音的端到端建模。"
-    ],
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：log-Mel 滤波器组贴近人耳临界带、降维且去相关性，比原始波形更易学习；神经 codec（如 EnCodec）把音频压成离散 token，使语音可作为“语言”被自回归模型直接生成，支撑语音合成与音频大模型。",
-      "2 分钟展开·原理：是什么：语音特征与编解码研究如何把波形表示为更适合模型的形式——传统用 log-Mel 滤波器组，新趋势用神经音频 codec 把语音压缩为离散 token，统一了识别、合成与生成。",
-      "2 分钟展开·实现：前端先用 STFT 取幅度谱，经梅尔滤波器组加权再取 log 得 80 维特征供 ASR；codec 路线则训练 encoder-decoder + 残差矢量量化，把波形编码为多层离散 token，供下游生成/识别共享表征。",
-      "2 分钟展开·边界：采样率不一致：16k 与 8k 模型特征尺度不同需重采样。 同时避免：忘记 log 压缩，线性幅度谱动态范围大、训练不稳定。"
+      "30 秒结论：log-Mel 用短时频谱保留语音的时间—频率结构，再按人耳频率分辨率压缩，序列比原始波形短，工程上成熟稳定。但原始波形并非不能用，自监督前端可以直接学习；codec token 主要为压缩和波形重建设计，也能用于语音模型，却不天然是最好的识别单位。",
+      "2 分钟展开·原理：输入表示是在信息保留、序列长度和前端可学习性之间取舍，不存在所有任务通吃的一种格式。",
+      "2 分钟展开·实现：先固定采样率和分帧参数，建立 log-Mel 基线；若尝试波形或 codec token，要在相同数据与后端下比较识别错误、延迟、内存和噪声切片。",
+      "2 分钟展开·边界：采样率或声道未统一会让特征分布漂移。 同时避免：说“原始波形不能做 ASR”——学习式前端可以直接处理波形。"
     ],
     "conceptPath": [
-      "先识别问题：为什么现代 ASR 多用 log-Mel 滤波器组而非原始波形或裸 MFCC，且近年又出现神经音频 codec？",
-      "再抓核心机制：前端先用 STFT 取幅度谱，经梅尔滤波器组加权再取 log 得 80 维特征供 ASR；codec 路线则训练 encoder-decoder + 残差矢量量化，把波形编码为多层离散 token，供下游生成/识别共享表征。",
-      "然后跑一个具体例子：16kHz 语音用 n_fft=400、hop=160 提 80 维 log-Mel，送入 Conformer 做识别。",
-      "最后检查失败边界：采样率不一致：16k 与 8k 模型特征尺度不同需重采样。"
+      "先识别问题：为什么很多 ASR 使用 log-Mel？原始波形和神经音频 codec token 又分别适合什么情况？",
+      "再抓核心机制：先固定采样率和分帧参数，建立 log-Mel 基线；若尝试波形或 codec token，要在相同数据与后端下比较识别错误、延迟、内存和噪声切片。",
+      "然后跑一个具体例子：示意：1 秒 16 kHz 波形有 16000 点，10 ms hop 的 log-Mel 约有 100 帧。",
+      "最后检查失败边界：采样率或声道未统一会让特征分布漂移。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：16kHz 语音用 n_fft=400、hop=160 提 80 维 log-Mel，送入 Conformer 做识别。",
-      "示意案例·第 2 步：EnCodec 以 24kHz、7 层残差量化把音频压成 token，供语音生成模型自回归解码。",
-      "边界检查：采样率不一致：16k 与 8k 模型特征尺度不同需重采样。",
-      "反向自检：忘记 log 压缩，线性幅度谱动态范围大、训练不稳定。"
+      "示意案例·第 1 步：示意：1 秒 16 kHz 波形有 16000 点，10 ms hop 的 log-Mel 约有 100 帧。",
+      "示意案例·第 2 步：同一后端分别接 log-Mel 与 codec token；若 token 更短但数字识别掉点，就不能只凭序列短判它更好。",
+      "边界检查：采样率或声道未统一会让特征分布漂移。",
+      "反向自检：说“原始波形不能做 ASR”——学习式前端可以直接处理波形。"
     ]
   },
   {
     "id": "as-conformer",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "Conformer 模型",
-    "prompt": "Conformer 是如何把卷积的局部建模与 Transformer 的全局建模结合起来的？",
-    "quickAnswer": "Conformer 在 Transformer 块中插入卷积子模块，采用 Macaron 结构（卷积放在 FFN 前后各一半）并用多头自注意力捕获全局依赖，从而同时建模语音的局部声学细节与长程上下文。",
-    "approach": "以 Transformer 编码块为骨架，在 FFN 之前和之后各加一个卷积模块（Macaron 0.5 权重），中间保留多头自注意力；卷积模块使用 pointwise → GLU → depthwise → BN → Swish → pointwise 的结构并做下采样感知。",
-    "explanationFocus": "是什么：Conformer 是一种用于语音识别的编码器架构，它在 Transformer 模块两侧分别加入卷积子模块，用 Macaron 结构同时捕获局部细节与全局依赖，是流式/非流式 ASR 的主流 backbone。",
-    "bruteForce": "朴素做法只用一个深层 CNN 或只用一个深层 Transformer：CNN 感受野有限、难以捕获长程依赖，Transformer 则对局部纹理建模弱且对长序列算力开销大。",
-    "invariant": "每个 Conformer block 输入输出形状相同（残差连接保证），无论卷积与注意力顺序如何调换，训练前后序列长度 T 与通道 d_model 始终不变。",
-    "walkthrough": "输入 80 维 fbank 经下采样到 T×512；逐 block 执行 x+0.5·FFN → x+Conv → x+MHSA → x+0.5·FFN；堆叠若干 block 后接线性层输出至 CTC/RNN-T 预测网络。",
-    "complexity": "时间复杂度约 O(T·d² + T²·d)（注意力占主导），卷积为线性；参数量主要来自注意力与卷积的 pointwise 层，相比纯 Transformer 增加约 15%~30% 参数但 WER 明显下降。",
-    "beginnerSummary": "Conformer = CNN 的局部感知 + Transformer 的全局感知，像一个“既看细节又看全局”的编码器，是现代 ASR 的常用结构。",
-    "diagram": "   input (T x d)\n     |\n  FFN(0.5)\n     |\n  ConvModule\n     |\n    MHSA\n     |\n  FFN(0.5)\n     |\n   output",
-    "code": "import math\n\ndef conformer_block(x, d_model=512):\n    # Macaron: 卷积在 FFN 两侧各半\n    x = x + 0.5 * ffn(x)\n    x = x + conv_module(x)\n    x = x + multi_head_attention(x)\n    x = x + 0.5 * ffn(x)\n    return x",
+    "kind": "code",
+    "title": "Conformer 为什么同时用注意力和卷积",
+    "prompt": "Conformer block 怎样组合前馈、注意力和卷积？每部分分别解决什么问题？",
+    "quickAnswer": "经典 Conformer block 使用半步前馈模块、带相对位置信息的多头自注意力、卷积模块，再接半步前馈与归一化。注意力聚合远距离内容，卷积捕获相邻帧的局部声学模式；两者互补，但是否更快、更准必须在相同配置下实测。",
+    "beginnerSummary": "听清一个字既要看附近几十毫秒的发音细节，也要参考前后词。卷积像放大镜看局部，注意力像回看整句话，Conformer 把两种视角放在同一个积木块里。",
+    "explanationFocus": "核心不是“卷积加 Transformer”这句口号，而是各子模块如何通过残差连接共同建模局部与全局。",
+    "approach": "先写清 Macaron 式两段前馈、MHSA 和卷积模块的顺序，再区分离线全注意力与流式 chunk/左上下文版本。",
     "derivation": [
-      "为什么需要：纯 CNN 感受野受限、纯 Transformer 局部建模弱且长序列算力高，语音同时需要局部声学与长程语义，因此需要二者融合。",
-      "怎么实现：在 Transformer 块内加入卷积子模块，采用 Macaron 结构（FFN 前后各 0.5 权重）并保留 MHSA，卷积模块用 pointwise-GLU-depthwise-BN-Swish 组合。",
-      "有什么代价：相比纯 Transformer 增加约 15%~30% 参数与少量卷积算力，且实现与调参更复杂（卷积与注意力权重需平衡）。",
-      "怎么评测：在 LibriSpeech/中文数据集上对比 WER，观察随层数、卷积核、注意力头数的收益，并测长音频 RTF 与显存占用。"
-    ],
-    "edgeCases": [
-      "极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。",
-      "小卷积核：核太小局部能力弱，核太大引入延迟与参数。",
-      "训练不稳定：卷积与注意力并行相加时梯度尺度不同，需要合理初始化与学习率预热。",
-      "下采样倍率不匹配：卷积与注意力对长度假设不一致会导致形状对齐错误。"
-    ],
-    "pitfalls": [
-      "把卷积放在注意力之前就当成普通 Transformer，忘了 Macaron 的 0.5 权重与对称结构。",
-      "忽视 Swish/BN 在推理时的融合，导致部署 RTF 偏高。"
+      "为什么需要：纯注意力擅长内容相关的长程交互，但局部语音模式缺少显式归纳偏置。",
+      "怎么实现：在注意力旁加入 pointwise、GLU、depthwise convolution、归一化与激活组成的卷积模块。",
+      "有什么代价：卷积状态、注意力缓存和 chunk mask 增加流式实现复杂度。",
+      "怎么评测：固定数据、解码器和训练预算，比较错误率、参数量、RTF、峰值内存与流式延迟。"
     ],
     "prerequisites": [
-      "Transformer 自注意力与位置编码：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
-      "卷积神经网络（depthwise separable conv）与 pooling：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。"
+      "Transformer 自注意力：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "CNN 卷积与 depthwise：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。"
     ],
     "workedExample": [
-      "输入 16kHz 语音提 80 维 fbank，4 倍下采样得到 T=200 帧、d=512，送入 16 层 Conformer 得到上下文表示。",
-      "在 AISHELL 上用 Conformer 替换 Transformer 编码器，WER 从 5.8% 降到 4.7%。"
+      "示意：卷积识别短促辅音的局部变化，注意力利用远处上下文区分同音词。",
+      "把离线全注意力改成有限左上下文后，重新测准确率与首包延迟，不能沿用离线结论。"
     ],
+    "code": "def conformer_block(x):\n    x = x + 0.5 * feed_forward(x)\n    x = x + self_attention(x)\n    x = x + convolution_module(x)\n    x = x + 0.5 * feed_forward(x)\n    return layer_norm(x)",
     "lineByLine": [
-      "x = x + 0.5 * ffn(x)：Macaron 前半 FFN 残差，权重 0.5 平衡容量。",
-      "x = x + conv_module(x)：卷积捕获局部声学模式，如共振峰过渡。",
-      "x = x + multi_head_attention(x)：注意力捕获跨帧长程依赖，如词内协同发音。",
-      "x = x + 0.5 * ffn(x)：Macaron 后半 FFN 再次非线性变换并残差相加。"
+      "前后两个半步前馈形成 Macaron 结构。",
+      "注意力读取内容相关的全局上下文。",
+      "卷积模块补充局部模式，最后归一化输出。"
     ],
-    "codeNotes": [
-      "ffn/conv_module/multi_head_attention 均保持形状 (T, d_model)，靠残差保证形状不变。"
+    "complexity": "全注意力部分随帧数 T 近似二次增长；chunk attention 将可见范围限制后更适合流式，但缓存和卷积仍有成本。",
+    "diagram": "x ─▶ 1/2 FFN ─▶ MHSA ─▶ Conv module ─▶ 1/2 FFN ─▶ Norm\n    每个子模块外都有 residual",
+    "references": [
+      {
+        "title": "Conformer: Convolution-augmented Transformer for Speech Recognition",
+        "url": "https://arxiv.org/abs/2005.08100"
+      }
+    ],
+    "edgeCases": [
+      "没有正确 mask 时，流式训练会偷看未来。",
+      "短音频上卷积 padding 可能改变有效长度。",
+      "离线与流式共用权重时，左右上下文差异可能造成分布落差。"
+    ],
+    "pitfalls": [
+      "编造“参数固定增加 15%~30%”——增量取决于维度和卷积配置。",
+      "把 Conformer-T 当成统一标准名称；不同实现的流式裁剪并不相同。"
     ],
     "followUps": [
       {
-        "question": "Conformer 与 Conformer-T 的差别是什么？",
-        "answer": "Conformer-T 减少注意力头数与层数、用相对位置编码以降低延迟，适合流式场景。"
+        "question": "为什么前馈模块乘 0.5？",
+        "answer": "经典 Macaron 结构把两段前馈残差各缩放一半；这是该结构的设计，不代表所有实现必须照搬。"
       },
       {
-        "question": "卷积模块为什么用 GLU 而不是 ReLU？",
-        "answer": "GLU 提供门控能力，缓解梯度饱和并提升表示容量，在语音任务上更稳定。"
+        "question": "Conformer 天然流式吗？",
+        "answer": "不是。全上下文注意力会看未来，必须改成因果或 chunk attention，并维护卷积与注意力状态。"
       }
     ],
-    "followUpAnswers": [
-      "Conformer-T 减少注意力头数与层数、用相对位置编码以降低延迟，适合流式场景。",
-      "GLU 提供门控能力，缓解梯度饱和并提升表示容量，在语音任务上更稳定。"
-    ],
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：Conformer 在 Transformer 块中插入卷积子模块，采用 Macaron 结构（卷积放在 FFN 前后各一半）并用多头自注意力捕获全局依赖，从而同时建模语音的局部声学细节与长程上下文。",
-      "2 分钟展开·原理：是什么：Conformer 是一种用于语音识别的编码器架构，它在 Transformer 模块两侧分别加入卷积子模块，用 Macaron 结构同时捕获局部细节与全局依赖，是流式/非流式 ASR 的主流 backbone。",
-      "2 分钟展开·实现：以 Transformer 编码块为骨架，在 FFN 之前和之后各加一个卷积模块（Macaron 0.5 权重），中间保留多头自注意力；卷积模块使用 pointwise → GLU → depthwise → BN → Swish → pointwise 的结构并做下采样感知。",
-      "2 分钟展开·边界：极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。 同时避免：把卷积放在注意力之前就当成普通 Transformer，忘了 Macaron 的 0.5 权重与对称结构。"
+      "30 秒结论：经典 Conformer block 使用半步前馈模块、带相对位置信息的多头自注意力、卷积模块，再接半步前馈与归一化。注意力聚合远距离内容，卷积捕获相邻帧的局部声学模式；两者互补，但是否更快、更准必须在相同配置下实测。",
+      "2 分钟展开·原理：核心不是“卷积加 Transformer”这句口号，而是各子模块如何通过残差连接共同建模局部与全局。",
+      "2 分钟展开·实现：先写清 Macaron 式两段前馈、MHSA 和卷积模块的顺序，再区分离线全注意力与流式 chunk/左上下文版本。",
+      "2 分钟展开·边界：没有正确 mask 时，流式训练会偷看未来。 同时避免：编造“参数固定增加 15%~30%”——增量取决于维度和卷积配置。"
     ],
     "conceptPath": [
-      "先识别问题：Conformer 是如何把卷积的局部建模与 Transformer 的全局建模结合起来的？",
-      "再抓核心机制：以 Transformer 编码块为骨架，在 FFN 之前和之后各加一个卷积模块（Macaron 0.5 权重），中间保留多头自注意力；卷积模块使用 pointwise → GLU → depthwise → BN → Swish → pointwise 的结构并做下采样感知。",
-      "然后跑一个具体例子：输入 16kHz 语音提 80 维 fbank，4 倍下采样得到 T=200 帧、d=512，送入 16 层 Conformer 得到上下文表示。",
-      "最后检查失败边界：极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。"
+      "先识别问题：Conformer block 怎样组合前馈、注意力和卷积？每部分分别解决什么问题？",
+      "再抓核心机制：先写清 Macaron 式两段前馈、MHSA 和卷积模块的顺序，再区分离线全注意力与流式 chunk/左上下文版本。",
+      "然后跑一个具体例子：示意：卷积识别短促辅音的局部变化，注意力利用远处上下文区分同音词。",
+      "最后检查失败边界：没有正确 mask 时，流式训练会偷看未来。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：输入 16kHz 语音提 80 维 fbank，4 倍下采样得到 T=200 帧、d=512，送入 16 层 Conformer 得到上下文表示。",
-      "示意案例·第 2 步：在 AISHELL 上用 Conformer 替换 Transformer 编码器，WER 从 5.8% 降到 4.7%。",
-      "边界检查：极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。",
-      "反向自检：把卷积放在注意力之前就当成普通 Transformer，忘了 Macaron 的 0.5 权重与对称结构。"
+      "示意案例·第 1 步：示意：卷积识别短促辅音的局部变化，注意力利用远处上下文区分同音词。",
+      "示意案例·第 2 步：把离线全注意力改成有限左上下文后，重新测准确率与首包延迟，不能沿用离线结论。",
+      "边界检查：没有正确 mask 时，流式训练会偷看未来。",
+      "反向自检：编造“参数固定增加 15%~30%”——增量取决于维度和卷积配置。"
     ]
   },
   {
@@ -4157,7 +4140,7 @@ const questions = [
     "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
       "30 秒结论：CTC 在标签序列中插入 blank 并允许重复，把任意 T 帧映射到长度≤T 的标签路径；前向-后向算法递推每条路径概率，求和得到标注似然，并可反推每帧最可能标签，实现强制对齐。",
       "2 分钟展开·原理：是什么：CTC 对齐指在不依赖逐帧标注的情况下，用前向-后向动态规划把音频帧与文本建立多对一映射；强制对齐（forced alignment）是利用训练好的 CTC 为无标注音频生成帧级标签。",
@@ -4181,1167 +4164,1080 @@ const questions = [
     "id": "as-hotword",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "热词与自定义词",
-    "prompt": "当用户提到“自定义唤醒词/专有名词”时，如何提升 ASR 的识别准确率而不重新训练模型？",
-    "quickAnswer": "在解码阶段对热词对应的输出单元做偏置（logit bias）或构造热词级 FST 并入解码图，也可用浅融合（shallow fusion）把热词语言模型加权；无需重训声学模型即可显著提升命中率。",
-    "approach": "方案一是解码时对热词 token/音素路径的 logits 加固定 boost；二是在 WFST 中挂热词子图做偏向；三是用热词白名单走单独的高效匹配（如二遍解码）并发射偏置。",
-    "explanationFocus": "是什么：热词（hotword）机制是在不重新训练声学模型的前提下，通过解码期偏置或融合让系统更倾向于输出用户指定的词或专有名词。",
-    "bruteForce": "朴素做法是把热词加入训练语料重训，成本高、迭代慢，且无法在运行时由用户动态指定。",
-    "invariant": "偏置只改变词序概率倾向而不破坏声学似然的单调性：非热词路径仍可正常被选中，只是热词路径在分数上获得可控加成。",
-    "walkthrough": "加载热词列表 → 映射为输出词/音素序列 → 在 beam 搜索每步对匹配前缀的假设 logits 加 boost → 解码得到偏向热词的结果 → 可选二遍重打分抑制误触发。",
-    "complexity": "运行时开销极小（仅解码期加偏置 O(V) 或 FST 合并一次），无需 GPU 重训；内存随热词表线性增长。",
-    "beginnerSummary": "热词就像给识别系统“提个醒”：在解码时给指定词加分，让它更可能被正确写出，而不必重新训练模型。",
-    "diagram": "beam search\n   |\nhotword bias (+boost)\n   |\nrescored hypotheses\n   |\nfinal text",
-    "code": "import re\n\ndef bias_hotword(logits, hotwords, boost=3.0):\n    for w in hotwords:\n        logits[w] += boost\n    return logits",
+    "kind": "code",
+    "title": "热词增强怎样提召回又不乱插词",
+    "prompt": "不重新训练声学模型时，怎样增强人名、品牌等热词，并控制误触发？",
+    "quickAnswer": "可在解码时加入 context graph/WFST、浅融合语言模型或受约束的 token bias。增大 boost 通常提高热词召回，也会增加无热词音频中的错误插入；因此必须同时在含热词集和负样本集上调参，不能只看命中率。",
+    "beginnerSummary": "热词增强像给解码器一张“今天可能出现的名字”清单。提示太弱听不出来，提示太强又会把相似发音都写成热词。",
+    "explanationFocus": "热词增强改变的是候选路径分数，不是凭空修好声学证据；必须同时控制正样本召回和负样本误插入。",
+    "approach": "把热词按 tokenizer 拆成 token 路径，在前缀匹配时逐步加分，完成词后给完成奖励；用开发集扫描 boost 和回退惩罚。",
     "derivation": [
-      "为什么需要：人名、品牌、专有名词在训练集稀少，默认 ASR 易写错，且用户希望运行时自定义而无需重训。",
-      "怎么实现：解码时对热词对应输出单元 logits 加 boost，或在 WFST 中并入热词子图做偏向，或用浅融合加热词 LM。",
-      "有什么代价：boost 过大易误触发（把相似音也判成热词），且热词表过长会拖慢解码或引入冲突。",
-      "怎么评测：用热词命中率（Recall）与误触发率（False Alarm）衡量，并在不同 boost 下画 PR 曲线。"
-    ],
-    "edgeCases": [
-      "同音词冲突：热词“小智”与“小志”音近，boost 易串。",
-      "热词拆字：未登录字导致热词无法映射到输出单元。",
-      "极小 boost：几乎无效；极大 boost：非热词场景被强行改写。",
-      "热词表几万条：解码图过大、内存与延迟上升。"
-    ],
-    "pitfalls": [
-      "只对词表 ID 加偏置却忽略子词/BPE 切分，导致热词根本匹配不上。",
-      "boost 固定不变，未随置信度自适应，安静与嘈杂环境误触发差异大。"
+      "为什么需要：专有词在训练语料中稀少，默认语言先验容易压过声学证据。",
+      "怎么实现：将热词编成前缀图，并在 beam search 中携带图状态与加分。",
+      "有什么代价：热词表越大，图状态和候选扩展越多；高 boost 会误插相似词。",
+      "怎么评测：报告热词召回、热词错误率、负样本误插率、整体 CER/WER 和延迟。"
     ],
     "prerequisites": [
-      "Beam Search 解码与 logits：Beam Search 每一步只保留若干高分候选，用更多计算换取比逐步贪心更好的全局序列。",
-      "WFST / 分词（BPE）表示：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。"
+      "Beam Search 与 top-k：Beam Search 每一步只保留若干高分候选，用更多计算换取比逐步贪心更好的全局序列。",
+      "WFST 与 BPE 分词：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。"
     ],
     "workedExample": [
-      "将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
-      "boost=8.0 时误触发率从 0.5% 升到 6%，说明需调参平衡。"
+      "示意：将“科大讯飞”拆成模型 token，只有前缀连续匹配时逐步奖励。",
+      "在不含该词的相似发音集上若误插增加，就降低 boost 或加入完成/回退约束。"
     ],
+    "code": "def contextual_score(prefix, token, graph_state, boost):\n    next_state, matched = graph_state.step(token)\n    bonus = boost if matched else 0.0\n    return next_state, bonus",
     "lineByLine": [
-      "for w in hotwords：遍历用户指定的热词。",
-      "logits[w] += boost：对热词对应输出单元分数加偏置。",
-      "return logits：返回偏置后的分布供 beam 搜索采样。"
+      "根据当前图状态尝试消费新 token。",
+      "只有匹配合法热词前缀时才加分。",
+      "真实系统还需处理完整词奖励、回退和多个热词共享前缀。"
     ],
-    "codeNotes": [
-      "需确保 w 是解码词表或子词序列的索引，而非原始字符串。"
+    "complexity": "开销取决于 beam、热词图活跃状态数和分词长度；不能笼统写成固定 O(V)。",
+    "diagram": "声学分数 + 基础 LM 分数 + 热词图增量分数 ─▶ beam 排序\n                                      └▶ 正集召回 / 负集误插共同调参",
+    "edgeCases": [
+      "多个热词共享前缀时不能提前给完整词奖励。",
+      "热词含 tokenizer 未覆盖字符时需要规范化或改写。",
+      "短热词与常用词同音时误触发风险最高。"
+    ],
+    "pitfalls": [
+      "只报热词命中率，不报告无热词负样本上的误插入。",
+      "直接对整个词表统一加 bias，既浪费计算又缺少前缀约束。"
     ],
     "followUps": [
       {
-        "question": "热词与上下文偏置（contextual bias）有何区别？",
-        "answer": "热词通常基于词表 ID 加偏置；上下文偏置进一步用编码器隐状态做动态注意力偏置，能处理长上下文短语。"
+        "question": "热词为什么不一定需要重训？",
+        "answer": "它可以只改变解码搜索分数；若声学模型根本分不清对应音素，解码增强也有上限。"
       },
       {
-        "question": "如何避免热词误触发？",
-        "answer": "用二遍解码只在候选接近热词时加分，或按声学置信度阈值门控 boost。"
+        "question": "热词表很大怎么办？",
+        "answer": "用 trie/FST 共享前缀、按会话或领域缩小激活集合，并监控活跃状态数和延迟。"
       }
     ],
-    "followUpAnswers": [
-      "热词通常基于词表 ID 加偏置；上下文偏置进一步用编码器隐状态做动态注意力偏置，能处理长上下文短语。",
-      "用二遍解码只在候选接近热词时加分，或按声学置信度阈值门控 boost。"
-    ],
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：在解码阶段对热词对应的输出单元做偏置（logit bias）或构造热词级 FST 并入解码图，也可用浅融合（shallow fusion）把热词语言模型加权；无需重训声学模型即可显著提升命中率。",
-      "2 分钟展开·原理：是什么：热词（hotword）机制是在不重新训练声学模型的前提下，通过解码期偏置或融合让系统更倾向于输出用户指定的词或专有名词。",
-      "2 分钟展开·实现：方案一是解码时对热词 token/音素路径的 logits 加固定 boost；二是在 WFST 中挂热词子图做偏向；三是用热词白名单走单独的高效匹配（如二遍解码）并发射偏置。",
-      "2 分钟展开·边界：同音词冲突：热词“小智”与“小志”音近，boost 易串。 同时避免：只对词表 ID 加偏置却忽略子词/BPE 切分，导致热词根本匹配不上。"
+      "30 秒结论：可在解码时加入 context graph/WFST、浅融合语言模型或受约束的 token bias。增大 boost 通常提高热词召回，也会增加无热词音频中的错误插入；因此必须同时在含热词集和负样本集上调参，不能只看命中率。",
+      "2 分钟展开·原理：热词增强改变的是候选路径分数，不是凭空修好声学证据；必须同时控制正样本召回和负样本误插入。",
+      "2 分钟展开·实现：把热词按 tokenizer 拆成 token 路径，在前缀匹配时逐步加分，完成词后给完成奖励；用开发集扫描 boost 和回退惩罚。",
+      "2 分钟展开·边界：多个热词共享前缀时不能提前给完整词奖励。 同时避免：只报热词命中率，不报告无热词负样本上的误插入。"
     ],
     "conceptPath": [
-      "先识别问题：当用户提到“自定义唤醒词/专有名词”时，如何提升 ASR 的识别准确率而不重新训练模型？",
-      "再抓核心机制：方案一是解码时对热词 token/音素路径的 logits 加固定 boost；二是在 WFST 中挂热词子图做偏向；三是用热词白名单走单独的高效匹配（如二遍解码）并发射偏置。",
-      "然后跑一个具体例子：将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
-      "最后检查失败边界：同音词冲突：热词“小智”与“小志”音近，boost 易串。"
+      "先识别问题：不重新训练声学模型时，怎样增强人名、品牌等热词，并控制误触发？",
+      "再抓核心机制：把热词按 tokenizer 拆成 token 路径，在前缀匹配时逐步加分，完成词后给完成奖励；用开发集扫描 boost 和回退惩罚。",
+      "然后跑一个具体例子：示意：将“科大讯飞”拆成模型 token，只有前缀连续匹配时逐步奖励。",
+      "最后检查失败边界：多个热词共享前缀时不能提前给完整词奖励。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
-      "示意案例·第 2 步：boost=8.0 时误触发率从 0.5% 升到 6%，说明需调参平衡。",
-      "边界检查：同音词冲突：热词“小智”与“小志”音近，boost 易串。",
-      "反向自检：只对词表 ID 加偏置却忽略子词/BPE 切分，导致热词根本匹配不上。"
+      "示意案例·第 1 步：示意：将“科大讯飞”拆成模型 token，只有前缀连续匹配时逐步奖励。",
+      "示意案例·第 2 步：在不含该词的相似发音集上若误插增加，就降低 boost 或加入完成/回退约束。",
+      "边界检查：多个热词共享前缀时不能提前给完整词奖励。",
+      "反向自检：只报热词命中率，不报告无热词负样本上的误插入。"
     ]
   },
   {
     "id": "as-rnnt-pruning",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "RNN-T 剪枝",
-    "prompt": "RNN-T 的联合网络与词汇输出很大，推理时有哪些剪枝手段能在不明显掉点的情况下加速？",
-    "quickAnswer": "主要在解码 beam 内做 top-k 剪枝：对联合网络输出 vocab 取 top-k、对预测网络历史做 beam 截断，并用前缀共享（label-synchronous）避免重复计算；也可对声学隐状态做帧级丢弃。",
-    "approach": "在每帧对联合网络 logits 取 top-k 候选词，beam 仅保留得分前 B 的假设；用前缀束搜索共享相同前缀的历史、只展开差异 token；预测网络可缓存并量化，联合网络可用小矩阵近似。",
-    "explanationFocus": "是什么：RNN-T 剪枝是在不重训或仅轻量微调的前提下，削减解码时的候选规模与计算量，使联合网络与词汇输出在流式推理中保持低延迟。",
-    "bruteForce": "朴素解码每帧对全部 V 个词算联合网络并保留全部历史，复杂度 O(T·V·B)，在大词表上不可承受。",
-    "invariant": "剪枝后保留的 beam 中必须仍包含最终最优路径（或近似最优），即被丢弃的候选分数须严格低于保留阈值。",
-    "walkthrough": "逐帧取声学隐状态 → 联合网络对所有 beam 历史算 score → 对 vocab 取 top-k → 与预测网络拼接得新假设 → 按总分保留前 B → 帧末压缩相同前缀共享状态。",
-    "complexity": "剪枝后复杂度约 O(T·k·B)（k≪V），配合前缀共享进一步降到接近 O(T·B)；精度随 k、B 减小而缓降。",
-    "beginnerSummary": "RNN-T 剪枝像“提前淘汰没希望的候选”：每一步只留分数最高的几个词和几条历史，既快又几乎不丢准确率。",
-    "diagram": "full vocab (V)\n   |\ntop-k prune (beam)\n   |\njoint network\n   |\nkept hypotheses",
-    "code": "import torch\n\ndef rnnt_prune(logits, beam=4):\n    topk = torch.topk(logits, beam, dim=-1)\n    return topk.indices",
+    "kind": "code",
+    "title": "RNN-T 解码剪枝到底省了什么",
+    "prompt": "RNN-T 解码中 beam、状态合并、blank 阈值和词表 shortlist 分别削减哪部分计算？",
+    "quickAnswer": "beam pruning 减少需要保留和继续扩展的文本历史；相同前缀可共享 predictor 状态；blank 阈值可让高置信 blank 帧少做标签扩展。仅在完整 vocab logits 之后取 top-k，并没有省掉这次词表投影；若要省词表计算，还需要 shortlist、分层 softmax 或专门 kernel。",
+    "beginnerSummary": "剪枝不是一个按钮。少留几条句子能省搜索，复用相同前缀能省 predictor，遇到明显静音少展开能省 joiner；但“先算完所有词再取前几个”省不了刚才那次全词表计算。",
+    "explanationFocus": "先把 encoder、predictor、joiner/词表投影和 beam 管理四类成本分开，才能知道某种剪枝真正优化哪一段。",
+    "approach": "逐项消融 beam width、每帧最大标签数、blank skip、前缀状态缓存和 shortlist，并记录各模块耗时，而不是只报告总 RTF。",
     "derivation": [
-      "为什么需要：RNN-T 词表常达数千到数万，逐帧全词表联合计算在流式场景算力与延迟不可接受。",
-      "怎么实现：解码时对联合网络输出做 top-k 词剪枝、beam 截断，并用前缀束搜索共享历史状态，预测网络量化/缓存。",
-      "有什么代价：k 或 B 过小会丢真值路径导致 WER 上升；共享状态实现复杂，需正确处理 blank 与非 blank 分支。",
-      "怎么评测：在测试集测 WER 随 k、B 的变化，并对比 RTF/解码耗时，取满足延迟预算的最小配置。"
-    ],
-    "edgeCases": [
-      "罕见词被剪掉：专业术语在 top-k 外导致漏识。",
-      "blank 分支：剪枝不能误删 blank，否则对齐崩溃。",
-      "beam 过小：长句搜索空间不足、过早收敛到次优。",
-      "动态 k：按置信度自适应 k 可能增加实现分支。"
-    ],
-    "pitfalls": [
-      "对所有 beam 历史重复算联合网络而不共享，浪费大量算力。",
-      "剪枝阈值固定，未考虑静音帧与语音帧的差异，静音时仍全量计算。"
+      "为什么需要：RNN-T 会在同一声学帧上多次发标签，候选历史和 joiner 调用可能迅速增长。",
+      "怎么实现：按累计 log score 截断 beam，缓存 predictor 状态，并在可靠 blank 帧减少非 blank 展开。",
+      "有什么代价：剪得过早可能永久丢掉正确前缀，罕见词和含噪语音更敏感。",
+      "怎么评测：画 WER/CER—RTF 曲线，并分解 encoder、predictor、joiner、beam 管理耗时。"
     ],
     "prerequisites": [
-      "RNN-T 联合网络与预测网络结构：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
-      "Beam Search 与 top-k 操作：Beam Search 每一步只保留若干高分候选，用更多计算换取比逐步贪心更好的全局序列。"
+      "RNN-T 与 Transducer：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
+      "Beam Search 与 top-k：Beam Search 每一步只保留若干高分候选，用更多计算换取比逐步贪心更好的全局序列。"
     ],
     "workedExample": [
-      "V=4096、k=64、B=8 时相比全词表解码 RTF 从 1.8 降到 0.3，WER 仅升 0.1%。",
-      "用前缀束搜索共享 “你” 开头的历史，重复联合计算减少约 40%。"
+      "示意：beam 从 8 降到 4 后 predictor 状态数减少，但每个保留状态若仍算完整词表，词表投影成本仍在。",
+      "高 blank 后验帧跳过标签扩展可加速静音段；噪声段阈值过激则可能漏字。"
     ],
+    "code": "def prune_hypotheses(hypotheses, beam_size, score_margin):\n    ranked = sorted(hypotheses, key=lambda h: h.score, reverse=True)\n    best = ranked[0].score\n    return [h for h in ranked[:beam_size] if h.score >= best - score_margin]",
     "lineByLine": [
-      "logits：联合网络输出的 T×V（或本帧 beam×V）分数张量，含全部词表。",
-      "torch.topk(logits, beam, dim=-1)：在词表维取分数最高的 beam 个候选。",
-      "return topk.indices：返回被保留候选的词索引供后续展开。"
+      "先按累计分数排序候选历史。",
+      "同时用最大条数和相对最佳分数差剪枝。",
+      "这段只省搜索状态，并未实现词表 projection shortlist。"
     ],
-    "codeNotes": [
-      "真实解码还需对 blank 单独保留，并对 beam 历史做前缀压缩以免重复计算。"
+    "complexity": "复杂度不能只写 O(T·k·B)：每帧可能发多个 label，且完整词表投影是否被计算取决于实现。应以 joiner 调用数、活跃假设数和实际 profile 为准。",
+    "diagram": "encoder frame + predictor state ─▶ joiner / vocab scores ─▶ 扩展候选 ─▶ beam pruning\n                       ▲ predictor cache                         └▶ blank skip",
+    "edgeCases": [
+      "blank 分支不能因 top-k 实现错误而丢失。",
+      "一个声学帧连续发很多 label 时要限制最大展开数。",
+      "罕见词可能长期分数偏低，对小 beam 更敏感。"
+    ],
+    "pitfalls": [
+      "承诺剪枝后仍一定保留全局最优路径——近似 beam search 没有这种保证。",
+      "把 logits 计算后的 top-k 写成“把 O(V) 降成 O(k)”。"
     ],
     "followUps": [
       {
-        "question": "RNN-T 剪枝与模型量化能否叠加？",
-        "answer": "可以，剪枝减候选数、量化减单次计算精度，二者正交；量化后需注意 top-k 数值稳定性。"
+        "question": "量化和剪枝可以叠加吗？",
+        "answer": "可以，但量化会改变分数间隔，必须重新校准 beam margin、blank 阈值和准确率。"
       },
       {
-        "question": "align 与 prune 冲突吗？",
-        "answer": "不冲突，剪枝只限制候选规模，对齐由 blank 机制保证，只要保留 blank 分支即可。"
+        "question": "怎样知道瓶颈在 joiner 还是 beam 管理？",
+        "answer": "用 profiler 记录各模块耗时、调用次数与活跃假设数；不同硬件和 batch 下结论可能相反。"
       }
     ],
-    "followUpAnswers": [
-      "可以，剪枝减候选数、量化减单次计算精度，二者正交；量化后需注意 top-k 数值稳定性。",
-      "不冲突，剪枝只限制候选规模，对齐由 blank 机制保证，只要保留 blank 分支即可。"
+    "references": [
+      {
+        "title": "Sequence Transduction with Recurrent Neural Networks",
+        "url": "https://arxiv.org/abs/1211.3711"
+      }
     ],
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：主要在解码 beam 内做 top-k 剪枝：对联合网络输出 vocab 取 top-k、对预测网络历史做 beam 截断，并用前缀共享（label-synchronous）避免重复计算；也可对声学隐状态做帧级丢弃。",
-      "2 分钟展开·原理：是什么：RNN-T 剪枝是在不重训或仅轻量微调的前提下，削减解码时的候选规模与计算量，使联合网络与词汇输出在流式推理中保持低延迟。",
-      "2 分钟展开·实现：在每帧对联合网络 logits 取 top-k 候选词，beam 仅保留得分前 B 的假设；用前缀束搜索共享相同前缀的历史、只展开差异 token；预测网络可缓存并量化，联合网络可用小矩阵近似。",
-      "2 分钟展开·边界：罕见词被剪掉：专业术语在 top-k 外导致漏识。 同时避免：对所有 beam 历史重复算联合网络而不共享，浪费大量算力。"
+      "30 秒结论：beam pruning 减少需要保留和继续扩展的文本历史；相同前缀可共享 predictor 状态；blank 阈值可让高置信 blank 帧少做标签扩展。仅在完整 vocab logits 之后取 top-k，并没有省掉这次词表投影；若要省词表计算，还需要 shortlist、分层 softmax 或专门 kernel。",
+      "2 分钟展开·原理：先把 encoder、predictor、joiner/词表投影和 beam 管理四类成本分开，才能知道某种剪枝真正优化哪一段。",
+      "2 分钟展开·实现：逐项消融 beam width、每帧最大标签数、blank skip、前缀状态缓存和 shortlist，并记录各模块耗时，而不是只报告总 RTF。",
+      "2 分钟展开·边界：blank 分支不能因 top-k 实现错误而丢失。 同时避免：承诺剪枝后仍一定保留全局最优路径——近似 beam search 没有这种保证。"
     ],
     "conceptPath": [
-      "先识别问题：RNN-T 的联合网络与词汇输出很大，推理时有哪些剪枝手段能在不明显掉点的情况下加速？",
-      "再抓核心机制：在每帧对联合网络 logits 取 top-k 候选词，beam 仅保留得分前 B 的假设；用前缀束搜索共享相同前缀的历史、只展开差异 token；预测网络可缓存并量化，联合网络可用小矩阵近似。",
-      "然后跑一个具体例子：V=4096、k=64、B=8 时相比全词表解码 RTF 从 1.8 降到 0.3，WER 仅升 0.1%。",
-      "最后检查失败边界：罕见词被剪掉：专业术语在 top-k 外导致漏识。"
+      "先识别问题：RNN-T 解码中 beam、状态合并、blank 阈值和词表 shortlist 分别削减哪部分计算？",
+      "再抓核心机制：逐项消融 beam width、每帧最大标签数、blank skip、前缀状态缓存和 shortlist，并记录各模块耗时，而不是只报告总 RTF。",
+      "然后跑一个具体例子：示意：beam 从 8 降到 4 后 predictor 状态数减少，但每个保留状态若仍算完整词表，词表投影成本仍在。",
+      "最后检查失败边界：blank 分支不能因 top-k 实现错误而丢失。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：V=4096、k=64、B=8 时相比全词表解码 RTF 从 1.8 降到 0.3，WER 仅升 0.1%。",
-      "示意案例·第 2 步：用前缀束搜索共享 “你” 开头的历史，重复联合计算减少约 40%。",
-      "边界检查：罕见词被剪掉：专业术语在 top-k 外导致漏识。",
-      "反向自检：对所有 beam 历史重复算联合网络而不共享，浪费大量算力。"
+      "示意案例·第 1 步：示意：beam 从 8 降到 4 后 predictor 状态数减少，但每个保留状态若仍算完整词表，词表投影成本仍在。",
+      "示意案例·第 2 步：高 blank 后验帧跳过标签扩展可加速静音段；噪声段阈值过激则可能漏字。",
+      "边界检查：blank 分支不能因 top-k 实现错误而丢失。",
+      "反向自检：承诺剪枝后仍一定保留全局最优路径——近似 beam search 没有这种保证。"
     ]
   },
   {
     "id": "as-streaming-asr",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "流式 ASR 架构",
-    "prompt": "如何设计一个低延迟的流式 ASR 系统，使得用户说话时就能看到部分识别结果？",
-    "quickAnswer": "把音频切成定长 chunk，每个 chunk 仅利用有限左/右上下文进行编码并即时输出，配合 CTC 或 RNN-T 逐帧发射；常用动态分块注意力、因果卷积与右上下文来平衡延迟与精度。",
-    "approach": "采用 chunk-based 流式：编码器每次消费 N 帧，允许左看 L 帧、右看 R 帧（右上下文提升精度但增加延迟）；解码用 RNN-T 或 CTC 前缀束搜索，并在端点检测后做整体重打分。",
-    "explanationFocus": "是什么：流式 ASR 是一类在音频持续输入时增量输出文本的系统，通过限制每个时刻可看的未来上下文来控制延迟，区别于整句输入的非流式 ASR。",
-    "bruteForce": "朴素做法是等整句话说完再识别（非流式），延迟等于句长；或每来一帧就重新识别整段，算力浪费且结果抖动。",
-    "invariant": "任意时刻已输出的前缀必须是最终完整结果的前缀（单调对齐），且已发射 token 不再被撤销（除非显式重打分）。",
-    "walkthrough": "音频按 16 帧 chunk 流入 → 编码器带左 8 右 8 上下文算隐状态 → RNN-T 联合网络对每个 chunk 发射若干 token 或 blank → 接收端点后做整句 LM 重打分并刷新显示。",
-    "complexity": "延迟约 (chunk+right_context)/帧率（如 16+8 帧 /100fps≈240ms），算力随 chunk 数线性增长；右上下文越大精度越高但首字延迟越大。",
-    "beginnerSummary": "流式 ASR 像边听边写：每次只处理一小段音频并立刻给出已确定的文字，靠限制“能往后看多少”来控制等待时间。",
-    "diagram": "audio stream\n   |  chunk = 16 frames\n   v\n[encoder + right ctx]\n   |\nemit partial text\n   |  next chunk ...\n   v\nendpoint -> rescore",
-    "code": "import numpy as np\n\ndef chunk_stream(features, chunk=16, left=8, right=8):\n    # 动态分块 + 右上下文\n    for i in range(0, len(features), chunk):\n        yield features[max(0, i - left): i + chunk + right]",
+    "kind": "code",
+    "title": "低延迟流式 ASR 的完整数据流",
+    "prompt": "怎样从音频分块、编码器缓存、增量解码到稳定文本提交，设计可测量的流式 ASR？",
+    "quickAnswer": "音频按 chunk 输入带有限上下文的 encoder，复用历史缓存，再由 CTC prefix beam 或 RNN-T 增量解码。界面上的 partial 可以修订，只有满足稳定策略的 committed prefix 才不可回滚；端点后还可做 finalization。延迟要拆成采集等待、右上下文、计算、队列和提交策略。",
+    "beginnerSummary": "“边说边出字”不是简单把离线模型切小块。系统要记住历史、决定能看多少未来、区分临时文字和已经承诺的文字，还要在说完时把剩余缓存正确收尾。",
+    "explanationFocus": "流式系统的核心契约是状态、可见上下文和提交语义，而不是某个固定 chunk 大小。",
+    "approach": "明确 chunk/shift/右上下文；为每个 session 保存 encoder 与 decoder 状态；分别输出 partial、committed、final 三种事件并记录时间戳。",
     "derivation": [
-      "为什么需要：语音助手、字幕等场景要求边说边出字，端到端等待整句不可接受，因此需要增量解码。",
-      "怎么实现：把音频分 chunk，编码器用因果/受限注意力与右上下文，解码器用 RNN-T 或 CTC 逐帧发射并做端点触发重打分。",
-      "有什么代价：右上下文与整句上下文缺失会损害精度，需要在延迟与 WER 间权衡；chunk 边界可能切断音素。",
-      "怎么评测：用首字延迟（First Token Latency）、句末延迟与 WER 综合衡量，并在不同右上下文下画延迟-精度曲线。"
-    ],
-    "edgeCases": [
-      "静音段过长：需静音抑制与端点检测避免空识别。",
-      "断句错误：chunk 边界切断词导致错字，需要右上下文或重打分修正。",
-      "网络抖动：音频到达不均时需要缓冲与超时策略。",
-      "极短指令：如“停止”只有几帧，chunk 过大反而增加延迟。"
-    ],
-    "pitfalls": [
-      "右上下文设得过大，名义“流式”实际延迟接近非流式。",
-      "忽略 chunk 边界处状态传递，导致 Conformer/Transformer 跨块状态错位。"
+      "为什么需要：整句结束后再识别，用户等待时间接近整段说话时长。",
+      "怎么实现：chunk 编码、缓存左上下文、增量解码、稳定前缀提交和端点 finalization。",
+      "有什么代价：chunk 更小会增加调度开销，右上下文更大提高等待，过早提交则难以纠错。",
+      "怎么评测：同时报告首个 partial、首个 committed、final 延迟、RTF、峰值内存、partial 修订率和最终 CER/WER。"
     ],
     "prerequisites": [
-      "CTC 与 RNN-T 解码原理：CTC 在帧级预测 token 或 blank，再合并连续重复并删除 blank，从而处理音频帧数远多于文字数的问题。",
-      "因果卷积与 Masked 自注意力：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。"
+      "流式 chunk 与缓存：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "CTC 与 RNN-T 解码：CTC 在帧级预测 token 或 blank，再合并连续重复并删除 blank，从而处理音频帧数远多于文字数的问题。"
     ],
     "workedExample": [
-      "设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
-      "用 RNN-T 在 AISHELL 上对比 right=0 与 right=8，WER 从 6.1% 降到 5.2%。"
+      "示意：用户刚说“北京明…”，界面可显示 partial“北京”，但暂不提交容易变化的尾部。",
+      "端点触发后送完尾部 padding、刷新解码器并发 final；若没有 finalization，句尾短词可能消失。"
     ],
+    "code": "def accept_chunk(session, pcm):\n    features = session.frontend.push(pcm)\n    encoded, session.encoder_state = session.encoder.step(features, session.encoder_state)\n    partial, session.decoder_state = session.decoder.step(encoded, session.decoder_state)\n    return session.stabilizer.update(partial)",
     "lineByLine": [
-      "for i in range(0, len(features), chunk)：按 chunk 滑动遍历特征序列。",
-      "max(0, i - left)：左上下文不足时在句首截断。",
-      "i + chunk + right：拼接右上下文供编码器看未来少许帧。",
-      "yield：每次产出一个带上下文的局部窗口交给编码/解码。"
+      "前端把任意到达的 PCM 累积成完整特征帧。",
+      "encoder.step 读取并更新该会话缓存。",
+      "decoder 增量产生候选，stabilizer 决定哪些只是 partial、哪些可以提交。"
     ],
-    "codeNotes": [
-      "right 越大精度越高但延迟越大，是流式系统的核心超参。"
+    "complexity": "总计算仍随音频时长增长；实际延迟由 chunk 等待、右上下文、排队、推理和稳定提交共同组成，不能只用模型 RTF 代表体验。",
+    "diagram": "PCM chunk ─▶ streaming frontend ─▶ encoder + cache ─▶ incremental decoder\n                                                          ├▶ partial（可改）\n                                                          ├▶ committed（稳定）\nVAD endpoint ─────────────────────────────────────────────└▶ final",
+    "edgeCases": [
+      "最后不足一个 chunk 的音频必须 drain/flush。",
+      "多个 session 的缓存不能串用。",
+      "网络抖动或背压时要限制队列，避免延迟无限累积。"
+    ],
+    "pitfalls": [
+      "说“所有已显示 token 都必须永不修改”——partial 结果通常允许修订。",
+      "只比较 right context 导致的算法延迟，不测排队和前端缓冲。"
     ],
     "followUps": [
       {
-        "question": "动态分块注意力（dynamic chunk）如何训练？",
-        "answer": "训练时对每个样本随机采样 chunk 大小与右上下文，并加 causality mask，使模型适配不同流式配置。"
+        "question": "怎样定义稳定前缀？",
+        "answer": "可要求连续若干次解码结果共享该前缀，或结合 token posterior、时间边界和语言规则；阈值必须用修订率与提交延迟共同调。"
       },
       {
-        "question": "CTC 与 RNN-T 谁更适合流式？",
-        "answer": "RNN-T 自带自回归语言模型、逐帧发射更自然，流式体验更好；CTC 需额外 WFST/beam 才能平滑流式。"
+        "question": "CTC 和 RNN-T 哪个更适合流式？",
+        "answer": "两者都能流式。CTC 解码更简单但有条件独立假设；RNN-T显式利用标签历史但训练和解码状态更复杂。"
       }
     ],
-    "followUpAnswers": [
-      "训练时对每个样本随机采样 chunk 大小与右上下文，并加 causality mask，使模型适配不同流式配置。",
-      "RNN-T 自带自回归语言模型、逐帧发射更自然，流式体验更好；CTC 需额外 WFST/beam 才能平滑流式。"
-    ],
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：把音频切成定长 chunk，每个 chunk 仅利用有限左/右上下文进行编码并即时输出，配合 CTC 或 RNN-T 逐帧发射；常用动态分块注意力、因果卷积与右上下文来平衡延迟与精度。",
-      "2 分钟展开·原理：是什么：流式 ASR 是一类在音频持续输入时增量输出文本的系统，通过限制每个时刻可看的未来上下文来控制延迟，区别于整句输入的非流式 ASR。",
-      "2 分钟展开·实现：采用 chunk-based 流式：编码器每次消费 N 帧，允许左看 L 帧、右看 R 帧（右上下文提升精度但增加延迟）；解码用 RNN-T 或 CTC 前缀束搜索，并在端点检测后做整体重打分。",
-      "2 分钟展开·边界：静音段过长：需静音抑制与端点检测避免空识别。 同时避免：右上下文设得过大，名义“流式”实际延迟接近非流式。"
+      "30 秒结论：音频按 chunk 输入带有限上下文的 encoder，复用历史缓存，再由 CTC prefix beam 或 RNN-T 增量解码。界面上的 partial 可以修订，只有满足稳定策略的 committed prefix 才不可回滚；端点后还可做 finalization。延迟要拆成采集等待、右上下文、计算、队列和提交策略。",
+      "2 分钟展开·原理：流式系统的核心契约是状态、可见上下文和提交语义，而不是某个固定 chunk 大小。",
+      "2 分钟展开·实现：明确 chunk/shift/右上下文；为每个 session 保存 encoder 与 decoder 状态；分别输出 partial、committed、final 三种事件并记录时间戳。",
+      "2 分钟展开·边界：最后不足一个 chunk 的音频必须 drain/flush。 同时避免：说“所有已显示 token 都必须永不修改”——partial 结果通常允许修订。"
     ],
     "conceptPath": [
-      "先识别问题：如何设计一个低延迟的流式 ASR 系统，使得用户说话时就能看到部分识别结果？",
-      "再抓核心机制：采用 chunk-based 流式：编码器每次消费 N 帧，允许左看 L 帧、右看 R 帧（右上下文提升精度但增加延迟）；解码用 RNN-T 或 CTC 前缀束搜索，并在端点检测后做整体重打分。",
-      "然后跑一个具体例子：设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
-      "最后检查失败边界：静音段过长：需静音抑制与端点检测避免空识别。"
+      "先识别问题：怎样从音频分块、编码器缓存、增量解码到稳定文本提交，设计可测量的流式 ASR？",
+      "再抓核心机制：明确 chunk/shift/右上下文；为每个 session 保存 encoder 与 decoder 状态；分别输出 partial、committed、final 三种事件并记录时间戳。",
+      "然后跑一个具体例子：示意：用户刚说“北京明…”，界面可显示 partial“北京”，但暂不提交容易变化的尾部。",
+      "最后检查失败边界：最后不足一个 chunk 的音频必须 drain/flush。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
-      "示意案例·第 2 步：用 RNN-T 在 AISHELL 上对比 right=0 与 right=8，WER 从 6.1% 降到 5.2%。",
-      "边界检查：静音段过长：需静音抑制与端点检测避免空识别。",
-      "反向自检：右上下文设得过大，名义“流式”实际延迟接近非流式。"
+      "示意案例·第 1 步：示意：用户刚说“北京明…”，界面可显示 partial“北京”，但暂不提交容易变化的尾部。",
+      "示意案例·第 2 步：端点触发后送完尾部 padding、刷新解码器并发 final；若没有 finalization，句尾短词可能消失。",
+      "边界检查：最后不足一个 chunk 的音频必须 drain/flush。",
+      "反向自检：说“所有已显示 token 都必须永不修改”——partial 结果通常允许修订。"
     ]
   },
   {
     "id": "as-whisper",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "Whisper 模型",
-    "prompt": "Whisper 为什么只用 Transformer 编码器-解码器加大规模弱监督，就能做到多语言零样本转录？",
-    "quickAnswer": "Whisper 在 68 万小时多语言弱监督数据上训练一个标准 Encoder-Decoder Transformer，把语言/任务（转录、翻译）作为特殊前缀 token 输入解码器，从而零样本泛化到多种语言与任务，无需每语言单独微调。",
-    "approach": "音频经 log-Mel 谱送 Encoder 得隐表示；Decoder 自回归生成文本，起始 token 指定语言与任务（如 <zh>、<transcribe>）；训练目标是多任务混合的交叉熵，推理用贪心或 beam 即可。",
-    "explanationFocus": "是什么：Whisper 是 OpenAI 开源的语音识别/翻译模型，采用标准 Transformer 编码器-解码器，在海量弱监督多语言数据上训练，用特殊控制 token 实现零样本多语言转录与翻译。",
-    "bruteForce": "传统做法每种语言单独收集标注、单独训练一个 ASR，工程与数据成本随语言数线性增长，难以覆盖小语种。",
-    "invariant": "给定相同音频与相同控制 token，解码输出确定（贪心下）；控制 token 决定输出语言与任务，不依赖外部语言 ID 模型。",
-    "walkthrough": "读 16kHz 音频 → 算 80 维 log-Mel（30s 窗）→ Encoder 编码 → Decoder 以 <zh><transcribe> 起手自回归出文本 → 跨窗用时间戳 token 拼接长音频。",
-    "complexity": "推理随音频长度线性增长，Encoder 为 O(T²) 注意力；大模型（large）参数量 1.5B，需 GPU；小模型可实时。",
-    "beginnerSummary": "Whisper 像一个“见多识广”的转录员：它听过几十万小时各国语言，所以换一种语言也能直接听懂，不必重新培训。",
-    "diagram": "mel spectrogram\n   |\nencoder (Transformer)\n   |\ndecoder (cross-attn)\n   |\ntext + timestamp",
-    "code": "import torch\n\ndef whisper_decode(model, mel, language='zh'):\n    tokens = model.encoder(mel)\n    return model.decoder(tokens)",
+    "kind": "code",
+    "title": "Whisper 的训练方式、控制 token 与边界",
+    "prompt": "Whisper 为什么有较强的零样本鲁棒性？控制 token、30 秒窗口和自回归解码分别意味着什么？",
+    "quickAnswer": "Whisper 用约 68 万小时多语言、多任务弱监督数据训练标准 Transformer encoder-decoder，并用特殊 token 指定语言、转录/翻译和时间戳任务。规模和任务多样性带来较强零样本迁移，但不保证每种语言或领域都好；其原始推理以 30 秒窗口和自回归解码为中心，也不是天然的低延迟流式模型。",
+    "beginnerSummary": "Whisper 像听过大量网络音频的多语种转录员。开始工作前要告诉它语言和任务；它见得多，所以换场景常能直接用，但噪声、专业词、长音频和低延迟仍可能出问题。",
+    "explanationFocus": "能力来自大规模多任务弱监督，而不是“标准 Transformer 本身自动拥有零样本能力”。",
+    "approach": "音频转 log-Mel 后由 encoder 编码；decoder 以 start、language、task、timestamp 等控制 token 开始自回归生成，并对长音频分窗与去重。",
     "derivation": [
-      "为什么需要：多语言 ASR 标注昂贵，且长尾语言数据稀少，需要一种能跨语言共享知识、零样本泛化的方案。",
-      "怎么实现：在 68 万小时弱监督数据上训练 Enc-Dec Transformer，把语言/任务编码为特殊前缀 token，多任务统一训练目标。",
-      "有什么代价：弱监督含噪声、对特定领域（医疗/方言）易错；大模型算力高；对短语音和嘈杂环境鲁棒性不如专用流式系统。",
-      "怎么评测：在 Common Voice / 多语言测试集上测 WER 与语言检测准确率，并测长音频时间戳质量。"
-    ],
-    "edgeCases": [
-      "无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。",
-      "语种混淆：相似语言（葡/西）易被误判语言 token。",
-      "专业术语：训练分布外词汇易写错。",
-      "超 30s 音频：需滑窗拼接，可能切断句子。"
-    ],
-    "pitfalls": [
-      "忘记加语言 token 导致自动检测错误、输出错误语言。",
-      "直接用于低延迟流式，而 Whisper 原生为非流式 30s 窗设计。"
+      "为什么需要：逐语言训练专用模型难覆盖长尾语言与多种语音任务。",
+      "怎么实现：把转录、翻译、语言识别和时间戳统一为 token 序列预测。",
+      "有什么代价：自回归解码较慢，弱监督会带来噪声，静音和分布外音频可能幻觉。",
+      "怎么评测：按语言、口音、噪声、长音频和专业词切片报告 WER/CER、幻觉率、延迟和显存。"
     ],
     "prerequisites": [
       "Transformer 编码器-解码器：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
-      "log-Mel 频谱与多任务学习：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。"
+      "log-Mel 与多任务学习：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。"
     ],
     "workedExample": [
-      "输入中文 30s 音频，前缀 <zh><transcribe>，Whisper large 直接输出中文文本，WER 约 4%。",
-      "前缀 <en><translate> 时同一音频被翻译成英文，体现控制 token 的任务切换。"
+      "示意：中文音频使用 language=zh、task=transcribe；若改成 translate，目标变成英文翻译。",
+      "纯静音输入也必须单独测试；模型若生成常见句子，应由 VAD、无语音概率或后处理拦截。"
     ],
+    "code": "def whisper_request(mel, language, task):\n    prompt = [START, language_token(language), task_token(task)]\n    return autoregressive_decode(mel, prompt, timestamps=True)",
     "lineByLine": [
-      "def whisper_decode(...)：封装一次音频的解码流程，language 控制输出语种。",
-      "model.encoder(mel)：把 log-Mel 谱编码为上下文隐表示。",
-      "model.decoder(tokens)：以控制 token 起手自回归生成文本。"
+      "先明确语言和转录/翻译任务。",
+      "控制 token 作为 decoder 的起始上下文。",
+      "真实解码还要处理温度、停止条件、时间戳和长音频窗口。"
     ],
-    "codeNotes": [
-      "实际推理还需拼特殊 token（如 <|startoftranscript|> <|zh|> <|transcribe|>），并用 beam 解码。"
+    "complexity": "encoder 注意力随固定窗口内帧数增长；decoder 逐 token 自回归，延迟还受 beam、窗口重叠和模型尺寸影响。",
+    "diagram": "waveform ─▶ 30 s log-Mel ─▶ Transformer encoder ─▶ autoregressive decoder ─▶ text / timestamps\n                                         ▲ language + task control tokens",
+    "references": [
+      {
+        "title": "Robust Speech Recognition via Large-Scale Weak Supervision",
+        "url": "https://arxiv.org/abs/2212.04356"
+      }
+    ],
+    "edgeCases": [
+      "静音或纯噪声可能出现幻觉文本。",
+      "相近语言或中途切换语种会让语言控制更复杂。",
+      "跨窗口句子可能重复、漏字或时间戳错位。"
+    ],
+    "pitfalls": [
+      "写成“68 万小时”时误写成“68 万=68,000”；论文规模是约 680,000 小时。",
+      "给出“中文 WER 约 4%”却不说明数据集、归一化与模型版本。"
     ],
     "followUps": [
       {
-        "question": "Whisper 与 Conformer-CTC 怎么选？",
-        "answer": "Whisper 多语言零样本、易部署但不流式；Conformer-CTC/RNN-T 更适合低延迟流式与领域微调。"
+        "question": "Whisper 能做流式吗？",
+        "answer": "可以通过滑窗、局部确认和缓存做近似流式，但这属于系统改造；原始模型并非因果流式架构。"
       },
       {
-        "question": "Whisper 能做流式吗？",
-        "answer": "原生非流式；可借助 chunk 化与 token 缓冲近似流式，但延迟与稳定性不如专用流式架构。"
+        "question": "设置语言 token 后结果一定更好吗？",
+        "answer": "不一定。已知单语场景可减少误判；代码切换或语言标签错误时，强制语言反而可能伤害结果。"
       }
     ],
-    "followUpAnswers": [
-      "Whisper 多语言零样本、易部署但不流式；Conformer-CTC/RNN-T 更适合低延迟流式与领域微调。",
-      "原生非流式；可借助 chunk 化与 token 缓冲近似流式，但延迟与稳定性不如专用流式架构。"
-    ],
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：Whisper 在 68 万小时多语言弱监督数据上训练一个标准 Encoder-Decoder Transformer，把语言/任务（转录、翻译）作为特殊前缀 token 输入解码器，从而零样本泛化到多种语言与任务，无需每语言单独微调。",
-      "2 分钟展开·原理：是什么：Whisper 是 OpenAI 开源的语音识别/翻译模型，采用标准 Transformer 编码器-解码器，在海量弱监督多语言数据上训练，用特殊控制 token 实现零样本多语言转录与翻译。",
-      "2 分钟展开·实现：音频经 log-Mel 谱送 Encoder 得隐表示；Decoder 自回归生成文本，起始 token 指定语言与任务（如 <zh>、<transcribe>）；训练目标是多任务混合的交叉熵，推理用贪心或 beam 即可。",
-      "2 分钟展开·边界：无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。 同时避免：忘记加语言 token 导致自动检测错误、输出错误语言。"
+      "30 秒结论：Whisper 用约 68 万小时多语言、多任务弱监督数据训练标准 Transformer encoder-decoder，并用特殊 token 指定语言、转录/翻译和时间戳任务。规模和任务多样性带来较强零样本迁移，但不保证每种语言或领域都好；其原始推理以 30 秒窗口和自回归解码为中心，也不是天然的低延迟流式模型。",
+      "2 分钟展开·原理：能力来自大规模多任务弱监督，而不是“标准 Transformer 本身自动拥有零样本能力”。",
+      "2 分钟展开·实现：音频转 log-Mel 后由 encoder 编码；decoder 以 start、language、task、timestamp 等控制 token 开始自回归生成，并对长音频分窗与去重。",
+      "2 分钟展开·边界：静音或纯噪声可能出现幻觉文本。 同时避免：写成“68 万小时”时误写成“68 万=68,000”；论文规模是约 680,000 小时。"
     ],
     "conceptPath": [
-      "先识别问题：Whisper 为什么只用 Transformer 编码器-解码器加大规模弱监督，就能做到多语言零样本转录？",
-      "再抓核心机制：音频经 log-Mel 谱送 Encoder 得隐表示；Decoder 自回归生成文本，起始 token 指定语言与任务（如 <zh>、<transcribe>）；训练目标是多任务混合的交叉熵，推理用贪心或 beam 即可。",
-      "然后跑一个具体例子：输入中文 30s 音频，前缀 <zh><transcribe>，Whisper large 直接输出中文文本，WER 约 4%。",
-      "最后检查失败边界：无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。"
+      "先识别问题：Whisper 为什么有较强的零样本鲁棒性？控制 token、30 秒窗口和自回归解码分别意味着什么？",
+      "再抓核心机制：音频转 log-Mel 后由 encoder 编码；decoder 以 start、language、task、timestamp 等控制 token 开始自回归生成，并对长音频分窗与去重。",
+      "然后跑一个具体例子：示意：中文音频使用 language=zh、task=transcribe；若改成 translate，目标变成英文翻译。",
+      "最后检查失败边界：静音或纯噪声可能出现幻觉文本。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：输入中文 30s 音频，前缀 <zh><transcribe>，Whisper large 直接输出中文文本，WER 约 4%。",
-      "示意案例·第 2 步：前缀 <en><translate> 时同一音频被翻译成英文，体现控制 token 的任务切换。",
-      "边界检查：无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。",
-      "反向自检：忘记加语言 token 导致自动检测错误、输出错误语言。"
+      "示意案例·第 1 步：示意：中文音频使用 language=zh、task=transcribe；若改成 translate，目标变成英文翻译。",
+      "示意案例·第 2 步：纯静音输入也必须单独测试；模型若生成常见句子，应由 VAD、无语音概率或后处理拦截。",
+      "边界检查：静音或纯噪声可能出现幻觉文本。",
+      "反向自检：写成“68 万小时”时误写成“68 万=68,000”；论文规模是约 680,000 小时。"
     ]
   },
   {
     "id": "asr-architecture-compare",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "主流 ASR 架构横评与选型",
-    "prompt": "Whisper、Paraformer、Zipformer-Transducer 与 Qwen3-ASR 四类架构的核心差异是什么，如何按场景选型？",
-    "quickAnswer": "Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
-    "code": "class ASRBackbone:\n    \"\"\"统一不同架构（Whisper/Paraformer/Zipformer/Qwen3）的推理接口便于横评。\"\"\"\n    def __init__(self, arch: str):\n        self.arch = arch\n    def transcribe(self, audio):\n        return {\"whisper\": self._enc_dec,\n                \"paraformer\": self._san_parallel,\n                \"zipformer\": self._transducer,\n                \"qwen3-asr\": self._llm}.get(self.arch)(audio)",
-    "complexity": "时间 O(1)（路由）/ 推理随架构 O(N·L)，空间 O(1)",
-    "beginnerSummary": "四个“翻译官”各有绝活：Whisper 全能但慢，Paraformer 并行快，Zipformer 流式对齐好，Qwen3 大模型最聪明但最吃资源。",
+    "kind": "code",
+    "title": "ASR 架构选型：先定约束再选模型",
+    "prompt": "Whisper、Paraformer、Zipformer-Transducer 和 Qwen3-ASR 应该怎样公平比较，而不是直接给每个场景指定赢家？",
+    "quickAnswer": "先固定任务、数据、文本归一化和硬件，再比较准确率切片、流式能力、首包/完成延迟、吞吐、内存与部署成熟度。Whisper 是自回归 encoder-decoder，Paraformer 是借助 CIF predictor 的并行非自回归模型，Zipformer 常作为高效 encoder 搭配 Transducer，Qwen3-ASR 是较新的大规模多语种系列；这些结构特点不能替代目标设备上的实测。",
+    "beginnerSummary": "选 ASR 像选车：不能只说哪辆“最强”。先问是在手机还是服务器、要不要边说边出字、有哪些语言、能用多少内存，再让候选在同一条赛道上跑。",
+    "explanationFocus": "架构名称只是先验，真正的选型结论必须来自统一口径的能力—成本 Pareto 对比。",
+    "approach": "建立 frozen test set 和统一 normalizer；每个模型同时跑官方推荐配置与受控配置，并记录输出、版本、参数和硬件。",
     "derivation": [
-      "为什么需要：四类架构在准确率、延迟、流式与端侧成本上权衡不同，统一接口才能公平横评并按场景选型。",
-      "怎么实现：Whisper 用 Encoder-Decoder+自回归；Paraformer 用 SAN 做非自回归并行预测；Zipformer-Transducer 做单元级流式对齐；Qwen3-ASR 走大模型化。统一 transcribe 接口横评。",
-      "有什么代价：大模型（Qwen3）准确高但显存/延迟大；Transducer 需对齐训练复杂；统一接口要适配各自前后处理。",
-      "怎么评测：在 11 语种盲测跑三层口径，按指标与端侧约束选：端侧用 Paraformer/Whisper-tiny，高准确用 Qwen3，流式用 Zipformer。"
-    ],
-    "edgeCases": [
-      "Whisper 自回归易重复解码（hallucination），长音频需 chunk。",
-      "Paraformer 非自回归对同音字易错，需语言模型兜底。",
-      "Zipformer-Transducer 训练需预测网络/对齐，调参复杂。",
-      "Qwen3-ASR 在端侧显存不足必须量化或回退。"
-    ],
-    "pitfalls": [
-      "把 Whisper 当万能，端侧硬上导致延迟爆表。",
-      "横评时前后处理不一致（归一化/采样率）导致指标不可比。"
+      "为什么需要：不同模型默认采样率、分段、提示词和后处理不同，直接抄榜单不可比。",
+      "怎么实现：分成质量、流式交互、资源、运维四组指标，并保存逐样本结果。",
+      "有什么代价：统一配置可能压低某模型上限，因此最好同时报告受控对照与最佳可用配置。",
+      "怎么评测：画 CER/WER—延迟—内存 Pareto 图，再按业务硬门槛过滤候选。"
     ],
     "prerequisites": [
-      "Encoder-Decoder 与自回归解码：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
-      "Transducer 与 CTC 对齐：CTC 在帧级预测 token 或 blank，再合并连续重复并删除 blank，从而处理音频帧数远多于文字数的问题。",
-      "非自回归（NAR）建模：非自回归模型可并行生成多个位置，速度快，但需要额外解决长度、对齐和位置间依赖。"
+      "Transformer 编码器-解码器：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "RNN-T 与 Transducer：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
+      "非自回归 NAR：非自回归模型可并行生成多个位置，速度快，但需要额外解决长度、对齐和位置间依赖。"
     ],
     "workedExample": [
-      "步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
-      "步骤2：在盲测集跑三层口径，记录 CER 与延迟。",
-      "步骤3：端侧 200MB 选 Paraformer，高准确选 Qwen3-ASR。"
+      "示意：客服离线转写先设“单卡显存、小时吞吐、长音频错误率”门槛，再比较模型。",
+      "车机流式场景另设首个 committed 文本、峰值内存和断网可用性门槛，赢家可能不同。"
     ],
+    "code": "def compare_model(model, dataset, normalizer, device):\n    outputs, timings = run_frozen_eval(model, dataset, device)\n    return {\n        'error_rate': score(outputs, dataset.refs, normalizer),\n        'latency': summarize_latency(timings),\n        'memory': peak_memory(device),\n    }",
     "lineByLine": [
-      "class ASRBackbone: 定义统一基座封装类。",
-      "def __init__(self, arch): self.arch = arch 记录所选架构名。",
-      "def transcribe(self, audio): 对外统一推理接口。",
-      "return {...}.get(self.arch)(audio) 按架构名分发到对应内部实现。"
+      "所有候选使用同一冻结测试集和文字归一化。",
+      "保留逐样本输出与耗时，避免只剩一个平均数。",
+      "准确率、延迟和内存分开报告，不强行压成单一分数。"
+    ],
+    "complexity": "横评成本约为候选模型数 × 测试音频总时长；还要为不同并发和流式配置重复测试。",
+    "diagram": "业务约束 ─▶ 冻结数据 / 统一口径 ─▶ 候选模型实测 ─▶ Pareto 前沿 ─▶ 选型\n                            ├▶ 质量切片\n                            ├▶ 延迟吞吐\n                            └▶ 内存与部署",
+    "references": [
+      {
+        "title": "Whisper paper",
+        "url": "https://arxiv.org/abs/2212.04356"
+      },
+      {
+        "title": "Paraformer paper",
+        "url": "https://arxiv.org/abs/2206.08317"
+      },
+      {
+        "title": "Zipformer paper",
+        "url": "https://arxiv.org/abs/2310.11230"
+      },
+      {
+        "title": "Qwen3-ASR Technical Report",
+        "url": "https://arxiv.org/abs/2601.21337"
+      }
+    ],
+    "edgeCases": [
+      "某模型需要固定语言提示，另一模型自动 LID，必须分开记录。",
+      "流式 API 名称相同但 committed 语义和右上下文可能不同。",
+      "短句平均值可能掩盖长音频重复与幻觉。"
+    ],
+    "pitfalls": [
+      "直接写“端侧选 Paraformer、最高准确选 Qwen3”——没有硬件和数据就无法下结论。",
+      "给不同模型使用不同文本归一化，再比较 CER/WER。"
     ],
     "followUps": [
       {
-        "question": "Paraformer 的 SAN 是什么？",
-        "answer": "SAN（Self-Attention Network）结合 CIF 预测时长，实现非自回归并行输出，去掉自回归延迟，推理快但需处理重复/漏字。"
+        "question": "为什么要同时给推荐配置和受控配置？",
+        "answer": "推荐配置代表可达到的产品上限；受控配置帮助判断收益来自模型本身还是额外提示、语言模型和后处理。"
       },
       {
-        "question": "Transducer 相比 CTC 好在哪？",
-        "answer": "Transducer 引入预测网络与联合网络做帧-标签单元级对齐，不要求帧独立假设，流式与长静音更稳，对齐更精细。"
+        "question": "Qwen3-ASR 支持流式，是否就适合所有端侧？",
+        "answer": "不等于。官方系列有 0.6B/1.7B 和流式推理能力，但具体设备上的算子支持、内存、功耗和稳定延迟仍需实测。"
       }
     ],
-    "followUpAnswers": [
-      "SAN（Self-Attention Network）结合 CIF 预测时长，实现非自回归并行输出，去掉自回归延迟，推理快但需处理重复/漏字。",
-      "Transducer 引入预测网络与联合网络做帧-标签单元级对齐，不要求帧独立假设，流式与长静音更稳，对齐更精细。"
-    ],
-    "invariant": "transcribe 对任意已知 arch 必分发到对应实现且返回解码文本，未知 arch 触发 KeyError 需调用方保证合法值。",
-    "walkthrough": "ASRBackbone('paraformer').transcribe(audio) → 查表命中 _san_parallel 并行解码返回文本；'qwen3-asr' → _llm 大模型解码。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
-      "2 分钟展开·原理：为什么需要：四类架构在准确率、延迟、流式与端侧成本上权衡不同，统一接口才能公平横评并按场景选型。",
-      "2 分钟展开·实现：Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
-      "2 分钟展开·边界：Whisper 自回归易重复解码（hallucination），长音频需 chunk。 同时避免：把 Whisper 当万能，端侧硬上导致延迟爆表。"
+      "30 秒结论：先固定任务、数据、文本归一化和硬件，再比较准确率切片、流式能力、首包/完成延迟、吞吐、内存与部署成熟度。Whisper 是自回归 encoder-decoder，Paraformer 是借助 CIF predictor 的并行非自回归模型，Zipformer 常作为高效 encoder 搭配 Transducer，Qwen3-ASR 是较新的大规模多语种系列；这些结构特点不能替代目标设备上的实测。",
+      "2 分钟展开·原理：架构名称只是先验，真正的选型结论必须来自统一口径的能力—成本 Pareto 对比。",
+      "2 分钟展开·实现：建立 frozen test set 和统一 normalizer；每个模型同时跑官方推荐配置与受控配置，并记录输出、版本、参数和硬件。",
+      "2 分钟展开·边界：某模型需要固定语言提示，另一模型自动 LID，必须分开记录。 同时避免：直接写“端侧选 Paraformer、最高准确选 Qwen3”——没有硬件和数据就无法下结论。"
     ],
     "conceptPath": [
-      "先识别问题：Whisper、Paraformer、Zipformer-Transducer 与 Qwen3-ASR 四类架构的核心差异是什么，如何按场景选型？",
-      "再抓核心机制：Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
-      "然后跑一个具体例子：步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
-      "最后检查失败边界：Whisper 自回归易重复解码（hallucination），长音频需 chunk。"
+      "先识别问题：Whisper、Paraformer、Zipformer-Transducer 和 Qwen3-ASR 应该怎样公平比较，而不是直接给每个场景指定赢家？",
+      "再抓核心机制：建立 frozen test set 和统一 normalizer；每个模型同时跑官方推荐配置与受控配置，并记录输出、版本、参数和硬件。",
+      "然后跑一个具体例子：示意：客服离线转写先设“单卡显存、小时吞吐、长音频错误率”门槛，再比较模型。",
+      "最后检查失败边界：某模型需要固定语言提示，另一模型自动 LID，必须分开记录。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
-      "示意案例·第 2 步：步骤2：在盲测集跑三层口径，记录 CER 与延迟。",
-      "示意案例·第 3 步：步骤3：端侧 200MB 选 Paraformer，高准确选 Qwen3-ASR。",
-      "边界检查：Whisper 自回归易重复解码（hallucination），长音频需 chunk。",
-      "反向自检：把 Whisper 当万能，端侧硬上导致延迟爆表。"
+      "示意案例·第 1 步：示意：客服离线转写先设“单卡显存、小时吞吐、长音频错误率”门槛，再比较模型。",
+      "示意案例·第 2 步：车机流式场景另设首个 committed 文本、峰值内存和断网可用性门槛，赢家可能不同。",
+      "边界检查：某模型需要固定语言提示，另一模型自动 LID，必须分开记录。",
+      "反向自检：直接写“端侧选 Paraformer、最高准确选 Qwen3”——没有硬件和数据就无法下结论。"
     ]
   },
   {
     "id": "asr-channel-robustness",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "真实信道鲁棒性失真模拟与训练",
-    "prompt": "如何用播放链路建模（RIR、频响、AGC、Codec、Clipping）提升真实信道鲁棒性，并避免只拟合模拟失真？",
-    "quickAnswer": "按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
-    "code": "import numpy as np\n\ndef apply_rir_fft(speech: np.ndarray, rir: np.ndarray) -> np.ndarray:\n    \"\"\"用 FFT 卷积把房间脉冲响应施加到语音，比时域卷积快约 30x。\"\"\"\n    n = len(speech) + len(rir) - 1\n    nfft = 1 << (n - 1).bit_length()\n    S = np.fft.rfft(speech, nfft)\n    R = np.fft.rfft(rir, nfft)\n    return np.fft.irfft(S * R)[:n]",
-    "complexity": "时间 O(N log N)（FFT 卷积）/ 时域 O(N·M)，空间 O(N)",
-    "beginnerSummary": "就像在浴室和旷野录音声音不同，我们用数学先“装修”出各种房间和设备的声音，再让模型在“坏声音”里也听得清。",
+    "kind": "code",
+    "title": "真实信道增强：先还原链路，再验证迁移",
+    "prompt": "怎样组合 RIR、频响、增益控制、codec 和 clipping，提升远场/播放链路鲁棒性又避免只拟合合成失真？",
+    "quickAnswer": "先根据真实采集链路确定退化类型和大致顺序，再从实测设备估计参数分布，生成可追踪的增强样本。训练时混合 clean、synthetic 和少量真实域数据；放行必须同时看独立真实集、合成切片和 clean 回归。增强集提升只能证明模型适应了模拟器，不能代替真实链路验证。",
+    "beginnerSummary": "把干净录音变成“像车机里录到的声音”，不能随便叠几个滤镜。房间混响、扬声器频响、自动增益、压缩和削顶有先后关系；最后还必须拿真实设备录音考试。",
+    "explanationFocus": "信道增强是一个带参数分布的因果链路模型，不是独立随机效果的无序拼盘。",
+    "approach": "收集真实设备统计与失败样本，拟合增强参数范围；每条样本保存增强 manifest，并通过单因素和组合消融定位有效环节。",
     "derivation": [
-      "为什么需要：真实播放链路（扬声器→房间→麦克风→Codec）引入混响、频响凹陷、增益与削波，训练集若只有 clean 语音会在真实信道上 WER 飙升。",
-      "怎么实现：按链路分阶段建模 RIR 卷积、频响曲线、AGC、Codec 量化与 Clipping，离线批量增强音频，并保留 clean/in-domain 原始数据混合训练。",
-      "有什么代价：过度增强会让模型只拟合模拟失真的“指纹”而对真实退化泛化差；RIR 时域卷积在大语音上慢，需要 FFT 加速。",
-      "怎么评测：用独立信道退化集（构造失真）与独立业务集（真实采集）双轨验证，退化集 28.66%→20.32%，业务集进一步降到 3.62%。"
-    ],
-    "edgeCases": [
-      "RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。",
-      "真实 Codec（如 Opus）引入非线性量化，线性模拟无法完全还原，需真实 Codec 重编码。",
-      "过度增强使训练分布远离真实，业务集反而退化（过拟合模拟失真）。",
-      "Clipping 阈值设错导致削波过重产生谐波，引入新伪影。"
-    ],
-    "pitfalls": [
-      "只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。",
-      "把业务集 3.62% 当成上限而忽略退化集，掩盖了增强未覆盖的信道。"
+      "为什么需要：训练语音和真实麦克风/播放链路之间存在混响、频响和非线性失真差异。",
+      "怎么实现：RIR 卷积、频响滤波、增益/AGC、codec、clipping 按真实链路采样组合。",
+      "有什么代价：模拟器不完整会制造捷径，过强增强还会伤害 clean 能力。",
+      "怎么评测：报告真实域、合成退化、clean 与关键设备切片，并给每个增强因素的消融。"
     ],
     "prerequisites": [
-      "卷积与 FFT：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。",
-      "房间脉冲响应（RIR）与混响：真实信道会叠加混响、频响、增益控制、编解码和削顶；增强顺序必须尽量贴近真实播放链路。",
-      "音频 Codec 与增益控制基础：真实信道会叠加混响、频响、增益控制、编解码和削顶；增强顺序必须尽量贴近真实播放链路。"
+      "RIR 与音频预处理：真实信道会叠加混响、频响、增益控制、编解码和削顶；增强顺序必须尽量贴近真实播放链路。",
+      "CER 与 WER 评测：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
     ],
     "workedExample": [
-      "步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
-      "步骤2：混合 60% clean、30% augmented、10% in-domain 真实退化数据训练。",
-      "步骤3：在独立业务集上测到 WER 3.62%，验证未过拟合模拟失真。"
+      "示意：先让干净语音与测得的房间 RIR 卷积，再经过设备频响和 codec；manifest 保存每个参数。",
+      "若合成远场集提升而真实车机集不变，结论应是“模拟器没有覆盖真实瓶颈”，而不是继续加大增强比例。"
     ],
+    "code": "def simulate_channel(clean, params):\n    audio = fft_convolve(clean, params.rir)\n    audio = equalize(audio, params.frequency_response)\n    audio = apply_gain_or_agc(audio, params.gain_curve)\n    audio = codec_roundtrip(audio, params.codec)\n    return clip(audio, params.clip_level)",
     "lineByLine": [
-      "import numpy as np 引入数值库用于 FFT 运算。",
-      "n = len(speech) + len(rir) - 1 计算线性卷积所需输出长度。",
-      "nfft = 1 << (n - 1).bit_length() 取不小于 n 的最小 2 的幂，满足 FFT 效率。",
-      "S = np.fft.rfft(speech, nfft); R = np.fft.rfft(rir, nfft) 频域变换后逐点相乘等价于时域卷积。",
-      "return np.fft.irfft(S * R)[:n] 逆变换取完整线性卷积长度 [:n]（含混响尾），与时域卷积完全等价；如需与输入等长再裁到 [:len(speech)]。"
+      "RIR 卷积模拟声源到麦克风的线性传播。",
+      "频响与增益模拟设备链路。",
+      "codec 和 clipping 放在相应阶段，顺序必须由真实系统决定。"
+    ],
+    "complexity": "直接时域卷积随音频和 RIR 长度相乘；FFT 卷积通常更适合长 RIR。训练成本还取决于在线增强比例与 codec 编解码开销。",
+    "diagram": "clean ─▶ room / RIR ─▶ speaker & mic response ─▶ AGC ─▶ codec ─▶ clipping ─▶ ASR\n          参数来自真实统计；每一步写入 manifest",
+    "edgeCases": [
+      "RIR 卷积尾部被截断会丢失混响能量。",
+      "先 clipping 再降增益与先增益再 clipping 不是同一种失真。",
+      "真实链路可能有降噪/回声消除等动态模块，静态滤波无法覆盖。"
+    ],
+    "pitfalls": [
+      "把真实业务集上的数字写成所有模型都能复现的通用收益。",
+      "只用 augmented 数据训练或只在 synthetic test 上早停。"
     ],
     "followUps": [
       {
-        "question": "FFT 卷积相比时域快多少？",
-        "answer": "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。"
+        "question": "怎样判断增强强度过头？",
+        "answer": "观察 clean 回归、真实域错误类型和增强参数分桶；若极端模拟样本占主导但真实分布很少出现，就应收窄参数或降低采样率。"
       },
       {
-        "question": "如何防止只拟合模拟失真？",
-        "answer": "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
+        "question": "为什么要保存 manifest？",
+        "answer": "它让每个失败样本可复现，也能按 RIR、codec、削顶比例等因素做切片和消融。"
       }
     ],
-    "followUpAnswers": [
-      "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。",
-      "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
-    ],
-    "invariant": "对于任意 speech 与 rir，因 nfft≥L+M−1，FFT 卷积在完整线性卷积长度 [:n] 上与时域卷积数值完全一致、无循环混叠；输出含长度 M−1 的混响尾，若需与输入等长可再裁到 [:len(speech)]。",
-    "walkthrough": "speech 长 16000、rir 长 4000 → n=20000，nfft=32768；rfft 后 S·R 逆变换取前 n=20000 点，即得与时域卷积完全等价的混响语音（含 4000 点混响尾）；如需与输入等长再裁到前 16000 点。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
-      "2 分钟展开·原理：为什么需要：真实播放链路（扬声器→房间→麦克风→Codec）引入混响、频响凹陷、增益与削波，训练集若只有 clean 语音会在真实信道上 WER 飙升。",
-      "2 分钟展开·实现：按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
-      "2 分钟展开·边界：RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。 同时避免：只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。"
+      "30 秒结论：先根据真实采集链路确定退化类型和大致顺序，再从实测设备估计参数分布，生成可追踪的增强样本。训练时混合 clean、synthetic 和少量真实域数据；放行必须同时看独立真实集、合成切片和 clean 回归。增强集提升只能证明模型适应了模拟器，不能代替真实链路验证。",
+      "2 分钟展开·原理：信道增强是一个带参数分布的因果链路模型，不是独立随机效果的无序拼盘。",
+      "2 分钟展开·实现：收集真实设备统计与失败样本，拟合增强参数范围；每条样本保存增强 manifest，并通过单因素和组合消融定位有效环节。",
+      "2 分钟展开·边界：RIR 卷积尾部被截断会丢失混响能量。 同时避免：把真实业务集上的数字写成所有模型都能复现的通用收益。"
     ],
     "conceptPath": [
-      "先识别问题：如何用播放链路建模（RIR、频响、AGC、Codec、Clipping）提升真实信道鲁棒性，并避免只拟合模拟失真？",
-      "再抓核心机制：按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
-      "然后跑一个具体例子：步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
-      "最后检查失败边界：RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。"
+      "先识别问题：怎样组合 RIR、频响、增益控制、codec 和 clipping，提升远场/播放链路鲁棒性又避免只拟合合成失真？",
+      "再抓核心机制：收集真实设备统计与失败样本，拟合增强参数范围；每条样本保存增强 manifest，并通过单因素和组合消融定位有效环节。",
+      "然后跑一个具体例子：示意：先让干净语音与测得的房间 RIR 卷积，再经过设备频响和 codec；manifest 保存每个参数。",
+      "最后检查失败边界：RIR 卷积尾部被截断会丢失混响能量。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
-      "示意案例·第 2 步：步骤2：混合 60% clean、30% augmented、10% in-domain 真实退化数据训练。",
-      "示意案例·第 3 步：步骤3：在独立业务集上测到 WER 3.62%，验证未过拟合模拟失真。",
-      "边界检查：RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。",
-      "反向自检：只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。"
+      "示意案例·第 1 步：示意：先让干净语音与测得的房间 RIR 卷积，再经过设备频响和 codec；manifest 保存每个参数。",
+      "示意案例·第 2 步：若合成远场集提升而真实车机集不变，结论应是“模拟器没有覆盖真实瓶颈”，而不是继续加大增强比例。",
+      "边界检查：RIR 卷积尾部被截断会丢失混响能量。",
+      "反向自检：把真实业务集上的数字写成所有模型都能复现的通用收益。"
     ]
   },
   {
     "id": "asr-chinavoices",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "ChinaVoices 竞赛消融与负收益定位",
-    "prompt": "在 ChinaVoices 竞赛中，如何通过全参 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习的消融，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰等负收益来源并拿到 CER 13.423%？",
-    "quickAnswer": "逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
-    "code": "def ablation_log(name: str, cer: float, baseline_cer: float) -> dict:\n    \"\"\"记录消融实验：对比全参/decoder-only、外部数据/RefSet、Hard Focus、多任务。\"\"\"\n    return {\"ablation\": name, \"cer\": cer,\n            \"delta\": round(cer - baseline_cer, 3),\n            \"positive\": cer < baseline_cer}",
-    "complexity": "时间 O(1)，空间 O(1)",
-    "beginnerSummary": "像做对照实验：每次只换一个配方，看哪味“药材”让成绩变好或变差，最后挑出拖后腿的并拿到第二。",
+    "kind": "code",
+    "title": "多策略 ASR 实验怎样定位负收益",
+    "prompt": "外部数据、难例采样、部分冻结和多任务一起使用时，怎样判断究竟是哪一项造成提升或退化？",
+    "quickAnswer": "先固定 Reference Set、评分脚本和基线，再为每次 run 保存数据版本、采样器、可训练参数、loss 权重与解码配置。先做单因素消融，再验证关键交互项；对退化样本按正字法、语种、时长和错误类型归因。外部数据不一致、难例过采样导致遗忘、辅助任务梯度冲突都只是待验证假设，不能看到掉点就直接下结论。",
+    "beginnerSummary": "同时换数据、训练方法和任务头，成绩变差时谁也说不清原因。正确做法像查电路：先锁住测试卷，每次只动一个开关，再检查两个开关是否会互相影响。",
+    "explanationFocus": "消融不是列一张结果表，而是用可复现 run 和逐样本差异把“相关”推进到可验证的原因。",
+    "approach": "建立 run manifest 与 frozen reference；依次比较参数冻结、数据源、采样策略、辅助任务，再对最有可能的交互做小型析因实验。",
     "derivation": [
-      "为什么需要：竞赛多策略叠加易互相吞噬收益，必须逐因素消融才能定位负收益来源。",
-      "怎么实现：系统消融全参微调 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习；用 ablation_log 记录每项 delta 与正负。",
-      "有什么代价：消融需多组训练，算力开销大；外部语料需先做正字法对齐，否则引入噪声。",
-      "怎么评测：定位外部语料正字法不一致、过采样导致遗忘、LID 梯度干扰为负收益后修正，最终 ASR CER 13.423%（第 2 名）。"
-    ],
-    "edgeCases": [
-      "外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。",
-      "过采样某域导致其他域遗忘，CER 反弹。",
-      "多任务中 LID 弱监督（67.57%）梯度干扰拉低 ASR。",
-      "decoder-only 在全参下过拟合小 RefSet。"
-    ],
-    "pitfalls": [
-      "多策略一把梭不消融，负收益被正收益掩盖。",
-      "把 Reference Set 与外部数据混用未控制变量，结论不可信。"
+      "为什么需要：多项策略同时叠加会让正负收益互相抵消。",
+      "怎么实现：固定随机种子和预算，保存逐句输出，用单变量与少量交互实验定位变化。",
+      "有什么代价：实验数量增加，且训练随机性可能要求多 seed 或显著性分析。",
+      "怎么评测：报告整体 CER/WER、关键切片、逐句 win/loss 和不确定性，而不是只报最终名次。"
     ],
     "prerequisites": [
-      "消融实验设计：消融要一次只改变一个因素并固定预算；多指标融合前要明确各指标的业务含义与权重。",
+      "消融实验与评测指标：消融要一次只改变一个因素并固定预算；多指标融合前要明确各指标的业务含义与权重。",
       "正字法归一化：把数字、日期、符号、大小写和口语写法统一成可比较文本，否则同一句话也可能被错误地计入识别错误。",
-      "多任务梯度干扰（见 asr-lid）：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。"
+      "多任务与梯度冲突：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。"
     ],
     "workedExample": [
-      "步骤1：baseline 全参微调得 CER 基准。",
-      "步骤2：逐项加 decoder-only、外部数据、Hard Focus、多任务，ablation_log 记录 delta。",
-      "步骤3：发现外部数据负收益（正字法不一致）与多任务负收益（LID 干扰），修正后 CER 13.423% 第 2。"
+      "示意：外部数据加入后分数变差；先用同一 normalizer 重算，若差异消失，问题在口径而非模型。",
+      "难例过采样后难例集提升、普通集退化；再加 replay 对照，验证是否确有遗忘。"
     ],
+    "code": "def run_manifest(config, data_version, scorer_version):\n    return {\n        'config': hash_config(config),\n        'data': data_version,\n        'scorer': scorer_version,\n        'seed': config.seed,\n    }",
     "lineByLine": [
-      "def ablation_log(name, cer, baseline_cer): 定义消融记录，输入实验名与本次 CER。",
-      "delta = round(cer - baseline_cer, 3) 计算相对基准的变化。",
-      "positive = cer < baseline_cer 判断该项是否正向。",
-      "返回结构化记录便于横向比较各消融。"
+      "配置、数据和评分器都要有不可变版本。",
+      "随机种子是复现条件，但单一 seed 不代表稳定。",
+      "逐样本输出应单独保存，方便错误归因。"
+    ],
+    "complexity": "完整析因设计会指数增长；实际通常先单因素筛选，再只验证少数高风险交互，并对候选方案跑多 seed。",
+    "diagram": "固定基线 ─▶ 单因素：数据 / 冻结 / 采样 / 辅助任务\n                         └▶ 逐句 diff ─▶ 形成原因假设 ─▶ 针对性交互实验",
+    "edgeCases": [
+      "评分 normalizer 改动会伪装成模型收益。",
+      "Reference Set 被反复调参会逐渐变成训练集。",
+      "多个 run 复用同一输出文件会破坏证据链。"
+    ],
+    "pitfalls": [
+      "把竞赛分数和名次放进通用知识卡，却没有对应公开记录或简历证据。",
+      "观察到 LID 与 ASR 同时变差，就直接断言梯度冲突。"
     ],
     "followUps": [
       {
-        "question": "Hard Focus 是什么？",
-        "answer": "Hard Focus 是对难例（高错词/易混音）做聚焦采样或加权训练，提升难样本召回；但若与过采样叠加会触发遗忘需平衡。"
+        "question": "Hard Focus 应怎样定义？",
+        "answer": "先用冻结基线和明确规则选难例，再把它作为诊断/采样集合；不能在测试结果上反复挑题后仍称为独立评测。"
       },
       {
-        "question": "外部数据负收益怎么修？",
-        "answer": "先对外部语料做与比赛集一致的正字法归一（数字、标点、繁简），再做去重与比例控制，负收益转正向。"
+        "question": "怎样验证梯度冲突？",
+        "answer": "记录共享层上任务梯度的余弦和范数，并用 stop-gradient、调权或分头训练做对照。"
       }
     ],
-    "followUpAnswers": [
-      "Hard Focus 是对难例（高错词/易混音）做聚焦采样或加权训练，提升难样本召回；但若与过采样叠加会触发遗忘需平衡。",
-      "先对外部语料做与比赛集一致的正字法归一（数字、标点、繁简），再做去重与比例控制，负收益转正向。"
-    ],
-    "invariant": "ablation_log 输出的 delta 恒等于 round(cer - baseline_cer, 3)，positive 为真当且仅当 cer < baseline_cer，自洽无矛盾。",
-    "walkthrough": "name='external_data', cer=14.0, baseline=13.5 → delta=0.5, positive=False 记为负收益；修正后 cer=13.2 → delta=-0.3, positive=True。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
-      "2 分钟展开·原理：为什么需要：竞赛多策略叠加易互相吞噬收益，必须逐因素消融才能定位负收益来源。",
-      "2 分钟展开·实现：逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
-      "2 分钟展开·边界：外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。 同时避免：多策略一把梭不消融，负收益被正收益掩盖。"
+      "30 秒结论：先固定 Reference Set、评分脚本和基线，再为每次 run 保存数据版本、采样器、可训练参数、loss 权重与解码配置。先做单因素消融，再验证关键交互项；对退化样本按正字法、语种、时长和错误类型归因。外部数据不一致、难例过采样导致遗忘、辅助任务梯度冲突都只是待验证假设，不能看到掉点就直接下结论。",
+      "2 分钟展开·原理：消融不是列一张结果表，而是用可复现 run 和逐样本差异把“相关”推进到可验证的原因。",
+      "2 分钟展开·实现：建立 run manifest 与 frozen reference；依次比较参数冻结、数据源、采样策略、辅助任务，再对最有可能的交互做小型析因实验。",
+      "2 分钟展开·边界：评分 normalizer 改动会伪装成模型收益。 同时避免：把竞赛分数和名次放进通用知识卡，却没有对应公开记录或简历证据。"
     ],
     "conceptPath": [
-      "先识别问题：在 ChinaVoices 竞赛中，如何通过全参 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习的消融，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰等负收益来源并拿到 CER 13.423%？",
-      "再抓核心机制：逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
-      "然后跑一个具体例子：步骤1：baseline 全参微调得 CER 基准。",
-      "最后检查失败边界：外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。"
+      "先识别问题：外部数据、难例采样、部分冻结和多任务一起使用时，怎样判断究竟是哪一项造成提升或退化？",
+      "再抓核心机制：建立 run manifest 与 frozen reference；依次比较参数冻结、数据源、采样策略、辅助任务，再对最有可能的交互做小型析因实验。",
+      "然后跑一个具体例子：示意：外部数据加入后分数变差；先用同一 normalizer 重算，若差异消失，问题在口径而非模型。",
+      "最后检查失败边界：评分 normalizer 改动会伪装成模型收益。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：baseline 全参微调得 CER 基准。",
-      "示意案例·第 2 步：步骤2：逐项加 decoder-only、外部数据、Hard Focus、多任务，ablation_log 记录 delta。",
-      "示意案例·第 3 步：步骤3：发现外部数据负收益（正字法不一致）与多任务负收益（LID 干扰），修正后 CER 13.423% 第 2。",
-      "边界检查：外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。",
-      "反向自检：多策略一把梭不消融，负收益被正收益掩盖。"
+      "示意案例·第 1 步：示意：外部数据加入后分数变差；先用同一 normalizer 重算，若差异消失，问题在口径而非模型。",
+      "示意案例·第 2 步：难例过采样后难例集提升、普通集退化；再加 replay 对照，验证是否确有遗忘。",
+      "边界检查：评分 normalizer 改动会伪装成模型收益。",
+      "反向自检：把竞赛分数和名次放进通用知识卡，却没有对应公开记录或简历证据。"
     ]
   },
   {
     "id": "asr-domain-adaptation",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "域适应与灾难性遗忘防控",
-    "prompt": "业务域 ASR 域适应时，如何用双域门禁与通用数据回放避免灾难性遗忘？",
-    "quickAnswer": "业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
-    "code": "def accept_domain_adaptation(biz_cer_before, biz_cer_after,\n                             gen_cer_before, gen_cer_after):\n    \"\"\"只有业务域 CER 下降且通用域 CER 不退化才放行。\"\"\"\n    return biz_cer_after < biz_cer_before and gen_cer_after <= gen_cer_before",
-    "complexity": "时间 O(1)，空间 O(1)",
-    "beginnerSummary": "学新口音别把普通话忘光；每次上岗前考两门：新业务变好、老本事不退化才让上线。",
+    "kind": "code",
+    "title": "域适应怎样提升新域又守住旧域",
+    "prompt": "业务域微调时，怎样设计数据混合、回放和双域门禁，避免灾难性遗忘？",
+    "quickAnswer": "先冻结业务域与通用域评测集，再通过 replay 比例、采样温度、冻结层和学习率做受控实验。发布门禁应要求业务域达到目标，同时通用域及关键切片不超过预设退化容忍度；这个容忍度要结合置信区间与业务风险，不能机械要求每次点估计都更低。",
+    "beginnerSummary": "给模型补习医疗词汇，不能让它把日常中文忘掉。训练时要混入一部分旧题复习，考试时新旧两套卷子都要过线。",
+    "explanationFocus": "replay 比例不是固定经验常数，双域门禁也不是简单比较两个小数大小。",
+    "approach": "扫描 replay 与冻结策略，保存各域逐句输出；用非劣门槛和关键切片上限选择 Pareto 方案。",
     "derivation": [
-      "为什么需要：只在业务域数据上微调会让通用域 CER 反弹（灾难性遗忘），需约束双域同时达标。",
-      "怎么实现：双域门禁在业务域损失外回放约 10% 通用数据，并以“业务降且通用不退化”作为放行准则。",
-      "有什么代价：回放通用数据占用训练 batch，延缓业务域收敛；门禁需双域验证集，增加评估成本。",
-      "怎么评测：业务域 CER 19.27%→12.24%，通用域 9.31%→9.03%，双域均满足才合并权重。"
-    ],
-    "edgeCases": [
-      "业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。",
-      "通用数据回放比例调太高，业务域提升被稀释到不显著。",
-      "两域数据分布重叠时“不退化”约束形同虚设，需确认域边界。",
-      "门禁通过但线上分布漂移，需持续监控。"
-    ],
-    "pitfalls": [
-      "只盯业务域 CER 下降就上线，通用域已悄悄退化。",
-      "回放比例拍脑袋，未以双域折中做消融。"
+      "为什么需要：只在窄域数据上继续训练会让共享表示偏向新分布。",
+      "怎么实现：混合新域与 replay 数据，配合小学习率、冻结或正则，并设置双域门禁。",
+      "有什么代价：replay 太多稀释新域收益，太少又无法抑制遗忘。",
+      "怎么评测：报告各域 CER/WER、插删替、关键切片和配对置信区间。"
     ],
     "prerequisites": [
-      "灾难性遗忘（catastrophic forgetting）：适配新说话人或新域时模型可能丢失旧能力，常用 replay、冻结层和较小学习率控制回归。",
-      "经验回放（replay）：适配新说话人或新域时模型可能丢失旧能力，常用 replay、冻结层和较小学习率控制回归。",
-      "CER 评测：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
+      "灾难性遗忘与经验回放：适配新说话人或新域时模型可能丢失旧能力，常用 replay、冻结层和较小学习率控制回归。",
+      "CER 与 WER 编辑距离：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
     ],
     "workedExample": [
-      "步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
-      "步骤2：每轮在业务/通用双验证集测 CER。",
-      "步骤3：业务 19.27%→12.24% 且通用 9.31%→9.03% 时 accept_domain_adaptation 返回 True，合并权重。"
+      "示意：扫描 replay={少、中、多}，画新域与旧域错误率的 Pareto 曲线，而不是预先认定 10% 最好。",
+      "旧域点估计轻微变差但置信区间落在容忍范围内，可标为非劣；关键人名切片超限仍不能发布。"
     ],
+    "code": "def pass_domain_gate(new_metric, old_delta_ci, target, tolerance):\n    new_domain_ok = new_metric <= target\n    old_domain_noninferior = old_delta_ci.upper <= tolerance\n    return new_domain_ok and old_domain_noninferior",
     "lineByLine": [
-      "def accept_domain_adaptation(...) 输入双域前后 CER。",
-      "return biz_cer_after < biz_cer_before 业务域必须提升（CER 下降）。",
-      "and gen_cer_after <= gen_cer_before 且通用域不退化（允许持平）。",
-      "整体返回布尔，作为权重合并闸门。"
+      "新域必须达到事先约定的目标。",
+      "旧域用差值置信区间上界判断是否超过退化容忍度。",
+      "真实门禁还应逐个检查关键切片。"
+    ],
+    "complexity": "训练成本随 replay 比例和候选配置增加；评测应按 utterance 保存编辑距离，便于配对统计。",
+    "diagram": "新域数据 + 通用 replay ─▶ 微调候选 ─▶ 新域目标门禁\n                                      └▶ 旧域非劣门禁 + 关键切片门禁",
+    "edgeCases": [
+      "通用集与新域数据重复会虚高双域结果。",
+      "平均值通过但关键人名/数字切片退化。",
+      "小测试集的轻微变化可能只是抽样波动。"
+    ],
+    "pitfalls": [
+      "把某次实验的 10% replay 写成通用最优比例。",
+      "要求旧域点估计必须下降，忽略测量噪声和预设非劣界。"
     ],
     "followUps": [
       {
-        "question": "10% 回放比例怎么来的？",
-        "answer": "以双域 CER 折中做小范围消融（5%/10%/20%），选业务提升明显且通用不退化的最小比例，定在约 10%。"
+        "question": "冻结层和 replay 怎么选？",
+        "answer": "把它们作为两个独立因素扫描：冻结多通常更稳但新域适应受限；replay 控制旧分布覆盖，二者需要联合看 Pareto。"
       },
       {
-        "question": "除了回放还有哪些防遗忘手段？",
-        "answer": "可用 LoRA/adapter 只训新增参数、EWC 正则约束重要权重，或梯度手术隔离双域梯度，回放是最直接可控的。"
+        "question": "能否只看平均 CER？",
+        "answer": "不能。至少分域、说话人、噪声、数字与关键词切片，并检查插入/删除/替换构成。"
       }
     ],
-    "followUpAnswers": [
-      "以双域 CER 折中做小范围消融（5%/10%/20%），选业务提升明显且通用不退化的最小比例，定在约 10%。",
-      "可用 LoRA/adapter 只训新增参数、EWC 正则约束重要权重，或梯度手术隔离双域梯度，回放是最直接可控的。"
-    ],
-    "invariant": "当且仅当业务域 CER 严格下降且通用域 CER 不上升时，accept_domain_adaptation 返回 True。",
-    "walkthrough": "biz 19.27→12.24（降）、gen 9.31→9.03（降）→ 返回 True 放行；若 gen 9.31→9.50（升）→ 返回 False 拒收。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
-      "2 分钟展开·原理：为什么需要：只在业务域数据上微调会让通用域 CER 反弹（灾难性遗忘），需约束双域同时达标。",
-      "2 分钟展开·实现：业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
-      "2 分钟展开·边界：业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。 同时避免：只盯业务域 CER 下降就上线，通用域已悄悄退化。"
+      "30 秒结论：先冻结业务域与通用域评测集，再通过 replay 比例、采样温度、冻结层和学习率做受控实验。发布门禁应要求业务域达到目标，同时通用域及关键切片不超过预设退化容忍度；这个容忍度要结合置信区间与业务风险，不能机械要求每次点估计都更低。",
+      "2 分钟展开·原理：replay 比例不是固定经验常数，双域门禁也不是简单比较两个小数大小。",
+      "2 分钟展开·实现：扫描 replay 与冻结策略，保存各域逐句输出；用非劣门槛和关键切片上限选择 Pareto 方案。",
+      "2 分钟展开·边界：通用集与新域数据重复会虚高双域结果。 同时避免：把某次实验的 10% replay 写成通用最优比例。"
     ],
     "conceptPath": [
-      "先识别问题：业务域 ASR 域适应时，如何用双域门禁与通用数据回放避免灾难性遗忘？",
-      "再抓核心机制：业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
-      "然后跑一个具体例子：步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
-      "最后检查失败边界：业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。"
+      "先识别问题：业务域微调时，怎样设计数据混合、回放和双域门禁，避免灾难性遗忘？",
+      "再抓核心机制：扫描 replay 与冻结策略，保存各域逐句输出；用非劣门槛和关键切片上限选择 Pareto 方案。",
+      "然后跑一个具体例子：示意：扫描 replay={少、中、多}，画新域与旧域错误率的 Pareto 曲线，而不是预先认定 10% 最好。",
+      "最后检查失败边界：通用集与新域数据重复会虚高双域结果。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
-      "示意案例·第 2 步：步骤2：每轮在业务/通用双验证集测 CER。",
-      "示意案例·第 3 步：步骤3：业务 19.27%→12.24% 且通用 9.31%→9.03% 时 accept_domain_adaptation 返回 True，合并权重。",
-      "边界检查：业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。",
-      "反向自检：只盯业务域 CER 下降就上线，通用域已悄悄退化。"
+      "示意案例·第 1 步：示意：扫描 replay={少、中、多}，画新域与旧域错误率的 Pareto 曲线，而不是预先认定 10% 最好。",
+      "示意案例·第 2 步：旧域点估计轻微变差但置信区间落在容忍范围内，可标为非劣；关键人名切片超限仍不能发布。",
+      "边界检查：通用集与新域数据重复会虚高双域结果。",
+      "反向自检：把某次实验的 10% replay 写成通用最优比例。"
     ]
   },
   {
     "id": "asr-eval-metrics",
     "category": "ASR 专项",
     "difficulty": "Easy",
-    "title": "CER/WER 三层评测口径",
-    "prompt": "为什么 ASR 评测需要文字单元、语义质量、Translation-Aware 下游影响三层口径，各自如何计算？",
-    "quickAnswer": "ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
-    "code": "def cer(reference: str, hypothesis: str) -> float:\n    \"\"\"字符错误率：基于编辑距离统计替换/插入/删除的字符数占比。\"\"\"\n    import editdistance  # 或自实现 DP\n    dist = editdistance.eval(reference, hypothesis)\n    return dist / max(len(reference), 1)",
-    "complexity": "时间 O(|r|·|h|)（编辑距离），空间 O(min(|r|,|h|))",
-    "beginnerSummary": "改卷有三把尺：数错几个字（CER/WER）、意思对不对（语义）、翻成外语后准不准（Translation-Aware）。",
+    "kind": "code",
+    "title": "CER/WER 是基础，产品评测怎样继续分层",
+    "prompt": "CER/WER 怎样正确计算？什么时候需要增加语义一致性和下游任务指标？",
+    "quickAnswer": "CER/WER 都是把替换、删除、插入数相加，再除以参考文本的字符数或词数；评分前必须冻结文字归一化和分词规则。语义一致性、关键词/槽位正确率、翻译等下游指标是面向产品风险的补充，不是 ASR 行业强制统一的“三层标准”，也不能替代基础错误率。",
+    "beginnerSummary": "CER/WER 先数“改几个字符或词才能把识别结果变成答案”。但把“不要开灯”听成“要开灯”只差一个字、业务后果却很大，所以产品还要单独检查否定词、数字、名字和下游动作。",
+    "explanationFocus": "基础错误率负责可复现比较，业务指标负责表达不同错误的严重程度；两者职责不同。",
+    "approach": "先固定 normalizer 与 tokenizer，保存每句 S/D/I；再按业务风险定义关键词、语义或下游指标，并分别报告。",
     "derivation": [
-      "为什么需要：单看 CER/WER 会漏掉“字错但意对”或“字对但下游翻译崩”的情况，需多层口径反映真实可用性。",
-      "怎么实现：第一层用编辑距离算 CER（字符）或 WER（词）；第二层用 LLM 判等/语义相似度量意；第三层把输出喂翻译模型看 BLEU 影响。",
-      "有什么代价：语义与 Translation-Aware 需调用大模型/翻译服务，增加评测成本与抖动，需多次取平均。",
-      "怎么评测：三层同时汇报，如盲测 7 语种整体 CER 9.15%，并附语义一致率与翻译 BLEU 差。"
-    ],
-    "edgeCases": [
-      "中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。",
-      "标点/大小写未归一化，CER/WER 虚高。",
-      "语义层对 paraphrasing 宽容但可能放过事实错误。",
-      "Translation-Aware 受翻译模型自身误差干扰。"
-    ],
-    "pitfalls": [
-      "只用 WER 评中文，汉字错误被低估（应 CER）。",
-      "把 CER 数字当绝对质量，忽视语义与下游。"
+      "为什么需要：同一文本因标点、数字写法或分词不同可能得到不同错误率。",
+      "怎么实现：动态规划求最小编辑距离，并聚合替换、删除和插入。",
+      "有什么代价：CER/WER 把各错误近似等权，无法表达业务严重性。",
+      "怎么评测：总体与切片同时报告，附 normalizer 版本、分母和置信区间。"
     ],
     "prerequisites": [
-      "编辑距离：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
-      "CER 与 WER 定义：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
-      "语义相似度与机器翻译评测：字面错误率之外还要检查意思是否保持，以及错误是否会传递到翻译等下游任务。"
+      "CER 与 WER 编辑距离：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
+      "正字法归一化：把数字、日期、符号、大小写和口语写法统一成可比较文本，否则同一句话也可能被错误地计入识别错误。",
+      "语义相似度与机器翻译：字面错误率之外还要检查意思是否保持，以及错误是否会传递到翻译等下游任务。"
     ],
     "workedExample": [
-      "步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
-      "步骤2：语义层判“又雨”≈“有雨”，语义一致通过。",
-      "步骤3：把 hyp 喂翻译得 BLEU，与 ref 翻译 BLEU 求差，量化下游影响。"
+      "ref=“北京今天有雨”、hyp=“北京今天又雨”，统一为 6 个汉字后有 1 次替换，CER=1/6。",
+      "“不要开门”漏掉“不”时 CER 不高，但否定词槽位失败，应在安全指令指标中单独判错。"
     ],
+    "code": "def error_rate(reference, hypothesis, unitize):\n    ref_units = unitize(normalize(reference))\n    hyp_units = unitize(normalize(hypothesis))\n    assert ref_units, '空参考请按评测协议单独处理'\n    substitutions, deletions, insertions = edit_counts(ref_units, hyp_units)\n    return (substitutions + deletions + insertions) / len(ref_units)",
     "lineByLine": [
-      "import editdistance 引入编辑距离库（或自实现 DP）。",
-      "dist = editdistance.eval(reference, hypothesis) 计算最小编辑操作数。",
-      "return dist / max(len(reference), 1) 以参考长度归一得到错误率，防除零。",
-      "函数即第一层文字单元口径的核心。"
+      "先用冻结规则归一化并切成字符或词。",
+      "空参考交给评测协议的专门分支，避免悄悄改变分母。",
+      "编辑距离回溯得到 S、D、I，再除以参考单元数。"
+    ],
+    "complexity": "朴素动态规划时间 O(NM)、空间 O(NM)；只求距离可滚动压缩到 O(min(N,M))，回溯 S/D/I 则需保存更多信息。",
+    "diagram": "原始 ref/hyp ─▶ 同一 normalizer ─▶ 字符或词单元 ─▶ S / D / I ─▶ CER/WER\n                                                          └▶ 业务切片 / 语义 / 下游指标",
+    "edgeCases": [
+      "参考为空时插入错误的分母需在评测协议中明确定义。",
+      "中文 WER 高度依赖分词器，跨系统比较更常用 CER。",
+      "数字“12”与“十二”是否等价必须由 normalizer 规则决定。"
+    ],
+    "pitfalls": [
+      "把“文字、语义、Translation-Aware”说成所有 ASR 都必须遵循的统一三层标准。",
+      "示例字符数数错，或比较模型时临时更改 normalizer。"
     ],
     "followUps": [
       {
-        "question": "CER 和 WER 怎么选？",
-        "answer": "中文/日文等无空格语言用 CER（字符），西/英等有词边界用 WER（词），混合语种按各自文字单元分别报。"
+        "question": "CER 会超过 100% 吗？",
+        "answer": "会。大量插入时 S+D+I 可以大于参考长度。"
       },
       {
-        "question": "Translation-Aware 怎么落地？",
-        "answer": "固定一个翻译模型，分别翻译 ref 与 hyp 得 BLEU，差值即 ASR 错误对下游翻译的影响，差值越小越可控。"
+        "question": "LLM-as-Judge 能替代 CER/WER 吗？",
+        "answer": "不能。它适合补充语义风险，但受提示词和模型版本影响；基础错误率仍提供稳定、可复现的字面口径。"
       }
     ],
-    "followUpAnswers": [
-      "中文/日文等无空格语言用 CER（字符），西/英等有词边界用 WER（词），混合语种按各自文字单元分别报。",
-      "固定一个翻译模型，分别翻译 ref 与 hyp 得 BLEU，差值即 ASR 错误对下游翻译的影响，差值越小越可控。"
-    ],
-    "invariant": "cer 返回值恒在 [0, ∞)（正常 [0,1]），参考为空时返回 0 而非报错（max 防除零）。",
-    "walkthrough": "ref='abc', hyp='ab' → 编辑距离 1，len(ref)=3，返回 1/3≈0.333；ref='' → max(0,1)=1，dist=0，返回 0。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
-      "2 分钟展开·原理：为什么需要：单看 CER/WER 会漏掉“字错但意对”或“字对但下游翻译崩”的情况，需多层口径反映真实可用性。",
-      "2 分钟展开·实现：ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
-      "2 分钟展开·边界：中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。 同时避免：只用 WER 评中文，汉字错误被低估（应 CER）。"
+      "30 秒结论：CER/WER 都是把替换、删除、插入数相加，再除以参考文本的字符数或词数；评分前必须冻结文字归一化和分词规则。语义一致性、关键词/槽位正确率、翻译等下游指标是面向产品风险的补充，不是 ASR 行业强制统一的“三层标准”，也不能替代基础错误率。",
+      "2 分钟展开·原理：基础错误率负责可复现比较，业务指标负责表达不同错误的严重程度；两者职责不同。",
+      "2 分钟展开·实现：先固定 normalizer 与 tokenizer，保存每句 S/D/I；再按业务风险定义关键词、语义或下游指标，并分别报告。",
+      "2 分钟展开·边界：参考为空时插入错误的分母需在评测协议中明确定义。 同时避免：把“文字、语义、Translation-Aware”说成所有 ASR 都必须遵循的统一三层标准。"
     ],
     "conceptPath": [
-      "先识别问题：为什么 ASR 评测需要文字单元、语义质量、Translation-Aware 下游影响三层口径，各自如何计算？",
-      "再抓核心机制：ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
-      "然后跑一个具体例子：步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
-      "最后检查失败边界：中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。"
+      "先识别问题：CER/WER 怎样正确计算？什么时候需要增加语义一致性和下游任务指标？",
+      "再抓核心机制：先固定 normalizer 与 tokenizer，保存每句 S/D/I；再按业务风险定义关键词、语义或下游指标，并分别报告。",
+      "然后跑一个具体例子：ref=“北京今天有雨”、hyp=“北京今天又雨”，统一为 6 个汉字后有 1 次替换，CER=1/6。",
+      "最后检查失败边界：参考为空时插入错误的分母需在评测协议中明确定义。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
-      "示意案例·第 2 步：步骤2：语义层判“又雨”≈“有雨”，语义一致通过。",
-      "示意案例·第 3 步：步骤3：把 hyp 喂翻译得 BLEU，与 ref 翻译 BLEU 求差，量化下游影响。",
-      "边界检查：中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。",
-      "反向自检：只用 WER 评中文，汉字错误被低估（应 CER）。"
+      "示意案例·第 1 步：ref=“北京今天有雨”、hyp=“北京今天又雨”，统一为 6 个汉字后有 1 次替换，CER=1/6。",
+      "示意案例·第 2 步：“不要开门”漏掉“不”时 CER 不高，但否定词槽位失败，应在安全指令指标中单独判错。",
+      "边界检查：参考为空时插入错误的分母需在评测协议中明确定义。",
+      "反向自检：把“文字、语义、Translation-Aware”说成所有 ASR 都必须遵循的统一三层标准。"
     ]
   },
   {
     "id": "asr-lid",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "语种识别 LID 的梯度干扰隔离",
-    "prompt": "在 ChinaVoices LID 仅 67.57% 的多任务学习中，LID 梯度干扰为何导致 ASR 负收益，应如何隔离？",
-    "quickAnswer": "ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
-    "code": "def project_conflict(grad_asr: list, grad_lid: list) -> list:\n    \"\"\"当 ASR 与 LID 梯度冲突时，把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。\"\"\"\n    dot = sum(a * b for a, b in zip(grad_asr, grad_lid))\n    norm2 = sum(a * a for a in grad_asr) or 1e-8   # 分母是 ASR 梯度的模平方\n    if dot >= 0:\n        return grad_lid\n    return [b - dot / norm2 * a for a, b in zip(grad_asr, grad_lid)]",
-    "complexity": "时间 O(d)（d 为参数维度），空间 O(d)",
-    "beginnerSummary": "两个人同时拽一根绳子往不同方向，ASR 会被 LID 带偏；把 LID 那股“反向力”拆掉，只保留不打架的部分。",
+    "kind": "code",
+    "title": "LID 辅助任务何时帮助或伤害 ASR",
+    "prompt": "语种识别 LID 与 ASR 共享 encoder 时，怎样判断是否存在梯度冲突，并选择调权、分头或 PCGrad？",
+    "quickAnswer": "辅助 LID 可能提供语言条件，也可能因标签噪声、数据不平衡或梯度方向冲突拖累 ASR。先分别记录两任务指标、共享层梯度余弦与范数，再用 loss 权重扫描、stop-gradient、较晚分叉或梯度投影做对照。PCGrad 是候选方法，不是看到负收益后的默认答案。",
+    "beginnerSummary": "让同一个模型一边听写、一边判断语言，两个老师有时方向一致，有时会拉扯。先量出是谁在拉、拉多大，再决定调小辅助任务、让它晚点分叉，还是修改梯度。",
+    "explanationFocus": "多任务负迁移有多种原因；梯度冲突必须被测量和对照实验支持。",
+    "approach": "按 batch 记录共享层两任务梯度余弦、范数和语种分布；依次比较 ASR-only、共享、调权、stop-gradient/分叉和投影方案。",
     "derivation": [
-      "为什么需要：ChinaVoices 中 LID 仅 67.57%，弱监督 LID 头与 ASR 共享编码器，反向传播时梯度冲突拖累 ASR，造成负收益。",
-      "怎么实现：用 PCGrad 式投影，当两任务梯度内积为负（冲突）时，把 LID 梯度投影到 ASR 梯度的正交补空间，去除对抗分量。",
-      "有什么代价：每步需算梯度内积与投影，增加 O(d) 计算与额外前向/反向；投影可能削弱 LID 自身学习。",
-      "怎么评测：对比共享训练前后 ASR CER 与 LID 准确率，隔离后 ASR 不再退化且 LID 仍有正向（即便 67.57% 基线）。"
-    ],
-    "edgeCases": [
-      "梯度内积接近 0 时投影不稳定，需数值稳定项。",
-      "LID 头与 ASR 共享层极少时投影收益有限，应改路由而非投影。",
-      "多任务多于两个时成对投影组合数爆炸，需顺序或平均策略。",
-      "LID 标签本身噪声大（67.57%），弱信号被投影放大会误导。"
-    ],
-    "pitfalls": [
-      "默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。",
-      "把 LID 准确率 67.57% 当成可用，未意识到其梯度对 ASR 有害。"
+      "为什么需要：LID 可帮助多语种路由与语言条件，但弱标签会向共享表征注入噪声。",
+      "怎么实现：分别求 ASR 与 LID 对共享参数的梯度，监控方向和尺度，再做受控干预。",
+      "有什么代价：逐任务求梯度增加训练开销，过度隔离也会失去正迁移。",
+      "怎么评测：同时报告逐语种 ASR 错误率、LID 混淆矩阵、梯度统计和多 seed 稳定性。"
     ],
     "prerequisites": [
-      "多任务学习与共享编码器：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。",
-      "梯度冲突与 PCGrad：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。",
-      "语种识别（LID）任务：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。"
+      "多任务共享编码器与梯度冲突：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。",
+      "多语种与语言识别：不同语言的音素、文字和分词粒度不同；共享参数能迁移，但要防止高资源语言压制低资源语言。"
     ],
     "workedExample": [
-      "步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
-      "步骤2：算内积，若为负则对 grad_lid 做正交投影。",
-      "步骤3：用投影后梯度更新，验证 ASR CER 不再因 LID 任务上升。"
+      "示意：ASR-only 稳定，共享训练后低资源语种退化；先检查该语种 LID 标签与采样比例。",
+      "若负余弦集中在同一训练阶段，调低 LID 权重后消失且 ASR 恢复，才支持“梯度干扰”解释。"
     ],
+    "code": "def gradient_cosine(asr_grad, lid_grad, eps=1e-12):\n    numerator = dot(asr_grad, lid_grad)\n    denominator = norm(asr_grad) * norm(lid_grad) + eps\n    return numerator / denominator",
     "lineByLine": [
-      "dot = sum(a*b for ...) 计算 ASR 与 LID 梯度内积，判断冲突方向。",
-      "norm2 = sum(a*a ...) or 1e-8 求 ASR 梯度模平方（PCGrad 分母用参考梯度即 grad_asr 的模），加极小值防除零。",
-      "if dot >= 0: return grad_lid 不冲突时原样保留 LID 梯度。",
-      "return [b - dot/norm2*a ...] 冲突时减去沿 ASR 方向的分量，仅留正交部分（与 grad_asr 内积变为 0）。"
+      "分子衡量两个梯度方向的内积。",
+      "除以范数后得到 [-1, 1] 的方向相似度。",
+      "余弦只是诊断信号，不能单独证明因果。"
+    ],
+    "complexity": "若同一 batch 分别反传两项 loss，梯度诊断会增加反向计算和显存；可按间隔抽样记录。",
+    "diagram": "speech ─▶ shared encoder ─┬▶ ASR head / loss ─▶ g_asr\n                            └▶ LID head / loss ─▶ g_lid\n                  监控方向与范数 ─▶ 调权 / 分叉 / 投影",
+    "edgeCases": [
+      "code-switch 片段只有一个句级语言标签时监督本身含糊。",
+      "高资源语言 batch 主导梯度会掩盖低资源语种。",
+      "梯度余弦接近零但 LID 范数极大时仍可能干扰。"
+    ],
+    "pitfalls": [
+      "把某次 LID 准确率写成通用证据，或看到低准确率就断言有梯度冲突。",
+      "不做 ASR-only 和 stop-gradient 对照就直接上 PCGrad。"
     ],
     "followUps": [
       {
-        "question": "除了 PCGrad 投影还有别的隔离法？",
-        "answer": "可用任务特定 adapter 减少共享、梯度 surgery（如 Conflict-Averse）、或把 LID 拆为独立辅助头仅在推理用，不反向进编码器。"
+        "question": "负梯度余弦一定有害吗？",
+        "answer": "不一定。瞬时负余弦可能是正常优化噪声，应结合长期统计、任务指标和干预对照判断。"
       },
       {
-        "question": "LID 只有 67.57% 还有必要做多任务吗？",
-        "answer": "若 LID 仅用于路由可后处理独立训练；若强塞进共享损失且梯度冲突，反而伤 ASR，应先隔离或降权。"
+        "question": "什么时候直接拆成独立 LID 更合适？",
+        "answer": "当路由必须先于 ASR、LID 数据/延迟要求独立，或共享训练长期负迁移时，独立小模型可能更清晰。"
       }
     ],
-    "followUpAnswers": [
-      "可用任务特定 adapter 减少共享、梯度 surgery（如 Conflict-Averse）、或把 LID 拆为独立辅助头仅在推理用，不反向进编码器。",
-      "若 LID 仅用于路由可后处理独立训练；若强塞进共享损失且梯度冲突，反而伤 ASR，应先隔离或降权。"
-    ],
-    "invariant": "project_conflict 输出的 LID 梯度与 grad_asr 的内积恒非负（去冲突），且不改变 grad_asr 本身。",
-    "walkthrough": "grad_asr=[1,0], grad_lid=[-1,1] 内积=-1<0 → 投影为 [-1,1]-(-1)/1*[1,0]=[0,1]，与 grad_asr 正交；若 grad_lid=[1,1] 内积=1≥0 → 原样返回。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
-    "codeMode": "executable",
+    "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
-      "2 分钟展开·原理：为什么需要：ChinaVoices 中 LID 仅 67.57%，弱监督 LID 头与 ASR 共享编码器，反向传播时梯度冲突拖累 ASR，造成负收益。",
-      "2 分钟展开·实现：ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
-      "2 分钟展开·边界：梯度内积接近 0 时投影不稳定，需数值稳定项。 同时避免：默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。"
+      "30 秒结论：辅助 LID 可能提供语言条件，也可能因标签噪声、数据不平衡或梯度方向冲突拖累 ASR。先分别记录两任务指标、共享层梯度余弦与范数，再用 loss 权重扫描、stop-gradient、较晚分叉或梯度投影做对照。PCGrad 是候选方法，不是看到负收益后的默认答案。",
+      "2 分钟展开·原理：多任务负迁移有多种原因；梯度冲突必须被测量和对照实验支持。",
+      "2 分钟展开·实现：按 batch 记录共享层两任务梯度余弦、范数和语种分布；依次比较 ASR-only、共享、调权、stop-gradient/分叉和投影方案。",
+      "2 分钟展开·边界：code-switch 片段只有一个句级语言标签时监督本身含糊。 同时避免：把某次 LID 准确率写成通用证据，或看到低准确率就断言有梯度冲突。"
     ],
     "conceptPath": [
-      "先识别问题：在 ChinaVoices LID 仅 67.57% 的多任务学习中，LID 梯度干扰为何导致 ASR 负收益，应如何隔离？",
-      "再抓核心机制：ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
-      "然后跑一个具体例子：步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
-      "最后检查失败边界：梯度内积接近 0 时投影不稳定，需数值稳定项。"
+      "先识别问题：语种识别 LID 与 ASR 共享 encoder 时，怎样判断是否存在梯度冲突，并选择调权、分头或 PCGrad？",
+      "再抓核心机制：按 batch 记录共享层两任务梯度余弦、范数和语种分布；依次比较 ASR-only、共享、调权、stop-gradient/分叉和投影方案。",
+      "然后跑一个具体例子：示意：ASR-only 稳定，共享训练后低资源语种退化；先检查该语种 LID 标签与采样比例。",
+      "最后检查失败边界：code-switch 片段只有一个句级语言标签时监督本身含糊。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
-      "示意案例·第 2 步：步骤2：算内积，若为负则对 grad_lid 做正交投影。",
-      "示意案例·第 3 步：步骤3：用投影后梯度更新，验证 ASR CER 不再因 LID 任务上升。",
-      "边界检查：梯度内积接近 0 时投影不稳定，需数值稳定项。",
-      "反向自检：默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。"
+      "示意案例·第 1 步：示意：ASR-only 稳定，共享训练后低资源语种退化；先检查该语种 LID 标签与采样比例。",
+      "示意案例·第 2 步：若负余弦集中在同一训练阶段，调低 LID 权重后消失且 ASR 恢复，才支持“梯度干扰”解释。",
+      "边界检查：code-switch 片段只有一个句级语言标签时监督本身含糊。",
+      "反向自检：把某次 LID 准确率写成通用证据，或看到低准确率就断言有梯度冲突。"
     ]
   },
   {
     "id": "asr-multilingual",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "多语种 ASR 分路建模与统一评测体系",
-    "prompt": "如何为覆盖 11 个语种的多语种 ASR 设计分路建模与统一评测体系，并基于文字单元与端侧约束进行基座选型？",
-    "quickAnswer": "按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
-    "code": "def select_asr_backbone(lang: str, text_unit: str, edge_budget_mb: float) -> str:\n    \"\"\"按语种、文字单元与端侧内存约束选择 ASR 基座。\"\"\"\n    edge_friendly = {\"es\": \"paraformer\", \"en\": \"zipformer\", \"zh\": \"paraformer\"}\n    if edge_budget_mb < 200:  # 端侧硬约束\n        return edge_friendly.get(lang, \"whisper-tiny\")\n    return \"qwen3-asr\" if text_unit == \"char\" else \"whisper-large\"",
-    "complexity": "时间 O(1)（路由）/ 评测 O(N·L)（编辑距离），空间 O(1)",
-    "beginnerSummary": "不同语言像不同字母表，不能一把尺子量；把每种语言交给最擅长它的“翻译官”，再用统一考试卷打分。",
+    "kind": "code",
+    "title": "多语种 ASR：共享、路由与公平汇总",
+    "prompt": "多语种 ASR 应怎样选择共享模型或分路模型，并避免总体分数掩盖低资源语言？",
+    "quickAnswer": "先按语种、code-switch、设备和流式要求建立切片，再比较全共享、共享 encoder+语言条件、按语种路由等方案。逐语种使用约定的 CER/WER 和同一 normalizer；总体同时给 macro（各语种等权）、micro（按参考单元聚合）与业务权重，不能拿一个混合 CER 代替所有语言表现。",
+    "beginnerSummary": "多语种班级不能只看全班总分：大班学生多，会把小语种的失败淹没。模型可以大家共用一位老师，也可以共享基础课后分班；选法要看迁移收益、资源和运维成本。",
+    "explanationFocus": "模型共享策略和评测聚合策略是两个问题，都要显式处理语言不平衡。",
+    "approach": "冻结逐语种测试集与 code-switch 集，报告每种语言、macro/micro 和关键业务权重；再比较共享与路由的准确率—资源 Pareto。",
     "derivation": [
-      "为什么需要：11 个语种文字单元差异巨大（西语词/中文字符/BPE），单模型与单指标无法公平横评，且端侧内存/算力约束要求分路选型而非统一大模型。",
-      "怎么实现：按语种路由到最合适基座（西语/中文用 Paraformer、英文用 Zipformer-Transducer、端侧硬约束用 Whisper-tiny），并用统一评测脚本对全量语种跑三层口径。",
-      "有什么代价：多基座带来部署与维护复杂度；盲测需要独立标注集，构造成本高；分路路由在语种错判时会降级。",
-      "怎么评测：以 CER/WER（文字单元）、语义质量（LLM 判等/语义相似度）、Translation-Aware（翻译下游 BLEU 影响）三层口径统一横评，盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。"
-    ],
-    "edgeCases": [
-      "语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。",
-      "文字单元为字符的中文与为词的西语编辑距离分母不同，跨语种直接比较 CER 不公平。",
-      "语料极少的低资源语种缺乏盲测集，三层口径中 Translation-Aware 无法计算。",
-      "端侧显存不足时回退 Whisper-tiny，准确率断崖式下降。"
-    ],
-    "pitfalls": [
-      "仅用 WER 横评中文会严重失真（应用 CER），必须按文字单元切换指标。",
-      "盲测集若与训练域同源则高估 9.15%，需保证盲测独立采样。"
+      "为什么需要：共享参数能让低资源语言迁移获益，也可能被高资源语言压制。",
+      "怎么实现：语言 token、adapter/分头或独立路由，并通过温度采样控制训练分布。",
+      "有什么代价：分路模型增加部署和版本管理，共享模型则可能扩大语种间干扰。",
+      "怎么评测：逐语种错误率、macro/micro、code-switch、LID、延迟、内存与最差语种门禁。"
     ],
     "prerequisites": [
-      "编辑距离与 CER/WER 定义：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
-      "多语种文字单元（字符/BPE/词）差异：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。",
-      "端侧推理内存与算力约束：部署要同时检查算子支持、数值一致性、动态长度、延迟和内存；压缩只有在目标硬件有对应 kernel 时才可能真加速。"
+      "多语种与文字单元：不同语言的音素、文字和分词粒度不同；共享参数能迁移，但要防止高资源语言压制低资源语言。",
+      "CER 与 WER 编辑距离：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
     ],
     "workedExample": [
-      "步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
-      "步骤2：把 7 语种盲测集统一送三层评测脚本，得出整体 CER 9.15% 与基线 30.77%。",
-      "步骤3：端侧 200MB 预算下路由到 Whisper-tiny，验证内存约束满足。"
+      "示意：语言 A 有 9000 句、语言 B 有 1000 句；micro 更受 A 支配，macro 会让两种语言等权。",
+      "共享模型总体更好但 B 的数字切片退化，若 B 是核心市场仍不能只凭 micro 放行。"
     ],
+    "code": "def aggregate_language_metrics(per_language, business_weights):\n    macro = mean([m.error_rate for m in per_language.values()])\n    micro = sum(m.errors for m in per_language.values()) / sum(m.ref_units for m in per_language.values())\n    weighted = sum(business_weights[k] * per_language[k].error_rate for k in business_weights)\n    return macro, micro, weighted",
     "lineByLine": [
-      "def select_asr_backbone(...) 定义路由函数，输入语种、文字单元与端侧预算。",
-      "if edge_budget_mb < 200: 端侧硬约束优先，低于 200MB 直接走轻量基座。",
-      "return edge_friendly.get(lang, 'whisper-tiny') 按语种查表返回端侧友好基座，未命中兜底。",
-      "return 'qwen3-asr' if text_unit == 'char' else 'whisper-large' 非端侧时按文字单元在大模型间选型。"
+      "macro 让每种语言等权。",
+      "micro 聚合编辑错误与参考单元，受数据量大的语言影响。",
+      "业务权重必须公开且归一化，不能伪装成客观统一分数。"
+    ],
+    "complexity": "共享模型通常减少模型副本，分路模型降低任务干扰但增加存储、路由和发布成本；需在目标硬件实测。",
+    "diagram": "speech ─▶ LID / language hint ─▶ shared model + language condition\n                         └──────────────▶ routed specialist models\n评测：每语种 + macro + micro + business-weighted + worst slice",
+    "edgeCases": [
+      "中途 code-switch 不能只用句级单一语言标签。",
+      "不同语言的分词与字符体系让 WER/CER 不可随意混加。",
+      "LID 路由错误会把后续 ASR 失败放大。"
+    ],
+    "pitfalls": [
+      "为每种语言直接指定某个模型，却没有统一硬件和数据对照。",
+      "只报总体混合错误率，不展示逐语种分母与最差切片。"
     ],
     "followUps": [
       {
-        "question": "盲测 CER 9.15% 这个口径的分母用字符还是词？",
-        "answer": "盲测 7 语种统一按各自文字单元：中文/日等用字符（CER），西/英等用词（WER），最终以语种加权汇报，避免跨单元直接平均。"
+        "question": "macro 和 micro 哪个更重要？",
+        "answer": "没有统一答案。macro 关注语言公平，micro 反映当前测试量构成；产品还应给真实流量权重和核心语言门禁。"
       },
       {
-        "question": "端侧预算从 200MB 放宽到 1GB 时路由会变吗？",
-        "answer": "会变；预算≥200MB 不再走 edge_friendly 表，而是进入大模型分支，中文/日文进 qwen3-asr，其他进 whisper-large。"
-      },
-      {
-        "question": "Translation-Aware 层如何量化对下游的影响？",
-        "answer": "把 ASR 输出喂给固定翻译模型得到 BLEU，与用真值文本翻译的 BLEU 求差，差值越小说明 ASR 错误对下游翻译影响越可控。"
+        "question": "语言 token 能替代 LID 吗？",
+        "answer": "已知语言时可直接提供；未知或 code-switch 场景仍需检测、联合建模或允许模型动态识别。"
       }
     ],
-    "followUpAnswers": [
-      "盲测 7 语种统一按各自文字单元：中文/日等用字符（CER），西/英等用词（WER），最终以语种加权汇报，避免跨单元直接平均。",
-      "会变；预算≥200MB 不再走 edge_friendly 表，而是进入大模型分支，中文/日文进 qwen3-asr，其他进 whisper-large。",
-      "把 ASR 输出喂给固定翻译模型得到 BLEU，与用真值文本翻译的 BLEU 求差，差值越小说明 ASR 错误对下游翻译影响越可控。"
-    ],
-    "invariant": "对任意输入 (lang, text_unit, edge_budget_mb)，函数始终返回某一真实存在且与该语种文字单元兼容的基座名，不会返回空或非法值。",
-    "walkthrough": "输入 lang='es', text_unit='word', edge_budget_mb=180 → 命中 edge_budget<200 分支，edge_friendly['es']='paraformer' 返回；若 edge_budget_mb=600，则跳过端侧分支，text_unit='word' 非 'char'，返回 'whisper-large'。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
-      "2 分钟展开·原理：为什么需要：11 个语种文字单元差异巨大（西语词/中文字符/BPE），单模型与单指标无法公平横评，且端侧内存/算力约束要求分路选型而非统一大模型。",
-      "2 分钟展开·实现：按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
-      "2 分钟展开·边界：语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。 同时避免：仅用 WER 横评中文会严重失真（应用 CER），必须按文字单元切换指标。"
+      "30 秒结论：先按语种、code-switch、设备和流式要求建立切片，再比较全共享、共享 encoder+语言条件、按语种路由等方案。逐语种使用约定的 CER/WER 和同一 normalizer；总体同时给 macro（各语种等权）、micro（按参考单元聚合）与业务权重，不能拿一个混合 CER 代替所有语言表现。",
+      "2 分钟展开·原理：模型共享策略和评测聚合策略是两个问题，都要显式处理语言不平衡。",
+      "2 分钟展开·实现：冻结逐语种测试集与 code-switch 集，报告每种语言、macro/micro 和关键业务权重；再比较共享与路由的准确率—资源 Pareto。",
+      "2 分钟展开·边界：中途 code-switch 不能只用句级单一语言标签。 同时避免：为每种语言直接指定某个模型，却没有统一硬件和数据对照。"
     ],
     "conceptPath": [
-      "先识别问题：如何为覆盖 11 个语种的多语种 ASR 设计分路建模与统一评测体系，并基于文字单元与端侧约束进行基座选型？",
-      "再抓核心机制：按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
-      "然后跑一个具体例子：步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
-      "最后检查失败边界：语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。"
+      "先识别问题：多语种 ASR 应怎样选择共享模型或分路模型，并避免总体分数掩盖低资源语言？",
+      "再抓核心机制：冻结逐语种测试集与 code-switch 集，报告每种语言、macro/micro 和关键业务权重；再比较共享与路由的准确率—资源 Pareto。",
+      "然后跑一个具体例子：示意：语言 A 有 9000 句、语言 B 有 1000 句；micro 更受 A 支配，macro 会让两种语言等权。",
+      "最后检查失败边界：中途 code-switch 不能只用句级单一语言标签。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
-      "示意案例·第 2 步：步骤2：把 7 语种盲测集统一送三层评测脚本，得出整体 CER 9.15% 与基线 30.77%。",
-      "示意案例·第 3 步：步骤3：端侧 200MB 预算下路由到 Whisper-tiny，验证内存约束满足。",
-      "边界检查：语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。",
-      "反向自检：仅用 WER 横评中文会严重失真（应用 CER），必须按文字单元切换指标。"
+      "示意案例·第 1 步：示意：语言 A 有 9000 句、语言 B 有 1000 句；micro 更受 A 支配，macro 会让两种语言等权。",
+      "示意案例·第 2 步：共享模型总体更好但 B 的数字切片退化，若 B 是核心市场仍不能只凭 micro 放行。",
+      "边界检查：中途 code-switch 不能只用句级单一语言标签。",
+      "反向自检：为每种语言直接指定某个模型，却没有统一硬件和数据对照。"
     ]
   },
   {
     "id": "asr-new-backbones",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "大模型化语音基座趋势与取舍",
-    "prompt": "FireRedASR2 与 Qwen3-ASR 代表的大模型化 ASR 相比经典 Transducer，在准确率与延迟上如何取舍？",
-    "quickAnswer": "低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
-    "code": "def choose_backbone(scenario: str, latency_sla_ms: float) -> str:\n    \"\"\"大模型化 ASR 与经典 Transducer 的取舍：低延迟用 Transducer，高准确用大模型。\"\"\"\n    if latency_sla_ms < 300:\n        return \"zipformer-transducer\"\n    return \"qwen3-asr\" if scenario == \"hard-accent\" else \"fireredasr2\"",
-    "complexity": "时间 O(1)，空间 O(1)",
-    "beginnerSummary": "大模型像请专家审卷更准但慢，Transducer 像流水线工人快但偶尔错；急用选快的，难活选准的。",
+    "kind": "code",
+    "title": "经典 Transducer 与大型 ASR 基座怎样横评",
+    "prompt": "面对较新的大规模多语种 ASR 与经典 CTC/RNN-T 系统，怎样判断是否值得迁移？",
+    "quickAnswer": "不要把选择简化成“大模型更准、Transducer 更快”。先确认候选的流式定义、语言覆盖、时间戳/热词/微调能力和许可证，再在目标数据、硬件与并发下比较质量切片、首包与完成延迟、吞吐、内存、功耗和运维复杂度。新的统一模型可能减少多模型维护，但也可能带来算子、量化和服务依赖。",
+    "beginnerSummary": "新模型像功能很多的新机器，旧 Transducer 像已经调熟的生产线。不能只看宣传成绩；要把自己的音频、设备、并发和热词需求放进去跑。",
+    "explanationFocus": "“基座趋势”是候选集合变化，不是架构优劣定律。",
+    "approach": "用 shadow evaluation 保留旧系统为基线；逐项验证离线、流式、长音频、热词、时间戳、领域微调和部署能力。",
     "derivation": [
-      "为什么需要：大模型化 ASR（FireRedASR2、Qwen3-ASR）靠海量数据与参数提升准确率，但推理成本高，需与经典 Transducer 按延迟/准确率取舍。",
-      "怎么实现：以端侧延迟 SLA 与场景难度分流：低延迟走 Zipformer-Transducer，难口音/低资源走高准确大模型。",
-      "有什么代价：大模型显存与首字延迟高，需量化/蒸馏才能端侧落地；Transducer 在极难口音上准确率上限低于大模型。",
-      "怎么评测：在 11 语种盲测对比 CER 与首字延迟，大模型在难样本显著更优，Transducer 在延迟敏感场景胜出。"
-    ],
-    "edgeCases": [
-      "大模型量化过度导致难口音准确率回落，需选合适位宽。",
-      "延迟 SLA 卡在 300ms 边界，需实测而非拍阈值。",
-      "端侧无 NPU 时大模型即使量化也跑不动，必须 Transducer。",
-      "低资源语种大模型优势被数据量限制，差距缩小。"
-    ],
-    "pitfalls": [
-      "盲目上大模型忽视端侧延迟，线上超时。",
-      "用 Transducer 硬刚难口音，准确率达不到业务要求。"
+      "为什么需要：新模型可能扩大多语种和复杂声学覆盖，但迁移会改变整条服务链。",
+      "怎么实现：先能力准入，再资源压测，最后做真实流量 shadow 与回退演练。",
+      "有什么代价：新模型可能要求新 runtime、GPU 或较大缓存，迁移与监控成本不可忽略。",
+      "怎么评测：质量—延迟—成本 Pareto，加上稳定性、功能覆盖和回退时间。"
     ],
     "prerequisites": [
-      "Transducer 与流式对齐：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
-      "大模型化 ASR（LLM-based）：LLM 擅长语义和序列推理，但不能直接高效处理高帧率声学向量，需要 encoder、adapter 或离散 token 降采样对齐。",
-      "量化与蒸馏：部署要同时检查算子支持、数值一致性、动态长度、延迟和内存；压缩只有在目标硬件有对应 kernel 时才可能真加速。"
+      "RNN-T 与 Transducer：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
+      "大模型与 token 序列：LLM 擅长语义和序列推理，但不能直接高效处理高帧率声学向量，需要 encoder、adapter 或离散 token 降采样对齐。",
+      "服务性能评测与延迟分位数：服务评测要拆分首包、单步与完成时间，并报告 p50、p95、p99 等分位数，避免平均值掩盖长尾。"
     ],
     "workedExample": [
-      "步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
-      "步骤2：SLA 宽松且场景为 hard-accent，选 Qwen3-ASR。",
-      "步骤3：通用高准确场景选 FireRedASR2，并在盲测验证 CER 优势。"
+      "示意：新模型离线 CER 更低，但并发后 p99 首包超预算；应保留旧流式系统或改变部署，而非只看平均质量。",
+      "新模型支持更多语言却缺少现有热词接口，迁移计划必须把该功能缺口计入。"
     ],
+    "code": "def migration_gate(candidate, baseline, requirements):\n    capability_ok = check_required_features(candidate, requirements)\n    quality_ok = compare_slices(candidate, baseline, requirements.quality_gates)\n    serving_ok = stress_test(candidate, requirements.hardware, requirements.slo)\n    return capability_ok and quality_ok and serving_ok",
     "lineByLine": [
-      "def choose_backbone(scenario, latency_sla_ms): 输入场景与延迟上限。",
-      "if latency_sla_ms < 300: return 'zipformer-transducer' 延迟敏感走经典 Transducer。",
-      "return 'qwen3-asr' if scenario == 'hard-accent' else 'fireredasr2' 宽松场景下难口音用 Qwen3，否则 FireRedASR2。",
-      "函数即准确率/延迟取舍的路由。"
+      "先检查热词、流式、时间戳等硬功能。",
+      "再用逐切片质量门禁比较基线。",
+      "最后在目标硬件和并发下压测，而不是引用发布方吞吐。"
+    ],
+    "complexity": "迁移成本包括评测、适配、量化/部署、shadow 流量与回退机制；往往高于一次离线 benchmark。",
+    "diagram": "候选模型 ─▶ 功能准入 ─▶ 冻结集质量 ─▶ 目标硬件压测 ─▶ shadow ─▶ 发布 / 回退\n旧系统 ──────────────────────────────── 作为持续基线",
+    "references": [
+      {
+        "title": "Qwen3-ASR Technical Report",
+        "url": "https://arxiv.org/abs/2601.21337"
+      },
+      {
+        "title": "RNN-T original paper",
+        "url": "https://arxiv.org/abs/1211.3711"
+      }
+    ],
+    "edgeCases": [
+      "官方“streaming”可能是滑窗服务，不等于严格因果 encoder。",
+      "吞吐结果依赖 batch、并发、精度和硬件，不能跨环境照搬。",
+      "量化能运行不代表关键口音和数字切片不掉点。"
+    ],
+    "pitfalls": [
+      "说“端侧没 NPU 就必须 Transducer”——实现、尺寸和硬件生态比架构名更关键。",
+      "只验证一段 demo，不检查长音频、并发和失败回退。"
     ],
     "followUps": [
       {
-        "question": "大模型化 ASR 为何更准？",
-        "answer": "借助 LLM 的强语言模型与海量多语种数据，对同音字、上下文和难口音的语言学约束更强，CER 在难样本显著低于 Transducer。"
+        "question": "什么时候统一大模型更有价值？",
+        "answer": "当多语言、长音频或复杂声学覆盖能显著减少模型拼接，且服务成本与功能门槛可接受时。"
       },
       {
-        "question": "Transducer 还有存在价值吗？",
-        "answer": "有；在端侧低延迟、流式硬实时场景，Zipformer-Transducer 的单元级对齐与低首字延迟仍是大模型难以替代的，尤其资源受限设备。"
+        "question": "为什么保留 shadow 基线？",
+        "answer": "它能在同一真实流量上发现离线集未覆盖的退化，并为发布失败提供快速回退。"
       }
     ],
-    "followUpAnswers": [
-      "借助 LLM 的强语言模型与海量多语种数据，对同音字、上下文和难口音的语言学约束更强，CER 在难样本显著低于 Transducer。",
-      "有；在端侧低延迟、流式硬实时场景，Zipformer-Transducer 的单元级对齐与低首字延迟仍是大模型难以替代的，尤其资源受限设备。"
-    ],
-    "invariant": "choose_backbone 对任意合法输入必从 {'zipformer-transducer','qwen3-asr','fireredasr2'} 中返回一个，且延迟<300ms 时必为 zipformer-transducer。",
-    "walkthrough": "scenario='hard-accent', sla=500 → 不进低延迟分支，scenario 命中返回 'qwen3-asr'；sla=200 → 返回 'zipformer-transducer' 不论场景。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
-      "2 分钟展开·原理：为什么需要：大模型化 ASR（FireRedASR2、Qwen3-ASR）靠海量数据与参数提升准确率，但推理成本高，需与经典 Transducer 按延迟/准确率取舍。",
-      "2 分钟展开·实现：低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
-      "2 分钟展开·边界：大模型量化过度导致难口音准确率回落，需选合适位宽。 同时避免：盲目上大模型忽视端侧延迟，线上超时。"
+      "30 秒结论：不要把选择简化成“大模型更准、Transducer 更快”。先确认候选的流式定义、语言覆盖、时间戳/热词/微调能力和许可证，再在目标数据、硬件与并发下比较质量切片、首包与完成延迟、吞吐、内存、功耗和运维复杂度。新的统一模型可能减少多模型维护，但也可能带来算子、量化和服务依赖。",
+      "2 分钟展开·原理：“基座趋势”是候选集合变化，不是架构优劣定律。",
+      "2 分钟展开·实现：用 shadow evaluation 保留旧系统为基线；逐项验证离线、流式、长音频、热词、时间戳、领域微调和部署能力。",
+      "2 分钟展开·边界：官方“streaming”可能是滑窗服务，不等于严格因果 encoder。 同时避免：说“端侧没 NPU 就必须 Transducer”——实现、尺寸和硬件生态比架构名更关键。"
     ],
     "conceptPath": [
-      "先识别问题：FireRedASR2 与 Qwen3-ASR 代表的大模型化 ASR 相比经典 Transducer，在准确率与延迟上如何取舍？",
-      "再抓核心机制：低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
-      "然后跑一个具体例子：步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
-      "最后检查失败边界：大模型量化过度导致难口音准确率回落，需选合适位宽。"
+      "先识别问题：面对较新的大规模多语种 ASR 与经典 CTC/RNN-T 系统，怎样判断是否值得迁移？",
+      "再抓核心机制：用 shadow evaluation 保留旧系统为基线；逐项验证离线、流式、长音频、热词、时间戳、领域微调和部署能力。",
+      "然后跑一个具体例子：示意：新模型离线 CER 更低，但并发后 p99 首包超预算；应保留旧流式系统或改变部署，而非只看平均质量。",
+      "最后检查失败边界：官方“streaming”可能是滑窗服务，不等于严格因果 encoder。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
-      "示意案例·第 2 步：步骤2：SLA 宽松且场景为 hard-accent，选 Qwen3-ASR。",
-      "示意案例·第 3 步：步骤3：通用高准确场景选 FireRedASR2，并在盲测验证 CER 优势。",
-      "边界检查：大模型量化过度导致难口音准确率回落，需选合适位宽。",
-      "反向自检：盲目上大模型忽视端侧延迟，线上超时。"
+      "示意案例·第 1 步：示意：新模型离线 CER 更低，但并发后 p99 首包超预算；应保留旧流式系统或改变部署，而非只看平均质量。",
+      "示意案例·第 2 步：新模型支持更多语言却缺少现有热词接口，迁移计划必须把该功能缺口计入。",
+      "边界检查：官方“streaming”可能是滑窗服务，不等于严格因果 encoder。",
+      "反向自检：说“端侧没 NPU 就必须 Transducer”——实现、尺寸和硬件生态比架构名更关键。"
     ]
   },
   {
     "id": "asr-pseudo-label",
     "category": "ASR 专项",
     "difficulty": "Medium",
-    "title": "带噪标签学习与伪标签质量闭环",
-    "prompt": "在西语 10k 抽样中发现 8.2% 真实标签噪声时，如何用 Qwen3-ASR 重标注构建可验证的带噪学习闭环？",
-    "quickAnswer": "在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
-    "code": "def relabel_decision(orig: str, pred: str, conf: float, threshold: float = 0.9) -> str:\n    \"\"\"以置信度与原标注一致性控制伪标签质量：高置信且一致则保留，否则回灌重训。\"\"\"\n    if conf >= threshold and pred == orig:\n        return orig\n    return pred if conf >= threshold else orig",
-    "complexity": "时间 O(1)（单条）/ O(N)（全量重标），空间 O(1)",
-    "beginnerSummary": "老师改卷也会看走眼，我们让更靠谱的“学霸模型”复查，只采纳它很有把握且和原答案一致的部分。",
+    "kind": "code",
+    "title": "伪标签、自训练与标签修复不要混为一谈",
+    "prompt": "有无标注音频和疑似脏标签时，怎样区分伪标签自训练、标签噪声审计与人工修复？",
+    "quickAnswer": "伪标签通常指教师模型给无标注数据生成训练目标；标签修复则是怀疑已有标签错误后，通过模型分歧找到候选，再由独立证据或人工复听确认。模型与原标签不一致不能自动证明标签错。无论哪种流程，都要用独立人工金标校准置信度、按切片控制采纳率，并通过回灌实验验证收益。",
+    "beginnerSummary": "模型写出的答案可以拿来教学生，但不能因为它和原答案不同，就宣布原答案错了。先区分“这题本来没答案”和“这题可能标错”，再让人工或更强证据做裁判。",
+    "explanationFocus": "候选发现、真值确认和训练收益验证是三道独立关卡。",
+    "approach": "保留一份独立金标集；对教师置信度做校准，按语言/噪声/时长设置采纳策略；疑似标签错误进入盲审而非直接覆盖。",
     "derivation": [
-      "为什么需要：西语 10k 抽样人工核对发现 8.2% 真实标签噪声，脏标签直接训练会污染模型，需可验证的清洗闭环。",
-      "怎么实现：用 Qwen3-ASR 对数据重标注，结合置信度、与原标注一致性决定是否采纳新标签，并把采纳样本回灌训练，形成“重标→筛选→训练”闭环。",
-      "有什么代价：重标注与置信度计算增加算力；若 Qwen3-ASR 自身在某些域有偏，会被放大进伪标签。",
-      "怎么评测：人工抽查子系统验证伪标签准确率，并以独立验证集 CER 是否稳定下降判定闭环有效。"
-    ],
-    "edgeCases": [
-      "Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。",
-      "低资源口音下置信度虚高，误把错标签当高置信采纳。",
-      "原标注一致但两者都错（系统性标注错误），回灌会固化错误。",
-      "全量重标 10k 成本，需分批回灌避免训练抖动。"
-    ],
-    "pitfalls": [
-      "阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。",
-      "把“换标签比例”当目标，忽视独立验证集 CER，可能越洗越差。"
+      "为什么需要：无标注数据可扩大覆盖，脏标签又会给模型错误监督。",
+      "怎么实现：教师推理→置信度校准→候选分层→人工抽检/仲裁→小规模回灌→独立验证。",
+      "有什么代价：错误伪标签会自我强化，人工审计与多轮训练成本高。",
+      "怎么评测：伪标签精确率/覆盖率、分桶校准、独立验证集变化和最差切片。"
     ],
     "prerequisites": [
-      "伪标签（pseudo-labeling）与自训练：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。",
-      "模型置信度校准：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。",
-      "带噪学习基础：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。"
+      "伪标签与置信度校准：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。",
+      "CER 与 WER 编辑距离：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
     ],
     "workedExample": [
-      "步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
-      "步骤2：conf≥0.9 且与原标签一致保留，conf≥0.9 但不一致采纳新标签，其余保留原标签。",
-      "步骤3：把采纳新标签的样本回灌训练，独立验证集 CER 持续下降即闭环有效。"
+      "示意：无标注样本上教师高置信输出可进入伪标签候选，但先在同语言同噪声金标桶估计准确率。",
+      "已有标签与两个模型都不一致时，只提升复听优先级；人工确认前不覆盖原标签。"
     ],
+    "code": "def route_label_candidate(sample, teacher, calibration):\n    prediction, raw_confidence = teacher.transcribe(sample.audio)\n    confidence = calibration.apply(raw_confidence, sample.slice)\n    if sample.has_label and prediction != sample.label:\n        return 'human_audit', prediction, confidence\n    return ('pseudo_label' if confidence >= calibration.threshold(sample.slice) else 'reject'), prediction, confidence",
     "lineByLine": [
-      "def relabel_decision(orig, pred, conf, threshold=0.9): 定义重标决策，输入原标签、预测、置信度与阈值。",
-      "if conf >= threshold and pred == orig: 高置信且与原标注一致，原标签可信。",
-      "return orig 一致情形直接保留原标签，避免无谓改写。",
-      "return pred if conf >= threshold else orig 高置信采纳新标签，否则保留原标签以控噪。"
+      "先按切片校准模型原始置信度。",
+      "已有标签冲突时送人工审计，不自动判谁对。",
+      "无标签数据只有达到该切片阈值才采纳。"
+    ],
+    "complexity": "成本由教师推理、人工抽检/仲裁和回灌训练组成；阈值越严覆盖越低，越松噪声风险越高。",
+    "diagram": "无标注数据 ─▶ teacher ─▶ 校准 / 阈值 ─▶ pseudo-label 候选\n已有标签冲突 ─▶ 分歧检测 ─▶ 人工盲审 / 仲裁 ─▶ 修复候选\n两路都要 ─▶ 小规模回灌 ─▶ 独立验证集",
+    "edgeCases": [
+      "教师和学生同源时会复制相同系统性错误。",
+      "高置信度在新口音或强噪声桶中可能严重失准。",
+      "验证集若也被重标或参与阈值调节就不再独立。"
+    ],
+    "pitfalls": [
+      "把“伪标签”说成自己项目中已经完整实施过的流程；知识卡只解释方法。",
+      "模型分歧即判原标签错误，或只看回灌训练 loss 不看独立集。"
     ],
     "followUps": [
       {
-        "question": "8.2% 噪声是怎么估计出来的？",
-        "answer": "在 10k 西语抽样上做人工核对，统计与原标注不符且经复听确认错误的比例，得到 8.2% 作为噪声上界估计。"
+        "question": "双模型一致能当真值吗？",
+        "answer": "只能提高候选优先级。若模型同源或共享训练数据，错误高度相关，仍需独立金标或人工确认。"
       },
       {
-        "question": "置信度从哪里来？",
-        "answer": "来自 Qwen3-ASR 解码时的 token 级对数概率归一化或内部置信模块，需先做校准再用于阈值筛选。"
+        "question": "阈值怎么定？",
+        "answer": "在独立金标集按语言、噪声和时长做校准，依据可接受错误率与覆盖率选择，而不是固定套用一个全局数。"
       }
     ],
-    "followUpAnswers": [
-      "在 10k 西语抽样上做人工核对，统计与原标注不符且经复听确认错误的比例，得到 8.2% 作为噪声上界估计。",
-      "来自 Qwen3-ASR 解码时的 token 级对数概率归一化或内部置信模块，需先做校准再用于阈值筛选。"
-    ],
-    "invariant": "relabel_decision 对任意输入恒返回 orig 或 pred 之一，不会产出第三值；高置信一致时必返回 orig。",
-    "walkthrough": "输入 orig='hola', pred='hola', conf=0.95 → 命中高置信一致分支返回 'hola'；若 pred='ola'、conf=0.92 → 采纳 'ola'；若 conf=0.6 → 保留 'hola'。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
-      "2 分钟展开·原理：为什么需要：西语 10k 抽样人工核对发现 8.2% 真实标签噪声，脏标签直接训练会污染模型，需可验证的清洗闭环。",
-      "2 分钟展开·实现：在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
-      "2 分钟展开·边界：Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。 同时避免：阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。"
+      "30 秒结论：伪标签通常指教师模型给无标注数据生成训练目标；标签修复则是怀疑已有标签错误后，通过模型分歧找到候选，再由独立证据或人工复听确认。模型与原标签不一致不能自动证明标签错。无论哪种流程，都要用独立人工金标校准置信度、按切片控制采纳率，并通过回灌实验验证收益。",
+      "2 分钟展开·原理：候选发现、真值确认和训练收益验证是三道独立关卡。",
+      "2 分钟展开·实现：保留一份独立金标集；对教师置信度做校准，按语言/噪声/时长设置采纳策略；疑似标签错误进入盲审而非直接覆盖。",
+      "2 分钟展开·边界：教师和学生同源时会复制相同系统性错误。 同时避免：把“伪标签”说成自己项目中已经完整实施过的流程；知识卡只解释方法。"
     ],
     "conceptPath": [
-      "先识别问题：在西语 10k 抽样中发现 8.2% 真实标签噪声时，如何用 Qwen3-ASR 重标注构建可验证的带噪学习闭环？",
-      "再抓核心机制：在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
-      "然后跑一个具体例子：步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
-      "最后检查失败边界：Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。"
+      "先识别问题：有无标注音频和疑似脏标签时，怎样区分伪标签自训练、标签噪声审计与人工修复？",
+      "再抓核心机制：保留一份独立金标集；对教师置信度做校准，按语言/噪声/时长设置采纳策略；疑似标签错误进入盲审而非直接覆盖。",
+      "然后跑一个具体例子：示意：无标注样本上教师高置信输出可进入伪标签候选，但先在同语言同噪声金标桶估计准确率。",
+      "最后检查失败边界：教师和学生同源时会复制相同系统性错误。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
-      "示意案例·第 2 步：步骤2：conf≥0.9 且与原标签一致保留，conf≥0.9 但不一致采纳新标签，其余保留原标签。",
-      "示意案例·第 3 步：步骤3：把采纳新标签的样本回灌训练，独立验证集 CER 持续下降即闭环有效。",
-      "边界检查：Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。",
-      "反向自检：阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。"
+      "示意案例·第 1 步：示意：无标注样本上教师高置信输出可进入伪标签候选，但先在同语言同噪声金标桶估计准确率。",
+      "示意案例·第 2 步：已有标签与两个模型都不一致时，只提升复听优先级；人工确认前不覆盖原标签。",
+      "边界检查：教师和学生同源时会复制相同系统性错误。",
+      "反向自检：把“伪标签”说成自己项目中已经完整实施过的流程；知识卡只解释方法。"
     ]
   },
   {
     "id": "asr-streaming",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "端侧流式 ASR 生命周期与解码",
-    "prompt": "把端侧具身短指令流式 ASR 拆为音频生命周期、VAD、DDS、解码四层后，如何修正 drain/flush、pre-roll 与常驻 session 陷阱？",
-    "quickAnswer": "把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
-    "code": "def streaming_decode(frame, session, vad, dds, fallback_to_whole=True):\n    \"\"\"端侧流式 ASR：VAD 触发、DDS 动态分块解码，force-flush 落空则回退整缓冲。\"\"\"\n    if vad.is_speech(frame):\n        session.feed(frame)\n        return dds.step(session)\n    result = dds.force_flush(session)\n    if not result and fallback_to_whole:\n        return session.decode_whole_buffer()\n    return result",
-    "complexity": "时间 O(f)（每帧）/ O(B)（解码，B 为缓冲），空间 O(B)",
-    "beginnerSummary": "像边听边写：耳朵（VAD）判断在不在说话，手写（DDS）边听边写，话停了抖一下笔（flush），写不出就整段重读（fallback）。",
+    "kind": "code",
+    "title": "流式 ASR 句尾不丢字：drain、flush 与 session",
+    "prompt": "流式 ASR 在端点、短尾包和多会话下为什么会空结果或丢句尾？怎样设计生命周期和逐级回退？",
+    "quickAnswer": "流式前端、encoder 和 decoder 都可能保留尚未消费的尾部状态。收到端点时应停止接收新音频，但先 drain 前端完整帧、补必要 padding、推进 encoder，再 flush decoder 并发 final，最后才能释放 session。pre-roll 用于补回 VAD 起点前语音；常驻 session 必须在句间重置句级状态，不能把上一句缓存带进下一句。",
+    "beginnerSummary": "水管关阀后，管子里还有水。用户说完并不代表所有音频已经走完前端、模型和解码器；按错顺序释放，就会把最后几个字一起扔掉。",
+    "explanationFocus": "端点是一次有序状态转换，不是直接调用 close。",
+    "approach": "定义 CREATED→LISTENING→DRAINING→FINALIZING→CLOSED 状态机；每一步记录输入样本数、特征帧数、encoder 帧数和 final 事件。",
     "derivation": [
-      "为什么需要：具身短指令要求低延迟流式响应，但 drain/flush 时机错、pre-roll 丢开头、常驻 session 状态污染都会导致空结果或截断。",
-      "怎么实现：四层拆分——音频生命周期管资源、VAD 管起止、DDS 动态分块解码、解码层管 flush；force-flush 落空时回退 whole-buffer 解码。",
-      "有什么代价：常驻 session 占用端侧内存；fallback 整缓冲增加尾延迟；pre-roll 缓冲增加首字延迟。",
-      "怎么评测：在具身指令集测首字延迟与空结果率，force-flush 与 whole-buffer fallback 必须逐步回退，空结果恶化即触发回退。"
-    ],
-    "edgeCases": [
-      "静音段误判为结束触发过早 flush，丢失尾字。",
-      "pre-roll 缓冲不足，指令开头被截。",
-      "常驻 session 跨轮未重置，上轮状态污染本轮。",
-      "force-flush 返回空且 fallback 也空（极短/极噪），需兜底提示。"
-    ],
-    "pitfalls": [
-      "把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。",
-      "一味 flush 追求低延迟，空结果率上升却未接 whole-buffer 回退。"
+      "为什么需要：chunk 对齐、特征窗口和模型右上下文都会让句尾暂存在缓存中。",
+      "怎么实现：端点后依次 drain frontend、pad/encode tail、flush decoder、emit final、reset/free。",
+      "有什么代价：padding 与 fallback 增加少量尾延迟，状态机和幂等处理更复杂。",
+      "怎么评测：短指令、尾部爆破音、连续多句和异常断流上测空结果率、句尾删除率与 final 延迟。"
     ],
     "prerequisites": [
-      "流式 ASR 与 VAD：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
-      "动态解码分块（DDS）：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
-      "端侧 session 生命周期管理：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。"
+      "VAD 端点检测与 session：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "流式 chunk 与缓存：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。"
     ],
     "workedExample": [
-      "步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
-      "步骤2：VAD 判静音，调用 force_flush 输出尾段。",
-      "步骤3：flush 为空则 decode_whole_buffer 回退，避免空结果。"
+      "示意：最后 120 ms 不足一个特征块；drain 时补齐计算但用有效长度 mask，句尾字才进入 decoder。",
+      "同一连接连续说两句时保留模型实例，但重置句级 decoder、VAD 和稳定前缀状态。"
     ],
+    "code": "def finalize_session(session):\n    session.transition('DRAINING')\n    tail_features = session.frontend.drain()\n    tail_encoded = session.encoder.drain(tail_features, session.encoder_state)\n    final_text = session.decoder.flush(tail_encoded, session.decoder_state)\n    session.transition('CLOSED')\n    return final_text",
     "lineByLine": [
-      "if vad.is_speech(frame): 用 VAD 判定当前帧是否语音。",
-      "session.feed(frame); return dds.step(session) 语音帧喂入常驻 session 并增量解码。",
-      "result = dds.force_flush(session) 静音时强制刷新剩余缓冲。",
-      "if not result and fallback_to_whole: return session.decode_whole_buffer() flush 落空回退整缓冲。"
+      "先进入 DRAINING，拒绝重复写入。",
+      "前端和 encoder 依次消费尾部缓存。",
+      "decoder.flush 生成 final 后才关闭；真实实现还需幂等与异常回退。"
+    ],
+    "complexity": "正常 finalize 只处理尾部缓存，成本通常与剩余帧数成正比；whole-buffer fallback 会重复整句推理，只应作为受监控的最后回退。",
+    "diagram": "CREATED ─▶ LISTENING ──endpoint──▶ DRAINING ─▶ FINALIZING ─▶ CLOSED\n               ▲ pre-roll             frontend→encoder→decoder      emit final",
+    "edgeCases": [
+      "重复 endpoint/finalize 必须幂等，不能发两次 final。",
+      "客户端断流没有正常端点时需要超时 finalize。",
+      "padding 帧若未 mask 可能生成额外字符。"
+    ],
+    "pitfalls": [
+      "用含义不清的 DDS 缩写代替具体状态机。",
+      "端点一到就释放缓存，或每句都保留旧 decoder state 造成串句。"
     ],
     "followUps": [
       {
-        "question": "drain 和 flush 区别是什么？",
-        "answer": "drain 是排空解码器内部状态并复位用于停流，flush 是在不停 session 情况下强制输出当前缓冲文本；混淆二者会让常驻 session 状态残留。"
+        "question": "pre-roll 应保存在哪里？",
+        "answer": "通常保存在 VAD 前的环形 PCM/特征缓冲；检测到起点后把前几百毫秒一并送入，具体长度由漏首字与延迟实测决定。"
       },
       {
-        "question": "force-flush 空结果为什么要回退 whole-buffer？",
-        "answer": "flush 可能因分块边界出错返回空，whole-buffer 用整段重解当作兜底，避免把用户指令判成空导致误操作。"
+        "question": "什么时候启用 whole-buffer fallback？",
+        "answer": "仅在增量路径异常或 final 为空、且业务允许额外尾延迟时；必须记录触发率，不能让回退掩盖主路径缺陷。"
       }
     ],
-    "followUpAnswers": [
-      "drain 是排空解码器内部状态并复位用于停流，flush 是在不停 session 情况下强制输出当前缓冲文本；混淆二者会让常驻 session 状态残留。",
-      "flush 可能因分块边界出错返回空，whole-buffer 用整段重解当作兜底，避免把用户指令判成空导致误操作。"
-    ],
-    "invariant": "对任意帧序列，若最终有语音内容，streaming_decode 在静音后必返回非空结果（要么 flush 成功，要么 whole-buffer 回退成功），不会静默丢指令。",
-    "walkthrough": "连续语音帧 → 每帧 feed+step 增量出字；末帧后静音 → force_flush 得尾字；若 flush 空 → decode_whole_buffer 返回整句，保证非空。",
-    "kind": "code",
     "speechTeachingV2": true,
     "knowledgeBoundary": "这是知识补课卡，不代表我亲自实现过其中的算法，也不代表示例数字来自我的项目。回答个人经历时，只使用“简历项目”里的原文证据。",
     "codeMode": "illustrative",
     "interviewAnswer": [
-      "30 秒结论：把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
-      "2 分钟展开·原理：为什么需要：具身短指令要求低延迟流式响应，但 drain/flush 时机错、pre-roll 丢开头、常驻 session 状态污染都会导致空结果或截断。",
-      "2 分钟展开·实现：把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
-      "2 分钟展开·边界：静音段误判为结束触发过早 flush，丢失尾字。 同时避免：把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。"
+      "30 秒结论：流式前端、encoder 和 decoder 都可能保留尚未消费的尾部状态。收到端点时应停止接收新音频，但先 drain 前端完整帧、补必要 padding、推进 encoder，再 flush decoder 并发 final，最后才能释放 session。pre-roll 用于补回 VAD 起点前语音；常驻 session 必须在句间重置句级状态，不能把上一句缓存带进下一句。",
+      "2 分钟展开·原理：端点是一次有序状态转换，不是直接调用 close。",
+      "2 分钟展开·实现：定义 CREATED→LISTENING→DRAINING→FINALIZING→CLOSED 状态机；每一步记录输入样本数、特征帧数、encoder 帧数和 final 事件。",
+      "2 分钟展开·边界：重复 endpoint/finalize 必须幂等，不能发两次 final。 同时避免：用含义不清的 DDS 缩写代替具体状态机。"
     ],
     "conceptPath": [
-      "先识别问题：把端侧具身短指令流式 ASR 拆为音频生命周期、VAD、DDS、解码四层后，如何修正 drain/flush、pre-roll 与常驻 session 陷阱？",
-      "再抓核心机制：把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
-      "然后跑一个具体例子：步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
-      "最后检查失败边界：静音段误判为结束触发过早 flush，丢失尾字。"
+      "先识别问题：流式 ASR 在端点、短尾包和多会话下为什么会空结果或丢句尾？怎样设计生命周期和逐级回退？",
+      "再抓核心机制：定义 CREATED→LISTENING→DRAINING→FINALIZING→CLOSED 状态机；每一步记录输入样本数、特征帧数、encoder 帧数和 final 事件。",
+      "然后跑一个具体例子：示意：最后 120 ms 不足一个特征块；drain 时补齐计算但用有效长度 mask，句尾字才进入 decoder。",
+      "最后检查失败边界：重复 endpoint/finalize 必须幂等，不能发两次 final。"
     ],
     "guidedExample": [
-      "示意案例·第 1 步：步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
-      "示意案例·第 2 步：步骤2：VAD 判静音，调用 force_flush 输出尾段。",
-      "示意案例·第 3 步：步骤3：flush 为空则 decode_whole_buffer 回退，避免空结果。",
-      "边界检查：静音段误判为结束触发过早 flush，丢失尾字。",
-      "反向自检：把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。"
+      "示意案例·第 1 步：示意：最后 120 ms 不足一个特征块；drain 时补齐计算但用有效长度 mask，句尾字才进入 decoder。",
+      "示意案例·第 2 步：同一连接连续说两句时保留模型实例，但重置句级 decoder、VAD 和稳定前缀状态。",
+      "边界检查：重复 endpoint/finalize 必须幂等，不能发两次 final。",
+      "反向自检：用含义不清的 DDS 缩写代替具体状态机。"
     ]
   },
   {

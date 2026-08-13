@@ -1,60 +1,19 @@
 export default {
-  "id": "asr-lid",
-  "category": "ASR 专项",
-  "difficulty": "Medium",
-  "title": "语种识别 LID 的梯度干扰隔离",
-  "prompt": "在 ChinaVoices LID 仅 67.57% 的多任务学习中，LID 梯度干扰为何导致 ASR 负收益，应如何隔离？",
-  "quickAnswer": "ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
-  "code": "def project_conflict(grad_asr: list, grad_lid: list) -> list:\n    \"\"\"当 ASR 与 LID 梯度冲突时，把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。\"\"\"\n    dot = sum(a * b for a, b in zip(grad_asr, grad_lid))\n    norm2 = sum(a * a for a in grad_asr) or 1e-8   # 分母是 ASR 梯度的模平方\n    if dot >= 0:\n        return grad_lid\n    return [b - dot / norm2 * a for a, b in zip(grad_asr, grad_lid)]",
-  "complexity": "时间 O(d)（d 为参数维度），空间 O(d)",
-  "beginnerSummary": "两个人同时拽一根绳子往不同方向，ASR 会被 LID 带偏；把 LID 那股“反向力”拆掉，只保留不打架的部分。",
-  "derivation": [
-    "为什么需要：ChinaVoices 中 LID 仅 67.57%，弱监督 LID 头与 ASR 共享编码器，反向传播时梯度冲突拖累 ASR，造成负收益。",
-    "怎么实现：用 PCGrad 式投影，当两任务梯度内积为负（冲突）时，把 LID 梯度投影到 ASR 梯度的正交补空间，去除对抗分量。",
-    "有什么代价：每步需算梯度内积与投影，增加 O(d) 计算与额外前向/反向；投影可能削弱 LID 自身学习。",
-    "怎么评测：对比共享训练前后 ASR CER 与 LID 准确率，隔离后 ASR 不再退化且 LID 仍有正向（即便 67.57% 基线）。"
-  ],
-  "edgeCases": [
-    "梯度内积接近 0 时投影不稳定，需数值稳定项。",
-    "LID 头与 ASR 共享层极少时投影收益有限，应改路由而非投影。",
-    "多任务多于两个时成对投影组合数爆炸，需顺序或平均策略。",
-    "LID 标签本身噪声大（67.57%），弱信号被投影放大会误导。"
-  ],
-  "pitfalls": [
-    "默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。",
-    "把 LID 准确率 67.57% 当成可用，未意识到其梯度对 ASR 有害。"
-  ],
-  "prerequisites": [
-    "多任务学习与共享编码器",
-    "梯度冲突与 PCGrad",
-    "语种识别（LID）任务"
-  ],
-  "workedExample": [
-    "步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
-    "步骤2：算内积，若为负则对 grad_lid 做正交投影。",
-    "步骤3：用投影后梯度更新，验证 ASR CER 不再因 LID 任务上升。"
-  ],
-  "lineByLine": [
-    "dot = sum(a*b for ...) 计算 ASR 与 LID 梯度内积，判断冲突方向。",
-    "norm2 = sum(a*a ...) or 1e-8 求 ASR 梯度模平方（PCGrad 分母用参考梯度即 grad_asr 的模），加极小值防除零。",
-    "if dot >= 0: return grad_lid 不冲突时原样保留 LID 梯度。",
-    "return [b - dot/norm2*a ...] 冲突时减去沿 ASR 方向的分量，仅留正交部分（与 grad_asr 内积变为 0）。"
-  ],
-  "followUps": [
-    {
-      "question": "除了 PCGrad 投影还有别的隔离法？",
-      "answer": "可用任务特定 adapter 减少共享、梯度 surgery（如 Conflict-Averse）、或把 LID 拆为独立辅助头仅在推理用，不反向进编码器。"
-    },
-    {
-      "question": "LID 只有 67.57% 还有必要做多任务吗？",
-      "answer": "若 LID 仅用于路由可后处理独立训练；若强塞进共享损失且梯度冲突，反而伤 ASR，应先隔离或降权。"
-    }
-  ],
-  "followUpAnswers": [
-    "可用任务特定 adapter 减少共享、梯度 surgery（如 Conflict-Averse）、或把 LID 拆为独立辅助头仅在推理用，不反向进编码器。",
-    "若 LID 仅用于路由可后处理独立训练；若强塞进共享损失且梯度冲突，反而伤 ASR，应先隔离或降权。"
-  ],
-  "invariant": "project_conflict 输出的 LID 梯度与 grad_asr 的内积恒非负（去冲突），且不改变 grad_asr 本身。",
-  "walkthrough": "grad_asr=[1,0], grad_lid=[-1,1] 内积=-1<0 → 投影为 [-1,1]-(-1)/1*[1,0]=[0,1]，与 grad_asr 正交；若 grad_lid=[1,1] 内积=1≥0 → 原样返回。",
-  "kind": "code"
+  id: 'asr-lid', category: 'ASR 专项', difficulty: 'Medium', kind: 'code',
+  title: 'LID 辅助任务何时帮助或伤害 ASR',
+  prompt: '语种识别 LID 与 ASR 共享 encoder 时，怎样判断是否存在梯度冲突，并选择调权、分头或 PCGrad？',
+  quickAnswer: '辅助 LID 可能提供语言条件，也可能因标签噪声、数据不平衡或梯度方向冲突拖累 ASR。先分别记录两任务指标、共享层梯度余弦与范数，再用 loss 权重扫描、stop-gradient、较晚分叉或梯度投影做对照。PCGrad 是候选方法，不是看到负收益后的默认答案。',
+  beginnerSummary: '让同一个模型一边听写、一边判断语言，两个老师有时方向一致，有时会拉扯。先量出是谁在拉、拉多大，再决定调小辅助任务、让它晚点分叉，还是修改梯度。',
+  explanationFocus: '多任务负迁移有多种原因；梯度冲突必须被测量和对照实验支持。',
+  approach: '按 batch 记录共享层两任务梯度余弦、范数和语种分布；依次比较 ASR-only、共享、调权、stop-gradient/分叉和投影方案。',
+  derivation: ['为什么需要：LID 可帮助多语种路由与语言条件，但弱标签会向共享表征注入噪声。', '怎么实现：分别求 ASR 与 LID 对共享参数的梯度，监控方向和尺度，再做受控干预。', '有什么代价：逐任务求梯度增加训练开销，过度隔离也会失去正迁移。', '怎么评测：同时报告逐语种 ASR 错误率、LID 混淆矩阵、梯度统计和多 seed 稳定性。'],
+  prerequisites: ['多任务共享编码器与梯度冲突', '多语种与语言识别'],
+  workedExample: ['示意：ASR-only 稳定，共享训练后低资源语种退化；先检查该语种 LID 标签与采样比例。', '若负余弦集中在同一训练阶段，调低 LID 权重后消失且 ASR 恢复，才支持“梯度干扰”解释。'],
+  code: "def gradient_cosine(asr_grad, lid_grad, eps=1e-12):\n    numerator = dot(asr_grad, lid_grad)\n    denominator = norm(asr_grad) * norm(lid_grad) + eps\n    return numerator / denominator",
+  lineByLine: ['分子衡量两个梯度方向的内积。', '除以范数后得到 [-1, 1] 的方向相似度。', '余弦只是诊断信号，不能单独证明因果。'],
+  complexity: '若同一 batch 分别反传两项 loss，梯度诊断会增加反向计算和显存；可按间隔抽样记录。',
+  diagram: 'speech ─▶ shared encoder ─┬▶ ASR head / loss ─▶ g_asr\n                            └▶ LID head / loss ─▶ g_lid\n                  监控方向与范数 ─▶ 调权 / 分叉 / 投影',
+  edgeCases: ['code-switch 片段只有一个句级语言标签时监督本身含糊。', '高资源语言 batch 主导梯度会掩盖低资源语种。', '梯度余弦接近零但 LID 范数极大时仍可能干扰。'],
+  pitfalls: ['把某次 LID 准确率写成通用证据，或看到低准确率就断言有梯度冲突。', '不做 ASR-only 和 stop-gradient 对照就直接上 PCGrad。'],
+  followUps: [{ question: '负梯度余弦一定有害吗？', answer: '不一定。瞬时负余弦可能是正常优化噪声，应结合长期统计、任务指标和干预对照判断。' }, { question: '什么时候直接拆成独立 LID 更合适？', answer: '当路由必须先于 ASR、LID 数据/延迟要求独立，或共享训练长期负迁移时，独立小模型可能更清晰。' }],
 };

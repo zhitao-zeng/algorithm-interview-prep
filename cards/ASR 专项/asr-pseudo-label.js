@@ -1,60 +1,19 @@
 export default {
-  "id": "asr-pseudo-label",
-  "category": "ASR 专项",
-  "difficulty": "Medium",
-  "title": "带噪标签学习与伪标签质量闭环",
-  "prompt": "在西语 10k 抽样中发现 8.2% 真实标签噪声时，如何用 Qwen3-ASR 重标注构建可验证的带噪学习闭环？",
-  "quickAnswer": "在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
-  "code": "def relabel_decision(orig: str, pred: str, conf: float, threshold: float = 0.9) -> str:\n    \"\"\"以置信度与原标注一致性控制伪标签质量：高置信且一致则保留，否则回灌重训。\"\"\"\n    if conf >= threshold and pred == orig:\n        return orig\n    return pred if conf >= threshold else orig",
-  "complexity": "时间 O(1)（单条）/ O(N)（全量重标），空间 O(1)",
-  "beginnerSummary": "老师改卷也会看走眼，我们让更靠谱的“学霸模型”复查，只采纳它很有把握且和原答案一致的部分。",
-  "derivation": [
-    "为什么需要：西语 10k 抽样人工核对发现 8.2% 真实标签噪声，脏标签直接训练会污染模型，需可验证的清洗闭环。",
-    "怎么实现：用 Qwen3-ASR 对数据重标注，结合置信度、与原标注一致性决定是否采纳新标签，并把采纳样本回灌训练，形成“重标→筛选→训练”闭环。",
-    "有什么代价：重标注与置信度计算增加算力；若 Qwen3-ASR 自身在某些域有偏，会被放大进伪标签。",
-    "怎么评测：人工抽查子系统验证伪标签准确率，并以独立验证集 CER 是否稳定下降判定闭环有效。"
-  ],
-  "edgeCases": [
-    "Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。",
-    "低资源口音下置信度虚高，误把错标签当高置信采纳。",
-    "原标注一致但两者都错（系统性标注错误），回灌会固化错误。",
-    "全量重标 10k 成本，需分批回灌避免训练抖动。"
-  ],
-  "pitfalls": [
-    "阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。",
-    "把“换标签比例”当目标，忽视独立验证集 CER，可能越洗越差。"
-  ],
-  "prerequisites": [
-    "伪标签（pseudo-labeling）与自训练",
-    "模型置信度校准",
-    "带噪学习基础"
-  ],
-  "workedExample": [
-    "步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
-    "步骤2：conf≥0.9 且与原标签一致保留，conf≥0.9 但不一致采纳新标签，其余保留原标签。",
-    "步骤3：把采纳新标签的样本回灌训练，独立验证集 CER 持续下降即闭环有效。"
-  ],
-  "lineByLine": [
-    "def relabel_decision(orig, pred, conf, threshold=0.9): 定义重标决策，输入原标签、预测、置信度与阈值。",
-    "if conf >= threshold and pred == orig: 高置信且与原标注一致，原标签可信。",
-    "return orig 一致情形直接保留原标签，避免无谓改写。",
-    "return pred if conf >= threshold else orig 高置信采纳新标签，否则保留原标签以控噪。"
-  ],
-  "followUps": [
-    {
-      "question": "8.2% 噪声是怎么估计出来的？",
-      "answer": "在 10k 西语抽样上做人工核对，统计与原标注不符且经复听确认错误的比例，得到 8.2% 作为噪声上界估计。"
-    },
-    {
-      "question": "置信度从哪里来？",
-      "answer": "来自 Qwen3-ASR 解码时的 token 级对数概率归一化或内部置信模块，需先做校准再用于阈值筛选。"
-    }
-  ],
-  "followUpAnswers": [
-    "在 10k 西语抽样上做人工核对，统计与原标注不符且经复听确认错误的比例，得到 8.2% 作为噪声上界估计。",
-    "来自 Qwen3-ASR 解码时的 token 级对数概率归一化或内部置信模块，需先做校准再用于阈值筛选。"
-  ],
-  "invariant": "relabel_decision 对任意输入恒返回 orig 或 pred 之一，不会产出第三值；高置信一致时必返回 orig。",
-  "walkthrough": "输入 orig='hola', pred='hola', conf=0.95 → 命中高置信一致分支返回 'hola'；若 pred='ola'、conf=0.92 → 采纳 'ola'；若 conf=0.6 → 保留 'hola'。",
-  "kind": "code"
+  id: 'asr-pseudo-label', category: 'ASR 专项', difficulty: 'Medium', kind: 'code',
+  title: '伪标签、自训练与标签修复不要混为一谈',
+  prompt: '有无标注音频和疑似脏标签时，怎样区分伪标签自训练、标签噪声审计与人工修复？',
+  quickAnswer: '伪标签通常指教师模型给无标注数据生成训练目标；标签修复则是怀疑已有标签错误后，通过模型分歧找到候选，再由独立证据或人工复听确认。模型与原标签不一致不能自动证明标签错。无论哪种流程，都要用独立人工金标校准置信度、按切片控制采纳率，并通过回灌实验验证收益。',
+  beginnerSummary: '模型写出的答案可以拿来教学生，但不能因为它和原答案不同，就宣布原答案错了。先区分“这题本来没答案”和“这题可能标错”，再让人工或更强证据做裁判。',
+  explanationFocus: '候选发现、真值确认和训练收益验证是三道独立关卡。',
+  approach: '保留一份独立金标集；对教师置信度做校准，按语言/噪声/时长设置采纳策略；疑似标签错误进入盲审而非直接覆盖。',
+  derivation: ['为什么需要：无标注数据可扩大覆盖，脏标签又会给模型错误监督。', '怎么实现：教师推理→置信度校准→候选分层→人工抽检/仲裁→小规模回灌→独立验证。', '有什么代价：错误伪标签会自我强化，人工审计与多轮训练成本高。', '怎么评测：伪标签精确率/覆盖率、分桶校准、独立验证集变化和最差切片。'],
+  prerequisites: ['伪标签与置信度校准', 'CER 与 WER 编辑距离'],
+  workedExample: ['示意：无标注样本上教师高置信输出可进入伪标签候选，但先在同语言同噪声金标桶估计准确率。', '已有标签与两个模型都不一致时，只提升复听优先级；人工确认前不覆盖原标签。'],
+  code: "def route_label_candidate(sample, teacher, calibration):\n    prediction, raw_confidence = teacher.transcribe(sample.audio)\n    confidence = calibration.apply(raw_confidence, sample.slice)\n    if sample.has_label and prediction != sample.label:\n        return 'human_audit', prediction, confidence\n    return ('pseudo_label' if confidence >= calibration.threshold(sample.slice) else 'reject'), prediction, confidence",
+  lineByLine: ['先按切片校准模型原始置信度。', '已有标签冲突时送人工审计，不自动判谁对。', '无标签数据只有达到该切片阈值才采纳。'],
+  complexity: '成本由教师推理、人工抽检/仲裁和回灌训练组成；阈值越严覆盖越低，越松噪声风险越高。',
+  diagram: '无标注数据 ─▶ teacher ─▶ 校准 / 阈值 ─▶ pseudo-label 候选\n已有标签冲突 ─▶ 分歧检测 ─▶ 人工盲审 / 仲裁 ─▶ 修复候选\n两路都要 ─▶ 小规模回灌 ─▶ 独立验证集',
+  edgeCases: ['教师和学生同源时会复制相同系统性错误。', '高置信度在新口音或强噪声桶中可能严重失准。', '验证集若也被重标或参与阈值调节就不再独立。'],
+  pitfalls: ['把“伪标签”说成自己项目中已经完整实施过的流程；知识卡只解释方法。', '模型分歧即判原标签错误，或只看回灌训练 loss 不看独立集。'],
+  followUps: [{ question: '双模型一致能当真值吗？', answer: '只能提高候选优先级。若模型同源或共享训练数据，错误高度相关，仍需独立金标或人工确认。' }, { question: '阈值怎么定？', answer: '在独立金标集按语言、噪声和时长做校准，依据可接受错误率与覆盖率选择，而不是固定套用一个全局数。' }],
 };

@@ -50,8 +50,6 @@ const termRules = [
 
 const executableSpeechCode = new Set([
   'ctc-greedy', 'ctc-prefix-beam', 'rnnt-greedy', 'rnnt', 'streaming-cache',
-  'as-asr-codec', 'as-ctc-align', 'as-hotword', 'as-rnnt-pruning', 'as-streaming-asr',
-  'asr-channel-robustness', 'asr-lid',
 ]);
 
 function alreadyExplained(term) {

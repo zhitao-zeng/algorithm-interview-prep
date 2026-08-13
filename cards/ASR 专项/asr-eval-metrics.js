@@ -1,60 +1,19 @@
 export default {
-  "id": "asr-eval-metrics",
-  "category": "ASR 专项",
-  "difficulty": "Easy",
-  "title": "CER/WER 三层评测口径",
-  "prompt": "为什么 ASR 评测需要文字单元、语义质量、Translation-Aware 下游影响三层口径，各自如何计算？",
-  "quickAnswer": "ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
-  "code": "def cer(reference: str, hypothesis: str) -> float:\n    \"\"\"字符错误率：基于编辑距离统计替换/插入/删除的字符数占比。\"\"\"\n    import editdistance  # 或自实现 DP\n    dist = editdistance.eval(reference, hypothesis)\n    return dist / max(len(reference), 1)",
-  "complexity": "时间 O(|r|·|h|)（编辑距离），空间 O(min(|r|,|h|))",
-  "beginnerSummary": "改卷有三把尺：数错几个字（CER/WER）、意思对不对（语义）、翻成外语后准不准（Translation-Aware）。",
-  "derivation": [
-    "为什么需要：单看 CER/WER 会漏掉“字错但意对”或“字对但下游翻译崩”的情况，需多层口径反映真实可用性。",
-    "怎么实现：第一层用编辑距离算 CER（字符）或 WER（词）；第二层用 LLM 判等/语义相似度量意；第三层把输出喂翻译模型看 BLEU 影响。",
-    "有什么代价：语义与 Translation-Aware 需调用大模型/翻译服务，增加评测成本与抖动，需多次取平均。",
-    "怎么评测：三层同时汇报，如盲测 7 语种整体 CER 9.15%，并附语义一致率与翻译 BLEU 差。"
-  ],
-  "edgeCases": [
-    "中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。",
-    "标点/大小写未归一化，CER/WER 虚高。",
-    "语义层对 paraphrasing 宽容但可能放过事实错误。",
-    "Translation-Aware 受翻译模型自身误差干扰。"
-  ],
-  "pitfalls": [
-    "只用 WER 评中文，汉字错误被低估（应 CER）。",
-    "把 CER 数字当绝对质量，忽视语义与下游。"
-  ],
-  "prerequisites": [
-    "编辑距离",
-    "CER 与 WER 定义",
-    "语义相似度与机器翻译评测"
-  ],
-  "workedExample": [
-    "步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
-    "步骤2：语义层判“又雨”≈“有雨”，语义一致通过。",
-    "步骤3：把 hyp 喂翻译得 BLEU，与 ref 翻译 BLEU 求差，量化下游影响。"
-  ],
-  "lineByLine": [
-    "import editdistance 引入编辑距离库（或自实现 DP）。",
-    "dist = editdistance.eval(reference, hypothesis) 计算最小编辑操作数。",
-    "return dist / max(len(reference), 1) 以参考长度归一得到错误率，防除零。",
-    "函数即第一层文字单元口径的核心。"
-  ],
-  "followUps": [
-    {
-      "question": "CER 和 WER 怎么选？",
-      "answer": "中文/日文等无空格语言用 CER（字符），西/英等有词边界用 WER（词），混合语种按各自文字单元分别报。"
-    },
-    {
-      "question": "Translation-Aware 怎么落地？",
-      "answer": "固定一个翻译模型，分别翻译 ref 与 hyp 得 BLEU，差值即 ASR 错误对下游翻译的影响，差值越小越可控。"
-    }
-  ],
-  "followUpAnswers": [
-    "中文/日文等无空格语言用 CER（字符），西/英等有词边界用 WER（词），混合语种按各自文字单元分别报。",
-    "固定一个翻译模型，分别翻译 ref 与 hyp 得 BLEU，差值即 ASR 错误对下游翻译的影响，差值越小越可控。"
-  ],
-  "invariant": "cer 返回值恒在 [0, ∞)（正常 [0,1]），参考为空时返回 0 而非报错（max 防除零）。",
-  "walkthrough": "ref='abc', hyp='ab' → 编辑距离 1，len(ref)=3，返回 1/3≈0.333；ref='' → max(0,1)=1，dist=0，返回 0。",
-  "kind": "code"
+  id: 'asr-eval-metrics', category: 'ASR 专项', difficulty: 'Easy', kind: 'code',
+  title: 'CER/WER 是基础，产品评测怎样继续分层',
+  prompt: 'CER/WER 怎样正确计算？什么时候需要增加语义一致性和下游任务指标？',
+  quickAnswer: 'CER/WER 都是把替换、删除、插入数相加，再除以参考文本的字符数或词数；评分前必须冻结文字归一化和分词规则。语义一致性、关键词/槽位正确率、翻译等下游指标是面向产品风险的补充，不是 ASR 行业强制统一的“三层标准”，也不能替代基础错误率。',
+  beginnerSummary: 'CER/WER 先数“改几个字符或词才能把识别结果变成答案”。但把“不要开灯”听成“要开灯”只差一个字、业务后果却很大，所以产品还要单独检查否定词、数字、名字和下游动作。',
+  explanationFocus: '基础错误率负责可复现比较，业务指标负责表达不同错误的严重程度；两者职责不同。',
+  approach: '先固定 normalizer 与 tokenizer，保存每句 S/D/I；再按业务风险定义关键词、语义或下游指标，并分别报告。',
+  derivation: ['为什么需要：同一文本因标点、数字写法或分词不同可能得到不同错误率。', '怎么实现：动态规划求最小编辑距离，并聚合替换、删除和插入。', '有什么代价：CER/WER 把各错误近似等权，无法表达业务严重性。', '怎么评测：总体与切片同时报告，附 normalizer 版本、分母和置信区间。'],
+  prerequisites: ['CER 与 WER 编辑距离', '正字法归一化', '语义相似度与机器翻译'],
+  workedExample: ['ref=“北京今天有雨”、hyp=“北京今天又雨”，统一为 6 个汉字后有 1 次替换，CER=1/6。', '“不要开门”漏掉“不”时 CER 不高，但否定词槽位失败，应在安全指令指标中单独判错。'],
+  code: "def error_rate(reference, hypothesis, unitize):\n    ref_units = unitize(normalize(reference))\n    hyp_units = unitize(normalize(hypothesis))\n    assert ref_units, '空参考请按评测协议单独处理'\n    substitutions, deletions, insertions = edit_counts(ref_units, hyp_units)\n    return (substitutions + deletions + insertions) / len(ref_units)",
+  lineByLine: ['先用冻结规则归一化并切成字符或词。', '空参考交给评测协议的专门分支，避免悄悄改变分母。', '编辑距离回溯得到 S、D、I，再除以参考单元数。'],
+  complexity: '朴素动态规划时间 O(NM)、空间 O(NM)；只求距离可滚动压缩到 O(min(N,M))，回溯 S/D/I 则需保存更多信息。',
+  diagram: '原始 ref/hyp ─▶ 同一 normalizer ─▶ 字符或词单元 ─▶ S / D / I ─▶ CER/WER\n                                                          └▶ 业务切片 / 语义 / 下游指标',
+  edgeCases: ['参考为空时插入错误的分母需在评测协议中明确定义。', '中文 WER 高度依赖分词器，跨系统比较更常用 CER。', '数字“12”与“十二”是否等价必须由 normalizer 规则决定。'],
+  pitfalls: ['把“文字、语义、Translation-Aware”说成所有 ASR 都必须遵循的统一三层标准。', '示例字符数数错，或比较模型时临时更改 normalizer。'],
+  followUps: [{ question: 'CER 会超过 100% 吗？', answer: '会。大量插入时 S+D+I 可以大于参考长度。' }, { question: 'LLM-as-Judge 能替代 CER/WER 吗？', answer: '不能。它适合补充语义风险，但受提示词和模型版本影响；基础错误率仍提供稳定、可复现的字面口径。' }],
 };

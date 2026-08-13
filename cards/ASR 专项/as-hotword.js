@@ -1,64 +1,19 @@
 export default {
-  "id": "as-hotword",
-  "category": "ASR 专项",
-  "difficulty": "Medium",
-  "title": "热词与自定义词",
-  "prompt": "当用户提到“自定义唤醒词/专有名词”时，如何提升 ASR 的识别准确率而不重新训练模型？",
-  "quickAnswer": "在解码阶段对热词对应的输出单元做偏置（logit bias）或构造热词级 FST 并入解码图，也可用浅融合（shallow fusion）把热词语言模型加权；无需重训声学模型即可显著提升命中率。",
-  "approach": "方案一是解码时对热词 token/音素路径的 logits 加固定 boost；二是在 WFST 中挂热词子图做偏向；三是用热词白名单走单独的高效匹配（如二遍解码）并发射偏置。",
-  "explanationFocus": "是什么：热词（hotword）机制是在不重新训练声学模型的前提下，通过解码期偏置或融合让系统更倾向于输出用户指定的词或专有名词。",
-  "bruteForce": "朴素做法是把热词加入训练语料重训，成本高、迭代慢，且无法在运行时由用户动态指定。",
-  "invariant": "偏置只改变词序概率倾向而不破坏声学似然的单调性：非热词路径仍可正常被选中，只是热词路径在分数上获得可控加成。",
-  "walkthrough": "加载热词列表 → 映射为输出词/音素序列 → 在 beam 搜索每步对匹配前缀的假设 logits 加 boost → 解码得到偏向热词的结果 → 可选二遍重打分抑制误触发。",
-  "complexity": "运行时开销极小（仅解码期加偏置 O(V) 或 FST 合并一次），无需 GPU 重训；内存随热词表线性增长。",
-  "beginnerSummary": "热词就像给识别系统“提个醒”：在解码时给指定词加分，让它更可能被正确写出，而不必重新训练模型。",
-  "diagram": "beam search\n   |\nhotword bias (+boost)\n   |\nrescored hypotheses\n   |\nfinal text",
-  "code": "import re\n\ndef bias_hotword(logits, hotwords, boost=3.0):\n    for w in hotwords:\n        logits[w] += boost\n    return logits",
-  "derivation": [
-    "为什么需要：人名、品牌、专有名词在训练集稀少，默认 ASR 易写错，且用户希望运行时自定义而无需重训。",
-    "怎么实现：解码时对热词对应输出单元 logits 加 boost，或在 WFST 中并入热词子图做偏向，或用浅融合加热词 LM。",
-    "有什么代价：boost 过大易误触发（把相似音也判成热词），且热词表过长会拖慢解码或引入冲突。",
-    "怎么评测：用热词命中率（Recall）与误触发率（False Alarm）衡量，并在不同 boost 下画 PR 曲线。"
-  ],
-  "edgeCases": [
-    "同音词冲突：热词“小智”与“小志”音近，boost 易串。",
-    "热词拆字：未登录字导致热词无法映射到输出单元。",
-    "极小 boost：几乎无效；极大 boost：非热词场景被强行改写。",
-    "热词表几万条：解码图过大、内存与延迟上升。"
-  ],
-  "pitfalls": [
-    "只对词表 ID 加偏置却忽略子词/BPE 切分，导致热词根本匹配不上。",
-    "boost 固定不变，未随置信度自适应，安静与嘈杂环境误触发差异大。"
-  ],
-  "prerequisites": [
-    "Beam Search 解码与 logits",
-    "WFST / 分词（BPE）表示"
-  ],
-  "workedExample": [
-    "将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
-    "boost=8.0 时误触发率从 0.5% 升到 6%，说明需调参平衡。"
-  ],
-  "lineByLine": [
-    "for w in hotwords：遍历用户指定的热词。",
-    "logits[w] += boost：对热词对应输出单元分数加偏置。",
-    "return logits：返回偏置后的分布供 beam 搜索采样。"
-  ],
-  "codeNotes": [
-    "需确保 w 是解码词表或子词序列的索引，而非原始字符串。"
-  ],
-  "followUps": [
-    {
-      "question": "热词与上下文偏置（contextual bias）有何区别？",
-      "answer": "热词通常基于词表 ID 加偏置；上下文偏置进一步用编码器隐状态做动态注意力偏置，能处理长上下文短语。"
-    },
-    {
-      "question": "如何避免热词误触发？",
-      "answer": "用二遍解码只在候选接近热词时加分，或按声学置信度阈值门控 boost。"
-    }
-  ],
-  "followUpAnswers": [
-    "热词通常基于词表 ID 加偏置；上下文偏置进一步用编码器隐状态做动态注意力偏置，能处理长上下文短语。",
-    "用二遍解码只在候选接近热词时加分，或按声学置信度阈值门控 boost。"
-  ],
-  "kind": "code"
+  id: 'as-hotword', category: 'ASR 专项', difficulty: 'Medium', kind: 'code',
+  title: '热词增强怎样提召回又不乱插词',
+  prompt: '不重新训练声学模型时，怎样增强人名、品牌等热词，并控制误触发？',
+  quickAnswer: '可在解码时加入 context graph/WFST、浅融合语言模型或受约束的 token bias。增大 boost 通常提高热词召回，也会增加无热词音频中的错误插入；因此必须同时在含热词集和负样本集上调参，不能只看命中率。',
+  beginnerSummary: '热词增强像给解码器一张“今天可能出现的名字”清单。提示太弱听不出来，提示太强又会把相似发音都写成热词。',
+  explanationFocus: '热词增强改变的是候选路径分数，不是凭空修好声学证据；必须同时控制正样本召回和负样本误插入。',
+  approach: '把热词按 tokenizer 拆成 token 路径，在前缀匹配时逐步加分，完成词后给完成奖励；用开发集扫描 boost 和回退惩罚。',
+  derivation: ['为什么需要：专有词在训练语料中稀少，默认语言先验容易压过声学证据。', '怎么实现：将热词编成前缀图，并在 beam search 中携带图状态与加分。', '有什么代价：热词表越大，图状态和候选扩展越多；高 boost 会误插相似词。', '怎么评测：报告热词召回、热词错误率、负样本误插率、整体 CER/WER 和延迟。'],
+  prerequisites: ['Beam Search 与 top-k', 'WFST 与 BPE 分词'],
+  workedExample: ['示意：将“科大讯飞”拆成模型 token，只有前缀连续匹配时逐步奖励。', '在不含该词的相似发音集上若误插增加，就降低 boost 或加入完成/回退约束。'],
+  code: "def contextual_score(prefix, token, graph_state, boost):\n    next_state, matched = graph_state.step(token)\n    bonus = boost if matched else 0.0\n    return next_state, bonus",
+  lineByLine: ['根据当前图状态尝试消费新 token。', '只有匹配合法热词前缀时才加分。', '真实系统还需处理完整词奖励、回退和多个热词共享前缀。'],
+  complexity: '开销取决于 beam、热词图活跃状态数和分词长度；不能笼统写成固定 O(V)。',
+  diagram: '声学分数 + 基础 LM 分数 + 热词图增量分数 ─▶ beam 排序\n                                      └▶ 正集召回 / 负集误插共同调参',
+  edgeCases: ['多个热词共享前缀时不能提前给完整词奖励。', '热词含 tokenizer 未覆盖字符时需要规范化或改写。', '短热词与常用词同音时误触发风险最高。'],
+  pitfalls: ['只报热词命中率，不报告无热词负样本上的误插入。', '直接对整个词表统一加 bias，既浪费计算又缺少前缀约束。'],
+  followUps: [{ question: '热词为什么不一定需要重训？', answer: '它可以只改变解码搜索分数；若声学模型根本分不清对应音素，解码增强也有上限。' }, { question: '热词表很大怎么办？', answer: '用 trie/FST 共享前缀、按会话或领域缩小激活集合，并监控活跃状态数和延迟。' }],
 };

@@ -1,65 +1,19 @@
 export default {
-  "id": "as-streaming-asr",
-  "category": "ASR 专项",
-  "difficulty": "Hard",
-  "title": "流式 ASR 架构",
-  "prompt": "如何设计一个低延迟的流式 ASR 系统，使得用户说话时就能看到部分识别结果？",
-  "quickAnswer": "把音频切成定长 chunk，每个 chunk 仅利用有限左/右上下文进行编码并即时输出，配合 CTC 或 RNN-T 逐帧发射；常用动态分块注意力、因果卷积与右上下文来平衡延迟与精度。",
-  "approach": "采用 chunk-based 流式：编码器每次消费 N 帧，允许左看 L 帧、右看 R 帧（右上下文提升精度但增加延迟）；解码用 RNN-T 或 CTC 前缀束搜索，并在端点检测后做整体重打分。",
-  "explanationFocus": "是什么：流式 ASR 是一类在音频持续输入时增量输出文本的系统，通过限制每个时刻可看的未来上下文来控制延迟，区别于整句输入的非流式 ASR。",
-  "bruteForce": "朴素做法是等整句话说完再识别（非流式），延迟等于句长；或每来一帧就重新识别整段，算力浪费且结果抖动。",
-  "invariant": "任意时刻已输出的前缀必须是最终完整结果的前缀（单调对齐），且已发射 token 不再被撤销（除非显式重打分）。",
-  "walkthrough": "音频按 16 帧 chunk 流入 → 编码器带左 8 右 8 上下文算隐状态 → RNN-T 联合网络对每个 chunk 发射若干 token 或 blank → 接收端点后做整句 LM 重打分并刷新显示。",
-  "complexity": "延迟约 (chunk+right_context)/帧率（如 16+8 帧 /100fps≈240ms），算力随 chunk 数线性增长；右上下文越大精度越高但首字延迟越大。",
-  "beginnerSummary": "流式 ASR 像边听边写：每次只处理一小段音频并立刻给出已确定的文字，靠限制“能往后看多少”来控制等待时间。",
-  "diagram": "audio stream\n   |  chunk = 16 frames\n   v\n[encoder + right ctx]\n   |\nemit partial text\n   |  next chunk ...\n   v\nendpoint -> rescore",
-  "code": "import numpy as np\n\ndef chunk_stream(features, chunk=16, left=8, right=8):\n    # 动态分块 + 右上下文\n    for i in range(0, len(features), chunk):\n        yield features[max(0, i - left): i + chunk + right]",
-  "derivation": [
-    "为什么需要：语音助手、字幕等场景要求边说边出字，端到端等待整句不可接受，因此需要增量解码。",
-    "怎么实现：把音频分 chunk，编码器用因果/受限注意力与右上下文，解码器用 RNN-T 或 CTC 逐帧发射并做端点触发重打分。",
-    "有什么代价：右上下文与整句上下文缺失会损害精度，需要在延迟与 WER 间权衡；chunk 边界可能切断音素。",
-    "怎么评测：用首字延迟（First Token Latency）、句末延迟与 WER 综合衡量，并在不同右上下文下画延迟-精度曲线。"
-  ],
-  "edgeCases": [
-    "静音段过长：需静音抑制与端点检测避免空识别。",
-    "断句错误：chunk 边界切断词导致错字，需要右上下文或重打分修正。",
-    "网络抖动：音频到达不均时需要缓冲与超时策略。",
-    "极短指令：如“停止”只有几帧，chunk 过大反而增加延迟。"
-  ],
-  "pitfalls": [
-    "右上下文设得过大，名义“流式”实际延迟接近非流式。",
-    "忽略 chunk 边界处状态传递，导致 Conformer/Transformer 跨块状态错位。"
-  ],
-  "prerequisites": [
-    "CTC 与 RNN-T 解码原理",
-    "因果卷积与 Masked 自注意力"
-  ],
-  "workedExample": [
-    "设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
-    "用 RNN-T 在 AISHELL 上对比 right=0 与 right=8，WER 从 6.1% 降到 5.2%。"
-  ],
-  "lineByLine": [
-    "for i in range(0, len(features), chunk)：按 chunk 滑动遍历特征序列。",
-    "max(0, i - left)：左上下文不足时在句首截断。",
-    "i + chunk + right：拼接右上下文供编码器看未来少许帧。",
-    "yield：每次产出一个带上下文的局部窗口交给编码/解码。"
-  ],
-  "codeNotes": [
-    "right 越大精度越高但延迟越大，是流式系统的核心超参。"
-  ],
-  "followUps": [
-    {
-      "question": "动态分块注意力（dynamic chunk）如何训练？",
-      "answer": "训练时对每个样本随机采样 chunk 大小与右上下文，并加 causality mask，使模型适配不同流式配置。"
-    },
-    {
-      "question": "CTC 与 RNN-T 谁更适合流式？",
-      "answer": "RNN-T 自带自回归语言模型、逐帧发射更自然，流式体验更好；CTC 需额外 WFST/beam 才能平滑流式。"
-    }
-  ],
-  "followUpAnswers": [
-    "训练时对每个样本随机采样 chunk 大小与右上下文，并加 causality mask，使模型适配不同流式配置。",
-    "RNN-T 自带自回归语言模型、逐帧发射更自然，流式体验更好；CTC 需额外 WFST/beam 才能平滑流式。"
-  ],
-  "kind": "code"
+  id: 'as-streaming-asr', category: 'ASR 专项', difficulty: 'Hard', kind: 'code',
+  title: '低延迟流式 ASR 的完整数据流',
+  prompt: '怎样从音频分块、编码器缓存、增量解码到稳定文本提交，设计可测量的流式 ASR？',
+  quickAnswer: '音频按 chunk 输入带有限上下文的 encoder，复用历史缓存，再由 CTC prefix beam 或 RNN-T 增量解码。界面上的 partial 可以修订，只有满足稳定策略的 committed prefix 才不可回滚；端点后还可做 finalization。延迟要拆成采集等待、右上下文、计算、队列和提交策略。',
+  beginnerSummary: '“边说边出字”不是简单把离线模型切小块。系统要记住历史、决定能看多少未来、区分临时文字和已经承诺的文字，还要在说完时把剩余缓存正确收尾。',
+  explanationFocus: '流式系统的核心契约是状态、可见上下文和提交语义，而不是某个固定 chunk 大小。',
+  approach: '明确 chunk/shift/右上下文；为每个 session 保存 encoder 与 decoder 状态；分别输出 partial、committed、final 三种事件并记录时间戳。',
+  derivation: ['为什么需要：整句结束后再识别，用户等待时间接近整段说话时长。', '怎么实现：chunk 编码、缓存左上下文、增量解码、稳定前缀提交和端点 finalization。', '有什么代价：chunk 更小会增加调度开销，右上下文更大提高等待，过早提交则难以纠错。', '怎么评测：同时报告首个 partial、首个 committed、final 延迟、RTF、峰值内存、partial 修订率和最终 CER/WER。'],
+  prerequisites: ['流式 chunk 与缓存', 'CTC 与 RNN-T 解码'],
+  workedExample: ['示意：用户刚说“北京明…”，界面可显示 partial“北京”，但暂不提交容易变化的尾部。', '端点触发后送完尾部 padding、刷新解码器并发 final；若没有 finalization，句尾短词可能消失。'],
+  code: "def accept_chunk(session, pcm):\n    features = session.frontend.push(pcm)\n    encoded, session.encoder_state = session.encoder.step(features, session.encoder_state)\n    partial, session.decoder_state = session.decoder.step(encoded, session.decoder_state)\n    return session.stabilizer.update(partial)",
+  lineByLine: ['前端把任意到达的 PCM 累积成完整特征帧。', 'encoder.step 读取并更新该会话缓存。', 'decoder 增量产生候选，stabilizer 决定哪些只是 partial、哪些可以提交。'],
+  complexity: '总计算仍随音频时长增长；实际延迟由 chunk 等待、右上下文、排队、推理和稳定提交共同组成，不能只用模型 RTF 代表体验。',
+  diagram: 'PCM chunk ─▶ streaming frontend ─▶ encoder + cache ─▶ incremental decoder\n                                                          ├▶ partial（可改）\n                                                          ├▶ committed（稳定）\nVAD endpoint ─────────────────────────────────────────────└▶ final',
+  edgeCases: ['最后不足一个 chunk 的音频必须 drain/flush。', '多个 session 的缓存不能串用。', '网络抖动或背压时要限制队列，避免延迟无限累积。'],
+  pitfalls: ['说“所有已显示 token 都必须永不修改”——partial 结果通常允许修订。', '只比较 right context 导致的算法延迟，不测排队和前端缓冲。'],
+  followUps: [{ question: '怎样定义稳定前缀？', answer: '可要求连续若干次解码结果共享该前缀，或结合 token posterior、时间边界和语言规则；阈值必须用修订率与提交延迟共同调。' }, { question: 'CTC 和 RNN-T 哪个更适合流式？', answer: '两者都能流式。CTC 解码更简单但有条件独立假设；RNN-T显式利用标签历史但训练和解码状态更复杂。' }],
 };

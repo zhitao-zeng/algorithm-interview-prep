@@ -1,60 +1,19 @@
 export default {
-  "id": "asr-domain-adaptation",
-  "category": "ASR 专项",
-  "difficulty": "Medium",
-  "title": "域适应与灾难性遗忘防控",
-  "prompt": "业务域 ASR 域适应时，如何用双域门禁与通用数据回放避免灾难性遗忘？",
-  "quickAnswer": "业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
-  "code": "def accept_domain_adaptation(biz_cer_before, biz_cer_after,\n                             gen_cer_before, gen_cer_after):\n    \"\"\"只有业务域 CER 下降且通用域 CER 不退化才放行。\"\"\"\n    return biz_cer_after < biz_cer_before and gen_cer_after <= gen_cer_before",
-  "complexity": "时间 O(1)，空间 O(1)",
-  "beginnerSummary": "学新口音别把普通话忘光；每次上岗前考两门：新业务变好、老本事不退化才让上线。",
-  "derivation": [
-    "为什么需要：只在业务域数据上微调会让通用域 CER 反弹（灾难性遗忘），需约束双域同时达标。",
-    "怎么实现：双域门禁在业务域损失外回放约 10% 通用数据，并以“业务降且通用不退化”作为放行准则。",
-    "有什么代价：回放通用数据占用训练 batch，延缓业务域收敛；门禁需双域验证集，增加评估成本。",
-    "怎么评测：业务域 CER 19.27%→12.24%，通用域 9.31%→9.03%，双域均满足才合并权重。"
-  ],
-  "edgeCases": [
-    "业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。",
-    "通用数据回放比例调太高，业务域提升被稀释到不显著。",
-    "两域数据分布重叠时“不退化”约束形同虚设，需确认域边界。",
-    "门禁通过但线上分布漂移，需持续监控。"
-  ],
-  "pitfalls": [
-    "只盯业务域 CER 下降就上线，通用域已悄悄退化。",
-    "回放比例拍脑袋，未以双域折中做消融。"
-  ],
-  "prerequisites": [
-    "灾难性遗忘（catastrophic forgetting）",
-    "经验回放（replay）",
-    "CER 评测"
-  ],
-  "workedExample": [
-    "步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
-    "步骤2：每轮在业务/通用双验证集测 CER。",
-    "步骤3：业务 19.27%→12.24% 且通用 9.31%→9.03% 时 accept_domain_adaptation 返回 True，合并权重。"
-  ],
-  "lineByLine": [
-    "def accept_domain_adaptation(...) 输入双域前后 CER。",
-    "return biz_cer_after < biz_cer_before 业务域必须提升（CER 下降）。",
-    "and gen_cer_after <= gen_cer_before 且通用域不退化（允许持平）。",
-    "整体返回布尔，作为权重合并闸门。"
-  ],
-  "followUps": [
-    {
-      "question": "10% 回放比例怎么来的？",
-      "answer": "以双域 CER 折中做小范围消融（5%/10%/20%），选业务提升明显且通用不退化的最小比例，定在约 10%。"
-    },
-    {
-      "question": "除了回放还有哪些防遗忘手段？",
-      "answer": "可用 LoRA/adapter 只训新增参数、EWC 正则约束重要权重，或梯度手术隔离双域梯度，回放是最直接可控的。"
-    }
-  ],
-  "followUpAnswers": [
-    "以双域 CER 折中做小范围消融（5%/10%/20%），选业务提升明显且通用不退化的最小比例，定在约 10%。",
-    "可用 LoRA/adapter 只训新增参数、EWC 正则约束重要权重，或梯度手术隔离双域梯度，回放是最直接可控的。"
-  ],
-  "invariant": "当且仅当业务域 CER 严格下降且通用域 CER 不上升时，accept_domain_adaptation 返回 True。",
-  "walkthrough": "biz 19.27→12.24（降）、gen 9.31→9.03（降）→ 返回 True 放行；若 gen 9.31→9.50（升）→ 返回 False 拒收。",
-  "kind": "code"
+  id: 'asr-domain-adaptation', category: 'ASR 专项', difficulty: 'Medium', kind: 'code',
+  title: '域适应怎样提升新域又守住旧域',
+  prompt: '业务域微调时，怎样设计数据混合、回放和双域门禁，避免灾难性遗忘？',
+  quickAnswer: '先冻结业务域与通用域评测集，再通过 replay 比例、采样温度、冻结层和学习率做受控实验。发布门禁应要求业务域达到目标，同时通用域及关键切片不超过预设退化容忍度；这个容忍度要结合置信区间与业务风险，不能机械要求每次点估计都更低。',
+  beginnerSummary: '给模型补习医疗词汇，不能让它把日常中文忘掉。训练时要混入一部分旧题复习，考试时新旧两套卷子都要过线。',
+  explanationFocus: 'replay 比例不是固定经验常数，双域门禁也不是简单比较两个小数大小。',
+  approach: '扫描 replay 与冻结策略，保存各域逐句输出；用非劣门槛和关键切片上限选择 Pareto 方案。',
+  derivation: ['为什么需要：只在窄域数据上继续训练会让共享表示偏向新分布。', '怎么实现：混合新域与 replay 数据，配合小学习率、冻结或正则，并设置双域门禁。', '有什么代价：replay 太多稀释新域收益，太少又无法抑制遗忘。', '怎么评测：报告各域 CER/WER、插删替、关键切片和配对置信区间。'],
+  prerequisites: ['灾难性遗忘与经验回放', 'CER 与 WER 编辑距离'],
+  workedExample: ['示意：扫描 replay={少、中、多}，画新域与旧域错误率的 Pareto 曲线，而不是预先认定 10% 最好。', '旧域点估计轻微变差但置信区间落在容忍范围内，可标为非劣；关键人名切片超限仍不能发布。'],
+  code: "def pass_domain_gate(new_metric, old_delta_ci, target, tolerance):\n    new_domain_ok = new_metric <= target\n    old_domain_noninferior = old_delta_ci.upper <= tolerance\n    return new_domain_ok and old_domain_noninferior",
+  lineByLine: ['新域必须达到事先约定的目标。', '旧域用差值置信区间上界判断是否超过退化容忍度。', '真实门禁还应逐个检查关键切片。'],
+  complexity: '训练成本随 replay 比例和候选配置增加；评测应按 utterance 保存编辑距离，便于配对统计。',
+  diagram: '新域数据 + 通用 replay ─▶ 微调候选 ─▶ 新域目标门禁\n                                      └▶ 旧域非劣门禁 + 关键切片门禁',
+  edgeCases: ['通用集与新域数据重复会虚高双域结果。', '平均值通过但关键人名/数字切片退化。', '小测试集的轻微变化可能只是抽样波动。'],
+  pitfalls: ['把某次实验的 10% replay 写成通用最优比例。', '要求旧域点估计必须下降，忽略测量噪声和预设非劣界。'],
+  followUps: [{ question: '冻结层和 replay 怎么选？', answer: '把它们作为两个独立因素扫描：冻结多通常更稳但新域适应受限；replay 控制旧分布覆盖，二者需要联合看 Pareto。' }, { question: '能否只看平均 CER？', answer: '不能。至少分域、说话人、噪声、数字与关键词切片，并检查插入/删除/替换构成。' }],
 };

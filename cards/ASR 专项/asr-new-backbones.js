@@ -1,60 +1,20 @@
 export default {
-  "id": "asr-new-backbones",
-  "category": "ASR 专项",
-  "difficulty": "Medium",
-  "title": "大模型化语音基座趋势与取舍",
-  "prompt": "FireRedASR2 与 Qwen3-ASR 代表的大模型化 ASR 相比经典 Transducer，在准确率与延迟上如何取舍？",
-  "quickAnswer": "低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
-  "code": "def choose_backbone(scenario: str, latency_sla_ms: float) -> str:\n    \"\"\"大模型化 ASR 与经典 Transducer 的取舍：低延迟用 Transducer，高准确用大模型。\"\"\"\n    if latency_sla_ms < 300:\n        return \"zipformer-transducer\"\n    return \"qwen3-asr\" if scenario == \"hard-accent\" else \"fireredasr2\"",
-  "complexity": "时间 O(1)，空间 O(1)",
-  "beginnerSummary": "大模型像请专家审卷更准但慢，Transducer 像流水线工人快但偶尔错；急用选快的，难活选准的。",
-  "derivation": [
-    "为什么需要：大模型化 ASR（FireRedASR2、Qwen3-ASR）靠海量数据与参数提升准确率，但推理成本高，需与经典 Transducer 按延迟/准确率取舍。",
-    "怎么实现：以端侧延迟 SLA 与场景难度分流：低延迟走 Zipformer-Transducer，难口音/低资源走高准确大模型。",
-    "有什么代价：大模型显存与首字延迟高，需量化/蒸馏才能端侧落地；Transducer 在极难口音上准确率上限低于大模型。",
-    "怎么评测：在 11 语种盲测对比 CER 与首字延迟，大模型在难样本显著更优，Transducer 在延迟敏感场景胜出。"
-  ],
-  "edgeCases": [
-    "大模型量化过度导致难口音准确率回落，需选合适位宽。",
-    "延迟 SLA 卡在 300ms 边界，需实测而非拍阈值。",
-    "端侧无 NPU 时大模型即使量化也跑不动，必须 Transducer。",
-    "低资源语种大模型优势被数据量限制，差距缩小。"
-  ],
-  "pitfalls": [
-    "盲目上大模型忽视端侧延迟，线上超时。",
-    "用 Transducer 硬刚难口音，准确率达不到业务要求。"
-  ],
-  "prerequisites": [
-    "Transducer 与流式对齐",
-    "大模型化 ASR（LLM-based）",
-    "量化与蒸馏"
-  ],
-  "workedExample": [
-    "步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
-    "步骤2：SLA 宽松且场景为 hard-accent，选 Qwen3-ASR。",
-    "步骤3：通用高准确场景选 FireRedASR2，并在盲测验证 CER 优势。"
-  ],
-  "lineByLine": [
-    "def choose_backbone(scenario, latency_sla_ms): 输入场景与延迟上限。",
-    "if latency_sla_ms < 300: return 'zipformer-transducer' 延迟敏感走经典 Transducer。",
-    "return 'qwen3-asr' if scenario == 'hard-accent' else 'fireredasr2' 宽松场景下难口音用 Qwen3，否则 FireRedASR2。",
-    "函数即准确率/延迟取舍的路由。"
-  ],
-  "followUps": [
-    {
-      "question": "大模型化 ASR 为何更准？",
-      "answer": "借助 LLM 的强语言模型与海量多语种数据，对同音字、上下文和难口音的语言学约束更强，CER 在难样本显著低于 Transducer。"
-    },
-    {
-      "question": "Transducer 还有存在价值吗？",
-      "answer": "有；在端侧低延迟、流式硬实时场景，Zipformer-Transducer 的单元级对齐与低首字延迟仍是大模型难以替代的，尤其资源受限设备。"
-    }
-  ],
-  "followUpAnswers": [
-    "借助 LLM 的强语言模型与海量多语种数据，对同音字、上下文和难口音的语言学约束更强，CER 在难样本显著低于 Transducer。",
-    "有；在端侧低延迟、流式硬实时场景，Zipformer-Transducer 的单元级对齐与低首字延迟仍是大模型难以替代的，尤其资源受限设备。"
-  ],
-  "invariant": "choose_backbone 对任意合法输入必从 {'zipformer-transducer','qwen3-asr','fireredasr2'} 中返回一个，且延迟<300ms 时必为 zipformer-transducer。",
-  "walkthrough": "scenario='hard-accent', sla=500 → 不进低延迟分支，scenario 命中返回 'qwen3-asr'；sla=200 → 返回 'zipformer-transducer' 不论场景。",
-  "kind": "code"
+  id: 'asr-new-backbones', category: 'ASR 专项', difficulty: 'Medium', kind: 'code',
+  title: '经典 Transducer 与大型 ASR 基座怎样横评',
+  prompt: '面对较新的大规模多语种 ASR 与经典 CTC/RNN-T 系统，怎样判断是否值得迁移？',
+  quickAnswer: '不要把选择简化成“大模型更准、Transducer 更快”。先确认候选的流式定义、语言覆盖、时间戳/热词/微调能力和许可证，再在目标数据、硬件与并发下比较质量切片、首包与完成延迟、吞吐、内存、功耗和运维复杂度。新的统一模型可能减少多模型维护，但也可能带来算子、量化和服务依赖。',
+  beginnerSummary: '新模型像功能很多的新机器，旧 Transducer 像已经调熟的生产线。不能只看宣传成绩；要把自己的音频、设备、并发和热词需求放进去跑。',
+  explanationFocus: '“基座趋势”是候选集合变化，不是架构优劣定律。',
+  approach: '用 shadow evaluation 保留旧系统为基线；逐项验证离线、流式、长音频、热词、时间戳、领域微调和部署能力。',
+  derivation: ['为什么需要：新模型可能扩大多语种和复杂声学覆盖，但迁移会改变整条服务链。', '怎么实现：先能力准入，再资源压测，最后做真实流量 shadow 与回退演练。', '有什么代价：新模型可能要求新 runtime、GPU 或较大缓存，迁移与监控成本不可忽略。', '怎么评测：质量—延迟—成本 Pareto，加上稳定性、功能覆盖和回退时间。'],
+  prerequisites: ['RNN-T 与 Transducer', '大模型与 token 序列', '服务性能评测与延迟分位数'],
+  workedExample: ['示意：新模型离线 CER 更低，但并发后 p99 首包超预算；应保留旧流式系统或改变部署，而非只看平均质量。', '新模型支持更多语言却缺少现有热词接口，迁移计划必须把该功能缺口计入。'],
+  code: "def migration_gate(candidate, baseline, requirements):\n    capability_ok = check_required_features(candidate, requirements)\n    quality_ok = compare_slices(candidate, baseline, requirements.quality_gates)\n    serving_ok = stress_test(candidate, requirements.hardware, requirements.slo)\n    return capability_ok and quality_ok and serving_ok",
+  lineByLine: ['先检查热词、流式、时间戳等硬功能。', '再用逐切片质量门禁比较基线。', '最后在目标硬件和并发下压测，而不是引用发布方吞吐。'],
+  complexity: '迁移成本包括评测、适配、量化/部署、shadow 流量与回退机制；往往高于一次离线 benchmark。',
+  diagram: '候选模型 ─▶ 功能准入 ─▶ 冻结集质量 ─▶ 目标硬件压测 ─▶ shadow ─▶ 发布 / 回退\n旧系统 ──────────────────────────────── 作为持续基线',
+  references: [{ title: 'Qwen3-ASR Technical Report', url: 'https://arxiv.org/abs/2601.21337' }, { title: 'RNN-T original paper', url: 'https://arxiv.org/abs/1211.3711' }],
+  edgeCases: ['官方“streaming”可能是滑窗服务，不等于严格因果 encoder。', '吞吐结果依赖 batch、并发、精度和硬件，不能跨环境照搬。', '量化能运行不代表关键口音和数字切片不掉点。'],
+  pitfalls: ['说“端侧没 NPU 就必须 Transducer”——实现、尺寸和硬件生态比架构名更关键。', '只验证一段 demo，不检查长音频、并发和失败回退。'],
+  followUps: [{ question: '什么时候统一大模型更有价值？', answer: '当多语言、长音频或复杂声学覆盖能显著减少模型拼接，且服务成本与功能门槛可接受时。' }, { question: '为什么保留 shadow 基线？', answer: '它能在同一真实流量上发现离线集未覆盖的退化，并为发布失败提供快速回退。' }],
 };

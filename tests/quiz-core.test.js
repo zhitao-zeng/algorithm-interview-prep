@@ -202,6 +202,21 @@ test('58 道语音主航道通用题升级为教学卡 V2，并诚实标注代�
   assert.match(questions.find((q) => q.id === 'thinker-talker').quickAnswer, /Qwen2\.5-Omni/);
   assert.match(questions.find((q) => q.id === 'full-duplex').quickAnswer, /支持打断不一定等于全双工/);
   assert.equal(detailSections(questions.find((q) => q.id === 'thinker-talker'), 'deep').some((section) => section.key === 'references'), true);
+
+  const asrKnowledgeCards = speechCards.filter((card) => card.category === 'ASR 专项' && !card.resumeCard);
+  assert.equal(asrKnowledgeCards.length, 22);
+  assert.deepEqual(
+    asrKnowledgeCards.filter((card) => card.codeMode === 'executable').map((card) => card.id).sort(),
+    ['ctc-greedy', 'ctc-prefix-beam', 'rnnt', 'rnnt-greedy', 'streaming-cache'],
+    '只有经过行为测试的 ASR 核心实现可标为可运行代码',
+  );
+  const asrCoreText = asrKnowledgeCards.flatMap((card) => auditedFields.flatMap((field) => Array.isArray(card[field]) ? card[field] : [card[field]])).join('\n');
+  assert.doesNotMatch(asrCoreText, /28\.66%|20\.32%|13\.423%|67\.57%|9\.15%|30\.77%|19\.27%|12\.24%|9\.31%|9\.03%|8\.2%/);
+  assert.doesNotMatch(questions.find((q) => q.id === 'asr-pseudo-label').prompt, /10k|8\.2%/);
+  assert.match(questions.find((q) => q.id === 'as-rnnt-pruning').quickAnswer, /并没有省掉这次词表投影/);
+  assert.match(questions.find((q) => q.id === 'asr-eval-metrics').workedExample[0], /CER=1\/6/);
+  assert.doesNotMatch(questions.find((q) => q.id === 'asr-architecture-compare').quickAnswer, /端侧选|高准确选|流式选/);
+  assert.ok(asrKnowledgeCards.flatMap((card) => card.references || []).every((reference) => reference.title && reference.url));
 });
 
 test('站点定位为个人长期面试系统并保留旧进度迁移', () => {

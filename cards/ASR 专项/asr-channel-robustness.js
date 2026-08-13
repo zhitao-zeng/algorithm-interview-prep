@@ -1,61 +1,19 @@
 export default {
-  "id": "asr-channel-robustness",
-  "category": "ASR 专项",
-  "difficulty": "Hard",
-  "title": "真实信道鲁棒性失真模拟与训练",
-  "prompt": "如何用播放链路建模（RIR、频响、AGC、Codec、Clipping）提升真实信道鲁棒性，并避免只拟合模拟失真？",
-  "quickAnswer": "按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
-  "code": "import numpy as np\n\ndef apply_rir_fft(speech: np.ndarray, rir: np.ndarray) -> np.ndarray:\n    \"\"\"用 FFT 卷积把房间脉冲响应施加到语音，比时域卷积快约 30x。\"\"\"\n    n = len(speech) + len(rir) - 1\n    nfft = 1 << (n - 1).bit_length()\n    S = np.fft.rfft(speech, nfft)\n    R = np.fft.rfft(rir, nfft)\n    return np.fft.irfft(S * R)[:n]",
-  "complexity": "时间 O(N log N)（FFT 卷积）/ 时域 O(N·M)，空间 O(N)",
-  "beginnerSummary": "就像在浴室和旷野录音声音不同，我们用数学先“装修”出各种房间和设备的声音，再让模型在“坏声音”里也听得清。",
-  "derivation": [
-    "为什么需要：真实播放链路（扬声器→房间→麦克风→Codec）引入混响、频响凹陷、增益与削波，训练集若只有 clean 语音会在真实信道上 WER 飙升。",
-    "怎么实现：按链路分阶段建模 RIR 卷积、频响曲线、AGC、Codec 量化与 Clipping，离线批量增强音频，并保留 clean/in-domain 原始数据混合训练。",
-    "有什么代价：过度增强会让模型只拟合模拟失真的“指纹”而对真实退化泛化差；RIR 时域卷积在大语音上慢，需要 FFT 加速。",
-    "怎么评测：用独立信道退化集（构造失真）与独立业务集（真实采集）双轨验证，退化集 28.66%→20.32%，业务集进一步降到 3.62%。"
-  ],
-  "edgeCases": [
-    "RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。",
-    "真实 Codec（如 Opus）引入非线性量化，线性模拟无法完全还原，需真实 Codec 重编码。",
-    "过度增强使训练分布远离真实，业务集反而退化（过拟合模拟失真）。",
-    "Clipping 阈值设错导致削波过重产生谐波，引入新伪影。"
-  ],
-  "pitfalls": [
-    "只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。",
-    "把业务集 3.62% 当成上限而忽略退化集，掩盖了增强未覆盖的信道。"
-  ],
-  "prerequisites": [
-    "卷积与 FFT",
-    "房间脉冲响应（RIR）与混响",
-    "音频 Codec 与增益控制基础"
-  ],
-  "workedExample": [
-    "步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
-    "步骤2：混合 60% clean、30% augmented、10% in-domain 真实退化数据训练。",
-    "步骤3：在独立业务集上测到 WER 3.62%，验证未过拟合模拟失真。"
-  ],
-  "lineByLine": [
-    "import numpy as np 引入数值库用于 FFT 运算。",
-    "n = len(speech) + len(rir) - 1 计算线性卷积所需输出长度。",
-    "nfft = 1 << (n - 1).bit_length() 取不小于 n 的最小 2 的幂，满足 FFT 效率。",
-    "S = np.fft.rfft(speech, nfft); R = np.fft.rfft(rir, nfft) 频域变换后逐点相乘等价于时域卷积。",
-    "return np.fft.irfft(S * R)[:n] 逆变换取完整线性卷积长度 [:n]（含混响尾），与时域卷积完全等价；如需与输入等长再裁到 [:len(speech)]。"
-  ],
-  "followUps": [
-    {
-      "question": "FFT 卷积相比时域快多少？",
-      "answer": "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。"
-    },
-    {
-      "question": "如何防止只拟合模拟失真？",
-      "answer": "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
-    }
-  ],
-  "followUpAnswers": [
-    "时域为 O(N·M)，FFT 为 O(N log N)；在数秒语音上约 30 倍加速，且语音越长优势越明显。",
-    "保持 clean 与真实 in-domain 数据占比，并把独立业务集作为早停与放行依据，增强集仅用于提升退化集而非业务集。"
-  ],
-  "invariant": "对于任意 speech 与 rir，因 nfft≥L+M−1，FFT 卷积在完整线性卷积长度 [:n] 上与时域卷积数值完全一致、无循环混叠；输出含长度 M−1 的混响尾，若需与输入等长可再裁到 [:len(speech)]。",
-  "walkthrough": "speech 长 16000、rir 长 4000 → n=20000，nfft=32768；rfft 后 S·R 逆变换取前 n=20000 点，即得与时域卷积完全等价的混响语音（含 4000 点混响尾）；如需与输入等长再裁到前 16000 点。",
-  "kind": "code"
+  id: 'asr-channel-robustness', category: 'ASR 专项', difficulty: 'Hard', kind: 'code',
+  title: '真实信道增强：先还原链路，再验证迁移',
+  prompt: '怎样组合 RIR、频响、增益控制、codec 和 clipping，提升远场/播放链路鲁棒性又避免只拟合合成失真？',
+  quickAnswer: '先根据真实采集链路确定退化类型和大致顺序，再从实测设备估计参数分布，生成可追踪的增强样本。训练时混合 clean、synthetic 和少量真实域数据；放行必须同时看独立真实集、合成切片和 clean 回归。增强集提升只能证明模型适应了模拟器，不能代替真实链路验证。',
+  beginnerSummary: '把干净录音变成“像车机里录到的声音”，不能随便叠几个滤镜。房间混响、扬声器频响、自动增益、压缩和削顶有先后关系；最后还必须拿真实设备录音考试。',
+  explanationFocus: '信道增强是一个带参数分布的因果链路模型，不是独立随机效果的无序拼盘。',
+  approach: '收集真实设备统计与失败样本，拟合增强参数范围；每条样本保存增强 manifest，并通过单因素和组合消融定位有效环节。',
+  derivation: ['为什么需要：训练语音和真实麦克风/播放链路之间存在混响、频响和非线性失真差异。', '怎么实现：RIR 卷积、频响滤波、增益/AGC、codec、clipping 按真实链路采样组合。', '有什么代价：模拟器不完整会制造捷径，过强增强还会伤害 clean 能力。', '怎么评测：报告真实域、合成退化、clean 与关键设备切片，并给每个增强因素的消融。'],
+  prerequisites: ['RIR 与音频预处理', 'CER 与 WER 评测'],
+  workedExample: ['示意：先让干净语音与测得的房间 RIR 卷积，再经过设备频响和 codec；manifest 保存每个参数。', '若合成远场集提升而真实车机集不变，结论应是“模拟器没有覆盖真实瓶颈”，而不是继续加大增强比例。'],
+  code: "def simulate_channel(clean, params):\n    audio = fft_convolve(clean, params.rir)\n    audio = equalize(audio, params.frequency_response)\n    audio = apply_gain_or_agc(audio, params.gain_curve)\n    audio = codec_roundtrip(audio, params.codec)\n    return clip(audio, params.clip_level)",
+  lineByLine: ['RIR 卷积模拟声源到麦克风的线性传播。', '频响与增益模拟设备链路。', 'codec 和 clipping 放在相应阶段，顺序必须由真实系统决定。'],
+  complexity: '直接时域卷积随音频和 RIR 长度相乘；FFT 卷积通常更适合长 RIR。训练成本还取决于在线增强比例与 codec 编解码开销。',
+  diagram: 'clean ─▶ room / RIR ─▶ speaker & mic response ─▶ AGC ─▶ codec ─▶ clipping ─▶ ASR\n          参数来自真实统计；每一步写入 manifest',
+  edgeCases: ['RIR 卷积尾部被截断会丢失混响能量。', '先 clipping 再降增益与先增益再 clipping 不是同一种失真。', '真实链路可能有降噪/回声消除等动态模块，静态滤波无法覆盖。'],
+  pitfalls: ['把真实业务集上的数字写成所有模型都能复现的通用收益。', '只用 augmented 数据训练或只在 synthetic test 上早停。'],
+  followUps: [{ question: '怎样判断增强强度过头？', answer: '观察 clean 回归、真实域错误类型和增强参数分桶；若极端模拟样本占主导但真实分布很少出现，就应收窄参数或降低采样率。' }, { question: '为什么要保存 manifest？', answer: '它让每个失败样本可复现，也能按 RIR、codec、削顶比例等因素做切片和消融。' }],
 };

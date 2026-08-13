@@ -1,60 +1,19 @@
 export default {
-  "id": "asr-chinavoices",
-  "category": "ASR 专项",
-  "difficulty": "Hard",
-  "title": "ChinaVoices 竞赛消融与负收益定位",
-  "prompt": "在 ChinaVoices 竞赛中，如何通过全参 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习的消融，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰等负收益来源并拿到 CER 13.423%？",
-  "quickAnswer": "逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
-  "code": "def ablation_log(name: str, cer: float, baseline_cer: float) -> dict:\n    \"\"\"记录消融实验：对比全参/decoder-only、外部数据/RefSet、Hard Focus、多任务。\"\"\"\n    return {\"ablation\": name, \"cer\": cer,\n            \"delta\": round(cer - baseline_cer, 3),\n            \"positive\": cer < baseline_cer}",
-  "complexity": "时间 O(1)，空间 O(1)",
-  "beginnerSummary": "像做对照实验：每次只换一个配方，看哪味“药材”让成绩变好或变差，最后挑出拖后腿的并拿到第二。",
-  "derivation": [
-    "为什么需要：竞赛多策略叠加易互相吞噬收益，必须逐因素消融才能定位负收益来源。",
-    "怎么实现：系统消融全参微调 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习；用 ablation_log 记录每项 delta 与正负。",
-    "有什么代价：消融需多组训练，算力开销大；外部语料需先做正字法对齐，否则引入噪声。",
-    "怎么评测：定位外部语料正字法不一致、过采样导致遗忘、LID 梯度干扰为负收益后修正，最终 ASR CER 13.423%（第 2 名）。"
-  ],
-  "edgeCases": [
-    "外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。",
-    "过采样某域导致其他域遗忘，CER 反弹。",
-    "多任务中 LID 弱监督（67.57%）梯度干扰拉低 ASR。",
-    "decoder-only 在全参下过拟合小 RefSet。"
-  ],
-  "pitfalls": [
-    "多策略一把梭不消融，负收益被正收益掩盖。",
-    "把 Reference Set 与外部数据混用未控制变量，结论不可信。"
-  ],
-  "prerequisites": [
-    "消融实验设计",
-    "正字法归一化",
-    "多任务梯度干扰（见 asr-lid）"
-  ],
-  "workedExample": [
-    "步骤1：baseline 全参微调得 CER 基准。",
-    "步骤2：逐项加 decoder-only、外部数据、Hard Focus、多任务，ablation_log 记录 delta。",
-    "步骤3：发现外部数据负收益（正字法不一致）与多任务负收益（LID 干扰），修正后 CER 13.423% 第 2。"
-  ],
-  "lineByLine": [
-    "def ablation_log(name, cer, baseline_cer): 定义消融记录，输入实验名与本次 CER。",
-    "delta = round(cer - baseline_cer, 3) 计算相对基准的变化。",
-    "positive = cer < baseline_cer 判断该项是否正向。",
-    "返回结构化记录便于横向比较各消融。"
-  ],
-  "followUps": [
-    {
-      "question": "Hard Focus 是什么？",
-      "answer": "Hard Focus 是对难例（高错词/易混音）做聚焦采样或加权训练，提升难样本召回；但若与过采样叠加会触发遗忘需平衡。"
-    },
-    {
-      "question": "外部数据负收益怎么修？",
-      "answer": "先对外部语料做与比赛集一致的正字法归一（数字、标点、繁简），再做去重与比例控制，负收益转正向。"
-    }
-  ],
-  "followUpAnswers": [
-    "Hard Focus 是对难例（高错词/易混音）做聚焦采样或加权训练，提升难样本召回；但若与过采样叠加会触发遗忘需平衡。",
-    "先对外部语料做与比赛集一致的正字法归一（数字、标点、繁简），再做去重与比例控制，负收益转正向。"
-  ],
-  "invariant": "ablation_log 输出的 delta 恒等于 round(cer - baseline_cer, 3)，positive 为真当且仅当 cer < baseline_cer，自洽无矛盾。",
-  "walkthrough": "name='external_data', cer=14.0, baseline=13.5 → delta=0.5, positive=False 记为负收益；修正后 cer=13.2 → delta=-0.3, positive=True。",
-  "kind": "code"
+  id: 'asr-chinavoices', category: 'ASR 专项', difficulty: 'Hard', kind: 'code',
+  title: '多策略 ASR 实验怎样定位负收益',
+  prompt: '外部数据、难例采样、部分冻结和多任务一起使用时，怎样判断究竟是哪一项造成提升或退化？',
+  quickAnswer: '先固定 Reference Set、评分脚本和基线，再为每次 run 保存数据版本、采样器、可训练参数、loss 权重与解码配置。先做单因素消融，再验证关键交互项；对退化样本按正字法、语种、时长和错误类型归因。外部数据不一致、难例过采样导致遗忘、辅助任务梯度冲突都只是待验证假设，不能看到掉点就直接下结论。',
+  beginnerSummary: '同时换数据、训练方法和任务头，成绩变差时谁也说不清原因。正确做法像查电路：先锁住测试卷，每次只动一个开关，再检查两个开关是否会互相影响。',
+  explanationFocus: '消融不是列一张结果表，而是用可复现 run 和逐样本差异把“相关”推进到可验证的原因。',
+  approach: '建立 run manifest 与 frozen reference；依次比较参数冻结、数据源、采样策略、辅助任务，再对最有可能的交互做小型析因实验。',
+  derivation: ['为什么需要：多项策略同时叠加会让正负收益互相抵消。', '怎么实现：固定随机种子和预算，保存逐句输出，用单变量与少量交互实验定位变化。', '有什么代价：实验数量增加，且训练随机性可能要求多 seed 或显著性分析。', '怎么评测：报告整体 CER/WER、关键切片、逐句 win/loss 和不确定性，而不是只报最终名次。'],
+  prerequisites: ['消融实验与评测指标', '正字法归一化', '多任务与梯度冲突'],
+  workedExample: ['示意：外部数据加入后分数变差；先用同一 normalizer 重算，若差异消失，问题在口径而非模型。', '难例过采样后难例集提升、普通集退化；再加 replay 对照，验证是否确有遗忘。'],
+  code: "def run_manifest(config, data_version, scorer_version):\n    return {\n        'config': hash_config(config),\n        'data': data_version,\n        'scorer': scorer_version,\n        'seed': config.seed,\n    }",
+  lineByLine: ['配置、数据和评分器都要有不可变版本。', '随机种子是复现条件，但单一 seed 不代表稳定。', '逐样本输出应单独保存，方便错误归因。'],
+  complexity: '完整析因设计会指数增长；实际通常先单因素筛选，再只验证少数高风险交互，并对候选方案跑多 seed。',
+  diagram: '固定基线 ─▶ 单因素：数据 / 冻结 / 采样 / 辅助任务\n                         └▶ 逐句 diff ─▶ 形成原因假设 ─▶ 针对性交互实验',
+  edgeCases: ['评分 normalizer 改动会伪装成模型收益。', 'Reference Set 被反复调参会逐渐变成训练集。', '多个 run 复用同一输出文件会破坏证据链。'],
+  pitfalls: ['把竞赛分数和名次放进通用知识卡，却没有对应公开记录或简历证据。', '观察到 LID 与 ASR 同时变差，就直接断言梯度冲突。'],
+  followUps: [{ question: 'Hard Focus 应怎样定义？', answer: '先用冻结基线和明确规则选难例，再把它作为诊断/采样集合；不能在测试结果上反复挑题后仍称为独立评测。' }, { question: '怎样验证梯度冲突？', answer: '记录共享层上任务梯度的余弦和范数，并用 stop-gradient、调权或分头训练做对照。' }],
 };
