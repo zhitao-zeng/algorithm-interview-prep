@@ -4,6 +4,7 @@ import test from 'node:test';
 import { questions } from '../questions.js';
 import { detailSections, validateQuestionCard } from '../quiz-core.js';
 import { categoryThread, domains } from '../knowledge-map.js';
+import { tutorials, tutorialById } from '../tutorials.js';
 import { resumeGlossarySize } from '../cards/_resume-glossary.js';
 import { resumeGroundingCounts } from '../cards/_resume-grounding.js';
 import { speechPrerequisiteExplanation, speechTeachingCategoryCount } from '../cards/_speech-teaching.js';
@@ -93,6 +94,29 @@ test('直播变现与增长模块覆盖两份 JD 的业务、算法与工程闭�
   assert.match(questions.find((q) => q.id === 'live-jd-map').quickAnswer, /岗位 A.*数据挖掘与策略工程/);
   assert.match(questions.find((q) => q.id === 'live-causal-experiment').quickAnswer, /本来就会付费/);
   assert.match(questions.find((q) => q.id === 'live-generative-personalization').quickAnswer, /超时降级到模板/);
+});
+
+test('项目答辩与 Tech Lead 教程形成连续章节并关联全部真实项目卡', () => {
+  const tutorial = tutorialById('project-defense-tech-lead');
+  assert.equal(tutorials.length, 1);
+  assert.equal(tutorial.chapters.length, 8);
+  assert.equal(new Set(tutorial.chapters.map((chapter) => chapter.id)).size, 8);
+  assert.deepEqual(tutorial.chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5, 6, 7, 8]);
+  for (const chapter of tutorial.chapters) {
+    assert.ok(chapter.goal.length >= 20, chapter.id);
+    assert.ok(chapter.bridge.length >= 20, chapter.id);
+    assert.ok(chapter.sections.length >= 3, chapter.id);
+    assert.ok(chapter.exercise.checks.length >= 3, chapter.id);
+    assert.ok(chapter.questionIds.length >= 3, chapter.id);
+    assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), chapter.id);
+  }
+  const relatedIds = new Set(tutorial.chapters.flatMap((chapter) => chapter.questionIds));
+  const directProjectIds = questions.filter((question) => question.resumeCard && question.experienceLevel === 'direct').map((question) => question.id);
+  assert.equal(directProjectIds.length, 21);
+  assert.ok(directProjectIds.every((id) => relatedIds.has(id)), '教程应把 21 张真实项目卡全部编入相关章节');
+  assert.match(tutorial.chapters[0].goal, /可信边界/);
+  assert.match(tutorial.chapters[6].sections.map((section) => JSON.stringify(section)).join('\n'), /不能说|不能编/);
+  assert.equal(tutorial.capstone.checklist.length, 6);
 });
 
 test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', () => {
@@ -263,6 +287,9 @@ test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
   assert.match(appSource, /zeng-interview-mastered-ids/);
   assert.match(appSource, /byte-interview-mastered-ids/);
   assert.match(appSource, /◎ 简历项目/);
+  assert.match(appSource, /教程 · 项目答辩/);
+  assert.match(appSource, /zeng-interview-tutorial-progress/);
+  assert.match(appSource, /完成本章，进入下一章/);
   assert.doesNotMatch(mapSource, /岗位特性|【岗重】/);
 });
 

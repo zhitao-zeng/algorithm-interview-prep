@@ -1,10 +1,12 @@
 import { categories, questions } from './questions.js?v=fbb723c9';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
+import { tutorials, tutorialById } from './tutorials.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
 
 const storageKey = 'zeng-interview-mastered-ids';
 const legacyStorageKey = 'byte-interview-mastered-ids';
+const tutorialProgressKey = 'zeng-interview-tutorial-progress';
 const el = (id) => document.getElementById(id);
 const categoryLabels = new Map([
   ['语音合成', 'TTS 语音合成'],
@@ -51,7 +53,8 @@ const personalTracks = [
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
-  remaining: 2700, timerId: null,
+  tutorialId: tutorials[0].id, tutorialChapter: loadTutorialProgress().currentChapter || 0,
+  completedTutorialChapters: new Set(loadTutorialProgress().completed || []), remaining: 2700, timerId: null,
 };
 
 function loadMastered() {
@@ -63,6 +66,17 @@ function loadMastered() {
   } catch { return new Set(); }
 }
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
+function loadTutorialProgress() {
+  try { return JSON.parse(localStorage.getItem(tutorialProgressKey) || '{}'); } catch { return {}; }
+}
+function saveTutorialProgress() {
+  try {
+    localStorage.setItem(tutorialProgressKey, JSON.stringify({
+      currentChapter: state.tutorialChapter,
+      completed: [...state.completedTutorialChapters],
+    }));
+  } catch {}
+}
 function activeQuestions() {
   if (state.mode === 'mock') return state.mockQuestions;
   const source = state.view === 'resume'
@@ -94,6 +108,7 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
+  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course', () => openTutorial(), 'nav-lead nav-course'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -435,8 +450,9 @@ function renderDetailLevelSwitch() {
 function renderDetail() {
   const pane = el('question-detail');
   document.body.classList.remove('diagram-open');
-  if (state.view === 'map') {
+  if (state.view === 'map' || state.view === 'course') {
     pane.replaceChildren();
+    if (state.view === 'course') return;
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
     const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
     const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
@@ -485,7 +501,7 @@ function renderQuestionPane() {
   const searchLabel = document.querySelector('.search-label');
   const searchInput = el('search-input');
   const kindList = el('kind-list');
-  if (state.view === 'map') {
+  if (state.view === 'map' || state.view === 'course') {
     heading.hidden = true;
     mockNote.hidden = true;
     list.hidden = true;
@@ -496,11 +512,16 @@ function renderQuestionPane() {
     const existing = el('category-thread'); if (existing) existing.remove();
     let mapView = el('map-view');
     if (!mapView) { mapView = document.createElement('div'); mapView.id = 'map-view'; mapView.className = 'map-view'; pane.append(mapView); }
-    mapView.hidden = false;
-    renderMap(mapView);
+    mapView.hidden = state.view !== 'map';
+    let courseView = el('course-view');
+    if (!courseView) { courseView = document.createElement('div'); courseView.id = 'course-view'; courseView.className = 'course-view'; pane.append(courseView); }
+    courseView.hidden = state.view !== 'course';
+    if (state.view === 'map') renderMap(mapView);
+    else renderTutorialCourse(courseView);
     return;
   }
   const mapView = el('map-view'); if (mapView) mapView.hidden = true;
+  const courseView = el('course-view'); if (courseView) courseView.hidden = true;
   heading.hidden = false;
   list.hidden = false;
   if (searchLabel) searchLabel.hidden = false;
@@ -585,6 +606,128 @@ function openCollection(view, category = '全部') {
   selectQuestion(activeQuestions()[0]?.id); render();
 }
 
+function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
+
+function openTutorial(chapterIndex = state.tutorialChapter) {
+  const tutorial = tutorialById(state.tutorialId) || tutorials[0];
+  state.mode = 'review'; state.view = 'course';
+  state.tutorialChapter = Math.max(0, Math.min(chapterIndex, tutorial.chapters.length - 1));
+  saveTutorialProgress(); render();
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openTutorialQuestion(questionId) {
+  const question = questions.find((item) => item.id === questionId);
+  if (!question) return;
+  state.mode = 'review'; state.query = ''; state.kind = '全部'; state.selectedId = question.id; state.detailLevel = 'deep';
+  if (question.resumeCard) {
+    state.view = 'resume'; state.category = '全部'; state.resumeLevel = question.experienceLevel;
+  } else {
+    state.view = 'list'; state.category = question.category;
+  }
+  const searchInput = el('search-input'); if (searchInput) searchInput.value = '';
+  render(); scrollToMobileDetail();
+}
+
+function tutorialSection(section) {
+  const wrap = document.createElement('section'); wrap.className = 'course-section';
+  const heading = document.createElement('h3'); heading.textContent = section.title; wrap.append(heading);
+  if (section.paragraphs) section.paragraphs.forEach((value) => { const p = document.createElement('p'); p.textContent = value; wrap.append(p); });
+  if (section.steps) {
+    const ol = document.createElement('ol'); ol.className = 'course-steps';
+    section.steps.forEach((value) => { const li = document.createElement('li'); li.textContent = value; ol.append(li); });
+    wrap.append(ol);
+  }
+  if (section.callout) { const callout = document.createElement('div'); callout.className = 'course-callout'; callout.textContent = section.callout; wrap.append(callout); }
+  return wrap;
+}
+
+function renderTutorialCourse(container) {
+  const tutorial = tutorialById(state.tutorialId) || tutorials[0];
+  const chapter = tutorial.chapters[state.tutorialChapter] || tutorial.chapters[0];
+  const completedCount = tutorial.chapters.filter((item) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, item))).length;
+  container.replaceChildren();
+
+  const top = document.createElement('div'); top.className = 'course-topbar';
+  const back = document.createElement('button'); back.className = 'course-back'; back.textContent = '← 返回个人首页';
+  back.addEventListener('click', () => { state.view = 'map'; state.mapTab = 'personal'; render(); });
+  const progressCopy = document.createElement('span'); progressCopy.textContent = `已完成 ${completedCount} / ${tutorial.chapters.length} 章`;
+  top.append(back, progressCopy); container.append(top);
+
+  const hero = document.createElement('header'); hero.className = 'course-hero';
+  const heroCopy = document.createElement('div');
+  const eyebrow = document.createElement('p'); eyebrow.className = 'course-eyebrow'; eyebrow.textContent = tutorial.eyebrow;
+  const title = document.createElement('h2'); title.textContent = tutorial.title;
+  const summary = document.createElement('p'); summary.textContent = tutorial.summary;
+  heroCopy.append(eyebrow, title, summary);
+  const courseMeta = document.createElement('div'); courseMeta.className = 'course-meta';
+  const outcome = document.createElement('p'); outcome.innerHTML = `<strong>结课能力</strong>${tutorial.outcome}`;
+  const audience = document.createElement('p'); audience.innerHTML = `<strong>适用场景</strong>${tutorial.audience}`;
+  courseMeta.append(outcome, audience); hero.append(heroCopy, courseMeta); container.append(hero);
+
+  const progress = document.createElement('div'); progress.className = 'course-progress'; progress.setAttribute('aria-label', '课程完成进度');
+  const bar = document.createElement('i'); bar.style.width = `${completedCount / tutorial.chapters.length * 100}%`; progress.append(bar); container.append(progress);
+
+  const shell = document.createElement('div'); shell.className = 'course-shell';
+  const rail = document.createElement('nav'); rail.className = 'course-rail'; rail.setAttribute('aria-label', '课程章节');
+  const railTitle = document.createElement('strong'); railTitle.textContent = '课程目录'; rail.append(railTitle);
+  tutorial.chapters.forEach((item, index) => {
+    const button = document.createElement('button');
+    const isDone = state.completedTutorialChapters.has(tutorialChapterKey(tutorial, item));
+    button.className = `course-chapter-link ${index === state.tutorialChapter ? 'active' : ''} ${isDone ? 'done' : ''}`;
+    button.setAttribute('aria-current', index === state.tutorialChapter ? 'step' : 'false');
+    const number = document.createElement('span'); number.textContent = isDone ? '✓' : String(item.number).padStart(2, '0');
+    const copy = document.createElement('span'); copy.textContent = item.title;
+    button.append(number, copy); button.addEventListener('click', () => openTutorial(index)); rail.append(button);
+  });
+
+  const article = document.createElement('article'); article.className = 'course-article';
+  const chapterHead = document.createElement('header'); chapterHead.className = 'course-chapter-head';
+  const chapterKicker = document.createElement('p'); chapterKicker.textContent = `第 ${chapter.number} 章 · ${chapter.duration}`;
+  const chapterTitle = document.createElement('h2'); chapterTitle.textContent = chapter.title;
+  const goal = document.createElement('p'); goal.className = 'course-goal'; goal.innerHTML = `<strong>本章目标</strong>${chapter.goal}`;
+  const bridge = document.createElement('p'); bridge.className = 'course-bridge'; bridge.innerHTML = `<strong>为什么现在学</strong>${chapter.bridge}`;
+  chapterHead.append(chapterKicker, chapterTitle, goal, bridge); article.append(chapterHead);
+  chapter.sections.forEach((section) => article.append(tutorialSection(section)));
+
+  const exercise = document.createElement('section'); exercise.className = 'course-exercise';
+  const exerciseTitle = document.createElement('h3'); exerciseTitle.textContent = chapter.exercise.title;
+  const exercisePrompt = document.createElement('p'); exercisePrompt.textContent = chapter.exercise.prompt;
+  const checks = document.createElement('ul'); chapter.exercise.checks.forEach((value) => { const li = document.createElement('li'); li.textContent = value; checks.append(li); });
+  exercise.append(exerciseTitle, exercisePrompt, checks); article.append(exercise);
+
+  const related = document.createElement('section'); related.className = 'course-related';
+  const relatedTitle = document.createElement('h3'); relatedTitle.textContent = '本章关联题卡 · 用于追问训练'; related.append(relatedTitle);
+  const relatedGrid = document.createElement('div');
+  chapter.questionIds.map((id) => questions.find((item) => item.id === id)).filter(Boolean).forEach((question) => {
+    const button = document.createElement('button');
+    const badge = document.createElement('span'); badge.textContent = question.experienceLabel || categoryLabel(question.category);
+    const titleText = document.createElement('strong'); titleText.textContent = question.title;
+    button.append(badge, titleText); button.addEventListener('click', () => openTutorialQuestion(question.id)); relatedGrid.append(button);
+  });
+  related.append(relatedGrid); article.append(related);
+
+  if (state.tutorialChapter === tutorial.chapters.length - 1) {
+    const capstone = document.createElement('section'); capstone.className = 'course-capstone';
+    const capTitle = document.createElement('h3'); capTitle.textContent = tutorial.capstone.title;
+    const capPrompt = document.createElement('p'); capPrompt.textContent = tutorial.capstone.prompt;
+    const capChecks = document.createElement('ul'); tutorial.capstone.checklist.forEach((value) => { const li = document.createElement('li'); li.textContent = value; capChecks.append(li); });
+    capstone.append(capTitle, capPrompt, capChecks); article.append(capstone);
+  }
+
+  const controls = document.createElement('div'); controls.className = 'course-controls';
+  if (state.tutorialChapter > 0) { const previous = document.createElement('button'); previous.className = 'button ghost'; previous.textContent = '← 上一章'; previous.addEventListener('click', () => openTutorial(state.tutorialChapter - 1)); controls.append(previous); }
+  const key = tutorialChapterKey(tutorial, chapter); const isDone = state.completedTutorialChapters.has(key);
+  const complete = document.createElement('button'); complete.className = `button ${isDone ? 'mastered' : 'primary'}`;
+  complete.textContent = isDone ? '✓ 本章已完成' : (state.tutorialChapter < tutorial.chapters.length - 1 ? '完成本章，进入下一章 →' : '完成课程');
+  complete.addEventListener('click', () => {
+    state.completedTutorialChapters.add(key); saveTutorialProgress();
+    if (state.tutorialChapter < tutorial.chapters.length - 1) openTutorial(state.tutorialChapter + 1); else render();
+  });
+  controls.append(complete); article.append(controls);
+  shell.append(rail, article); container.append(shell);
+}
+
 function renderPersonalDashboard() {
   const wrap = document.createElement('div'); wrap.className = 'personal-dashboard';
   const hero = document.createElement('section'); hero.className = 'personal-hero';
@@ -604,6 +747,20 @@ function renderPersonalDashboard() {
     item.append(strong, text); stats.append(item);
   });
   hero.append(copy, stats); wrap.append(hero);
+
+  const tutorial = tutorials[0];
+  const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
+  const courseCard = document.createElement('section'); courseCard.className = 'featured-course';
+  const courseCopy = document.createElement('div');
+  const courseKicker = document.createElement('span'); courseKicker.textContent = 'FIRST GUIDED COURSE';
+  const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
+  const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
+  courseCopy.append(courseKicker, courseTitle, courseText);
+  const courseAction = document.createElement('div');
+  const courseCount = document.createElement('strong'); courseCount.textContent = `${completedChapters} / ${tutorial.chapters.length}`;
+  const courseLabel = document.createElement('span'); courseLabel.textContent = completedChapters ? '继续上次学习' : '从第 1 章开始';
+  const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial());
+  courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); wrap.append(courseCard);
 
   const heading = document.createElement('div'); heading.className = 'personal-section-head';
   const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
@@ -712,6 +869,7 @@ function renderMapPriority() {
 
 function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
+  document.body.classList.toggle('course-mode', state.view === 'course');
   renderMode();
   renderCategories();
   renderKindSwitch();

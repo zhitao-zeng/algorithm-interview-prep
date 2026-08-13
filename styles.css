@@ -144,6 +144,98 @@
   .resume-level-switch { grid-template-columns: 1fr; }
 }
 
+/* ===== 连续教程 ===== */
+.nav-course { color: #28594a; background: #eef9f4; border-color: #c6e8da; }
+.nav-course:hover { background: #e2f5ed; border-color: #64b999; color: #174d3b; }
+.nav-course.active { background: #287f63; border-color: #287f63; color: #fff; }
+.course-mode .question-pane { grid-column: 2 / 4; border-right: 0; padding-inline: clamp(22px, 4vw, 58px); }
+.course-mode .detail-pane { display: none; }
+.course-view { max-width: 1180px; margin: 0 auto; padding: 2px 0 54px; }
+.course-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 2px 0 14px; color: var(--muted); font-size: 12px; font-weight: 750; }
+.course-back { border: 0; background: transparent; color: var(--blue); padding: 4px 0; cursor: pointer; font: inherit; font-weight: 800; }
+.course-hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, .8fr); gap: 30px; padding: 32px; border-radius: 20px; background: radial-gradient(circle at 90% 12%, rgba(115, 229, 190, .19), transparent 30%), linear-gradient(145deg, #173c59, #0e263b 74%); color: #fff; box-shadow: 0 18px 42px rgba(16, 46, 70, .17); }
+.course-eyebrow { margin: 0 0 10px; color: #7ce5c0; font: 850 10px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.5px; }
+.course-hero h2 { margin: 0; font-size: clamp(29px, 4vw, 45px); line-height: 1.08; letter-spacing: -.8px; }
+.course-hero > div:first-child > p:last-child { max-width: 650px; margin: 15px 0 0; color: #cfdae4; line-height: 1.75; }
+.course-meta { align-self: stretch; display: grid; align-content: end; gap: 9px; }
+.course-meta p { margin: 0; padding: 12px 14px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px; background: rgba(255, 255, 255, .055); color: #d7e2eb; font-size: 12px; line-height: 1.6; }
+.course-meta strong { display: block; margin-bottom: 4px; color: #7ce5c0; font-size: 10px; letter-spacing: .8px; }
+.course-progress { height: 7px; margin: 15px 2px 20px; overflow: hidden; border-radius: 999px; background: #dbe5e1; }
+.course-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2a9874, #6fd5b2); transition: width .25s ease; }
+.course-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 22px; align-items: start; }
+.course-rail { position: sticky; top: 82px; display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 6px 20px rgba(20, 43, 69, .055); }
+.course-rail > strong { padding: 5px 7px 9px; color: var(--navy); font-size: 13px; }
+.course-chapter-link { display: grid; grid-template-columns: 28px 1fr; gap: 9px; align-items: start; width: 100%; padding: 10px 9px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #536476; text-align: left; cursor: pointer; font: inherit; font-size: 12px; line-height: 1.45; }
+.course-chapter-link > span:first-child { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px; background: #edf2f6; color: #607488; font: 800 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.course-chapter-link.active { border-color: #bcd7cc; background: #eef8f4; color: #174d3b; font-weight: 800; }
+.course-chapter-link.active > span:first-child { background: #287f63; color: #fff; }
+.course-chapter-link.done > span:first-child { background: #d8f1e7; color: #24775d; }
+.course-article { min-width: 0; padding: clamp(24px, 4vw, 46px); border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 8px 25px rgba(20, 43, 69, .06); }
+.course-chapter-head { padding-bottom: 25px; border-bottom: 1px solid var(--line); }
+.course-chapter-head > p:first-child { margin: 0 0 8px; color: #2a8c6c; font: 850 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .8px; }
+.course-chapter-head h2 { margin: 0 0 17px; color: var(--navy); font-size: clamp(27px, 3.2vw, 39px); line-height: 1.16; letter-spacing: -.5px; }
+.course-goal, .course-bridge { margin: 9px 0 0; padding: 12px 14px; border-radius: 10px; line-height: 1.65; }
+.course-goal { background: #eef8f4; color: #285a49; }
+.course-bridge { background: #f3f7fb; color: #405b73; }
+.course-goal strong, .course-bridge strong { display: block; margin-bottom: 3px; font-size: 11px; letter-spacing: .6px; }
+.course-section { margin: 34px 0; }
+.course-section h3, .course-exercise h3, .course-related h3, .course-capstone h3 { margin: 0 0 12px; color: var(--navy); font-size: 20px; line-height: 1.3; }
+.course-section p { margin: 10px 0; color: #36485a; font-size: 16px; line-height: 1.85; }
+.course-steps { counter-reset: course-step; list-style: none; display: grid; gap: 9px; padding: 0; }
+.course-steps li { counter-increment: course-step; display: grid; grid-template-columns: 30px 1fr; gap: 11px; align-items: start; padding: 13px 15px; border-left: 3px solid #4a9c7e; border-radius: 0 9px 9px 0; background: #f3f8f6; color: #304d42; }
+.course-steps li::before { content: counter(course-step); display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #287f63; color: #fff; font-size: 11px; font-weight: 800; }
+.course-callout { position: relative; margin-top: 14px; padding: 18px 19px 18px 45px; border: 1px solid #f3c9ae; border-radius: 11px; background: #fff8f3; color: #704126; font-size: 15px; line-height: 1.75; }
+.course-callout::before { content: "例"; position: absolute; left: 15px; top: 18px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--orange); color: #fff; font-size: 11px; font-weight: 850; }
+.course-exercise, .course-capstone { margin: 36px 0 28px; padding: 21px; border: 1px solid #b9d7ca; border-radius: 13px; background: linear-gradient(145deg, #f4fbf8, #edf7f3); }
+.course-exercise::before { content: "CHAPTER PRACTICE"; display: block; margin-bottom: 7px; color: #2b8969; font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.1px; }
+.course-exercise p, .course-capstone p { margin: 0 0 12px; color: #355449; line-height: 1.72; }
+.course-exercise ul, .course-capstone ul { margin: 0; padding-left: 20px; color: #405e53; }
+.course-related { margin: 30px 0; }
+.course-related > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 9px; }
+.course-related button { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfd; text-align: left; cursor: pointer; }
+.course-related button:hover { border-color: #6bb697; background: #f1f9f5; }
+.course-related button span, .course-related button strong { display: block; }
+.course-related button span { margin-bottom: 5px; color: #2a8869; font-size: 10px; font-weight: 850; }
+.course-related button strong { color: var(--navy); font-size: 13px; line-height: 1.45; }
+.course-capstone { border-color: #f1b890; background: linear-gradient(145deg, #fff9f4, #fff1e7); }
+.course-capstone::before { content: "CAPSTONE"; display: block; margin-bottom: 7px; color: #ba5d28; font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.1px; }
+.course-capstone p, .course-capstone ul { color: #68452f; }
+.course-controls { display: flex; justify-content: space-between; gap: 10px; margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.course-controls .button:last-child { margin-left: auto; }
+
+/* 首页教程入口 */
+.featured-course { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 23px 25px; border: 1px solid #9fd2bd; border-radius: 16px; background: radial-gradient(circle at 90% 0, rgba(95, 197, 158, .18), transparent 31%), linear-gradient(145deg, #f6fcf9, #edf8f3); box-shadow: 0 8px 24px rgba(40, 127, 99, .08); }
+.featured-course span { display: block; color: #2b8969; font-size: 11px; font-weight: 850; }
+.featured-course > div:first-child > span { font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.2px; }
+.featured-course h3 { margin: 7px 0 5px; color: var(--navy); font-size: 23px; }
+.featured-course p { max-width: 720px; margin: 0; color: #536b62; font-size: 13px; line-height: 1.65; }
+.featured-course > div:last-child { min-width: 150px; text-align: right; }
+.featured-course > div:last-child strong { display: block; color: #287f63; font: 850 24px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.featured-course > div:last-child span { margin: 5px 0 10px; color: #617970; font-size: 10px; }
+.featured-course button { border: 0; border-radius: 9px; padding: 9px 13px; background: #287f63; color: #fff; cursor: pointer; font: inherit; font-size: 12px; font-weight: 850; }
+
+@media (max-width: 900px) {
+  .course-hero { grid-template-columns: 1fr; }
+  .course-shell { grid-template-columns: 1fr; }
+  .course-rail { position: static; display: flex; overflow-x: auto; padding: 10px; }
+  .course-rail > strong { display: none; }
+  .course-chapter-link { flex: 0 0 235px; }
+}
+
+@media (max-width: 560px) {
+  .course-mode .question-pane { padding: 22px 14px; }
+  .course-hero { padding: 24px 20px; border-radius: 15px; }
+  .course-hero h2 { font-size: 31px; }
+  .course-article { padding: 24px 18px; border-radius: 13px; }
+  .course-section p { font-size: 16px; }
+  .course-callout { padding-left: 18px; }
+  .course-callout::before { position: static; margin-bottom: 8px; }
+  .course-controls { align-items: stretch; flex-direction: column; }
+  .course-controls .button:last-child { width: 100%; margin-left: 0; }
+  .featured-course { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+  .featured-course > div:last-child { text-align: left; }
+}
+
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
 .rich-text { min-width: 0; }
 .rich-math-inline { display: inline-block; max-width: 100%; margin: 0 .08em; color: #183b66; vertical-align: -.08em; }

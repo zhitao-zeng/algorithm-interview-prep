@@ -1,5 +1,5 @@
 // 生成可双击打开（file://）的自包含 index.html。
-// 关键：把 questions.js / quiz-core.js / knowledge-map.js / render-utils.js / app.js 全部内联进
+// 关键：把 questions.js / quiz-core.js / knowledge-map.js / tutorials.js / render-utils.js / app.js 全部内联进
 // 一个【普通 <script>（非 module）】，并内联 styles.css。
 // 普通脚本在 file:// 下不受 CORS 限制，双击 index.html 即可运行，无需本地服务器。
 //
@@ -22,6 +22,7 @@ const stripImport = (src) => src.replace(/^\s*import\s.+$/gm, '');
 const questions = stripExport(read('questions.js'));
 const quizCore = stripExport(read('quiz-core.js'));
 const knowledgeMap = stripExport(read('knowledge-map.js'));
+const tutorials = stripExport(read('tutorials.js'));
 const renderUtils = stripExport(read('render-utils.js'));
 const app = stripImport(read('app.js'));
 const css = read('styles.css');
@@ -30,10 +31,11 @@ const bundleMarker = '/* BYTEPREP_STANDALONE_BUNDLE */';
 const inlineStyle = `<style>\n${styleMarker}\n${css}\n</style>`;
 
 const bundle = `${bundleMarker}
-/* 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / render-utils.js / app.js */
+/* 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / tutorials.js / render-utils.js / app.js */
 ${questions}
 ${quizCore}
 ${knowledgeMap}
+${tutorials}
 ${renderUtils}
 ${app}`;
 

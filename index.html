@@ -155,6 +155,98 @@
   .resume-level-switch { grid-template-columns: 1fr; }
 }
 
+/* ===== 连续教程 ===== */
+.nav-course { color: #28594a; background: #eef9f4; border-color: #c6e8da; }
+.nav-course:hover { background: #e2f5ed; border-color: #64b999; color: #174d3b; }
+.nav-course.active { background: #287f63; border-color: #287f63; color: #fff; }
+.course-mode .question-pane { grid-column: 2 / 4; border-right: 0; padding-inline: clamp(22px, 4vw, 58px); }
+.course-mode .detail-pane { display: none; }
+.course-view { max-width: 1180px; margin: 0 auto; padding: 2px 0 54px; }
+.course-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 2px 0 14px; color: var(--muted); font-size: 12px; font-weight: 750; }
+.course-back { border: 0; background: transparent; color: var(--blue); padding: 4px 0; cursor: pointer; font: inherit; font-weight: 800; }
+.course-hero { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(260px, .8fr); gap: 30px; padding: 32px; border-radius: 20px; background: radial-gradient(circle at 90% 12%, rgba(115, 229, 190, .19), transparent 30%), linear-gradient(145deg, #173c59, #0e263b 74%); color: #fff; box-shadow: 0 18px 42px rgba(16, 46, 70, .17); }
+.course-eyebrow { margin: 0 0 10px; color: #7ce5c0; font: 850 10px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.5px; }
+.course-hero h2 { margin: 0; font-size: clamp(29px, 4vw, 45px); line-height: 1.08; letter-spacing: -.8px; }
+.course-hero > div:first-child > p:last-child { max-width: 650px; margin: 15px 0 0; color: #cfdae4; line-height: 1.75; }
+.course-meta { align-self: stretch; display: grid; align-content: end; gap: 9px; }
+.course-meta p { margin: 0; padding: 12px 14px; border: 1px solid rgba(255, 255, 255, .12); border-radius: 11px; background: rgba(255, 255, 255, .055); color: #d7e2eb; font-size: 12px; line-height: 1.6; }
+.course-meta strong { display: block; margin-bottom: 4px; color: #7ce5c0; font-size: 10px; letter-spacing: .8px; }
+.course-progress { height: 7px; margin: 15px 2px 20px; overflow: hidden; border-radius: 999px; background: #dbe5e1; }
+.course-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2a9874, #6fd5b2); transition: width .25s ease; }
+.course-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 22px; align-items: start; }
+.course-rail { position: sticky; top: 82px; display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 6px 20px rgba(20, 43, 69, .055); }
+.course-rail > strong { padding: 5px 7px 9px; color: var(--navy); font-size: 13px; }
+.course-chapter-link { display: grid; grid-template-columns: 28px 1fr; gap: 9px; align-items: start; width: 100%; padding: 10px 9px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #536476; text-align: left; cursor: pointer; font: inherit; font-size: 12px; line-height: 1.45; }
+.course-chapter-link > span:first-child { display: grid; place-items: center; width: 27px; height: 27px; border-radius: 8px; background: #edf2f6; color: #607488; font: 800 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.course-chapter-link.active { border-color: #bcd7cc; background: #eef8f4; color: #174d3b; font-weight: 800; }
+.course-chapter-link.active > span:first-child { background: #287f63; color: #fff; }
+.course-chapter-link.done > span:first-child { background: #d8f1e7; color: #24775d; }
+.course-article { min-width: 0; padding: clamp(24px, 4vw, 46px); border: 1px solid var(--line); border-radius: 16px; background: #fff; box-shadow: 0 8px 25px rgba(20, 43, 69, .06); }
+.course-chapter-head { padding-bottom: 25px; border-bottom: 1px solid var(--line); }
+.course-chapter-head > p:first-child { margin: 0 0 8px; color: #2a8c6c; font: 850 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .8px; }
+.course-chapter-head h2 { margin: 0 0 17px; color: var(--navy); font-size: clamp(27px, 3.2vw, 39px); line-height: 1.16; letter-spacing: -.5px; }
+.course-goal, .course-bridge { margin: 9px 0 0; padding: 12px 14px; border-radius: 10px; line-height: 1.65; }
+.course-goal { background: #eef8f4; color: #285a49; }
+.course-bridge { background: #f3f7fb; color: #405b73; }
+.course-goal strong, .course-bridge strong { display: block; margin-bottom: 3px; font-size: 11px; letter-spacing: .6px; }
+.course-section { margin: 34px 0; }
+.course-section h3, .course-exercise h3, .course-related h3, .course-capstone h3 { margin: 0 0 12px; color: var(--navy); font-size: 20px; line-height: 1.3; }
+.course-section p { margin: 10px 0; color: #36485a; font-size: 16px; line-height: 1.85; }
+.course-steps { counter-reset: course-step; list-style: none; display: grid; gap: 9px; padding: 0; }
+.course-steps li { counter-increment: course-step; display: grid; grid-template-columns: 30px 1fr; gap: 11px; align-items: start; padding: 13px 15px; border-left: 3px solid #4a9c7e; border-radius: 0 9px 9px 0; background: #f3f8f6; color: #304d42; }
+.course-steps li::before { content: counter(course-step); display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: #287f63; color: #fff; font-size: 11px; font-weight: 800; }
+.course-callout { position: relative; margin-top: 14px; padding: 18px 19px 18px 45px; border: 1px solid #f3c9ae; border-radius: 11px; background: #fff8f3; color: #704126; font-size: 15px; line-height: 1.75; }
+.course-callout::before { content: "例"; position: absolute; left: 15px; top: 18px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--orange); color: #fff; font-size: 11px; font-weight: 850; }
+.course-exercise, .course-capstone { margin: 36px 0 28px; padding: 21px; border: 1px solid #b9d7ca; border-radius: 13px; background: linear-gradient(145deg, #f4fbf8, #edf7f3); }
+.course-exercise::before { content: "CHAPTER PRACTICE"; display: block; margin-bottom: 7px; color: #2b8969; font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.1px; }
+.course-exercise p, .course-capstone p { margin: 0 0 12px; color: #355449; line-height: 1.72; }
+.course-exercise ul, .course-capstone ul { margin: 0; padding-left: 20px; color: #405e53; }
+.course-related { margin: 30px 0; }
+.course-related > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 9px; }
+.course-related button { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfd; text-align: left; cursor: pointer; }
+.course-related button:hover { border-color: #6bb697; background: #f1f9f5; }
+.course-related button span, .course-related button strong { display: block; }
+.course-related button span { margin-bottom: 5px; color: #2a8869; font-size: 10px; font-weight: 850; }
+.course-related button strong { color: var(--navy); font-size: 13px; line-height: 1.45; }
+.course-capstone { border-color: #f1b890; background: linear-gradient(145deg, #fff9f4, #fff1e7); }
+.course-capstone::before { content: "CAPSTONE"; display: block; margin-bottom: 7px; color: #ba5d28; font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.1px; }
+.course-capstone p, .course-capstone ul { color: #68452f; }
+.course-controls { display: flex; justify-content: space-between; gap: 10px; margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--line); }
+.course-controls .button:last-child { margin-left: auto; }
+
+/* 首页教程入口 */
+.featured-course { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 23px 25px; border: 1px solid #9fd2bd; border-radius: 16px; background: radial-gradient(circle at 90% 0, rgba(95, 197, 158, .18), transparent 31%), linear-gradient(145deg, #f6fcf9, #edf8f3); box-shadow: 0 8px 24px rgba(40, 127, 99, .08); }
+.featured-course span { display: block; color: #2b8969; font-size: 11px; font-weight: 850; }
+.featured-course > div:first-child > span { font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.2px; }
+.featured-course h3 { margin: 7px 0 5px; color: var(--navy); font-size: 23px; }
+.featured-course p { max-width: 720px; margin: 0; color: #536b62; font-size: 13px; line-height: 1.65; }
+.featured-course > div:last-child { min-width: 150px; text-align: right; }
+.featured-course > div:last-child strong { display: block; color: #287f63; font: 850 24px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.featured-course > div:last-child span { margin: 5px 0 10px; color: #617970; font-size: 10px; }
+.featured-course button { border: 0; border-radius: 9px; padding: 9px 13px; background: #287f63; color: #fff; cursor: pointer; font: inherit; font-size: 12px; font-weight: 850; }
+
+@media (max-width: 900px) {
+  .course-hero { grid-template-columns: 1fr; }
+  .course-shell { grid-template-columns: 1fr; }
+  .course-rail { position: static; display: flex; overflow-x: auto; padding: 10px; }
+  .course-rail > strong { display: none; }
+  .course-chapter-link { flex: 0 0 235px; }
+}
+
+@media (max-width: 560px) {
+  .course-mode .question-pane { padding: 22px 14px; }
+  .course-hero { padding: 24px 20px; border-radius: 15px; }
+  .course-hero h2 { font-size: 31px; }
+  .course-article { padding: 24px 18px; border-radius: 13px; }
+  .course-section p { font-size: 16px; }
+  .course-callout { padding-left: 18px; }
+  .course-callout::before { position: static; margin-bottom: 8px; }
+  .course-controls { align-items: stretch; flex-direction: column; }
+  .course-controls .button:last-child { width: 100%; margin-left: 0; }
+  .featured-course { grid-template-columns: 1fr; gap: 16px; padding: 20px; }
+  .featured-course > div:last-child { text-align: left; }
+}
+
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
 .rich-text { min-width: 0; }
 .rich-math-inline { display: inline-block; max-width: 100%; margin: 0 .08em; color: #183b66; vertical-align: -.08em; }
@@ -313,7 +405,7 @@ body.diagram-open { overflow: hidden; }
   </main>
   <script>
 /* BYTEPREP_STANDALONE_BUNDLE */
-/* 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / render-utils.js / app.js */
+/* 自动生成，请勿手改。源文件：questions.js / quiz-core.js / knowledge-map.js / tutorials.js / render-utils.js / app.js */
 // AUTO-GENERATED by scripts/gen-cards.mjs — DO NOT EDIT BY HAND.
 // Source of truth = ./cards/<category>/<id>.js (one file per card, grouped by category).
 // Edit a card there, then run: npm run gen. This bundle is regenerated from cards/ on every build/test.
@@ -58761,6 +58853,124 @@ for (const d of domains) {
   for (const c of d.categories) categoryThread[c.name] = { oneliner: c.oneliner, steps: c.steps, domain: d.name, heavy: d.heavy };
 }
 
+const tutorials = [
+  {
+    id: 'project-defense-tech-lead',
+    title: '项目答辩与 Tech Lead',
+    eyebrow: 'COURSE 01 · EXPERIENCE TO EVIDENCE',
+    summary: '把简历项目组织成能承受追问的证据链，再把技术决策、实验、协作与交付讲成完整的 Tech Lead 闭环。',
+    outcome: '完成后，你应能做一次 3 分钟项目陈述，并继续承受模型选型、指标口径、负收益、端侧交付和团队协作追问。',
+    audience: '适合社招技术面、项目深挖面、系统设计面和 Tech Lead/行为面。',
+    capstone: {
+      title: '结课答辩：从模型选型到跨端交付',
+      prompt: '选择一个真实项目，在 8 分钟内完成：背景与约束 → 个人决策 → 证据与反证 → 交付结果 → 失败边界 → 复盘。如果某个环节没有简历或记忆依据，明确说“这是我的补充方案，不是当时事实”。',
+      checklist: ['一句话说清业务问题和硬约束', '区分个人动作、团队动作与外部依赖', '至少给出一组对照或失败证据', '说清指标分母、切片、设备和版本', '补充上线门禁、降级或回滚', '给出一个真正改变后续做法的复盘']
+    },
+    chapters: [
+      {
+        id: 'claim-boundary', number: 1, title: '先建立可信边界：什么能说，什么不能说', duration: '25 分钟',
+        goal: '建立项目答辩的可信边界：把简历事实、合理解释和通用方法分层，避免为了显得复杂而补写没有做过的流程。',
+        bridge: '后面所有选型、实验和管理章节，都建立在“主张可被证据支持”这条地基上。',
+        sections: [
+          { title: '从面试官视角看项目答辩', paragraphs: ['项目答辩不是复述简历。面试官真正检查的是：问题是否真实、你做了哪一步、为什么这样做、结果如何测量，以及换一个条件后结论是否还成立。', '回答越具体，越需要证据。反过来，没有做过的高级方法说得越细，越容易在数据、时间线和实现追问中自相矛盾。'] },
+          { title: '三层主张模型', steps: ['事实层：简历或自己记忆能确认的动作与结果，可以使用“我做了”。', '解释层：为了说明事实而补充的原理，可以说“这里的机制是”，但不自动代表当时完整实现。', '方案层：事故流程、正式 RICE、复杂统计等没有经历依据时，只能说“如果让我做，我会”。'] },
+          { title: '贯穿案例', callout: '“我把 PP-OCRv6 small 迁移到 TensorRT，并通过 buffer 复用降低约 220 MiB HWM”是事实主张；复杂对象池、四槽并发等若不能确认，只能作为可选设计解释，不能倒填成项目历史。' }
+        ],
+        exercise: { title: '练习：给简历 Bullet 上色', prompt: '选三个 Bullet，分别写出事实层、解释层和方案层。删掉所有无法回答“证据在哪里”的第一人称动作。', checks: ['是否写清个人贡献', '是否保留团队边界', '数字是否带场景和口径'] },
+        questionIds: ['lead-resume-star-defense', 'edge-resume-buffer-concurrency', 'asr-resume-label-noise-audit']
+      },
+      {
+        id: 'story-backbone', number: 2, title: '把 Bullet 写成能展开的 STAR-L 主线', duration: '35 分钟',
+        goal: '形成 30 秒、3 分钟和 15 分钟三个可伸缩版本，而不是一次倾倒全部技术细节。',
+        bridge: '有了可信边界，下一步是让证据按因果顺序出现：为什么做、你改变了什么、怎样知道有效。',
+        sections: [
+          { title: 'STAR-L 不是五个标签', paragraphs: ['Situation 只交代决策所需背景；Task 写清目标和约束；Action 必须以个人动作和取舍为中心；Result 带口径；Learning 要说明后续行为发生了什么变化。', '最常见的弱回答是背景过长、行动写成“我们优化了”、结果只有一个百分比，最后没有失败或复盘。'] },
+          { title: '三层表达', steps: ['30 秒：问题、我的关键动作、可核验结果。', '3 分钟：补候选方案、取舍、证据和失败边界。', '15 分钟：按追问展开数据、模型、消融、系统、协作和复盘，不主动堆满所有细节。'] },
+          { title: '示例骨架', callout: '信道退化导致识别下降 → 我还原真实信号链并建立增强/回归验证 → 业务域与通用域分别评测 → 说明哪些数字来自固定测试集，哪些结论只适用于该链路。' }
+        ],
+        exercise: { title: '练习：同一项目讲三遍', prompt: '用同一项目分别录制 30 秒和 3 分钟版本；3 分钟版只能比 30 秒版增加“为什么、证据、边界”，不能更换主结论。', checks: ['开头 20 秒内是否出现问题', '行动是否使用明确动词', '结果后是否立即交代口径'] },
+        questionIds: ['lead-resume-star-defense', 'asr-resume-rir-signal-chain', 'tts-resume-codeswitch-phoneme', 'tts-resume-text-normalization']
+      },
+      {
+        id: 'model-selection', number: 3, title: '模型选型：从业务约束到可审计结论', duration: '45 分钟',
+        goal: '不以榜单冠军代替决策，能用硬门槛、Pareto 和 ADR 解释为什么选、为什么不选。',
+        bridge: '故事有了主线，技术追问通常首先进入“为什么选择这个方案”。',
+        sections: [
+          { title: '先把业务语言翻译成技术约束', steps: ['质量：平均指标之外，哪些错误代价最高。', '性能：真实设备上的 p50/p99、内存、功耗、首包和稳态。', '能力：是否流式、语言覆盖、动态 shape、前后处理。', '交付：算子支持、许可、维护、替换成本和团队熟悉度。'] },
+          { title: '两阶段选型', paragraphs: ['先用硬门槛和 smoke test 淘汰必然不适配的候选；再对少数候选做同口径完整比较。这样既保留探索，也避免每个模型都跑昂贵全量实验。', '结论应落在 Pareto 前沿：不存在所有维度都最好时，选择最符合当前约束的点，并记录触发重评的条件。'] },
+          { title: '贯穿案例', callout: '某模型 CER 更低但无法端侧流式，应因违反硬门槛退出；Zipformer 若精度略低但满足 RTF、内存和维护要求，可以成为交付候选。这里的强项不是“选了 Zipformer”，而是决策过程可以复核。' }
+        ],
+        exercise: { title: '练习：制作一页选型 ADR', prompt: '选 ASR、TTS 或 OCR 项目，列 3 个候选、3 个硬门槛、4 个比较指标、淘汰原因和重评条件。', checks: ['候选是否使用相同数据和设备', '硬门槛是否先于加权总分', '是否保存失败候选的原因'] },
+        questionIds: ['lead-resume-model-selection', 'asr-resume-backbone-audit', 'edge-resume-runtime-selection', 'tts-resume-small-speaker-finetune']
+      },
+      {
+        id: 'evidence-experiments', number: 4, title: '实验与负收益：怎样证明收益来自哪里', duration: '50 分钟',
+        goal: '用控制变量、消融、切片和失败样本建立证据，而不是只展示最佳 checkpoint。',
+        bridge: '选型只是一个假设；这一章解决怎样用实验把假设变成可信结论。',
+        sections: [
+          { title: '一条完整证据链', steps: ['冻结 baseline、数据版本、评测脚本与预算。', '一次只改变一个关键因素；组合有效时补单项对照。', '主指标之外报告关键切片、最差切片和样本量。', '保存原始输出和 run manifest，能够从预处理重新复算。'] },
+          { title: '负收益比正收益更能体现能力', paragraphs: ['模型下降时先分层归因：文字规范、数据采样、模型、辅助任务、解码、后处理、评分口径。不要把所有下降笼统归给“模型不行”。', 'ChinaVoices 案例可以用来说明：统一正字法后差距如何变化、关闭 LID loss 后是否恢复，以及怎样区分相关变化与真正的梯度冲突证据。'] },
+          { title: '门禁不是指标越多越好', callout: '总体 CER 下降但电话数字实体明显退化时，高风险切片可以阻断；只有 30 句的小语种出现波动时，应先报告区间和扩样，而不是机械套同一阈值。' }
+        ],
+        exercise: { title: '练习：设计最小消融矩阵', prompt: '针对一个收益主张写 baseline、两个单因素和一个组合实验；说明训练预算、随机性、切片、停止条件和可能的交互项。', checks: ['有没有偷偷同时改变数据与模型', '是否能解释负收益', '是否给出阻断上线的条件'] },
+        questionIds: ['perf-resume-ablation-design', 'perf-resume-slice-gate', 'asr-resume-error-attribution', 'asr-resume-domain-mixture', 'asr-resume-confidence-calibration', 'tts-resume-g2pw-calibration', 'tts-resume-tone-prosody']
+      },
+      {
+        id: 'execution-leadership', number: 5, title: '两人小组也需要真正的 Tech Lead 机制', duration: '35 分钟',
+        goal: '讲清怎样拆 owner、接口和验收物，并避免自己包办或关键链路只有一个人懂。',
+        bridge: '实验结论要变成交付结果，需要把研究工作拆成团队能够并行和复现的执行系统。',
+        sections: [
+          { title: '小团队的核心不是流程多', paragraphs: ['两人团队最怕两种极端：所有人都“共同负责”导致没人负责，或者每人独占一条链路导致一人请假项目停摆。', 'Tech Lead 应拆清数据、模型、评测、部署的输入输出和 Definition of Done；关键变更由非 owner review，关键脚本和 runbook 能被另一人执行。'] },
+          { title: 'Lead 自己做什么', steps: ['明确目标、接口、风险和决策时点。', '把任务交给 owner，而不是代替 owner 写完。', '通过 review、复现和文档降低 bus factor。', '冲突时用约束和证据决策，并让成员主导实验与复盘。'] },
+          { title: '边界', callout: '简历明确支持“带领 2 人小组”和跨端交付；正式的周复现、PR 机制或培养案例若记不清，应作为推荐做法讲，不要写成当时流程。' }
+        ],
+        exercise: { title: '练习：拆一个两周里程碑', prompt: '把一个模型交付拆成两位成员和 Tech Lead 的 owner map；每项写输入、输出、DoD、reviewer 和失败升级条件。', checks: ['是否存在唯一 owner', '是否存在非 owner 验证', 'Tech Lead 是否成为所有任务瓶颈'] },
+        questionIds: ['lead-resume-small-team', 'lead-resume-experiment-priority', 'lead-resume-disagreement']
+      },
+      {
+        id: 'cross-team-delivery', number: 6, title: '跨端交付：模型完成不等于项目完成', duration: '45 分钟',
+        goal: '把 checkpoint 扩展成接口、资产、性能、验收、灰度和回滚组成的完整交付包。',
+        bridge: '团队内部跑通之后，项目最容易在算法、端侧和产品的接口处失败。',
+        sections: [
+          { title: '先冻结稳定协议，不冻结所有实现', steps: ['输入输出、前后处理、状态与取消语义。', '模型、词表、配置和 schema 的兼容版本。', '质量、延迟、内存和异常恢复的验收集。', '可替换的模型配置与稳定的产品/端侧协议分层。'] },
+          { title: '交付包应该有什么', paragraphs: ['以 TTS 为例，交付不仅是 ONNX，还包括 tokens、前端配置、示例音频、延迟内存报告、流式状态和 cancel API。端侧发现 p99 超标时，需要按 timeline 判断是模型、拷贝、队列还是播放 buffer。', '运行时选型也必须在真实设备比较精度、延迟、HWM、包体、冷启动和异常恢复，不能引用厂商峰值代替本机证据。'] },
+          { title: '贯穿案例', callout: 'OCR 的 buffer 复用、TTS 的 sherpa-onnx 交付和 ASR 流式会话都可以用同一交付框架讲：契约 → 性能分解 → 异常路径 → 灰度门禁 → 回退资产。' }
+        ],
+        exercise: { title: '练习：写交付清单', prompt: '为一个端侧项目写出模型资产、接口、设备矩阵、golden samples、性能预算、降级和回滚验证。', checks: ['是否包含前后处理', '是否测 p99/HWM 而非只有平均值', '回滚包是否真的演练过'] },
+        questionIds: ['lead-resume-cross-team', 'edge-resume-runtime-selection', 'edge-resume-sherpa-streaming', 'edge-resume-int8-calibration', 'edge-resume-cpu-profiling']
+      },
+      {
+        id: 'risk-incident', number: 7, title: '风险、事故与复盘：没有经历也不能编', duration: '30 分钟',
+        goal: '掌握止损—证据—定位—修复—防复发顺序，同时诚实区分真实经历与通用事故方案。',
+        bridge: '交付闭环必须回答“如果上线后出问题怎么办”；但当前简历没有明确事故案例。',
+        sections: [
+          { title: '三个时间尺度', steps: ['前 30 分钟：停止扩量、回退稳定版本、保存版本与请求证据、明确指挥与沟通窗口。', '当天：建立影响范围和时间线，验证根因，修复后跑定向与全量回归。', '一周内：做无责复盘，把 action item 变成自动门禁、监控或演练，并指定 owner/deadline。'] },
+          { title: '事故题的可信回答', paragraphs: ['当前简历没有写具体线上事故，因此不能说“我当时在前 30 分钟做了什么”。可以先明确没有可确认案例，再用“如果让我负责，我会”回答流程。', '也可以使用真实的负收益定位或回退经历作为邻近证据，但必须说明它和完整生产事故的区别。'] },
+          { title: '复盘的结果', callout: '“工程师不够仔细”不是根因。有效复盘要把同类错误变得更难发生、更快发现、更容易回滚，并跟踪 action item 是否完成。' }
+        ],
+        exercise: { title: '练习：桌面事故演练', prompt: '假设新模型只在某设备加载失败，写出 0~30 分钟、当天、一周内的动作；再标注哪些是通用方案、哪些有你真实项目证据。', checks: ['是否先止损再试修', '是否保留证据与影响范围', '是否产生系统性防线'] },
+        questionIds: ['lead-resume-incident', 'edge-resume-sherpa-streaming', 'perf-resume-slice-gate']
+      },
+      {
+        id: 'defense-rehearsal', number: 8, title: '现场答辩：把课程压缩成一场可追问演练', duration: '50 分钟',
+        goal: '完成项目主线、自选深挖和行为面追问，并能在不知道时保持可信。',
+        bridge: '最后一章不再增加知识，而是把前七章转成现场表达与应变能力。',
+        sections: [
+          { title: '8 分钟答辩结构', steps: ['1 分钟：业务问题、约束和你的职责。', '2 分钟：候选方案与关键取舍。', '2 分钟：实验、反证、切片和结果口径。', '2 分钟：团队协作、端侧/产品交付与风险。', '1 分钟：失败边界、复盘和如果重做。'] },
+          { title: '追问树', paragraphs: ['面试官可能从任一数字进入：分母是什么、哪个版本、几次运行、为什么不是数据问题、端侧如何测、团队谁完成、失败候选是什么。练习时应沿一条分支深入，而不是每题都背一段孤立答案。', '不知道细节时先界定记忆边界，再说你能确认的证据和验证方法。可信度比临时编一个漂亮实现更重要。'] },
+          { title: '结课标准', callout: '听者能复述五件事才算通过：项目为什么做、你具体改变了什么、什么证据支持结论、最重要的边界是什么、这件事如何体现 Tech Lead 而非只体现个人编码。' }
+        ],
+        exercise: { title: '结课模拟', prompt: '任选一个真实项目，录制 8 分钟答辩；随后随机抽取本课程关联题卡追问 12 分钟。复盘所有含糊主语、无口径数字和越界主张。', checks: ['是否在时间内完成闭环', '能否展开一次失败或反证', '是否回答个人与团队边界', '是否给出交付和复盘'] },
+        questionIds: ['lead-resume-star-defense', 'lead-resume-model-selection', 'perf-resume-ablation-design', 'lead-resume-small-team', 'lead-resume-cross-team', 'lead-resume-incident']
+      }
+    ]
+  }
+];
+
+function tutorialById(id) {
+  return tutorials.find((tutorial) => tutorial.id === id);
+}
+
 // 纯展示层辅助函数：不修改题卡源数据，也不依赖 DOM。
 
 function escapeHtml(value) {
@@ -59524,8 +59734,10 @@ function diagramToVectorModel(value) {
 
 
 
+
 const storageKey = 'zeng-interview-mastered-ids';
 const legacyStorageKey = 'byte-interview-mastered-ids';
+const tutorialProgressKey = 'zeng-interview-tutorial-progress';
 const el = (id) => document.getElementById(id);
 const categoryLabels = new Map([
   ['语音合成', 'TTS 语音合成'],
@@ -59572,7 +59784,8 @@ const personalTracks = [
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
-  remaining: 2700, timerId: null,
+  tutorialId: tutorials[0].id, tutorialChapter: loadTutorialProgress().currentChapter || 0,
+  completedTutorialChapters: new Set(loadTutorialProgress().completed || []), remaining: 2700, timerId: null,
 };
 
 function loadMastered() {
@@ -59584,6 +59797,17 @@ function loadMastered() {
   } catch { return new Set(); }
 }
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
+function loadTutorialProgress() {
+  try { return JSON.parse(localStorage.getItem(tutorialProgressKey) || '{}'); } catch { return {}; }
+}
+function saveTutorialProgress() {
+  try {
+    localStorage.setItem(tutorialProgressKey, JSON.stringify({
+      currentChapter: state.tutorialChapter,
+      completed: [...state.completedTutorialChapters],
+    }));
+  } catch {}
+}
 function activeQuestions() {
   if (state.mode === 'mock') return state.mockQuestions;
   const source = state.view === 'resume'
@@ -59615,6 +59839,7 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
+  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course', () => openTutorial(), 'nav-lead nav-course'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -59956,8 +60181,9 @@ function renderDetailLevelSwitch() {
 function renderDetail() {
   const pane = el('question-detail');
   document.body.classList.remove('diagram-open');
-  if (state.view === 'map') {
+  if (state.view === 'map' || state.view === 'course') {
     pane.replaceChildren();
+    if (state.view === 'course') return;
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
     const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
     const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
@@ -60006,7 +60232,7 @@ function renderQuestionPane() {
   const searchLabel = document.querySelector('.search-label');
   const searchInput = el('search-input');
   const kindList = el('kind-list');
-  if (state.view === 'map') {
+  if (state.view === 'map' || state.view === 'course') {
     heading.hidden = true;
     mockNote.hidden = true;
     list.hidden = true;
@@ -60017,11 +60243,16 @@ function renderQuestionPane() {
     const existing = el('category-thread'); if (existing) existing.remove();
     let mapView = el('map-view');
     if (!mapView) { mapView = document.createElement('div'); mapView.id = 'map-view'; mapView.className = 'map-view'; pane.append(mapView); }
-    mapView.hidden = false;
-    renderMap(mapView);
+    mapView.hidden = state.view !== 'map';
+    let courseView = el('course-view');
+    if (!courseView) { courseView = document.createElement('div'); courseView.id = 'course-view'; courseView.className = 'course-view'; pane.append(courseView); }
+    courseView.hidden = state.view !== 'course';
+    if (state.view === 'map') renderMap(mapView);
+    else renderTutorialCourse(courseView);
     return;
   }
   const mapView = el('map-view'); if (mapView) mapView.hidden = true;
+  const courseView = el('course-view'); if (courseView) courseView.hidden = true;
   heading.hidden = false;
   list.hidden = false;
   if (searchLabel) searchLabel.hidden = false;
@@ -60106,6 +60337,128 @@ function openCollection(view, category = '全部') {
   selectQuestion(activeQuestions()[0]?.id); render();
 }
 
+function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
+
+function openTutorial(chapterIndex = state.tutorialChapter) {
+  const tutorial = tutorialById(state.tutorialId) || tutorials[0];
+  state.mode = 'review'; state.view = 'course';
+  state.tutorialChapter = Math.max(0, Math.min(chapterIndex, tutorial.chapters.length - 1));
+  saveTutorialProgress(); render();
+  if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function openTutorialQuestion(questionId) {
+  const question = questions.find((item) => item.id === questionId);
+  if (!question) return;
+  state.mode = 'review'; state.query = ''; state.kind = '全部'; state.selectedId = question.id; state.detailLevel = 'deep';
+  if (question.resumeCard) {
+    state.view = 'resume'; state.category = '全部'; state.resumeLevel = question.experienceLevel;
+  } else {
+    state.view = 'list'; state.category = question.category;
+  }
+  const searchInput = el('search-input'); if (searchInput) searchInput.value = '';
+  render(); scrollToMobileDetail();
+}
+
+function tutorialSection(section) {
+  const wrap = document.createElement('section'); wrap.className = 'course-section';
+  const heading = document.createElement('h3'); heading.textContent = section.title; wrap.append(heading);
+  if (section.paragraphs) section.paragraphs.forEach((value) => { const p = document.createElement('p'); p.textContent = value; wrap.append(p); });
+  if (section.steps) {
+    const ol = document.createElement('ol'); ol.className = 'course-steps';
+    section.steps.forEach((value) => { const li = document.createElement('li'); li.textContent = value; ol.append(li); });
+    wrap.append(ol);
+  }
+  if (section.callout) { const callout = document.createElement('div'); callout.className = 'course-callout'; callout.textContent = section.callout; wrap.append(callout); }
+  return wrap;
+}
+
+function renderTutorialCourse(container) {
+  const tutorial = tutorialById(state.tutorialId) || tutorials[0];
+  const chapter = tutorial.chapters[state.tutorialChapter] || tutorial.chapters[0];
+  const completedCount = tutorial.chapters.filter((item) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, item))).length;
+  container.replaceChildren();
+
+  const top = document.createElement('div'); top.className = 'course-topbar';
+  const back = document.createElement('button'); back.className = 'course-back'; back.textContent = '← 返回个人首页';
+  back.addEventListener('click', () => { state.view = 'map'; state.mapTab = 'personal'; render(); });
+  const progressCopy = document.createElement('span'); progressCopy.textContent = `已完成 ${completedCount} / ${tutorial.chapters.length} 章`;
+  top.append(back, progressCopy); container.append(top);
+
+  const hero = document.createElement('header'); hero.className = 'course-hero';
+  const heroCopy = document.createElement('div');
+  const eyebrow = document.createElement('p'); eyebrow.className = 'course-eyebrow'; eyebrow.textContent = tutorial.eyebrow;
+  const title = document.createElement('h2'); title.textContent = tutorial.title;
+  const summary = document.createElement('p'); summary.textContent = tutorial.summary;
+  heroCopy.append(eyebrow, title, summary);
+  const courseMeta = document.createElement('div'); courseMeta.className = 'course-meta';
+  const outcome = document.createElement('p'); outcome.innerHTML = `<strong>结课能力</strong>${tutorial.outcome}`;
+  const audience = document.createElement('p'); audience.innerHTML = `<strong>适用场景</strong>${tutorial.audience}`;
+  courseMeta.append(outcome, audience); hero.append(heroCopy, courseMeta); container.append(hero);
+
+  const progress = document.createElement('div'); progress.className = 'course-progress'; progress.setAttribute('aria-label', '课程完成进度');
+  const bar = document.createElement('i'); bar.style.width = `${completedCount / tutorial.chapters.length * 100}%`; progress.append(bar); container.append(progress);
+
+  const shell = document.createElement('div'); shell.className = 'course-shell';
+  const rail = document.createElement('nav'); rail.className = 'course-rail'; rail.setAttribute('aria-label', '课程章节');
+  const railTitle = document.createElement('strong'); railTitle.textContent = '课程目录'; rail.append(railTitle);
+  tutorial.chapters.forEach((item, index) => {
+    const button = document.createElement('button');
+    const isDone = state.completedTutorialChapters.has(tutorialChapterKey(tutorial, item));
+    button.className = `course-chapter-link ${index === state.tutorialChapter ? 'active' : ''} ${isDone ? 'done' : ''}`;
+    button.setAttribute('aria-current', index === state.tutorialChapter ? 'step' : 'false');
+    const number = document.createElement('span'); number.textContent = isDone ? '✓' : String(item.number).padStart(2, '0');
+    const copy = document.createElement('span'); copy.textContent = item.title;
+    button.append(number, copy); button.addEventListener('click', () => openTutorial(index)); rail.append(button);
+  });
+
+  const article = document.createElement('article'); article.className = 'course-article';
+  const chapterHead = document.createElement('header'); chapterHead.className = 'course-chapter-head';
+  const chapterKicker = document.createElement('p'); chapterKicker.textContent = `第 ${chapter.number} 章 · ${chapter.duration}`;
+  const chapterTitle = document.createElement('h2'); chapterTitle.textContent = chapter.title;
+  const goal = document.createElement('p'); goal.className = 'course-goal'; goal.innerHTML = `<strong>本章目标</strong>${chapter.goal}`;
+  const bridge = document.createElement('p'); bridge.className = 'course-bridge'; bridge.innerHTML = `<strong>为什么现在学</strong>${chapter.bridge}`;
+  chapterHead.append(chapterKicker, chapterTitle, goal, bridge); article.append(chapterHead);
+  chapter.sections.forEach((section) => article.append(tutorialSection(section)));
+
+  const exercise = document.createElement('section'); exercise.className = 'course-exercise';
+  const exerciseTitle = document.createElement('h3'); exerciseTitle.textContent = chapter.exercise.title;
+  const exercisePrompt = document.createElement('p'); exercisePrompt.textContent = chapter.exercise.prompt;
+  const checks = document.createElement('ul'); chapter.exercise.checks.forEach((value) => { const li = document.createElement('li'); li.textContent = value; checks.append(li); });
+  exercise.append(exerciseTitle, exercisePrompt, checks); article.append(exercise);
+
+  const related = document.createElement('section'); related.className = 'course-related';
+  const relatedTitle = document.createElement('h3'); relatedTitle.textContent = '本章关联题卡 · 用于追问训练'; related.append(relatedTitle);
+  const relatedGrid = document.createElement('div');
+  chapter.questionIds.map((id) => questions.find((item) => item.id === id)).filter(Boolean).forEach((question) => {
+    const button = document.createElement('button');
+    const badge = document.createElement('span'); badge.textContent = question.experienceLabel || categoryLabel(question.category);
+    const titleText = document.createElement('strong'); titleText.textContent = question.title;
+    button.append(badge, titleText); button.addEventListener('click', () => openTutorialQuestion(question.id)); relatedGrid.append(button);
+  });
+  related.append(relatedGrid); article.append(related);
+
+  if (state.tutorialChapter === tutorial.chapters.length - 1) {
+    const capstone = document.createElement('section'); capstone.className = 'course-capstone';
+    const capTitle = document.createElement('h3'); capTitle.textContent = tutorial.capstone.title;
+    const capPrompt = document.createElement('p'); capPrompt.textContent = tutorial.capstone.prompt;
+    const capChecks = document.createElement('ul'); tutorial.capstone.checklist.forEach((value) => { const li = document.createElement('li'); li.textContent = value; capChecks.append(li); });
+    capstone.append(capTitle, capPrompt, capChecks); article.append(capstone);
+  }
+
+  const controls = document.createElement('div'); controls.className = 'course-controls';
+  if (state.tutorialChapter > 0) { const previous = document.createElement('button'); previous.className = 'button ghost'; previous.textContent = '← 上一章'; previous.addEventListener('click', () => openTutorial(state.tutorialChapter - 1)); controls.append(previous); }
+  const key = tutorialChapterKey(tutorial, chapter); const isDone = state.completedTutorialChapters.has(key);
+  const complete = document.createElement('button'); complete.className = `button ${isDone ? 'mastered' : 'primary'}`;
+  complete.textContent = isDone ? '✓ 本章已完成' : (state.tutorialChapter < tutorial.chapters.length - 1 ? '完成本章，进入下一章 →' : '完成课程');
+  complete.addEventListener('click', () => {
+    state.completedTutorialChapters.add(key); saveTutorialProgress();
+    if (state.tutorialChapter < tutorial.chapters.length - 1) openTutorial(state.tutorialChapter + 1); else render();
+  });
+  controls.append(complete); article.append(controls);
+  shell.append(rail, article); container.append(shell);
+}
+
 function renderPersonalDashboard() {
   const wrap = document.createElement('div'); wrap.className = 'personal-dashboard';
   const hero = document.createElement('section'); hero.className = 'personal-hero';
@@ -60125,6 +60478,20 @@ function renderPersonalDashboard() {
     item.append(strong, text); stats.append(item);
   });
   hero.append(copy, stats); wrap.append(hero);
+
+  const tutorial = tutorials[0];
+  const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
+  const courseCard = document.createElement('section'); courseCard.className = 'featured-course';
+  const courseCopy = document.createElement('div');
+  const courseKicker = document.createElement('span'); courseKicker.textContent = 'FIRST GUIDED COURSE';
+  const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
+  const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
+  courseCopy.append(courseKicker, courseTitle, courseText);
+  const courseAction = document.createElement('div');
+  const courseCount = document.createElement('strong'); courseCount.textContent = `${completedChapters} / ${tutorial.chapters.length}`;
+  const courseLabel = document.createElement('span'); courseLabel.textContent = completedChapters ? '继续上次学习' : '从第 1 章开始';
+  const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial());
+  courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); wrap.append(courseCard);
 
   const heading = document.createElement('div'); heading.className = 'personal-section-head';
   const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
@@ -60233,6 +60600,7 @@ function renderMapPriority() {
 
 function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
+  document.body.classList.toggle('course-mode', state.view === 'course');
   renderMode();
   renderCategories();
   renderKindSwitch();
