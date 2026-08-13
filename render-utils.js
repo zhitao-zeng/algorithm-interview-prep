@@ -9,6 +9,52 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// 正文公式只接受显式的 LaTeX 分隔符：\(...\) 为行内公式，\[...\] 为块级公式。
+// 不解析 $...$，避免把 “A100 $2/h，A10 $0.8/h” 一类金额误判成数学表达式。
+export function splitMathText(value) {
+  const source = String(value == null ? '' : value);
+  const segments = [];
+  const delimiters = [
+    { open: '\\(', close: '\\)', displayMode: false },
+    { open: '\\[', close: '\\]', displayMode: true },
+  ];
+  const pushText = (text) => {
+    if (!text) return;
+    const previous = segments.at(-1);
+    if (previous?.type === 'text') previous.value += text;
+    else segments.push({ type: 'text', value: text });
+  };
+
+  let cursor = 0;
+  while (cursor < source.length) {
+    let next = null;
+    for (const delimiter of delimiters) {
+      const index = source.indexOf(delimiter.open, cursor);
+      if (index !== -1 && (!next || index < next.index)) next = { ...delimiter, index };
+    }
+    if (!next) {
+      pushText(source.slice(cursor));
+      break;
+    }
+
+    const contentStart = next.index + next.open.length;
+    const closeIndex = source.indexOf(next.close, contentStart);
+    if (closeIndex === -1) {
+      pushText(source.slice(cursor));
+      break;
+    }
+
+    pushText(source.slice(cursor, next.index));
+    const expression = source.slice(contentStart, closeIndex).trim();
+    const raw = source.slice(next.index, closeIndex + next.close.length);
+    if (expression) segments.push({ type: 'math', value: expression, displayMode: next.displayMode, raw });
+    else pushText(raw);
+    cursor = closeIndex + next.close.length;
+  }
+
+  return segments;
+}
+
 const LEADERS = new Set(['O', 'Ω', 'Θ']);
 const BLOCKING_PREFIX = /[A-Za-z0-9_./\\]/;
 const BLOCKING_SUFFIX = /[A-Za-z0-9_./\\]/;

@@ -1,7 +1,7 @@
-import { categories, questions } from './questions.js?v=c4567533';
+import { categories, questions } from './questions.js?v=efa6419d';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
-import { complexityView, diagramHtml, parseSimpleFlowChain } from './render-utils.js';
+import { complexityView, diagramHtml, parseSimpleFlowChain, splitMathText } from './render-utils.js';
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
@@ -87,7 +87,37 @@ function renderList() {
     return card;
   }));
 }
-function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = text; block.append(h, p); return block; }
+function appendRichText(target, value) {
+  splitMathText(value).forEach((segment) => {
+    if (segment.type === 'text') {
+      target.append(document.createTextNode(segment.value));
+      return;
+    }
+    const formula = document.createElement('span');
+    formula.className = segment.displayMode ? 'rich-math rich-math-display' : 'rich-math rich-math-inline';
+    formula.setAttribute('role', 'math');
+    formula.setAttribute('aria-label', segment.value);
+    if (typeof katex !== 'undefined') {
+      try {
+        katex.render(segment.value, formula, {
+          displayMode: segment.displayMode,
+          throwOnError: true,
+          strict: 'error',
+          trust: false,
+        });
+      } catch {
+        formula.classList.add('math-fallback');
+        formula.textContent = segment.raw;
+      }
+    } else {
+      formula.classList.add('math-fallback');
+      formula.textContent = segment.raw;
+    }
+    target.append(formula);
+  });
+  return target;
+}
+function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = appendRichText(document.createElement('p'), text); block.append(h, p); return block; }
 function complexitySection(title, text) {
   const block = document.createElement('section'); block.className = 'detail-section formula-section';
   const h = document.createElement('h3'); h.textContent = title;
@@ -123,7 +153,7 @@ function complexitySection(title, text) {
   const copy = document.createElement('p'); copy.className = 'complexity-copy'; copy.textContent = view.source;
   note.append(noteLabel, copy); panel.append(label, formulaList, note); block.append(h, panel); return block;
 }
-function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); li.textContent = item; list.append(li); }); block.append(h, list); return block; }
+function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); const content = appendRichText(document.createElement('div'), item); content.className = 'rich-text'; li.append(content); list.append(li); }); block.append(h, list); return block; }
 function codeSection(title, code) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const wrap = document.createElement('div'); wrap.className = 'code-wrap'; const pre = document.createElement('pre'); const codeEl = document.createElement('code'); codeEl.setAttribute('aria-label', title); codeEl.textContent = code; pre.append(codeEl); wrap.append(pre); block.append(h, wrap); return block; }
 function closeExpandedDiagram(card) {
   const trigger = card?.querySelector('.diagram-expand');
@@ -198,7 +228,7 @@ function lineNotesSection(title, notes) {
   (Array.isArray(notes) ? notes : []).forEach((note, index) => {
     const li = document.createElement('li');
     const line = document.createElement('code'); line.textContent = `第 ${note?.line ?? index + 1} 行`;
-    const explanation = document.createElement('span'); explanation.textContent = typeof note === 'string' ? note : (note?.explanation ?? note?.text ?? '');
+    const explanation = appendRichText(document.createElement('span'), typeof note === 'string' ? note : (note?.explanation ?? note?.text ?? ''));
     li.append(line, explanation); list.append(li);
   });
   block.append(h, list); return block;
@@ -208,8 +238,8 @@ function qaSection(title, entries) {
   const h = document.createElement('h3'); h.textContent = title; block.append(h);
   (Array.isArray(entries) ? entries : []).forEach((entry) => {
     const details = document.createElement('details');
-    const summary = document.createElement('summary'); summary.textContent = typeof entry === 'string' ? entry : (entry?.question ?? '追问');
-    const answer = document.createElement('p'); answer.className = 'qa-answer'; answer.textContent = typeof entry === 'string' ? '请先自行组织答案，再对照题卡复盘。' : (entry?.answer ?? '');
+    const summary = appendRichText(document.createElement('summary'), typeof entry === 'string' ? entry : (entry?.question ?? '追问'));
+    const answer = appendRichText(document.createElement('p'), typeof entry === 'string' ? '请先自行组织答案，再对照题卡复盘。' : (entry?.answer ?? '')); answer.className = 'qa-answer';
     details.append(summary, answer); block.append(details);
   });
   return block;
@@ -221,7 +251,8 @@ function compareSection(title, items) {
   const list = document.createElement('ul'); list.className = 'detail-list';
   items.forEach((row) => {
     const li = document.createElement('li');
-    li.textContent = typeof row === 'string' ? row : `${row?.a ?? ''} vs ${row?.b ?? ''}：${row?.note ?? ''}`;
+    const content = appendRichText(document.createElement('div'), typeof row === 'string' ? row : `${row?.a ?? ''} vs ${row?.b ?? ''}：${row?.note ?? ''}`);
+    content.className = 'rich-text'; li.append(content);
     list.append(li);
   });
   block.append(list); return block;

@@ -9,8 +9,22 @@ import {
   diagramHtml,
   extractEquationClauses,
   parseSimpleFlowChain,
+  splitMathText,
   splitComplexity,
 } from '../render-utils.js';
+
+test('正文公式只识别显式 LaTeX 分隔符，金额与未闭合内容保持原文', () => {
+  assert.deepEqual(splitMathText('前向 \\(q(x_t\\mid x_{t-1})\\) 后续'), [
+    { type: 'text', value: '前向 ' },
+    { type: 'math', value: 'q(x_t\\mid x_{t-1})', displayMode: false, raw: '\\(q(x_t\\mid x_{t-1})\\)' },
+    { type: 'text', value: ' 后续' },
+  ]);
+  assert.deepEqual(splitMathText('\\[x_T\\sim\\mathcal{N}(0,I)\\]'), [
+    { type: 'math', value: 'x_T\\sim\\mathcal{N}(0,I)', displayMode: true, raw: '\\[x_T\\sim\\mathcal{N}(0,I)\\]' },
+  ]);
+  assert.deepEqual(splitMathText('A100 $2/h，A10 $0.8/h'), [{ type: 'text', value: 'A100 $2/h，A10 $0.8/h' }]);
+  assert.deepEqual(splitMathText('未闭合 \\(x_t'), [{ type: 'text', value: '未闭合 \\(x_t' }]);
+});
 
 test('括号深度扫描会逐个提取嵌套复杂度，不吞掉相邻说明', () => {
   const source = '时间 O(n log(min(m,k)))，空间 O(n)，随后继续说明。';
@@ -106,6 +120,10 @@ test('题库源数据已恢复：没有脚本生成的 Mermaid，也没有数学
   assert.match(perfCost.walkthrough, /A100 约 \$2\/h/);
   assert.match(perfCost.walkthrough, /\$0\.00067\/千 token/);
   assert.match(perfCost.workedExample.join('\n'), /A10 \$0\.8\/h/);
+  const ddpm = questions.find((question) => question.id === 'gen-diffusion-ddpm');
+  assert.match(ddpm.derivation.join('\n'), /\\mathcal\{N\}/);
+  assert.match(ddpm.workedExample.join('\n'), /\\bar\{\\alpha\}_\{500\}/);
+  assert.ok(ddpm.derivation.flatMap(splitMathText).some((segment) => segment.type === 'math'));
   assert.ok(questions.filter((question) => parseSimpleFlowChain(question.diagram)).length >= 25, '明确短链应获得结构化视图');
 });
 
@@ -115,6 +133,8 @@ test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () 
   const indexSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 
   assert.match(appSource, /className = 'formula-line'/);
+  assert.match(appSource, /function appendRichText/);
+  assert.match(appSource, /katex\.render\(segment\.value/);
   assert.match(appSource, /displayMode: true/);
   assert.match(appSource, /strict: 'error', trust: false/);
   assert.match(appSource, /className = 'flow-chain'/);

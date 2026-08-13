@@ -82,6 +82,12 @@
 }
 
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
+.rich-text { min-width: 0; }
+.rich-math-inline { display: inline-block; max-width: 100%; margin: 0 .08em; color: #183b66; vertical-align: -.08em; }
+.rich-math-inline .katex { font-size: 1.06em; }
+.rich-math-display { display: block; max-width: 100%; margin: 10px 0; padding: 10px 12px; border: 1px solid #d8e5f3; border-radius: 8px; background: #f8fbff; color: #183b66; text-align: center; overflow-x: auto; }
+.rich-math-display .katex-display { margin: 0; overflow-x: auto; overflow-y: hidden; }
+.math-fallback { color: #294a68; font: 600 .94em/1.6 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; white-space: pre-wrap; }
 .formula-panel { margin-top: 8px; padding: 14px; border: 1px solid #c9dcf8; border-left: 4px solid var(--blue); border-radius: 11px; background: linear-gradient(180deg, #f8fbff, #eef5ff); }
 .formula-label { display: block; margin-bottom: 10px; color: #496987; font-size: 12px; font-weight: 850; letter-spacing: .08em; }
 .formula-list { display: grid; grid-template-columns: 1fr; gap: 9px; }

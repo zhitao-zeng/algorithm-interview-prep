@@ -93,6 +93,12 @@
 }
 
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
+.rich-text { min-width: 0; }
+.rich-math-inline { display: inline-block; max-width: 100%; margin: 0 .08em; color: #183b66; vertical-align: -.08em; }
+.rich-math-inline .katex { font-size: 1.06em; }
+.rich-math-display { display: block; max-width: 100%; margin: 10px 0; padding: 10px 12px; border: 1px solid #d8e5f3; border-radius: 8px; background: #f8fbff; color: #183b66; text-align: center; overflow-x: auto; }
+.rich-math-display .katex-display { margin: 0; overflow-x: auto; overflow-y: hidden; }
+.math-fallback { color: #294a68; font: 600 .94em/1.6 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; white-space: pre-wrap; }
 .formula-panel { margin-top: 8px; padding: 14px; border: 1px solid #c9dcf8; border-left: 4px solid var(--blue); border-radius: 11px; background: linear-gradient(180deg, #f8fbff, #eef5ff); }
 .formula-label { display: block; margin-bottom: 10px; color: #496987; font-size: 12px; font-weight: 850; letter-spacing: .08em; }
 .formula-list { display: grid; grid-template-columns: 1fr; gap: 9px; }
@@ -39865,27 +39871,27 @@ const questions = [
     "title": "DDPM 去噪扩散概率模型",
     "difficulty": "Hard",
     "prompt": "请讲讲 DDPM（去噪扩散概率模型）的前向加噪调度、反向去噪过程、训练目标（噪声预测 / ELBO）以及时间步的作用？",
-    "quickAnswer": "DDPM 由前向（固定 Markov 加噪）与反向（学习去噪）两段构成。前向按方差调度 β_t 逐步把数据 x0 变成纯高斯噪声；反向用 U-Net ε_θ 预测每步加入的噪声，训练目标是简化 ELBO 得到的 L_simple = E[||ε - ε_θ(x_t,t)||²]。时间步 t 让网络知道当前噪声水平，从而输出对应尺度的残差。",
+    "quickAnswer": "DDPM 由前向（固定 Markov 加噪）与反向（学习去噪）两段构成。前向按方差调度 \\(\\beta_t\\) 逐步把数据 \\(x_0\\) 变成纯高斯噪声；反向用 U-Net \\(\\varepsilon_\\theta\\) 预测每步加入的噪声，训练目标是简化 ELBO 得到的 \\(L_{\\text{simple}}=\\mathbb{E}[\\lVert\\varepsilon-\\varepsilon_\\theta(x_t,t)\\rVert_2^2]\\)。时间步 \\(t\\) 让网络知道当前噪声水平，从而输出对应尺度的残差。",
     "code": "import torch\ndef q_sample(x0, t, noise):\n    # 前向：根据 alpha_bar 直接采样任意 t 的加噪结果\n    sqrt_ab = torch.sqrt(alphas_cumprod[t])[:, None, None, None]\n    sqrt_1m = torch.sqrt(1 - alphas_cumprod[t])[:, None, None, None]\n    return sqrt_ab * x0 + sqrt_1m * noise\n\ndef training_loss(model, x0, t):\n    noise = torch.randn_like(x0)\n    xt = q_sample(x0, t, noise)\n    pred = model(xt, t)            # 预测噪声\n    return ((pred - noise) ** 2).mean()",
     "complexity": "O(T·H·W·C) 每步 U-Net 前向",
     "beginnerSummary": "想象不断往一张清晰照片上撒沙子，直到它变成一片均匀的灰噪点；DDPM 训练一个网络学会“把沙子一层层扫掉”，从而能从纯噪声重新开始还原出一张新照片。",
     "explanationFocus": "是什么：DDPM 是一类通过“逐步加噪—逐步去噪”来建模数据分布的生成模型，前向过程固定为高斯 Markov 链，反向过程用神经网络参数化。",
-    "approach": "核心思路是用变分下界（ELBO）把生成建模成学习反向条件分布 q(x_{t-1}|x_t)；进一步用重参数化把目标简化为预测前向过程加入的噪声 ε，从而用最基础的回归损失训练 U-Net。",
+    "approach": "核心思路是用变分下界（ELBO）把生成建模成学习反向条件分布 \\(q(x_{t-1}\\mid x_t)\\)；进一步用重参数化把目标简化为预测前向过程加入的噪声 \\(\\varepsilon\\)，从而用最基础的回归损失训练 U-Net。",
     "derivation": [
-      "为什么需要：直接建模高维图像密度 p(x) 极难，扩散把问题拆成大量易处理的单步高斯转移，从而稳定训练并支持高质量采样。",
-      "怎么实现：前向固定 q(x_t|x_{t-1})=N(x_t;√(1-β_t)x_{t-1},β_t I)，可闭式跳步采样；反向训练 ε_θ 预测噪声，用 L_simple 回归。",
-      "有什么代价：反向需迭代 T（常 1000）步去噪，采样慢、显存与算力开销大；且训练需配对噪声-图像对。",
+      "为什么需要：直接建模高维图像密度 \\(p(x)\\) 极难，扩散把问题拆成大量易处理的单步高斯转移，从而稳定训练并支持高质量采样。",
+      "怎么实现：前向固定 \\(q(x_t\\mid x_{t-1})=\\mathcal{N}(x_t;\\sqrt{1-\\beta_t}\\,x_{t-1},\\beta_t I)\\)，可闭式跳步采样；反向训练 \\(\\varepsilon_\\theta\\) 预测噪声，用 \\(L_{\\text{simple}}\\) 回归。",
+      "有什么代价：反向需迭代 \\(T\\)（常 1000）步去噪，采样慢、显存与算力开销大；且训练需配对噪声-图像对。",
       "怎么评测：用 FID / IS 衡量生成质量与多样性，用采样步数与时延衡量效率，并做人工主观打分。"
     ],
     "edgeCases": [
-      "t=0 时退化成原始数据，t=T 时近似标准高斯，边界处调度需平滑避免突变。",
-      "β_t 调度过大会使信噪比骤降，导致反向难以学习；过小则去噪步数不足。",
+      "\\(t=0\\) 时退化成原始数据，\\(t=T\\) 时近似标准高斯，边界处调度需平滑避免突变。",
+      "\\(\\beta_t\\) 调度过大会使信噪比骤降，导致反向难以学习；过小则去噪步数不足。",
       "条件生成时若条件缺失，应回退到无条件分支（CFG 用空 prompt）。",
-      "低资源下 T 取太大训练慢、取太小质量掉，需要折中或改用加速采样。"
+      "低资源下 \\(T\\) 取太大训练慢、取太小质量掉，需要折中或改用加速采样。"
     ],
     "pitfalls": [
-      "误以为反向也要按前向同样的 β_t；其实反向方差常取固定或学到的常数。",
-      "把 L_simple 当成完整 ELBO 而忽略权重，训练时仍需注意高 t 项主导。"
+      "误以为反向也要按前向同样的 \\(\\beta_t\\)；其实反向方差常取固定或学到的常数。",
+      "把 \\(L_{\\text{simple}}\\) 当成完整 ELBO 而忽略权重，训练时仍需注意高 \\(t\\) 项主导。"
     ],
     "prerequisites": [
       "概率图模型与 Markov 链",
@@ -39893,27 +39899,27 @@ const questions = [
       "高斯分布重参数化"
     ],
     "workedExample": [
-      "给定 x0 与随机噪声 ε，选 t=500，用 ᾱ_500 计算 x_500 的闭式加噪样本。",
-      "把 x_500、t 送入 U-Net 得到预测噪声 ε_hat，与真实 ε 算 MSE 作为一步损失。",
-      "采样时从 x_T~N(0,I) 出发，重复 T 次用 ε_θ 做一步去噪直到 x_0。"
+      "给定 \\(x_0\\) 与随机噪声 \\(\\varepsilon\\)，选 \\(t=500\\)，用 \\(\\bar{\\alpha}_{500}\\) 计算 \\(x_{500}\\) 的闭式加噪样本。",
+      "把 \\(x_{500}\\)、\\(t\\) 送入 U-Net 得到预测噪声 \\(\\hat{\\varepsilon}=\\varepsilon_\\theta(x_{500},t)\\)，与真实 \\(\\varepsilon\\) 算 MSE 作为一步损失。",
+      "采样时从 \\(x_T\\sim\\mathcal{N}(0,I)\\) 出发，重复 \\(T\\) 次用 \\(\\varepsilon_\\theta\\) 做一步去噪直到 \\(x_0\\)。"
     ],
     "lineByLine": [
-      "q_sample 中用 ᾱ_t 的平方根缩放原图，用 √(1-ᾱ_t) 缩放噪声，实现任意步闭式加噪。",
-      "training_loss 先采样真实噪声并对 x0 加噪得到 xt，再让模型预测噪声。",
-      "最后的 MSE 直接对齐 L_simple，使网络学会在给定时间步去噪。"
+      "q_sample 中用 \\(\\sqrt{\\bar{\\alpha}_t}\\) 缩放原图，用 \\(\\sqrt{1-\\bar{\\alpha}_t}\\) 缩放噪声，实现任意步闭式加噪。",
+      "training_loss 先采样真实噪声并对 \\(x_0\\) 加噪得到 \\(x_t\\)，再让模型预测噪声。",
+      "最后的 MSE 直接对齐 \\(L_{\\text{simple}}\\)，使网络学会在给定时间步去噪。"
     ],
     "followUps": [
       {
         "question": "为什么 DDPM 用预测噪声而不是预测 x0？",
-        "answer": "预测噪声对应简化 ELBO 的最简形式，梯度稳定且与加噪闭式解天然对齐；预测 x0 也可但需额外映射且早期步噪声大时不稳定。"
+        "answer": "预测噪声对应简化 ELBO 的最简形式，梯度稳定且与加噪闭式解天然对齐；预测 \\(x_0\\) 也可但需额外映射且早期步噪声大时不稳定。"
       },
       {
         "question": "反向过程的方差怎么取？",
-        "answer": "原始 DDPM 用固定 β_t 或其后验方差；后续工作让它可学习（如 γ 参数化），能改善尾部步质量。"
+        "answer": "原始 DDPM 用固定 \\(\\beta_t\\) 或其后验方差；后续工作让它可学习（如 \\(\\gamma\\) 参数化），能改善尾部步质量。"
       },
       {
         "question": "时间步 t 怎么编码进网络？",
-        "answer": "通常用正弦位置编码或学习的 embedding，再经 FiLM / 注意力注入 U-Net 各层，告诉网络当前噪声水平。"
+        "answer": "通常用正弦位置编码或学习的 embedding，再经 FiLM / 注意力注入 U-Net 各层，告诉网络当前噪声水平 \\(t\\)。"
       }
     ],
     "followUpAnswers": [
@@ -53347,6 +53353,52 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
+// 正文公式只接受显式的 LaTeX 分隔符：\(...\) 为行内公式，\[...\] 为块级公式。
+// 不解析 $...$，避免把 “A100 $2/h，A10 $0.8/h” 一类金额误判成数学表达式。
+function splitMathText(value) {
+  const source = String(value == null ? '' : value);
+  const segments = [];
+  const delimiters = [
+    { open: '\\(', close: '\\)', displayMode: false },
+    { open: '\\[', close: '\\]', displayMode: true },
+  ];
+  const pushText = (text) => {
+    if (!text) return;
+    const previous = segments.at(-1);
+    if (previous?.type === 'text') previous.value += text;
+    else segments.push({ type: 'text', value: text });
+  };
+
+  let cursor = 0;
+  while (cursor < source.length) {
+    let next = null;
+    for (const delimiter of delimiters) {
+      const index = source.indexOf(delimiter.open, cursor);
+      if (index !== -1 && (!next || index < next.index)) next = { ...delimiter, index };
+    }
+    if (!next) {
+      pushText(source.slice(cursor));
+      break;
+    }
+
+    const contentStart = next.index + next.open.length;
+    const closeIndex = source.indexOf(next.close, contentStart);
+    if (closeIndex === -1) {
+      pushText(source.slice(cursor));
+      break;
+    }
+
+    pushText(source.slice(cursor, next.index));
+    const expression = source.slice(contentStart, closeIndex).trim();
+    const raw = source.slice(next.index, closeIndex + next.close.length);
+    if (expression) segments.push({ type: 'math', value: expression, displayMode: next.displayMode, raw });
+    else pushText(raw);
+    cursor = closeIndex + next.close.length;
+  }
+
+  return segments;
+}
+
 const LEADERS = new Set(['O', 'Ω', 'Θ']);
 const BLOCKING_PREFIX = /[A-Za-z0-9_./\\]/;
 const BLOCKING_SUFFIX = /[A-Za-z0-9_./\\]/;
@@ -53686,7 +53738,37 @@ function renderList() {
     return card;
   }));
 }
-function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = document.createElement('p'); p.textContent = text; block.append(h, p); return block; }
+function appendRichText(target, value) {
+  splitMathText(value).forEach((segment) => {
+    if (segment.type === 'text') {
+      target.append(document.createTextNode(segment.value));
+      return;
+    }
+    const formula = document.createElement('span');
+    formula.className = segment.displayMode ? 'rich-math rich-math-display' : 'rich-math rich-math-inline';
+    formula.setAttribute('role', 'math');
+    formula.setAttribute('aria-label', segment.value);
+    if (typeof katex !== 'undefined') {
+      try {
+        katex.render(segment.value, formula, {
+          displayMode: segment.displayMode,
+          throwOnError: true,
+          strict: 'error',
+          trust: false,
+        });
+      } catch {
+        formula.classList.add('math-fallback');
+        formula.textContent = segment.raw;
+      }
+    } else {
+      formula.classList.add('math-fallback');
+      formula.textContent = segment.raw;
+    }
+    target.append(formula);
+  });
+  return target;
+}
+function textSection(title, text) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const p = appendRichText(document.createElement('p'), text); block.append(h, p); return block; }
 function complexitySection(title, text) {
   const block = document.createElement('section'); block.className = 'detail-section formula-section';
   const h = document.createElement('h3'); h.textContent = title;
@@ -53722,7 +53804,7 @@ function complexitySection(title, text) {
   const copy = document.createElement('p'); copy.className = 'complexity-copy'; copy.textContent = view.source;
   note.append(noteLabel, copy); panel.append(label, formulaList, note); block.append(h, panel); return block;
 }
-function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); li.textContent = item; list.append(li); }); block.append(h, list); return block; }
+function listSection(title, items, className = 'detail-list') { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const list = document.createElement('ul'); list.className = className; items.forEach((item) => { const li = document.createElement('li'); const content = appendRichText(document.createElement('div'), item); content.className = 'rich-text'; li.append(content); list.append(li); }); block.append(h, list); return block; }
 function codeSection(title, code) { const block = document.createElement('section'); block.className = 'detail-section'; const h = document.createElement('h3'); h.textContent = title; const wrap = document.createElement('div'); wrap.className = 'code-wrap'; const pre = document.createElement('pre'); const codeEl = document.createElement('code'); codeEl.setAttribute('aria-label', title); codeEl.textContent = code; pre.append(codeEl); wrap.append(pre); block.append(h, wrap); return block; }
 function closeExpandedDiagram(card) {
   const trigger = card?.querySelector('.diagram-expand');
@@ -53797,7 +53879,7 @@ function lineNotesSection(title, notes) {
   (Array.isArray(notes) ? notes : []).forEach((note, index) => {
     const li = document.createElement('li');
     const line = document.createElement('code'); line.textContent = `第 ${note?.line ?? index + 1} 行`;
-    const explanation = document.createElement('span'); explanation.textContent = typeof note === 'string' ? note : (note?.explanation ?? note?.text ?? '');
+    const explanation = appendRichText(document.createElement('span'), typeof note === 'string' ? note : (note?.explanation ?? note?.text ?? ''));
     li.append(line, explanation); list.append(li);
   });
   block.append(h, list); return block;
@@ -53807,8 +53889,8 @@ function qaSection(title, entries) {
   const h = document.createElement('h3'); h.textContent = title; block.append(h);
   (Array.isArray(entries) ? entries : []).forEach((entry) => {
     const details = document.createElement('details');
-    const summary = document.createElement('summary'); summary.textContent = typeof entry === 'string' ? entry : (entry?.question ?? '追问');
-    const answer = document.createElement('p'); answer.className = 'qa-answer'; answer.textContent = typeof entry === 'string' ? '请先自行组织答案，再对照题卡复盘。' : (entry?.answer ?? '');
+    const summary = appendRichText(document.createElement('summary'), typeof entry === 'string' ? entry : (entry?.question ?? '追问'));
+    const answer = appendRichText(document.createElement('p'), typeof entry === 'string' ? '请先自行组织答案，再对照题卡复盘。' : (entry?.answer ?? '')); answer.className = 'qa-answer';
     details.append(summary, answer); block.append(details);
   });
   return block;
@@ -53820,7 +53902,8 @@ function compareSection(title, items) {
   const list = document.createElement('ul'); list.className = 'detail-list';
   items.forEach((row) => {
     const li = document.createElement('li');
-    li.textContent = typeof row === 'string' ? row : `${row?.a ?? ''} vs ${row?.b ?? ''}：${row?.note ?? ''}`;
+    const content = appendRichText(document.createElement('div'), typeof row === 'string' ? row : `${row?.a ?? ''} vs ${row?.b ?? ''}：${row?.note ?? ''}`);
+    content.className = 'rich-text'; li.append(content);
     list.append(li);
   });
   block.append(list); return block;
