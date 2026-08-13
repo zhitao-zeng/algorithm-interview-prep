@@ -53542,6 +53542,261 @@ function complexityToLatex(value) {
     .replace(/\bmax\b/g, '\\max');
 }
 
+const GREEK_LATEX = {
+  'α': '\\alpha', 'β': '\\beta', 'γ': '\\gamma', 'δ': '\\delta', 'ε': '\\varepsilon', 'ζ': '\\zeta', 'η': '\\eta', 'θ': '\\theta',
+  'ι': '\\iota', 'κ': '\\kappa', 'λ': '\\lambda', 'μ': '\\mu', 'ν': '\\nu', 'ξ': '\\xi', 'ο': 'o', 'π': '\\pi',
+  'ρ': '\\rho', 'σ': '\\sigma', 'τ': '\\tau', 'υ': '\\upsilon', 'φ': '\\phi', 'χ': '\\chi', 'ψ': '\\psi', 'ω': '\\omega',
+  'Α': 'A', 'Β': 'B', 'Γ': '\\Gamma', 'Δ': '\\Delta', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'H', 'Θ': '\\Theta',
+  'Ι': 'I', 'Κ': 'K', 'Λ': '\\Lambda', 'Μ': 'M', 'Ν': 'N', 'Ξ': '\\Xi', 'Ο': 'O', 'Π': '\\Pi',
+  'Ρ': 'P', 'Σ': '\\Sigma', 'Τ': 'T', 'Υ': '\\Upsilon', 'Φ': '\\Phi', 'Χ': 'X', 'Ψ': '\\Psi', 'Ω': '\\Omega',
+};
+const SUPERSCRIPT_LATEX = {
+  '²': '^{2}', '³': '^{3}', '⁴': '^{4}', 'ⁿ': '^{n}', 'ᵏ': '^{k}', 'ᵐ': '^{m}', 'ᵀ': '^{T}',
+};
+const AUTO_MATH_WORDS = new Set([
+  'avg', 'aux', 'batch', 'cos', 'data', 'decode', 'dim', 'exp', 'head', 'heads', 'hyp', 'key', 'log', 'logits',
+  'layernorm', 'loss', 'max', 'mean', 'min', 'model', 'neg', 'old', 'pos', 'pred', 'prefill', 'prob', 'query',
+  'rank', 'ref', 'reward', 'rms', 'rmsnorm', 'round', 'score', 'seq', 'sigmoid', 'simple', 'sin', 'softmax',
+  'space', 'sqrt', 'std', 'student', 'sum', 'teacher', 'test', 'time', 'token', 'total', 'train', 'value', 'var',
+]);
+const ALLOWED_SUBSCRIPTS = new Set([
+  '0', '1', '2', 'aux', 'avg', 'data', 'gt', 'h', 'head', 'heads', 'hyp', 'i', 'in', 'j', 'k', 'l', 'm', 'max',
+  'min', 'model', 'n', 'neg', 'new', 'old', 'out', 'p', 'pos', 'pred', 'q', 'ref', 'simple', 't', 'test', 'token',
+  'total', 'train', 'v',
+]);
+
+function plainMathToLatex(value) {
+  let source = String(value == null ? '' : value).trim();
+  if (!source || CJK.test(source) || /[$`"']/u.test(source)) return null;
+
+  source = convertSquareRoots(source)
+    .replace(/\|\|([^|\n]{1,100})\|\|/g, '\\lVert $1 \\rVert')
+    .replace(/([Α-Ωα-ω])\u0304/gu, (_, symbol) => `\\bar{${GREEK_LATEX[symbol] || symbol}}`)
+    .replace(/\bN\s*(?=\()/g, '\\mathcal{N}')
+    .replace(/\bE\s*(?=\[)/g, '\\mathbb{E}')
+    .replace(/\bsoftmax\b/gi, '\\operatorname{softmax}')
+    .replace(/\bsigmoid\b/gi, '\\operatorname{sigmoid}')
+    .replace(/\b(?:LayerNorm|RMSNorm|RMS|KL|CE|mean|std|round)\b/g, (name) => `\\operatorname{${name}}`)
+    .replace(/\blog\b/gi, '\\log')
+    .replace(/\bln\b/gi, '\\ln')
+    .replace(/\bexp\b/gi, '\\exp')
+    .replace(/\bmin\b/gi, '\\min')
+    .replace(/\bmax\b/gi, '\\max')
+    .replace(/∑|Σ/g, '\\sum ')
+    .replace(/∏|Π/g, '\\prod ')
+    .replace(/[Α-Ωα-ω]/gu, (symbol) => GREEK_LATEX[symbol] || symbol)
+    .replace(/[²³⁴ⁿᵏᵐᵀ]/gu, (symbol) => SUPERSCRIPT_LATEX[symbol] || symbol)
+    .replace(/_(?!\{)([A-Za-z0-9]+(?:_[A-Za-z0-9]+)*)/g, (_, subscript) => {
+      const escaped = subscript.replace(/_/g, '\\_');
+      return subscript.length > 1 ? `_{\\mathrm{${escaped}}}` : `_{${subscript}}`;
+    })
+    .replace(/\^(?!\{)([-A-Za-z0-9]+)/g, (_, exponent) => (
+      /^[A-Za-z]{2,}$/.test(exponent) ? `^{\\mathrm{${exponent}}}` : `^{${exponent}}`
+    ))
+    .replace(/∫/g, '\\int ')
+    .replace(/∞/g, '\\infty ')
+    .replace(/≈/g, '\\approx ')
+    .replace(/≃|≅/g, '\\simeq ')
+    .replace(/∝/g, '\\propto ')
+    .replace(/≤/g, '\\le ')
+    .replace(/≥/g, '\\ge ')
+    .replace(/≪/g, '\\ll ')
+    .replace(/≫/g, '\\gg ')
+    .replace(/±/g, '\\pm ')
+    .replace(/∈/g, '\\in ')
+    .replace(/∉/g, '\\notin ')
+    .replace(/⊂/g, '\\subset ')
+    .replace(/⊆/g, '\\subseteq ')
+    .replace(/∪/g, '\\cup ')
+    .replace(/∩/g, '\\cap ')
+    .replace(/⊙/g, '\\odot ')
+    .replace(/⊗/g, '\\otimes ')
+    .replace(/·|⋅/g, '\\cdot ')
+    .replace(/×/g, '\\times ')
+    .replace(/−/g, '-')
+    .replace(/∇/g, '\\nabla ')
+    .replace(/‖/g, '\\Vert ')
+    .replace(/′/g, '^{\\prime}')
+    .replace(/(?<!\|)\|(?!\|)/g, '\\mid ')
+    .replace(/~/g, '\\sim ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return source || null;
+}
+
+function convertSquareRoots(value) {
+  const source = String(value);
+  let result = '';
+  for (let index = 0; index < source.length; index += 1) {
+    if (source[index] !== '√') {
+      result += source[index];
+      continue;
+    }
+    let start = index + 1;
+    while (/\s/.test(source[start] || '')) start += 1;
+    if (source[start] === '(') {
+      let depth = 0, close = -1;
+      for (let cursor = start; cursor < source.length; cursor += 1) {
+        if (source[cursor] === '(') depth += 1;
+        else if (source[cursor] === ')' && --depth === 0) { close = cursor; break; }
+      }
+      if (close !== -1) {
+        result += `\\sqrt{${convertSquareRoots(source.slice(start + 1, close))}}`;
+        index = close;
+        continue;
+      }
+    }
+    const token = source.slice(start).match(/^[A-Za-zΑ-Ωα-ω0-9_]+/u)?.[0];
+    if (token) {
+      result += `\\sqrt{${token}}`;
+      index = start + token.length - 1;
+    } else {
+      result += source[index];
+    }
+  }
+  return result;
+}
+
+function trimCandidate(source, index, raw) {
+  const left = raw.match(/^[\s,;:]*/u)?.[0].length || 0;
+  const right = raw.match(/[\s,;:]*$/u)?.[0].length || 0;
+  return { start: index + left, end: index + raw.length - right, raw: raw.slice(left, raw.length - right) };
+}
+
+function hasBalancedDelimiters(raw) {
+  const stack = [];
+  const opening = new Set(['(', '[', '{']);
+  const closing = { ')': '(', ']': '[', '}': '{' };
+  for (const char of raw) {
+    if (opening.has(char)) stack.push(char);
+    else if (closing[char] && stack.pop() !== closing[char]) return false;
+  }
+  return stack.length === 0;
+}
+
+function isFormulaRun(raw) {
+  if (!raw || raw.length > 180 || /(?:->|=>|--|:\/\/)/.test(raw)) return false;
+  if (/[-~]\s*[A-Za-z]{3,}\b/.test(raw)) return false;
+  const words = raw.match(/[A-Za-z]{3,}/g) || [];
+  if (words.some((word) => !AUTO_MATH_WORDS.has(word.toLowerCase()))) return false;
+  const hasRelation = /(?:^|[^!])=(?!=)|[≈≃≅∝≤≥≪≫<>]/.test(raw);
+  const hasTildeDistribution = /~/.test(raw) && /(?:_[A-Za-z0-9]+|\bN\s*\()/.test(raw);
+  const signalCount = (raw.match(/[Α-Ωα-ω]|_[A-Za-z0-9]+|[²³⁴ⁿᵏᵐᵀ]|[√∑Σ∏∫∞]/gu) || []).length;
+  const hasOperatorChain = signalCount >= 2 && /[·⋅×*/+\-−]/.test(raw);
+  if (!hasRelation && !hasTildeDistribution && !hasOperatorChain) return false;
+  if (hasRelation) {
+    const relation = raw.match(/(?:^|[^!])=(?!=)|[≈≃≅∝≤≥≪≫<>]/)?.[0] || '';
+    const index = raw.indexOf(relation.trim());
+    if (index <= 0 || index >= raw.length - relation.trim().length) return false;
+  }
+  return /[A-Za-zΑ-Ωα-ω]/u.test(raw);
+}
+
+function addCandidate(candidates, source, index, raw) {
+  const candidate = trimCandidate(source, index, raw);
+  if (!candidate.raw || candidate.end <= candidate.start) return;
+  if (!hasBalancedDelimiters(candidate.raw)) return;
+  if (/^[+*/·⋅×≈≃≅∝≤≥≪≫=<>|~]|[+\-*/·⋅×≈≃≅∝≤≥≪≫=<>|~√∑Σ∏Π∫]$/u.test(candidate.raw)) return;
+  const latex = plainMathToLatex(candidate.raw);
+  if (latex) candidates.push({ ...candidate, latex });
+}
+
+function collectImplicitMathCandidates(source) {
+  const candidates = [];
+  const formulaRun = /[A-Za-zΑ-Ωα-ω0-9_{}\[\]().,;:!+\-−*/^·⋅×≈≃≅∝≤≥≪≫=<>|‖~√∇∑Σ∏Π∫∞∈∉⊂⊆∪∩⊙⊗±′²³⁴ⁿᵏᵐᵀ\u0304 ]{3,}/gu;
+  for (const match of source.matchAll(formulaRun)) {
+    const candidate = trimCandidate(source, match.index, match[0]);
+    if (isFormulaRun(candidate.raw)) addCandidate(candidates, source, candidate.start, candidate.raw);
+  }
+
+  const functionStart = /\b(?:Pr|KL|p|q|P|N)\s*\(/g;
+  for (const match of source.matchAll(functionStart)) {
+    const open = source.indexOf('(', match.index);
+    let depth = 0, close = -1;
+    for (let index = open; index < source.length; index += 1) {
+      if (source[index] === '(') depth += 1;
+      else if (source[index] === ')') {
+        depth -= 1;
+        if (depth === 0) { close = index; break; }
+      }
+    }
+    if (close !== -1 && !/[A-Za-z0-9_]/.test(source[close + 1] || '')) {
+      addCandidate(candidates, source, match.index, source.slice(match.index, close + 1));
+    }
+  }
+
+  const atomicPatterns = [
+    /\|\|[^|\n]{1,100}\|\|(?:[²³⁴ⁿᵏᵐ]|^[A-Za-z0-9]+)?/gu,
+    /√(?:\([^\n)]{1,100}\)|[A-Za-zΑ-Ωα-ω0-9_]+)/gu,
+    /[∑Σ∏Π](?:_[^\s,，。;；]+)?[A-Za-zΑ-Ωα-ω0-9_²³⁴ⁿᵏᵐ]*/gu,
+    /\b(?:\d+|[A-Z])(?:\s*[×x]\s*(?:\d+|[A-Z])){1,4}\b/g,
+    /\b[A-Z]{1,4}(?:ᵀ|\^T)/gu,
+    /[Α-Ωα-ω](?:\u0304)?(?:_[A-Za-z0-9]+|[₀-₉]+)?(?:\^[A-Za-z0-9]+|[²³⁴ⁿᵏᵐᵀ]+)?/gu,
+    /\b[A-Za-z]_[A-Za-z0-9]+(?:\^[A-Za-z0-9]+|[²³⁴ⁿᵏᵐᵀ]+)?/g,
+    /\b(?:x|y|z)[tT0-9]+\b/g,
+    /\b[A-Za-z][A-Za-z0-9]*[²³⁴ⁿᵏᵐᵀ]+\b/gu,
+  ];
+  for (const pattern of atomicPatterns) {
+    for (const match of source.matchAll(pattern)) {
+      const raw = match[0];
+      const previous = source[match.index - 1] || '';
+      const next = source[match.index + raw.length] || '';
+      if (/[Α-Ωα-ω]/u.test(raw) && ((next === '-' && /[A-Za-z]/.test(source[match.index + raw.length + 1] || '')) || previous === '-')) continue;
+      const subscript = raw.match(/^[A-Za-z]_([A-Za-z0-9]+)/)?.[1];
+      if (subscript && !ALLOWED_SUBSCRIPTS.has(subscript.toLowerCase()) && !/^\d+$/.test(subscript)) continue;
+      if (/^x(?:32|64|86)$/.test(raw)) continue;
+      addCandidate(candidates, source, match.index, raw);
+    }
+  }
+  return candidates;
+}
+
+function splitImplicitMathText(value) {
+  const source = String(value == null ? '' : value);
+  const withComplexity = splitComplexity(source);
+  const segments = [];
+  for (const segment of withComplexity) {
+    if (segment.type === 'formula') {
+      segments.push({ type: 'math', value: segment.value, latex: segment.latex, displayMode: false, raw: segment.value });
+      continue;
+    }
+    const text = segment.value;
+    const candidates = collectImplicitMathCandidates(text)
+      .sort((a, b) => a.start - b.start || b.end - b.start - (a.end - a.start));
+    const selected = [];
+    let coveredUntil = -1;
+    for (const candidate of candidates) {
+      if (candidate.start < coveredUntil) continue;
+      selected.push(candidate);
+      coveredUntil = candidate.end;
+    }
+    let cursor = 0;
+    for (const candidate of selected) {
+      if (candidate.start > cursor) segments.push({ type: 'text', value: text.slice(cursor, candidate.start) });
+      segments.push({ type: 'math', value: candidate.raw, latex: candidate.latex, displayMode: false, raw: candidate.raw });
+      cursor = candidate.end;
+    }
+    if (cursor < text.length) segments.push({ type: 'text', value: text.slice(cursor) });
+  }
+  return segments;
+}
+
+// 显式公式优先；普通文本再做保守识别。返回的 raw/text 拼接后始终等于原文。
+function splitRichText(value) {
+  const segments = [];
+  for (const segment of splitMathText(value)) {
+    const next = segment.type === 'math'
+      ? [{ ...segment, latex: segment.value }]
+      : splitImplicitMathText(segment.value);
+    for (const item of next) {
+      const previous = segments.at(-1);
+      if (item.type === 'text' && previous?.type === 'text') previous.value += item.value;
+      else segments.push(item);
+    }
+  }
+  return segments;
+}
+
 function complexityView(value) {
   const source = String(value == null ? '' : value);
   const segments = splitComplexity(source);
@@ -53727,8 +53982,8 @@ function renderList() {
     const kindBadge = document.createElement('span'); kindBadge.className = 'badge'; kindBadge.textContent = q.kind === 'code' ? '代码' : '概念';
     const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = q.category;
     const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, metaText);
-    const title = document.createElement('h3'); title.textContent = q.title;
-    const prompt = document.createElement('p'); prompt.textContent = q.prompt;
+    const title = appendRichText(document.createElement('h3'), q.title);
+    const prompt = appendRichText(document.createElement('p'), q.prompt);
     card.append(meta, title, prompt);
     card.addEventListener('click', () => {
       selectQuestion(q.id);
@@ -53739,7 +53994,7 @@ function renderList() {
   }));
 }
 function appendRichText(target, value) {
-  splitMathText(value).forEach((segment) => {
+  splitRichText(value).forEach((segment) => {
     if (segment.type === 'text') {
       target.append(document.createTextNode(segment.value));
       return;
@@ -53747,10 +54002,10 @@ function appendRichText(target, value) {
     const formula = document.createElement('span');
     formula.className = segment.displayMode ? 'rich-math rich-math-display' : 'rich-math rich-math-inline';
     formula.setAttribute('role', 'math');
-    formula.setAttribute('aria-label', segment.value);
+    formula.setAttribute('aria-label', segment.raw || segment.value);
     if (typeof katex !== 'undefined') {
       try {
-        katex.render(segment.value, formula, {
+        katex.render(segment.latex || segment.value, formula, {
           displayMode: segment.displayMode,
           throwOnError: true,
           strict: 'error',
@@ -53964,8 +54219,8 @@ function renderDetail() {
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
   [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [q.category, 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
-  const title = document.createElement('h2'); title.textContent = q.title;
-  const prompt = document.createElement('p'); prompt.textContent = q.prompt;
+  const title = appendRichText(document.createElement('h2'), q.title);
+  const prompt = appendRichText(document.createElement('p'), q.prompt);
   head.append(tags, title, prompt); pane.append(head);
   const sections = detailSections(q, state.mode === 'mock' ? 'deep' : state.detailLevel);
   const visibleCount = state.mode === 'mock' ? state.revealIndex : sections.length;

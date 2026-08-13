@@ -1,7 +1,7 @@
 import { categories, questions } from './questions.js?v=efa6419d';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
-import { complexityView, diagramHtml, parseSimpleFlowChain, splitMathText } from './render-utils.js';
+import { complexityView, diagramHtml, parseSimpleFlowChain, splitRichText } from './render-utils.js';
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
@@ -76,8 +76,8 @@ function renderList() {
     const kindBadge = document.createElement('span'); kindBadge.className = 'badge'; kindBadge.textContent = q.kind === 'code' ? '代码' : '概念';
     const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = q.category;
     const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, metaText);
-    const title = document.createElement('h3'); title.textContent = q.title;
-    const prompt = document.createElement('p'); prompt.textContent = q.prompt;
+    const title = appendRichText(document.createElement('h3'), q.title);
+    const prompt = appendRichText(document.createElement('p'), q.prompt);
     card.append(meta, title, prompt);
     card.addEventListener('click', () => {
       selectQuestion(q.id);
@@ -88,7 +88,7 @@ function renderList() {
   }));
 }
 function appendRichText(target, value) {
-  splitMathText(value).forEach((segment) => {
+  splitRichText(value).forEach((segment) => {
     if (segment.type === 'text') {
       target.append(document.createTextNode(segment.value));
       return;
@@ -96,10 +96,10 @@ function appendRichText(target, value) {
     const formula = document.createElement('span');
     formula.className = segment.displayMode ? 'rich-math rich-math-display' : 'rich-math rich-math-inline';
     formula.setAttribute('role', 'math');
-    formula.setAttribute('aria-label', segment.value);
+    formula.setAttribute('aria-label', segment.raw || segment.value);
     if (typeof katex !== 'undefined') {
       try {
-        katex.render(segment.value, formula, {
+        katex.render(segment.latex || segment.value, formula, {
           displayMode: segment.displayMode,
           throwOnError: true,
           strict: 'error',
@@ -313,8 +313,8 @@ function renderDetail() {
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
   [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [q.category, 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
-  const title = document.createElement('h2'); title.textContent = q.title;
-  const prompt = document.createElement('p'); prompt.textContent = q.prompt;
+  const title = appendRichText(document.createElement('h2'), q.title);
+  const prompt = appendRichText(document.createElement('p'), q.prompt);
   head.append(tags, title, prompt); pane.append(head);
   const sections = detailSections(q, state.mode === 'mock' ? 'deep' : state.detailLevel);
   const visibleCount = state.mode === 'mock' ? state.revealIndex : sections.length;

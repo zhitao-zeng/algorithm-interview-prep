@@ -3,13 +3,16 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import { questions } from '../questions.js';
+import { detailSections } from '../quiz-core.js';
 import {
   complexityToLatex,
   complexityView,
   diagramHtml,
   extractEquationClauses,
   parseSimpleFlowChain,
+  plainMathToLatex,
   splitMathText,
+  splitRichText,
   splitComplexity,
 } from '../render-utils.js';
 
@@ -24,6 +27,76 @@ test('正文公式只识别显式 LaTeX 分隔符，金额与未闭合内容保�
   ]);
   assert.deepEqual(splitMathText('A100 $2/h，A10 $0.8/h'), [{ type: 'text', value: 'A100 $2/h，A10 $0.8/h' }]);
   assert.deepEqual(splitMathText('未闭合 \\(x_t'), [{ type: 'text', value: '未闭合 \\(x_t' }]);
+});
+
+test('全库正文保守识别大 O、数学函数、希腊字母、上下标与矩阵形状', () => {
+  const source = '前向 q(x_t|x_{t-1})，损失 L_aux=α·Σf_i²，复杂度 O(N²d)，张量 B×L×D。';
+  const segments = splitRichText(source);
+  assert.equal(segments.map((segment) => segment.type === 'text' ? segment.value : segment.raw).join(''), source);
+  assert.deepEqual(segments.filter((segment) => segment.type === 'math').map((segment) => segment.raw), [
+    'q(x_t|x_{t-1})', 'L_aux=α·Σf_i²', 'O(N²d)', 'B×L×D',
+  ]);
+  assert.equal(plainMathToLatex('q(x_t|x_{t-1})'), 'q(x_{t}\\mid x_{t-1})');
+  assert.equal(plainMathToLatex('L_aux=α·Σf_i²'), 'L_{\\mathrm{aux}}=\\alpha\\cdot \\sum f_{i}^{2}');
+  assert.equal(
+    plainMathToLatex('∇J(θ)=E[∇log π(a|s)·G]'),
+    '\\nabla J(\\theta)=\\mathbb{E}[\\nabla \\log \\pi(a\\mid s)\\cdot G]',
+  );
+  assert.equal(plainMathToLatex('RMS=√(mean(x²)+ε)'), '\\operatorname{RMS}=\\sqrt{\\operatorname{mean}(x^{2})+\\varepsilon}');
+  assert.equal(plainMathToLatex('n_kv_heads=g'), 'n_{\\mathrm{kv\\_heads}}=g');
+});
+
+test('自动公式识别不误伤金额、产品名、带连字号术语和代码变量', () => {
+  const samples = [
+    'A100 $2/h，A10 $0.8/h',
+    'ZeRO(Zero)、ablation_log(4)、np.log(2)',
+    '用 ε-greedy 探索，再用 τ-bench 评测',
+    'q_sample 与 training_loss 是代码函数',
+    'max_steps=8 超过即终止',
+  ];
+  for (const source of samples) {
+    assert.deepEqual(splitRichText(source), [{ type: 'text', value: source }], source);
+  }
+});
+
+test('全题库正文公式保持原文、括号完整且覆盖主要含公式题卡', () => {
+  const strings = (value) => {
+    if (typeof value === 'string') return [value];
+    if (Array.isArray(value)) return value.flatMap(strings);
+    if (value && typeof value === 'object') return Object.values(value).flatMap(strings);
+    return [];
+  };
+  const balanced = (value) => {
+    const stack = [], pairs = { ')': '(', ']': '[', '}': '{' };
+    for (const char of value) {
+      if ('([{'.includes(char)) stack.push(char);
+      else if (pairs[char] && stack.pop() !== pairs[char]) return false;
+    }
+    return stack.length === 0;
+  };
+  let formulaCount = 0;
+  const formulaCards = new Set();
+
+  for (const question of questions) {
+    const richValues = [question.title, question.prompt];
+    for (const section of detailSections(question, 'deep')) {
+      if (section.key === 'complexity' || ['code', 'diagram', 'refs'].includes(section.type)) continue;
+      richValues.push(...strings(section.value));
+    }
+    for (const source of richValues) {
+      const segments = splitRichText(source);
+      assert.equal(segments.map((segment) => segment.type === 'text' ? segment.value : segment.raw).join(''), source, question.id);
+      for (const segment of segments.filter((item) => item.type === 'math')) {
+        assert.ok(balanced(segment.value), `${question.id}: ${segment.value}`);
+        assert.doesNotMatch(segment.value, /^[,;:]|[,;:]$|[+\-*/·⋅×≈≃≅∝≤≥≪≫=<>|~√∑Σ∏Π∫]$/u);
+        formulaCount += 1;
+        formulaCards.add(question.id);
+      }
+    }
+  }
+
+  assert.ok(formulaCount >= 1500, `应识别至少 1500 处正文公式，实际 ${formulaCount}`);
+  assert.ok(formulaCards.size >= 300, `应覆盖至少 300 张含正文公式的题卡，实际 ${formulaCards.size}`);
 });
 
 test('括号深度扫描会逐个提取嵌套复杂度，不吞掉相邻说明', () => {
@@ -134,7 +207,8 @@ test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () 
 
   assert.match(appSource, /className = 'formula-line'/);
   assert.match(appSource, /function appendRichText/);
-  assert.match(appSource, /katex\.render\(segment\.value/);
+  assert.match(appSource, /appendRichText\(document\.createElement\('p'\), q\.prompt\)/);
+  assert.match(appSource, /katex\.render\(segment\.latex \|\| segment\.value/);
   assert.match(appSource, /displayMode: true/);
   assert.match(appSource, /strict: 'error', trust: false/);
   assert.match(appSource, /className = 'flow-chain'/);
