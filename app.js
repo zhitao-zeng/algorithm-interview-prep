@@ -1,7 +1,7 @@
 import { categories, questions } from './questions.js?v=efa6419d';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
-import { complexityView, diagramHtml, parseFlowDiagram, splitRichText } from './render-utils.js';
+import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
 
 const storageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
@@ -169,6 +169,45 @@ function updateDiagramOverflow(root = document) {
     card.classList.toggle('is-overflowing', Boolean(viewport && viewport.scrollWidth > viewport.clientWidth + 2));
   });
 }
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgElement(name, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, name);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  return element;
+}
+function renderVectorDiagram(model, title) {
+  const svg = svgElement('svg', {
+    class: 'diagram-svg', viewBox: `0 0 ${model.width} ${model.height}`,
+    role: 'img', 'aria-label': `${title}（矢量图）`, preserveAspectRatio: 'xMinYMin meet',
+  });
+  svg.dataset.baseWidth = String(model.width);
+  svg.style.width = `${model.width}px`;
+  const svgTitle = svgElement('title'); svgTitle.textContent = title; svg.append(svgTitle);
+  const edgeLayer = svgElement('g', { class: 'vector-edges', 'aria-hidden': 'true' });
+  model.primitives.forEach((primitive) => {
+    if (primitive.type === 'line') edgeLayer.append(svgElement('line', { ...primitive, class: 'vector-edge' }));
+    else edgeLayer.append(svgElement('polygon', { points: primitive.points, class: 'vector-arrow' }));
+  });
+  const tokenLayer = svgElement('g', { class: 'vector-tokens' });
+  model.tokens.forEach((token) => {
+    const group = svgElement('g', { class: `vector-token is-${token.kind}` });
+    const isCard = token.kind === 'primary' || token.kind === 'node' || token.kind === 'caption';
+    if (isCard) {
+      const height = token.kind === 'caption' ? 21 : 25;
+      group.append(svgElement('rect', {
+        x: token.x - 6, y: token.y - height / 2, width: token.width + 12, height, rx: token.kind === 'caption' ? 10 : 7,
+      }));
+    }
+    const textNode = svgElement('text', {
+      x: isCard ? token.x + token.width / 2 : token.x,
+      y: token.y,
+      'text-anchor': isCard ? 'middle' : 'start',
+      'dominant-baseline': 'central',
+    });
+    textNode.textContent = token.label; group.append(textNode); tokenLayer.append(group);
+  });
+  svg.append(edgeLayer, tokenLayer); return svg;
+}
 function diagramSection(title, diagram) {
   if (!diagram) return document.createDocumentFragment();
   const block = document.createElement('section'); block.className = 'detail-section';
@@ -196,28 +235,52 @@ function diagramSection(title, diagram) {
   const source = String(diagram);
   const visibleSource = source.replace(/^\n+|\n+$/g, '');
   const lineCount = visibleSource ? visibleSource.split('\n').length : 0;
+  const vectorModel = diagramToVectorModel(source);
   const card = document.createElement('div'); card.className = 'diagram-card';
   card.style.setProperty('--diagram-font-size', '14px');
   const toolbar = document.createElement('div'); toolbar.className = 'diagram-toolbar';
-  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `STRUCTURE MAP · ${lineCount} 行`;
+  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `${vectorModel ? 'VECTOR MAP' : 'STRUCTURE MAP'} · ${lineCount} 行`;
   const actions = document.createElement('div'); actions.className = 'diagram-actions';
   const viewport = document.createElement('div'); viewport.className = 'diagram-viewport';
   const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title);
-  pre.innerHTML = diagramHtml(source); viewport.append(pre);
+  pre.innerHTML = diagramHtml(source);
+  const svg = vectorModel ? renderVectorDiagram(vectorModel, title) : null;
+  if (svg) { pre.hidden = true; viewport.append(svg, pre); }
+  else viewport.append(pre);
 
   let fontSize = 14;
-  const sizeLabel = document.createElement('span'); sizeLabel.className = 'diagram-size'; sizeLabel.textContent = '14px';
+  let zoom = 1;
+  let showingSource = !svg;
+  const sizeLabel = document.createElement('span'); sizeLabel.className = 'diagram-size'; sizeLabel.textContent = svg ? '100%' : '14px';
   const sizeButton = (label, delta) => {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'diagram-tool'; button.textContent = label;
     button.setAttribute('aria-label', delta > 0 ? '放大图中文字' : '缩小图中文字');
     button.addEventListener('click', () => {
-      fontSize = Math.max(12, Math.min(20, fontSize + delta));
-      card.style.setProperty('--diagram-font-size', `${fontSize}px`); sizeLabel.textContent = `${fontSize}px`;
+      if (svg && !showingSource) {
+        zoom = Math.max(.7, Math.min(1.6, zoom + delta / 10));
+        svg.style.width = `${Number(svg.dataset.baseWidth) * zoom}px`;
+        sizeLabel.textContent = `${Math.round(zoom * 100)}%`;
+      } else {
+        fontSize = Math.max(12, Math.min(20, fontSize + delta));
+        card.style.setProperty('--diagram-font-size', `${fontSize}px`); sizeLabel.textContent = `${fontSize}px`;
+      }
       const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
       schedule(() => updateDiagramOverflow(card));
     });
     return button;
   };
+  const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'diagram-tool diagram-toggle'; toggle.textContent = '原图';
+  toggle.setAttribute('aria-label', '切换矢量图与原始结构图');
+  toggle.addEventListener('click', () => {
+    showingSource = !showingSource;
+    svg.toggleAttribute('hidden', showingSource); pre.hidden = !showingSource;
+    toggle.textContent = showingSource ? '矢量图' : '原图';
+    meta.textContent = `${showingSource ? 'SOURCE MAP' : 'VECTOR MAP'} · ${lineCount} 行`;
+    sizeLabel.textContent = showingSource ? `${fontSize}px` : `${Math.round(zoom * 100)}%`;
+    viewport.scrollTo({ left: 0, top: 0 });
+    const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
+    schedule(() => updateDiagramOverflow(card));
+  });
   const expand = document.createElement('button'); expand.type = 'button'; expand.className = 'diagram-tool diagram-expand'; expand.textContent = '全屏查看';
   expand.addEventListener('click', () => {
     card.classList.add('is-expanded'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
@@ -225,7 +288,9 @@ function diagramSection(title, diagram) {
   });
   const close = document.createElement('button'); close.type = 'button'; close.className = 'diagram-tool diagram-close'; close.textContent = '关闭全屏';
   close.addEventListener('click', () => closeExpandedDiagram(card));
-  actions.append(sizeButton('A−', -2), sizeLabel, sizeButton('A+', 2), expand, close);
+  actions.append(sizeButton('A−', -2), sizeLabel, sizeButton('A+', 2));
+  if (svg) actions.append(toggle);
+  actions.append(expand, close);
   toolbar.append(meta, actions);
   const hint = document.createElement('span'); hint.className = 'diagram-scroll-hint'; hint.textContent = '可左右滑动查看';
   card.append(toolbar, viewport, hint); block.append(h, card); return block;

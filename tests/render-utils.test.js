@@ -8,6 +8,7 @@ import {
   complexityToLatex,
   complexityView,
   diagramHtml,
+  diagramToVectorModel,
   extractEquationClauses,
   parseFlowDiagram,
   parseSimpleFlowChain,
@@ -201,6 +202,18 @@ test('ASCII 图只高亮箭头，并在写入 HTML 前完整转义', () => {
   );
 });
 
+test('复杂 ASCII 图会保留原始几何并生成可缩放的矢量节点与连线', () => {
+  const source = 'Input\n  │\n  ▼\n[VLM observe]──►[Planner]\n  │              │\n  └──── loop ────┘';
+  const model = diagramToVectorModel(source);
+  assert.equal(model.source, source);
+  assert.ok(model.width >= 320);
+  assert.ok(model.height >= 96);
+  assert.ok(model.primitives.some((primitive) => primitive.type === 'line'));
+  assert.ok(model.primitives.some((primitive) => primitive.type === 'polygon'));
+  assert.deepEqual(model.tokens.filter((token) => token.kind === 'primary').map((token) => token.label), ['VLM observe', 'Planner']);
+  assert.equal(diagramToVectorModel('只有说明文字，没有连接关系'), null);
+});
+
 test('题库源数据已恢复：没有脚本生成的 Mermaid，也没有数学误伤', () => {
   assert.equal(questions.length, 801);
   assert.equal(questions.some((question) => /^(?:graph|flowchart)\s/m.test(question.diagram || '')), false);
@@ -217,6 +230,7 @@ test('题库源数据已恢复：没有脚本生成的 Mermaid，也没有数学
   assert.ok(ddpm.derivation.flatMap(splitMathText).some((segment) => segment.type === 'math'));
   assert.ok(questions.filter((question) => parseSimpleFlowChain(question.diagram)).length >= 25, '明确短链应获得结构化视图');
   assert.ok(questions.filter((question) => parseFlowDiagram(question.diagram)).length >= 30, '带边说明的短链也应获得结构化视图');
+  assert.ok(questions.filter((question) => diagramToVectorModel(question.diagram)).length >= 450, '复杂图应大面积获得矢量视图');
 });
 
 test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () => {
@@ -234,6 +248,8 @@ test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () 
   assert.match(appSource, /className = 'flow-step'/);
   assert.match(appSource, /className = 'flow-edge-label'/);
   assert.match(appSource, /className = 'diagram-card'/);
+  assert.match(appSource, /function renderVectorDiagram/);
+  assert.match(appSource, /toggle\.textContent = '原图'/);
   assert.match(appSource, /'全屏查看'/);
   assert.match(appSource, /sizeButton\('A−'/);
   assert.match(appSource, /aria-modal/);
@@ -241,6 +257,8 @@ test('页面使用独立公式行和原生流程，且不再调用 Mermaid', () 
   assert.doesNotMatch(appSource, /mermaid/i);
   assert.match(stylesSource, /\.diagram-block[^}]*white-space:\s*pre;/);
   assert.match(stylesSource, /\.diagram-viewport[^}]*background-image:/);
+  assert.match(stylesSource, /\.diagram-svg\s*\{/);
+  assert.match(stylesSource, /\.vector-edge\s*\{/);
   assert.match(stylesSource, /\.flow-node\.is-start/);
   assert.match(stylesSource, /--diagram-font-size:\s*14px/);
   assert.match(stylesSource, /\.formula-list\s*\{[^}]*grid-template-columns:\s*1fr/);

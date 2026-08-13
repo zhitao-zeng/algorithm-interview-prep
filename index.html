@@ -129,6 +129,19 @@
 .diagram-size { min-width: 34px; color: #8eaabe; text-align: center; font: 700 10px/1 ui-monospace, monospace; }
 .diagram-close { display: none; }
 .diagram-viewport { overflow: auto; overscroll-behavior: contain; background-color: #0d1b2a; background-image: linear-gradient(rgba(110, 157, 193, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(110, 157, 193, .055) 1px, transparent 1px), radial-gradient(circle at 15% 0%, rgba(36, 111, 163, .16), transparent 42%); background-size: 24px 24px, 24px 24px, 100% 100%; scrollbar-color: #426580 #102234; }
+.diagram-svg { display: block; min-width: 100%; height: auto; overflow: visible; }
+.diagram-svg[hidden], .diagram-block[hidden] { display: none; }
+.vector-edge { stroke: #5d819c; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.vector-arrow { fill: #ff9b65; filter: drop-shadow(0 0 4px rgba(255, 155, 101, .35)); }
+.vector-token text { fill: #dceaf5; font: 650 12.5px/1 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; }
+.vector-token rect { stroke-width: 1; vector-effect: non-scaling-stroke; }
+.vector-token.is-node rect { fill: #142d42; stroke: #557c9a; }
+.vector-token.is-node text { fill: #e1edf6; font-weight: 760; }
+.vector-token.is-primary rect { fill: #123c3b; stroke: #55c9a7; filter: drop-shadow(0 3px 7px rgba(0, 0, 0, .28)); }
+.vector-token.is-primary text { fill: #8af0cc; font-weight: 820; }
+.vector-token.is-caption rect { fill: #242e53; stroke: #6675b7; }
+.vector-token.is-caption text { fill: #bdc7ff; font-size: 11px; font-weight: 720; }
+.vector-token.is-label text { fill: #bdcedc; }
 .diagram-viewport::-webkit-scrollbar, .flow-chain::-webkit-scrollbar { width: 6px; height: 6px; }
 .diagram-viewport::-webkit-scrollbar-track { background: #102234; }
 .diagram-viewport::-webkit-scrollbar-thumb { border-radius: 999px; background: #426580; }
@@ -53959,6 +53972,165 @@ function diagramHtml(value) {
   return html + escapeHtml(source.slice(cursor));
 }
 
+const VECTOR_CONNECTORS = new Set('─━│┌┐└┘├┤┬┴┼╭╮╰╯╱╲▶►▼▲→←↔⇒');
+const VECTOR_WIDE_CHAR = /[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff01-\uff60]/u;
+
+function vectorCharWidth(char) {
+  return VECTOR_WIDE_CHAR.test(char) ? 2 : 1;
+}
+
+function isVectorConnector(chars, index) {
+  const char = chars[index];
+  if (VECTOR_CONNECTORS.has(char)) return true;
+  const previous = chars[index - 1] || '';
+  const next = chars[index + 1] || '';
+  if (char === '-' || char === '=') return /[-=<>+|─▶►]/.test(previous + next);
+  if (char === '>' || char === '<') return /[-=─]/.test(previous + next);
+  if (char === '+' || char === '|') return /[-=+|]/.test(previous + next) || chars.join('').trim().startsWith(char);
+  if ((char === 'v' || char === 'V' || char === '^') && chars.slice(0, index).every((item) => item === ' ')) return true;
+  return false;
+}
+
+function vectorPrimitives(cell, metrics) {
+  const { char, row, col, width } = cell;
+  const left = metrics.paddingX + col * metrics.columnWidth;
+  const right = left + width * metrics.columnWidth;
+  const centerX = (left + right) / 2;
+  const centerY = metrics.paddingY + row * metrics.rowHeight + metrics.rowHeight / 2;
+  const top = centerY - metrics.rowHeight / 2;
+  const bottom = centerY + metrics.rowHeight / 2;
+  const line = (x1, y1, x2, y2) => ({ type: 'line', x1, y1, x2, y2 });
+  const triangle = (points) => ({ type: 'polygon', points });
+
+  if ('─━-='.includes(char)) return [line(left, centerY, right, centerY)];
+  if ('│|'.includes(char)) return [line(centerX, top, centerX, bottom)];
+  if ('┌╭'.includes(char)) return [line(centerX, centerY, right, centerY), line(centerX, centerY, centerX, bottom)];
+  if ('┐╮'.includes(char)) return [line(left, centerY, centerX, centerY), line(centerX, centerY, centerX, bottom)];
+  if ('└╰'.includes(char)) return [line(centerX, top, centerX, centerY), line(centerX, centerY, right, centerY)];
+  if ('┘╯'.includes(char)) return [line(centerX, top, centerX, centerY), line(left, centerY, centerX, centerY)];
+  if (char === '├') return [line(centerX, top, centerX, bottom), line(centerX, centerY, right, centerY)];
+  if (char === '┤') return [line(centerX, top, centerX, bottom), line(left, centerY, centerX, centerY)];
+  if (char === '┬') return [line(left, centerY, right, centerY), line(centerX, centerY, centerX, bottom)];
+  if (char === '┴') return [line(left, centerY, right, centerY), line(centerX, top, centerX, centerY)];
+  if ('┼+'.includes(char)) return [line(left, centerY, right, centerY), line(centerX, top, centerX, bottom)];
+  if (char === '╱') return [line(left, bottom, right, top)];
+  if (char === '╲') return [line(left, top, right, bottom)];
+  if ('→⇒▶►>'.includes(char)) return [
+    line(left, centerY, right - 4, centerY),
+    triangle(`${right - 5},${centerY - 4} ${right},${centerY} ${right - 5},${centerY + 4}`),
+  ];
+  if ('←<'.includes(char)) return [
+    line(left + 4, centerY, right, centerY),
+    triangle(`${left + 5},${centerY - 4} ${left},${centerY} ${left + 5},${centerY + 4}`),
+  ];
+  if ('▼vV'.includes(char)) return [
+    line(centerX, top, centerX, bottom - 4),
+    triangle(`${centerX - 4},${bottom - 5} ${centerX},${bottom} ${centerX + 4},${bottom - 5}`),
+  ];
+  if ('▲^'.includes(char)) return [
+    line(centerX, top + 4, centerX, bottom),
+    triangle(`${centerX - 4},${top + 5} ${centerX},${top} ${centerX + 4},${top + 5}`),
+  ];
+  if (char === '↔') return [
+    line(left + 4, centerY, right - 4, centerY),
+    triangle(`${left + 5},${centerY - 4} ${left},${centerY} ${left + 5},${centerY + 4}`),
+    triangle(`${right - 5},${centerY - 4} ${right},${centerY} ${right - 5},${centerY + 4}`),
+  ];
+  return [];
+}
+
+// 把复杂 ASCII 图矢量化：保持原始行列位置，只把连接符转成 SVG 路径、文本转成节点。
+// 无需猜测拓扑，因此所有原图关系都可从“原图”按钮随时核对。
+function diagramToVectorModel(value) {
+  const source = String(value == null ? '' : value).replace(/^\n+|\n+$/g, '');
+  const lines = source.split('\n');
+  if (!source || lines.length > 42) return null;
+  const metrics = { columnWidth: 7.5, rowHeight: 30, paddingX: 28, paddingY: 20 };
+  const rows = [];
+  let maxColumns = 0;
+
+  lines.forEach((line, row) => {
+    const chars = [...line.replace(/\t/g, '    ')];
+    let col = 0;
+    const cells = chars.map((char, index) => {
+      const width = vectorCharWidth(char);
+      const cell = { char, row, col, width, connector: isVectorConnector(chars, index) };
+      col += width;
+      return cell;
+    });
+    maxColumns = Math.max(maxColumns, col);
+    rows.push(cells);
+  });
+  if (maxColumns > 180) return null;
+
+  const connectorColumns = rows.map((cells) => {
+    const columns = new Set();
+    cells.filter((cell) => cell.connector).forEach((cell) => {
+      for (let col = cell.col; col < cell.col + cell.width; col += 1) columns.add(col);
+    });
+    return columns;
+  });
+  const connectors = rows.flatMap((cells) => cells.filter((cell) => cell.connector));
+  if (connectors.length < 2) return null;
+
+  const tokens = [];
+  rows.forEach((cells, row) => {
+    let current = null;
+    let pendingSpaces = '';
+    const flush = () => {
+      if (!current) return;
+      const raw = current.raw.trimEnd();
+      if (raw) tokens.push({ row, startCol: current.startCol, endCol: current.endCol, raw });
+      current = null;
+      pendingSpaces = '';
+    };
+    cells.forEach((cell) => {
+      if (cell.connector) { flush(); return; }
+      if (/\s/u.test(cell.char)) {
+        if (current) pendingSpaces += cell.char;
+        return;
+      }
+      if (current && pendingSpaces.length >= 2) flush();
+      if (!current) current = { startCol: cell.col, endCol: cell.col + cell.width, raw: '' };
+      current.raw += pendingSpaces + cell.char;
+      current.endCol = cell.col + cell.width;
+      pendingSpaces = '';
+    });
+    flush();
+  });
+
+  const vectorTokens = tokens.map((token) => {
+    const columns = token.endCol - token.startCol;
+    const center = Math.floor((token.startCol + token.endCol) / 2);
+    const rowConnectors = connectorColumns[token.row];
+    const nearHorizontal = [...rowConnectors].some((col) => col >= token.startCol - 2 && col <= token.endCol + 2);
+    const nearVertical = [connectorColumns[token.row - 1], connectorColumns[token.row + 1]]
+      .filter(Boolean).some((set) => [...set].some((col) => Math.abs(col - center) <= 2));
+    const bracketed = /^\[[\s\S]*\]$/.test(token.raw);
+    const caption = /^\([\s\S]*\)$/.test(token.raw);
+    const connected = nearHorizontal || nearVertical;
+    const kind = bracketed ? 'primary' : caption ? 'caption' : connected && columns <= 46 ? 'node' : 'label';
+    const label = bracketed ? token.raw.slice(1, -1).trim() : token.raw;
+    return {
+      ...token,
+      kind,
+      label,
+      x: metrics.paddingX + token.startCol * metrics.columnWidth,
+      y: metrics.paddingY + token.row * metrics.rowHeight + metrics.rowHeight / 2,
+      width: Math.max(18, columns * metrics.columnWidth),
+    };
+  });
+  const primitives = connectors.flatMap((cell) => vectorPrimitives(cell, metrics));
+  return {
+    source,
+    metrics,
+    width: Math.max(320, metrics.paddingX * 2 + maxColumns * metrics.columnWidth),
+    height: Math.max(96, metrics.paddingY * 2 + lines.length * metrics.rowHeight),
+    primitives,
+    tokens: vectorTokens,
+  };
+}
+
 
 
 
@@ -54130,6 +54302,45 @@ function updateDiagramOverflow(root = document) {
     card.classList.toggle('is-overflowing', Boolean(viewport && viewport.scrollWidth > viewport.clientWidth + 2));
   });
 }
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svgElement(name, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, name);
+  Object.entries(attributes).forEach(([key, value]) => element.setAttribute(key, String(value)));
+  return element;
+}
+function renderVectorDiagram(model, title) {
+  const svg = svgElement('svg', {
+    class: 'diagram-svg', viewBox: `0 0 ${model.width} ${model.height}`,
+    role: 'img', 'aria-label': `${title}（矢量图）`, preserveAspectRatio: 'xMinYMin meet',
+  });
+  svg.dataset.baseWidth = String(model.width);
+  svg.style.width = `${model.width}px`;
+  const svgTitle = svgElement('title'); svgTitle.textContent = title; svg.append(svgTitle);
+  const edgeLayer = svgElement('g', { class: 'vector-edges', 'aria-hidden': 'true' });
+  model.primitives.forEach((primitive) => {
+    if (primitive.type === 'line') edgeLayer.append(svgElement('line', { ...primitive, class: 'vector-edge' }));
+    else edgeLayer.append(svgElement('polygon', { points: primitive.points, class: 'vector-arrow' }));
+  });
+  const tokenLayer = svgElement('g', { class: 'vector-tokens' });
+  model.tokens.forEach((token) => {
+    const group = svgElement('g', { class: `vector-token is-${token.kind}` });
+    const isCard = token.kind === 'primary' || token.kind === 'node' || token.kind === 'caption';
+    if (isCard) {
+      const height = token.kind === 'caption' ? 21 : 25;
+      group.append(svgElement('rect', {
+        x: token.x - 6, y: token.y - height / 2, width: token.width + 12, height, rx: token.kind === 'caption' ? 10 : 7,
+      }));
+    }
+    const textNode = svgElement('text', {
+      x: isCard ? token.x + token.width / 2 : token.x,
+      y: token.y,
+      'text-anchor': isCard ? 'middle' : 'start',
+      'dominant-baseline': 'central',
+    });
+    textNode.textContent = token.label; group.append(textNode); tokenLayer.append(group);
+  });
+  svg.append(edgeLayer, tokenLayer); return svg;
+}
 function diagramSection(title, diagram) {
   if (!diagram) return document.createDocumentFragment();
   const block = document.createElement('section'); block.className = 'detail-section';
@@ -54157,28 +54368,52 @@ function diagramSection(title, diagram) {
   const source = String(diagram);
   const visibleSource = source.replace(/^\n+|\n+$/g, '');
   const lineCount = visibleSource ? visibleSource.split('\n').length : 0;
+  const vectorModel = diagramToVectorModel(source);
   const card = document.createElement('div'); card.className = 'diagram-card';
   card.style.setProperty('--diagram-font-size', '14px');
   const toolbar = document.createElement('div'); toolbar.className = 'diagram-toolbar';
-  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `STRUCTURE MAP · ${lineCount} 行`;
+  const meta = document.createElement('span'); meta.className = 'diagram-meta'; meta.textContent = `${vectorModel ? 'VECTOR MAP' : 'STRUCTURE MAP'} · ${lineCount} 行`;
   const actions = document.createElement('div'); actions.className = 'diagram-actions';
   const viewport = document.createElement('div'); viewport.className = 'diagram-viewport';
   const pre = document.createElement('pre'); pre.className = 'diagram-block'; pre.setAttribute('aria-label', title);
-  pre.innerHTML = diagramHtml(source); viewport.append(pre);
+  pre.innerHTML = diagramHtml(source);
+  const svg = vectorModel ? renderVectorDiagram(vectorModel, title) : null;
+  if (svg) { pre.hidden = true; viewport.append(svg, pre); }
+  else viewport.append(pre);
 
   let fontSize = 14;
-  const sizeLabel = document.createElement('span'); sizeLabel.className = 'diagram-size'; sizeLabel.textContent = '14px';
+  let zoom = 1;
+  let showingSource = !svg;
+  const sizeLabel = document.createElement('span'); sizeLabel.className = 'diagram-size'; sizeLabel.textContent = svg ? '100%' : '14px';
   const sizeButton = (label, delta) => {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'diagram-tool'; button.textContent = label;
     button.setAttribute('aria-label', delta > 0 ? '放大图中文字' : '缩小图中文字');
     button.addEventListener('click', () => {
-      fontSize = Math.max(12, Math.min(20, fontSize + delta));
-      card.style.setProperty('--diagram-font-size', `${fontSize}px`); sizeLabel.textContent = `${fontSize}px`;
+      if (svg && !showingSource) {
+        zoom = Math.max(.7, Math.min(1.6, zoom + delta / 10));
+        svg.style.width = `${Number(svg.dataset.baseWidth) * zoom}px`;
+        sizeLabel.textContent = `${Math.round(zoom * 100)}%`;
+      } else {
+        fontSize = Math.max(12, Math.min(20, fontSize + delta));
+        card.style.setProperty('--diagram-font-size', `${fontSize}px`); sizeLabel.textContent = `${fontSize}px`;
+      }
       const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
       schedule(() => updateDiagramOverflow(card));
     });
     return button;
   };
+  const toggle = document.createElement('button'); toggle.type = 'button'; toggle.className = 'diagram-tool diagram-toggle'; toggle.textContent = '原图';
+  toggle.setAttribute('aria-label', '切换矢量图与原始结构图');
+  toggle.addEventListener('click', () => {
+    showingSource = !showingSource;
+    svg.toggleAttribute('hidden', showingSource); pre.hidden = !showingSource;
+    toggle.textContent = showingSource ? '矢量图' : '原图';
+    meta.textContent = `${showingSource ? 'SOURCE MAP' : 'VECTOR MAP'} · ${lineCount} 行`;
+    sizeLabel.textContent = showingSource ? `${fontSize}px` : `${Math.round(zoom * 100)}%`;
+    viewport.scrollTo({ left: 0, top: 0 });
+    const schedule = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (callback) => setTimeout(callback, 0);
+    schedule(() => updateDiagramOverflow(card));
+  });
   const expand = document.createElement('button'); expand.type = 'button'; expand.className = 'diagram-tool diagram-expand'; expand.textContent = '全屏查看';
   expand.addEventListener('click', () => {
     card.classList.add('is-expanded'); card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
@@ -54186,7 +54421,9 @@ function diagramSection(title, diagram) {
   });
   const close = document.createElement('button'); close.type = 'button'; close.className = 'diagram-tool diagram-close'; close.textContent = '关闭全屏';
   close.addEventListener('click', () => closeExpandedDiagram(card));
-  actions.append(sizeButton('A−', -2), sizeLabel, sizeButton('A+', 2), expand, close);
+  actions.append(sizeButton('A−', -2), sizeLabel, sizeButton('A+', 2));
+  if (svg) actions.append(toggle);
+  actions.append(expand, close);
   toolbar.append(meta, actions);
   const hint = document.createElement('span'); hint.className = 'diagram-scroll-hint'; hint.textContent = '可左右滑动查看';
   card.append(toolbar, viewport, hint); block.append(h, card); return block;

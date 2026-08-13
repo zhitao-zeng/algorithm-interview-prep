@@ -596,3 +596,162 @@ export function diagramHtml(value) {
   }
   return html + escapeHtml(source.slice(cursor));
 }
+
+const VECTOR_CONNECTORS = new Set('─━│┌┐└┘├┤┬┴┼╭╮╰╯╱╲▶►▼▲→←↔⇒');
+const VECTOR_WIDE_CHAR = /[\u2e80-\u9fff\uac00-\ud7af\uf900-\ufaff\uff01-\uff60]/u;
+
+function vectorCharWidth(char) {
+  return VECTOR_WIDE_CHAR.test(char) ? 2 : 1;
+}
+
+function isVectorConnector(chars, index) {
+  const char = chars[index];
+  if (VECTOR_CONNECTORS.has(char)) return true;
+  const previous = chars[index - 1] || '';
+  const next = chars[index + 1] || '';
+  if (char === '-' || char === '=') return /[-=<>+|─▶►]/.test(previous + next);
+  if (char === '>' || char === '<') return /[-=─]/.test(previous + next);
+  if (char === '+' || char === '|') return /[-=+|]/.test(previous + next) || chars.join('').trim().startsWith(char);
+  if ((char === 'v' || char === 'V' || char === '^') && chars.slice(0, index).every((item) => item === ' ')) return true;
+  return false;
+}
+
+function vectorPrimitives(cell, metrics) {
+  const { char, row, col, width } = cell;
+  const left = metrics.paddingX + col * metrics.columnWidth;
+  const right = left + width * metrics.columnWidth;
+  const centerX = (left + right) / 2;
+  const centerY = metrics.paddingY + row * metrics.rowHeight + metrics.rowHeight / 2;
+  const top = centerY - metrics.rowHeight / 2;
+  const bottom = centerY + metrics.rowHeight / 2;
+  const line = (x1, y1, x2, y2) => ({ type: 'line', x1, y1, x2, y2 });
+  const triangle = (points) => ({ type: 'polygon', points });
+
+  if ('─━-='.includes(char)) return [line(left, centerY, right, centerY)];
+  if ('│|'.includes(char)) return [line(centerX, top, centerX, bottom)];
+  if ('┌╭'.includes(char)) return [line(centerX, centerY, right, centerY), line(centerX, centerY, centerX, bottom)];
+  if ('┐╮'.includes(char)) return [line(left, centerY, centerX, centerY), line(centerX, centerY, centerX, bottom)];
+  if ('└╰'.includes(char)) return [line(centerX, top, centerX, centerY), line(centerX, centerY, right, centerY)];
+  if ('┘╯'.includes(char)) return [line(centerX, top, centerX, centerY), line(left, centerY, centerX, centerY)];
+  if (char === '├') return [line(centerX, top, centerX, bottom), line(centerX, centerY, right, centerY)];
+  if (char === '┤') return [line(centerX, top, centerX, bottom), line(left, centerY, centerX, centerY)];
+  if (char === '┬') return [line(left, centerY, right, centerY), line(centerX, centerY, centerX, bottom)];
+  if (char === '┴') return [line(left, centerY, right, centerY), line(centerX, top, centerX, centerY)];
+  if ('┼+'.includes(char)) return [line(left, centerY, right, centerY), line(centerX, top, centerX, bottom)];
+  if (char === '╱') return [line(left, bottom, right, top)];
+  if (char === '╲') return [line(left, top, right, bottom)];
+  if ('→⇒▶►>'.includes(char)) return [
+    line(left, centerY, right - 4, centerY),
+    triangle(`${right - 5},${centerY - 4} ${right},${centerY} ${right - 5},${centerY + 4}`),
+  ];
+  if ('←<'.includes(char)) return [
+    line(left + 4, centerY, right, centerY),
+    triangle(`${left + 5},${centerY - 4} ${left},${centerY} ${left + 5},${centerY + 4}`),
+  ];
+  if ('▼vV'.includes(char)) return [
+    line(centerX, top, centerX, bottom - 4),
+    triangle(`${centerX - 4},${bottom - 5} ${centerX},${bottom} ${centerX + 4},${bottom - 5}`),
+  ];
+  if ('▲^'.includes(char)) return [
+    line(centerX, top + 4, centerX, bottom),
+    triangle(`${centerX - 4},${top + 5} ${centerX},${top} ${centerX + 4},${top + 5}`),
+  ];
+  if (char === '↔') return [
+    line(left + 4, centerY, right - 4, centerY),
+    triangle(`${left + 5},${centerY - 4} ${left},${centerY} ${left + 5},${centerY + 4}`),
+    triangle(`${right - 5},${centerY - 4} ${right},${centerY} ${right - 5},${centerY + 4}`),
+  ];
+  return [];
+}
+
+// 把复杂 ASCII 图矢量化：保持原始行列位置，只把连接符转成 SVG 路径、文本转成节点。
+// 无需猜测拓扑，因此所有原图关系都可从“原图”按钮随时核对。
+export function diagramToVectorModel(value) {
+  const source = String(value == null ? '' : value).replace(/^\n+|\n+$/g, '');
+  const lines = source.split('\n');
+  if (!source || lines.length > 42) return null;
+  const metrics = { columnWidth: 7.5, rowHeight: 30, paddingX: 28, paddingY: 20 };
+  const rows = [];
+  let maxColumns = 0;
+
+  lines.forEach((line, row) => {
+    const chars = [...line.replace(/\t/g, '    ')];
+    let col = 0;
+    const cells = chars.map((char, index) => {
+      const width = vectorCharWidth(char);
+      const cell = { char, row, col, width, connector: isVectorConnector(chars, index) };
+      col += width;
+      return cell;
+    });
+    maxColumns = Math.max(maxColumns, col);
+    rows.push(cells);
+  });
+  if (maxColumns > 180) return null;
+
+  const connectorColumns = rows.map((cells) => {
+    const columns = new Set();
+    cells.filter((cell) => cell.connector).forEach((cell) => {
+      for (let col = cell.col; col < cell.col + cell.width; col += 1) columns.add(col);
+    });
+    return columns;
+  });
+  const connectors = rows.flatMap((cells) => cells.filter((cell) => cell.connector));
+  if (connectors.length < 2) return null;
+
+  const tokens = [];
+  rows.forEach((cells, row) => {
+    let current = null;
+    let pendingSpaces = '';
+    const flush = () => {
+      if (!current) return;
+      const raw = current.raw.trimEnd();
+      if (raw) tokens.push({ row, startCol: current.startCol, endCol: current.endCol, raw });
+      current = null;
+      pendingSpaces = '';
+    };
+    cells.forEach((cell) => {
+      if (cell.connector) { flush(); return; }
+      if (/\s/u.test(cell.char)) {
+        if (current) pendingSpaces += cell.char;
+        return;
+      }
+      if (current && pendingSpaces.length >= 2) flush();
+      if (!current) current = { startCol: cell.col, endCol: cell.col + cell.width, raw: '' };
+      current.raw += pendingSpaces + cell.char;
+      current.endCol = cell.col + cell.width;
+      pendingSpaces = '';
+    });
+    flush();
+  });
+
+  const vectorTokens = tokens.map((token) => {
+    const columns = token.endCol - token.startCol;
+    const center = Math.floor((token.startCol + token.endCol) / 2);
+    const rowConnectors = connectorColumns[token.row];
+    const nearHorizontal = [...rowConnectors].some((col) => col >= token.startCol - 2 && col <= token.endCol + 2);
+    const nearVertical = [connectorColumns[token.row - 1], connectorColumns[token.row + 1]]
+      .filter(Boolean).some((set) => [...set].some((col) => Math.abs(col - center) <= 2));
+    const bracketed = /^\[[\s\S]*\]$/.test(token.raw);
+    const caption = /^\([\s\S]*\)$/.test(token.raw);
+    const connected = nearHorizontal || nearVertical;
+    const kind = bracketed ? 'primary' : caption ? 'caption' : connected && columns <= 46 ? 'node' : 'label';
+    const label = bracketed ? token.raw.slice(1, -1).trim() : token.raw;
+    return {
+      ...token,
+      kind,
+      label,
+      x: metrics.paddingX + token.startCol * metrics.columnWidth,
+      y: metrics.paddingY + token.row * metrics.rowHeight + metrics.rowHeight / 2,
+      width: Math.max(18, columns * metrics.columnWidth),
+    };
+  });
+  const primitives = connectors.flatMap((cell) => vectorPrimitives(cell, metrics));
+  return {
+    source,
+    metrics,
+    width: Math.max(320, metrics.paddingX * 2 + maxColumns * metrics.columnWidth),
+    height: Math.max(96, metrics.paddingY * 2 + lines.length * metrics.rowHeight),
+    primitives,
+    tokens: vectorTokens,
+  };
+}

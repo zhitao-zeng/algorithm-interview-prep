@@ -118,6 +118,19 @@
 .diagram-size { min-width: 34px; color: #8eaabe; text-align: center; font: 700 10px/1 ui-monospace, monospace; }
 .diagram-close { display: none; }
 .diagram-viewport { overflow: auto; overscroll-behavior: contain; background-color: #0d1b2a; background-image: linear-gradient(rgba(110, 157, 193, .055) 1px, transparent 1px), linear-gradient(90deg, rgba(110, 157, 193, .055) 1px, transparent 1px), radial-gradient(circle at 15% 0%, rgba(36, 111, 163, .16), transparent 42%); background-size: 24px 24px, 24px 24px, 100% 100%; scrollbar-color: #426580 #102234; }
+.diagram-svg { display: block; min-width: 100%; height: auto; overflow: visible; }
+.diagram-svg[hidden], .diagram-block[hidden] { display: none; }
+.vector-edge { stroke: #5d819c; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.vector-arrow { fill: #ff9b65; filter: drop-shadow(0 0 4px rgba(255, 155, 101, .35)); }
+.vector-token text { fill: #dceaf5; font: 650 12.5px/1 ui-monospace, SFMono-Regular, Consolas, "Microsoft YaHei", monospace; }
+.vector-token rect { stroke-width: 1; vector-effect: non-scaling-stroke; }
+.vector-token.is-node rect { fill: #142d42; stroke: #557c9a; }
+.vector-token.is-node text { fill: #e1edf6; font-weight: 760; }
+.vector-token.is-primary rect { fill: #123c3b; stroke: #55c9a7; filter: drop-shadow(0 3px 7px rgba(0, 0, 0, .28)); }
+.vector-token.is-primary text { fill: #8af0cc; font-weight: 820; }
+.vector-token.is-caption rect { fill: #242e53; stroke: #6675b7; }
+.vector-token.is-caption text { fill: #bdc7ff; font-size: 11px; font-weight: 720; }
+.vector-token.is-label text { fill: #bdcedc; }
 .diagram-viewport::-webkit-scrollbar, .flow-chain::-webkit-scrollbar { width: 6px; height: 6px; }
 .diagram-viewport::-webkit-scrollbar-track { background: #102234; }
 .diagram-viewport::-webkit-scrollbar-thumb { border-radius: 999px; background: #426580; }
