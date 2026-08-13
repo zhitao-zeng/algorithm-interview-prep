@@ -28,7 +28,7 @@ const beginnerFixture = {
 };
 
 test('现有题卡均通过基础内容校验', () => {
-  assert.equal(questions.length, 801);
+  assert.equal(questions.length, 841);
 
   for (const question of questions) {
     assert.equal(validateQuestionCard(question).valid, true, question.title);
@@ -69,11 +69,12 @@ test('每张题卡都有合法 kind 且通过自身 kind 校验', () => {
 test('kind 分布与分类映射一致', () => {
   const codeCats = new Set(['链表', '二叉树', '数组/窗口', '二分/TopK', '搜索/图', '动态规划', '模型手写', 'ASR 专项', 'OCR 文字检测与识别', '单目深度与障碍物感知']);
   for (const q of questions) {
-    const expect = codeCats.has(q.category) ? 'code' : 'concept';
+    const resumeConcept = /^(?:asr|tts|edge|perf|lead)-resume-/.test(q.id);
+    const expect = codeCats.has(q.category) && !resumeConcept ? 'code' : 'concept';
     assert.equal(q.kind, expect, `题目 ${q.id}（分类 ${q.category}）应为 ${expect}，实际 ${q.kind}`);
   }
   assert.equal(questions.filter((q) => q.kind === 'code').length, 143, '代码题数量');
-  assert.equal(questions.filter((q) => q.kind === 'concept').length, 658, '概念题数量');
+  assert.equal(questions.filter((q) => q.kind === 'concept').length, 698, '概念题数量');
 });
 
 test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', () => {
@@ -82,12 +83,35 @@ test('TTS 语音合成拥有独立导航、知识主线与完整题目入口', (
   const ttsCategory = speechDomain?.categories.find((category) => category.name === '语音合成');
   const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
 
-  assert.equal(ttsQuestions.length, 20);
+  assert.equal(ttsQuestions.length, 28);
   assert.equal(ttsCategory?.label, 'TTS 语音合成');
   assert.ok(ttsCategory?.steps.length >= 6);
   assert.equal(categoryThread['语音合成'].steps.length, ttsCategory.steps.length);
   assert.match(appSource, /\['语音合成', 'TTS 语音合成'\]/);
   assert.match(appSource, /categoryLabel\(q\.category\)/);
+});
+
+test('简历专项新增 40 道题并按五条主线完整分布', () => {
+  const groups = {
+    asr: questions.filter((q) => q.id.startsWith('asr-resume-')),
+    tts: questions.filter((q) => q.id.startsWith('tts-resume-')),
+    edge: questions.filter((q) => q.id.startsWith('edge-resume-')),
+    perf: questions.filter((q) => q.id.startsWith('perf-resume-')),
+    lead: questions.filter((q) => q.id.startsWith('lead-resume-')),
+  };
+  assert.deepEqual(Object.fromEntries(Object.entries(groups).map(([key, cards]) => [key, cards.length])), {
+    asr: 12, tts: 8, edge: 8, perf: 5, lead: 7,
+  });
+  const resumeCards = Object.values(groups).flat();
+  assert.equal(resumeCards.length, 40);
+  for (const card of resumeCards) {
+    assert.equal(card.kind, 'concept', card.id);
+    assert.equal(validateQuestionCard(card, { beginner: true }).valid, true, card.id);
+    assert.equal(card.derivation.length, 4, card.id);
+    assert.ok(card.edgeCases.length >= 3, card.id);
+  }
+  assert.deepEqual(groups.lead.map((card) => card.order), [1, 2, 3, 4, 5, 6, 7]);
+  assert.ok(categoryThread['Tech Lead 与项目答辩'].steps.length >= 7);
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {

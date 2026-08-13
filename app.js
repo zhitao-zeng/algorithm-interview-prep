@@ -1,4 +1,4 @@
-import { categories, questions } from './questions.js?v=efa6419d';
+import { categories, questions } from './questions.js?v=a79547ea';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';

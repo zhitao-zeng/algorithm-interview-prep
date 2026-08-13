@@ -92,6 +92,8 @@ export const domains = [
         steps: ['基础范式（三段范式 / 文档切块）', '检索增强（向量库 / ANN / 混合检索 BM25+向量 / 查询改写 HyDE）', '重排与压缩（重排 / 元数据过滤 / 上下文压缩）', '自省纠错（Self-RAG / CRAG）', '选型与评测（embedding 选型 / 失败模式 / 评测 / RAG vs 微调）'] },
       { name: 'Agent Workflow', oneliner: 'agent 定义、ReAct、planning、tool calling 与失败恢复、memory、MCP vs FC、orchestration、可观测、安全、生产部署。',
         steps: ['定义与边界（Agent / Workflow 区别 / 什么不该用自主 Agent）', '核心范式（ReAct / planning / 反思 / CoT）', '手写实现（ReAct 循环 / tool 路由 / function caller / 记忆 buffer）', '记忆/多步/多Agent（上下文管理 / 任务调度 / 协作编排）', '工具与安全（MCP vs FC / Guardrails / human-in-loop）', '评测（轨迹级 / 失败模式）', '生产化（最小骨架 / 可观测 / 成本控制）'] },
+      { name: 'Tech Lead 与项目答辩', oneliner: '模型选型、实验优先级、小团队协作、跨团队交付、事故复盘、技术分歧与简历证据链。',
+        steps: ['决策（模型选型 / Pareto / ADR）', '执行（实验优先级 / 时间盒 / 停止条件）', '团队（两人小组 / owner-reviewer / bus factor）', '交付（算法-端侧-产品接口与验收）', '稳定性（事故止损 / 回滚 / 无责复盘）', '领导力（技术分歧 / 反馈 / 成员培养）', '答辩（STAR-L / 指标证据 / 失败与反事实）'] },
       { name: '系统设计', oneliner: '推荐系统架构、多模态理解服务、推理服务架构、AB 实验平台、特征 pipeline（防 leakage）、向量检索、容量规划。',
         steps: ['理解（内容理解 Pipeline）', '推理（在线推理服务 / 多模态模型服务架构）', '推荐（高并发推荐架构）', '检索（向量检索系统 / 实时流 ETL）', '特征（特征工程 Pipeline / 一致性）', '实验（A/B 实验平台）', '容量（容量规划 / 限流降级）', '合规（内容安全与版权合规）'] },
     ],
@@ -121,6 +123,7 @@ export const crossLines = [
   { name: '训练全链路', line: 'Transformer 架构 → 训练与微调 → 分布式训练 → RL 后训练' },
   { name: '多模态落地', line: '多模态模型 → 大模型推理原理 → 流式推理工程 → 系统设计' },
   { name: 'Agent 生产化', line: 'Agent Workflow → 系统设计 → 服务性能评测' },
+  { name: '算法交付与领导', line: '服务性能评测 → Tech Lead 与项目答辩 → 系统设计' },
 ];
 
 export const priorities = [
