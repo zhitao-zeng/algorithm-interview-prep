@@ -50,11 +50,19 @@ const personalTracks = [
   },
 ];
 
+const savedTutorialProgress = loadTutorialProgress();
+const initialTutorialId = tutorialById(savedTutorialProgress.currentTutorialId)?.id || tutorials[0].id;
+const initialTutorialChapters = { ...(savedTutorialProgress.currentChapterByTutorial || {}) };
+if (initialTutorialChapters[tutorials[0].id] == null && Number.isInteger(savedTutorialProgress.currentChapter)) {
+  initialTutorialChapters[tutorials[0].id] = savedTutorialProgress.currentChapter;
+}
+
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
-  tutorialId: tutorials[0].id, tutorialChapter: loadTutorialProgress().currentChapter || 0,
-  completedTutorialChapters: new Set(loadTutorialProgress().completed || []), remaining: 2700, timerId: null,
+  tutorialId: initialTutorialId, tutorialChapter: initialTutorialChapters[initialTutorialId] || 0,
+  tutorialChapterById: initialTutorialChapters,
+  completedTutorialChapters: new Set(savedTutorialProgress.completed || []), remaining: 2700, timerId: null,
 };
 
 function loadMastered() {
@@ -72,7 +80,9 @@ function loadTutorialProgress() {
 function saveTutorialProgress() {
   try {
     localStorage.setItem(tutorialProgressKey, JSON.stringify({
+      currentTutorialId: state.tutorialId,
       currentChapter: state.tutorialChapter,
+      currentChapterByTutorial: state.tutorialChapterById,
       completed: [...state.completedTutorialChapters],
     }));
   } catch {}
@@ -108,7 +118,8 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
-  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course', () => openTutorial(), 'nav-lead nav-course'));
+  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course' && state.tutorialId === 'project-defense-tech-lead', () => openTutorial('project-defense-tech-lead'), 'nav-lead nav-course'));
+  buttons.push(navButton('▣ 教程 · ASR', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery', () => openTutorial('asr-from-audio-to-delivery'), 'nav-lead nav-course nav-course-asr'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -608,10 +619,13 @@ function openCollection(view, category = '全部') {
 
 function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
 
-function openTutorial(chapterIndex = state.tutorialChapter) {
-  const tutorial = tutorialById(state.tutorialId) || tutorials[0];
+function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
+  const tutorial = tutorialById(tutorialId) || tutorials[0];
+  state.tutorialId = tutorial.id;
+  const targetChapter = chapterIndex ?? state.tutorialChapterById[tutorial.id] ?? 0;
   state.mode = 'review'; state.view = 'course';
-  state.tutorialChapter = Math.max(0, Math.min(chapterIndex, tutorial.chapters.length - 1));
+  state.tutorialChapter = Math.max(0, Math.min(targetChapter, tutorial.chapters.length - 1));
+  state.tutorialChapterById[tutorial.id] = state.tutorialChapter;
   saveTutorialProgress(); render();
   if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -678,7 +692,7 @@ function renderTutorialCourse(container) {
     button.setAttribute('aria-current', index === state.tutorialChapter ? 'step' : 'false');
     const number = document.createElement('span'); number.textContent = isDone ? '✓' : String(item.number).padStart(2, '0');
     const copy = document.createElement('span'); copy.textContent = item.title;
-    button.append(number, copy); button.addEventListener('click', () => openTutorial(index)); rail.append(button);
+    button.append(number, copy); button.addEventListener('click', () => openTutorial(tutorial.id, index)); rail.append(button);
   });
 
   const article = document.createElement('article'); article.className = 'course-article';
@@ -716,13 +730,13 @@ function renderTutorialCourse(container) {
   }
 
   const controls = document.createElement('div'); controls.className = 'course-controls';
-  if (state.tutorialChapter > 0) { const previous = document.createElement('button'); previous.className = 'button ghost'; previous.textContent = '← 上一章'; previous.addEventListener('click', () => openTutorial(state.tutorialChapter - 1)); controls.append(previous); }
+  if (state.tutorialChapter > 0) { const previous = document.createElement('button'); previous.className = 'button ghost'; previous.textContent = '← 上一章'; previous.addEventListener('click', () => openTutorial(tutorial.id, state.tutorialChapter - 1)); controls.append(previous); }
   const key = tutorialChapterKey(tutorial, chapter); const isDone = state.completedTutorialChapters.has(key);
   const complete = document.createElement('button'); complete.className = `button ${isDone ? 'mastered' : 'primary'}`;
   complete.textContent = isDone ? '✓ 本章已完成' : (state.tutorialChapter < tutorial.chapters.length - 1 ? '完成本章，进入下一章 →' : '完成课程');
   complete.addEventListener('click', () => {
     state.completedTutorialChapters.add(key); saveTutorialProgress();
-    if (state.tutorialChapter < tutorial.chapters.length - 1) openTutorial(state.tutorialChapter + 1); else render();
+    if (state.tutorialChapter < tutorial.chapters.length - 1) openTutorial(tutorial.id, state.tutorialChapter + 1); else render();
   });
   controls.append(complete); article.append(controls);
   shell.append(rail, article); container.append(shell);
@@ -748,19 +762,22 @@ function renderPersonalDashboard() {
   });
   hero.append(copy, stats); wrap.append(hero);
 
-  const tutorial = tutorials[0];
-  const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
-  const courseCard = document.createElement('section'); courseCard.className = 'featured-course';
-  const courseCopy = document.createElement('div');
-  const courseKicker = document.createElement('span'); courseKicker.textContent = 'FIRST GUIDED COURSE';
-  const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
-  const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
-  courseCopy.append(courseKicker, courseTitle, courseText);
-  const courseAction = document.createElement('div');
-  const courseCount = document.createElement('strong'); courseCount.textContent = `${completedChapters} / ${tutorial.chapters.length}`;
-  const courseLabel = document.createElement('span'); courseLabel.textContent = completedChapters ? '继续上次学习' : '从第 1 章开始';
-  const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial());
-  courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); wrap.append(courseCard);
+  const courseLibrary = document.createElement('div'); courseLibrary.className = 'course-library';
+  tutorials.forEach((tutorial, index) => {
+    const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
+    const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorial.id === 'asr-from-audio-to-delivery' ? 'is-asr' : ''}`;
+    const courseCopy = document.createElement('div');
+    const courseKicker = document.createElement('span'); courseKicker.textContent = index === 0 ? 'FIRST GUIDED COURSE' : `GUIDED COURSE ${String(index + 1).padStart(2, '0')}`;
+    const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
+    const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
+    courseCopy.append(courseKicker, courseTitle, courseText);
+    const courseAction = document.createElement('div');
+    const courseCount = document.createElement('strong'); courseCount.textContent = `${completedChapters} / ${tutorial.chapters.length}`;
+    const courseLabel = document.createElement('span'); courseLabel.textContent = completedChapters ? '继续上次学习' : '从第 1 章开始';
+    const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial(tutorial.id));
+    courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); courseLibrary.append(courseCard);
+  });
+  wrap.append(courseLibrary);
 
   const heading = document.createElement('div'); heading.className = 'personal-section-head';
   const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
@@ -870,6 +887,7 @@ function renderMapPriority() {
 function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
   document.body.classList.toggle('course-mode', state.view === 'course');
+  document.body.classList.toggle('course-asr-mode', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery');
   renderMode();
   renderCategories();
   renderKindSwitch();

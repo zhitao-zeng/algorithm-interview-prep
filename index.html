@@ -159,6 +159,9 @@
 .nav-course { color: #28594a; background: #eef9f4; border-color: #c6e8da; }
 .nav-course:hover { background: #e2f5ed; border-color: #64b999; color: #174d3b; }
 .nav-course.active { background: #287f63; border-color: #287f63; color: #fff; }
+.nav-course-asr { color: #28567d; background: #eef6fc; border-color: #c7dff2; }
+.nav-course-asr:hover { color: #17496f; background: #e3f1fb; border-color: #79add1; }
+.nav-course-asr.active { color: #fff; background: #2873a8; border-color: #2873a8; }
 .course-mode .question-pane { grid-column: 2 / 4; border-right: 0; padding-inline: clamp(22px, 4vw, 58px); }
 .course-mode .detail-pane { display: none; }
 .course-view { max-width: 1180px; margin: 0 auto; padding: 2px 0 54px; }
@@ -173,6 +176,14 @@
 .course-meta strong { display: block; margin-bottom: 4px; color: #7ce5c0; font-size: 10px; letter-spacing: .8px; }
 .course-progress { height: 7px; margin: 15px 2px 20px; overflow: hidden; border-radius: 999px; background: #dbe5e1; }
 .course-progress i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2a9874, #6fd5b2); transition: width .25s ease; }
+.course-asr-mode .course-hero { background: radial-gradient(circle at 88% 10%, rgba(89, 190, 235, .22), transparent 31%), linear-gradient(145deg, #173d68, #102b49 74%); }
+.course-asr-mode .course-eyebrow, .course-asr-mode .course-meta strong { color: #80d8ff; }
+.course-asr-mode .course-progress i { background: linear-gradient(90deg, #2879b4, #63c7eb); }
+.course-asr-mode .course-chapter-link.active { color: #194f77; border-color: #b8d7ec; background: #eef7fd; }
+.course-asr-mode .course-chapter-link.active > span:first-child { background: #2879b4; }
+.course-asr-mode .course-goal { color: #285a7b; background: #edf7fd; }
+.course-asr-mode .course-steps li { color: #304f66; border-left-color: #438ebd; background: #f1f7fb; }
+.course-asr-mode .course-steps li::before { background: #2879b4; }
 .course-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 22px; align-items: start; }
 .course-rail { position: sticky; top: 82px; display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 6px 20px rgba(20, 43, 69, .055); }
 .course-rail > strong { padding: 5px 7px 9px; color: var(--navy); font-size: 13px; }
@@ -215,6 +226,7 @@
 .course-controls .button:last-child { margin-left: auto; }
 
 /* 首页教程入口 */
+.course-library { display: grid; gap: 13px; }
 .featured-course { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 28px; align-items: center; padding: 23px 25px; border: 1px solid #9fd2bd; border-radius: 16px; background: radial-gradient(circle at 90% 0, rgba(95, 197, 158, .18), transparent 31%), linear-gradient(145deg, #f6fcf9, #edf8f3); box-shadow: 0 8px 24px rgba(40, 127, 99, .08); }
 .featured-course span { display: block; color: #2b8969; font-size: 11px; font-weight: 850; }
 .featured-course > div:first-child > span { font: 850 9px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: 1.2px; }
@@ -224,6 +236,12 @@
 .featured-course > div:last-child strong { display: block; color: #287f63; font: 850 24px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
 .featured-course > div:last-child span { margin: 5px 0 10px; color: #617970; font-size: 10px; }
 .featured-course button { border: 0; border-radius: 9px; padding: 9px 13px; background: #287f63; color: #fff; cursor: pointer; font: inherit; font-size: 12px; font-weight: 850; }
+.featured-course.is-asr { border-color: #a9cee8; background: radial-gradient(circle at 90% 0, rgba(84, 170, 226, .18), transparent 31%), linear-gradient(145deg, #f6fbff, #eef7fd); box-shadow: 0 8px 24px rgba(40, 115, 168, .08); }
+.featured-course.is-asr span { color: #347eae; }
+.featured-course.is-asr p { color: #536c7d; }
+.featured-course.is-asr > div:last-child strong { color: #2873a8; }
+.featured-course.is-asr > div:last-child span { color: #61798a; }
+.featured-course.is-asr button { background: #2873a8; }
 
 @media (max-width: 900px) {
   .course-hero { grid-template-columns: 1fr; }
@@ -58964,6 +58982,138 @@ const tutorials = [
         questionIds: ['lead-resume-star-defense', 'lead-resume-model-selection', 'perf-resume-ablation-design', 'lead-resume-small-team', 'lead-resume-cross-team', 'lead-resume-incident']
       }
     ]
+  },
+  {
+    id: 'asr-from-audio-to-delivery',
+    title: 'ASR：从音频到可交付识别系统',
+    eyebrow: 'COURSE 02 · AUDIO TO RELIABLE ASR',
+    summary: '沿一条真实识别链路学习 ASR：音频与标签 → CTC/RNN-T → 模型选型 → 解码与热词 → 流式会话 → 数据治理 → 多域鲁棒 → 评测交付。',
+    outcome: '完成后，你应能从一段音频推导训练与解码过程，解释 CTC、RNN-T、Paraformer、Whisper 与 Zipformer 的取舍，并设计可复核的流式、多语种 ASR 方案。',
+    audience: '适合语音算法面、模型原理面、端侧流式系统面，以及围绕个人 ASR 项目的深挖答辩。',
+    capstone: {
+      title: '结课设计：给多语种端侧产品交付一套 ASR',
+      prompt: '假设产品需要中英西三语、支持热词、首字延迟低、断网可用，并且新业务域不能破坏通用能力。请完成一份 10 分钟方案：定义输入输出和评测集，选择模型与解码器，画出流式状态，说明数据治理与回归门禁，最后回答一次句尾丢字故障。涉及个人经历时，只引用课程中标为“简历明确经历”的证据。',
+      checklist: ['能画出音频到文字的完整数据流', '能手算一个 CTC 或 RNN-T 小例子', '模型选择同时考虑质量、流式性和端侧成本', '热词增强有召回、误插入和回退指标', '流式结束包含 drain、flush、finalize 和状态释放', '新域、旧域、多语种与高风险切片分别报告', '区分真实项目事实与本课程补充方案']
+    },
+    chapters: [
+      {
+        id: 'asr-contract', number: 1, title: '先定义识别问题：声音怎样变成可评分文字', duration: '40 分钟',
+        goal: '建立音频、特征、文字单元和 CER/WER 的共同坐标系，先知道模型到底接收什么、预测什么、怎样算错。',
+        bridge: '如果输入、标签和评分口径没有冻结，后面的模型差异很可能只是采样率、文本归一化或 tokenizer 差异。',
+        sections: [
+          { title: '一条最小 ASR 链路', steps: ['16 kHz 波形按短窗切帧，提取 log-Mel 频谱；每一帧描述一小段时间里的频率能量。', '编码器把长帧序列压成上下文表示；CTC、RNN-T 或注意力解码器再把它映射成字符、子词或 token。', '后处理恢复数字、标点和业务格式；评分前按固定 normalizer 处理 hypothesis 与 reference。'] },
+          { title: '波形、log-Mel 与 codec token 不解决同一个问题', paragraphs: ['传统 ASR 最常用 log-Mel，因为它保留语音辨识需要的频谱结构，并显著缩短原始波形。codec token 更适合语音生成或统一语音大模型，但离散化会带来码本和时间分辨率取舍，不能因为“更像大模型”就默认更适合识别。', '输出单元也会改变错误形态：中文常看 CER，英文常看 WER；数字“2026”写成“二零二六”究竟算不算错，取决于产品文字规范。'] },
+          { title: '手算例子：一句话为什么会得到不同错误率', callout: 'Reference 是“打开空调”，模型输出“打开空条”。按字符比较只有“调→条”一次替换，CER = 1/4；如果分词后两者都被切成“打开 / 空调（空条）”，WER 可能是 1/2。不是哪个指标更真，而是必须先说明分词与归一化口径。' },
+          { title: '先审标签，再怪模型', paragraphs: ['模型输出与 reference 不同，只能说明评分不一致，不能直接说明 reference 有错。要回听音频、检查标注规范和多人一致性，才能把“模型错误”升级为“标签噪声”。', '个人项目里西语数据的标签审计可以作为真实案例；复杂噪声估计方法若没有实际证据，只作为补充方案。'] }
+        ],
+        exercise: { title: '练习：写一页 ASR 指标契约', prompt: '为一个中英混合语音产品写输入采样率、切分方式、输出文字规范、CER/WER normalizer 和三个高风险切片；再手算一条包含替换、插入和删除的样本。', checks: ['分母和文字归一化是否明确', '是否保存原始输出而非只留总分', '是否区分评分差异与标签错误'] },
+        questionIds: ['as-asr-codec', 'asr-eval-metrics', 'asr-resume-label-noise-audit']
+      },
+      {
+        id: 'ctc', number: 2, title: 'CTC：没有逐帧标签，模型怎样学会对齐', duration: '55 分钟',
+        goal: '理解 blank、重复折叠、路径求和和前缀搜索，能够手算短序列并解释 CTC 的独立性假设。',
+        bridge: '第一章只有音频和整句文字，却没有告诉模型每个字在哪一帧。CTC 先解决“未知对齐怎样训练”这个核心矛盾。',
+        sections: [
+          { title: 'CTC 的关键不是加一个 blank', paragraphs: ['给定 T 帧和 U 个标签，CTC 枚举长度为 T 的对齐路径：先删除 blank，再合并相邻重复，能得到目标文字的路径概率全部相加。训练因此不需要人工逐帧标注。', 'blank 还负责分开重复字符。例如输出“好好”时，路径必须在两个“好”之间经过 blank 或其他符号，否则折叠后只剩一个“好”。'] },
+          { title: '手算例子：T=3，目标是“AB”', callout: '能折叠成 AB 的路径包括 A-A-B、A-B-B、A-blank-B 等；A-B-A 会得到 ABA，blank-A-B 也有效。CTC 前向递推不会真的列出所有路径，而是在扩展标签序列 blank-A-blank-B-blank 上累加到达概率。' },
+          { title: 'Greedy 为什么会输给 Prefix Beam Search', steps: ['Greedy 每帧只拿概率最高 token，再折叠；它找的是最可能路径，不一定是所有路径求和后最可能的文字。', 'Prefix Beam 分别维护前缀以 blank 结尾和非 blank 结尾的概率，正确处理重复字符。', '加入语言模型时在扩展前缀处融合分数，但语言模型权重过大可能把声学证据改成“更常见但没说过”的句子。'] },
+          { title: '强制对齐能做什么', paragraphs: ['已知音频和正确文字时，可以在 CTC trellis 中寻找高概率路径，得到 token 的近似时间边界，用于字幕、切段和标签检查。它依赖模型与文本都基本可信，不等同于人工精确音素边界。'] }
+        ],
+        exercise: { title: '练习：手推一次 CTC', prompt: '为 3 帧、词表 {blank, A, B} 自设概率，先做 greedy，再列出所有能折叠为 AB 的路径并比较总概率；最后解释为什么 AA 至少需要 3 帧。', checks: ['是否正确处理相邻重复', '是否区分最优路径与最优标签序列', '是否能说出 CTC 条件独立假设的限制'] },
+        questionIds: ['ctc-greedy', 'ctc-prefix-beam', 'as-ctc-align']
+      },
+      {
+        id: 'rnnt', number: 3, title: 'RNN-T：时间轴和输出轴怎样共同前进', duration: '60 分钟',
+        goal: '看懂 encoder、predictor、joiner 和二维前向递推，能解释 blank 转移、标签转移、greedy 与剪枝。',
+        bridge: 'CTC 假设给定声学表示后各帧输出近似独立，语言上下文主要靠外部解码补。RNN-T 把已输出 token 历史直接放进模型。',
+        sections: [
+          { title: '二维格点是理解 RNN-T 的钥匙', steps: ['Encoder 在时间维 t 提供声学表示；Predictor 在输出维 u 编码已生成 token。', 'Joiner 在格点 (t,u) 给出 blank 或下一个 token 的分布。', '输出 blank：时间前进到 (t+1,u)；输出 token：文字前进到 (t,u+1)，同一音频帧仍可继续出字。'] },
+          { title: '手算例子：2 帧输出 AB', callout: '从 (0,0) 出发，一条路径可以是 A → blank → B → blank；也可以 blank → A → B → blank。前向算法把所有合法路径概率相加。若某一帧一直预测非 blank，greedy 需要 max-symbols-per-frame 防止卡在同一 t 无限出字。' },
+          { title: 'Greedy、Beam 与剪枝分别牺牲什么', paragraphs: ['RNN-T greedy 每次取最高分，速度快但会丢掉早期概率略低、后续更合理的前缀。Beam 保留多个 hypothesis，却会让 joiner 计算和状态复制迅速增长。', 'Pruning 的本质是只计算或保留高概率的 (t,u) 区域；省下的是 joiner/损失格点与 beam 扩展成本，代价是剪掉正确路径的风险。'] },
+          { title: 'Zipformer 不等于 RNN-T', paragraphs: ['Zipformer 是 encoder 结构，RNN-T 是训练与解码目标；两者经常组合，但不能混成一个名词。Zipformer 通过多尺度时间分辨率和不同层宽度分配计算，流式时仍需保存卷积、注意力和 predictor 状态。'] }
+        ],
+        exercise: { title: '练习：画 3×3 RNN-T 格点', prompt: '画出 T=2、目标长度 U=2 的格点，标出 blank 与 label 两种边；写出到达终点的两条路径，再解释 greedy 的终止条件和 beam 的状态组成。', checks: ['blank 是否只推进时间', 'token 是否只推进输出位置', '是否说清 encoder cache 与 predictor state 的区别'] },
+        questionIds: ['rnnt', 'rnnt-greedy', 'as-rnnt-pruning', 'asr-resume-zipformer-internals']
+      },
+      {
+        id: 'architecture-selection', number: 4, title: '架构选型：Conformer、Zipformer、Paraformer 与 Whisper', duration: '65 分钟',
+        goal: '不靠模型名背答案，能从对齐方式、上下文、流式性、延迟、数据规模和端侧约束选择架构。',
+        bridge: '理解 CTC 和 RNN-T 后，才能把 encoder、训练目标和解码方式拆开比较，而不是把整套模型当作不可解释的品牌。',
+        sections: [
+          { title: '先拆成三层再比较', steps: ['输入与 encoder：Conformer 用注意力建模长程关系、卷积捕捉局部模式；Zipformer 用多尺度结构重新分配计算。', '对齐与训练目标：CTC、RNN-T、CIF 或 attention decoder 决定训练约束和输出依赖。', '解码与产品能力：是否原生流式、能否 prompt、热词怎样接入、长音频和端侧成本怎样。'] },
+          { title: '四类候选的直觉', paragraphs: ['Conformer 是通用强 encoder，不自动意味着离线；配 chunk mask 和 cache 可以流式。Paraformer 用 CIF 聚合声学帧并并行预测 token，延迟友好，但 token 数预测错误会影响对齐。Whisper 是大规模弱监督 encoder-decoder，鲁棒和多任务能力强，但自回归解码、控制 token 与端侧成本需要单独评估。', '大型 ASR 基座可能带来更强 zero-shot 与上下文能力；经典 Transducer 往往在稳定流式、可控延迟和小设备上更容易形成工程闭环。'] },
+          { title: '选型例子：同一个 CER，不同产品结论', callout: '候选 A 的离线 CER 为 6.8%，首字 1.4 秒且占用 3 GiB；候选 B 的 CER 为 7.1%，首字 180 ms、HWM 420 MiB、支持稳定流式。会议转写可能选 A，端侧对话更可能选 B。0.3 个点不是脱离约束的绝对胜负。' },
+          { title: '怎样公平横评', paragraphs: ['先做受控主表：相同音频、normalizer、VAD、硬件和运行模式；再做能力上限附表，允许每个模型使用官方推荐 prompt 或解码配置。把两张表混在一起，会把系统配置差异误当成模型差异。'] }
+        ],
+        exercise: { title: '练习：做一张 ASR 选型 Scorecard', prompt: '针对“离线字幕”和“端侧语音助手”各选一次模型。至少比较精度、首字、RTF、HWM、流式、热词、长音频、语言覆盖和维护成本，并写淘汰理由。', checks: ['是否先设硬门槛再看总分', '是否分开 encoder 与训练目标', '是否同时保留受控对照和能力上限'] },
+        questionIds: ['as-conformer', 'as-whisper', 'asr-architecture-compare', 'asr-new-backbones', 'asr-resume-backbone-audit', 'asr-resume-paraformer-cif']
+      },
+      {
+        id: 'decoding-hotwords', number: 5, title: '解码与热词：怎样提召回又不让系统乱插词', duration: '55 分钟',
+        goal: '理解 beam hypothesis、FSA/FST、context graph 和热词分数注入，能够设计增益与副作用并重的评测。',
+        bridge: '架构给出 token 概率，但产品要的是最终文字。专有名词、重复 token 和语言约束都在解码层变成真实取舍。',
+        sections: [
+          { title: '解码器到底维护什么', paragraphs: ['CTC Prefix Beam 维护文字前缀及 blank/non-blank 概率；RNN-T Beam 还要维护 predictor state、时间位置和可能的 context state。合并相同前缀时必须正确累加概率，否则 beam 变大也不一定更准。', 'k2 用 FSA/FST 表示允许路径和权重，可把 token、词典、语言模型或上下文约束做图运算；它是工具与表示，不代表所有项目都必须构建传统大解码图。'] },
+          { title: '热词 Context Graph 的状态机直觉', steps: ['把“张江人工智能岛”拆成 token 路径；解码前缀命中越多，累积奖励越高。', '完整命中后给完成奖励；中途偏离时撤销或衰减未完成奖励，避免只说“张”就长期偏置。', '不同热词共享前缀时复用图状态；session 结束必须释放动态热词状态。'] },
+          { title: '数值例子：奖励太大会发生什么', callout: '声学候选“上海天气”得分 -4.0，“商海天气”得分 -4.6。若热词“商海”奖励 +1.2，后者变为 -3.4 并胜出；热词召回提高了，但普通句可能被错误改写。应扫描奖励并同时看热词 recall、非热词 CER 和误插入率。' },
+          { title: '热词不是后处理字符串替换', paragraphs: ['后处理替换看不到声学竞争，容易把同音普通词全部改坏。更稳的做法是在 beam 扩展时加入受控上下文分数，并保留无热词基线、动态开关和回退配置。'] }
+        ],
+        exercise: { title: '练习：手画一个热词图', prompt: '选择两个有共享前缀的热词，画 token trie/context graph；设置进入、完成和失败回退分数，再设计一组热词句与非热词对照句。', checks: ['是否处理共享前缀和中途失败', '是否报告误插入而非只有召回', '是否能够关闭热词回到基线'] },
+        questionIds: ['as-hotword', 'asr-resume-k2-fsa', 'asr-resume-rnnt-context-graph', 'ctc-prefix-beam']
+      },
+      {
+        id: 'streaming-session', number: 6, title: '流式 ASR：Chunk、缓存、句尾和会话生命周期', duration: '65 分钟',
+        goal: '画出麦克风到 partial/final 的实时数据流，区分算法延迟与系统延迟，并彻底解释句尾为什么会丢字。',
+        bridge: '离线解码默认整段音频已知；实时产品却必须在未来音频尚未到达时输出结果，并正确处理断句、取消和最后半个 chunk。',
+        sections: [
+          { title: '完整实时链路', steps: ['音频回调写入有界 ring buffer；重采样与特征线程累积帧并形成 chunk。', 'Streaming encoder 读取当前 chunk 与左侧 cache；decoder 复用 predictor、beam 和热词状态，产生 partial。', 'VAD endpoint 或显式 finish 触发 drain、补齐尾帧、flush decoder、输出 final，最后释放 session state。'] },
+          { title: '缓存不是把历史全部拼回输入', paragraphs: ['注意力保存有限左上下文的 key/value，卷积保存感受野需要的尾部状态，特征端还可能保留不足一窗的波形。若每次把全部历史重新编码，虽然结果可能正确，却失去了流式复杂度优势。', 'Cache 的 batch、层数、时间轴和维度必须和模型导出契约一致；跨 session 复用未清零状态会把上一个用户的声音带进下一句。'] },
+          { title: '句尾丢字的具体机制', callout: '假设 chunk 是 16 帧，用户停止时只积累了最后 6 帧。如果 finish 直接结束，这 6 帧从未送进 encoder；即使送入 encoder，若没有 drain lookahead 和 flush beam，末尾 token 仍可能停留在候选状态。正确结束不是“关闭麦克风”，而是一串有顺序的状态迁移。' },
+          { title: '延迟要沿时间线拆', paragraphs: ['端到端延迟包含采集等待、chunk 累积、特征、排队、encoder、decoder、endpoint 和 UI。只报 RTF 无法解释首字慢；只缩小 chunk 也可能因调用次数和上下文不足让吞吐与精度变差。'] }
+        ],
+        exercise: { title: '练习：画 session 状态机', prompt: '画 Idle → Streaming → Draining → Finalized/Cancelled；为 finish、cancel、超时和设备断开分别写动作，并给每段链路分配延迟预算。', checks: ['最后不足一个 chunk 是否处理', 'drain 与 flush 是否分开说明', '不同 session 的缓存是否隔离并最终释放'] },
+        questionIds: ['streaming-cache', 'as-streaming-asr', 'asr-streaming']
+      },
+      {
+        id: 'data-governance', number: 7, title: '数据与训练流水线：伪标签不是自动真值', duration: '55 分钟',
+        goal: '把 manifest、采样、标签审计、候选重标注和回灌验证连成可复现的数据闭环。',
+        bridge: '模型和流式系统都理解后，最大的剩余变量往往不是结构，而是音频、标签、采样比例和训练版本是否可信。',
+        sections: [
+          { title: 'icefall 与 Lhotse 分别解决什么', paragraphs: ['Lhotse 用 Recording、Supervision、Cut 和 CutSet 描述音频、标注与切片，负责可追踪的数据准备、过滤、增强和动态 batching；icefall 在其上组织 k2/Transducer 等训练 recipe。', '能跑一个 recipe 不等于数据可复现。训练 manifest、过滤规则、特征配置、tokenizer、采样器和 checkpoint 必须一起版本化。'] },
+          { title: '三个容易混淆的概念', steps: ['标签修复：人工或规则确认原标签错误后纠正。', '伪标签：教师模型产生候选转写，尚不是人工真值，需要筛选。', '自训练：把筛选后的伪标签加入训练并验证是否提升；它描述训练闭环，不只是生成一次文字。'] },
+          { title: '个人案例怎样讲得既具体又不过界', paragraphs: ['简历支持的事实是：从西语 10k 抽样中确认 8.2% 真实标签噪声，并用 Qwen3-ASR 候选、置信度/一致性、抽样复听和回灌训练控制质量。', '这不等于做过专门的概率校准模型，也不能说 Qwen3-ASR 输出就是正确答案。最强证据不是“模型置信度很高”，而是独立验证集和高风险切片在回灌后稳定改善。'] },
+          { title: '筛选例子', callout: '原标签与教师模型不同的 1000 条样本中，先按置信度与差异类型分桶，每桶随机复听；只对误差率可接受的桶进入候选训练。若新标签训练后总体 CER 降低、罕见口音却退化，仍不能宣布全量替换成功。' }
+        ],
+        exercise: { title: '练习：设计一次安全重标注', prompt: '写出旧标签、教师输出、人工复听和回灌训练四张表的主键与版本；定义哪些样本自动保留、哪些复听、哪些拒绝，并给出停止条件。', checks: ['是否能追溯每条标签来源', '是否用独立验证集判断价值', '是否明确教师和原标签可能同时错误'] },
+        questionIds: ['asr-pseudo-label', 'asr-resume-label-noise-audit', 'asr-resume-confidence-calibration', 'asr-resume-icefall-lhotse']
+      },
+      {
+        id: 'robust-adaptation', number: 8, title: '鲁棒与多域适配：新场景提升，旧能力不能悄悄丢', duration: '65 分钟',
+        goal: '把真实信道、多域采样、多语种共享和 LID 辅助任务放入同一实验框架，能够定位正收益与负收益。',
+        bridge: '数据可追溯之后，才能判断提升究竟来自更接近真实链路的数据、域配比、辅助任务，还是评分口径变化。',
+        sections: [
+          { title: '先还原信号链，再堆增强', paragraphs: ['真实语音可能依次经过房间混响、设备频响、编解码、AGC、重采样和丢包。随机加噪若没有覆盖主要失真，训练更久也无法迁移。', 'RIR 卷积模拟声源到麦克风的多径响应；但 RIR 库、SNR、codec 和增益分布必须接近目标设备，并用 clean、synthetic、real 三套测试判断是否只学会了合成伪影。'] },
+          { title: '新域适配是一道双目标题', steps: ['保存新域、通用旧域和高风险难例三套验证集。', '扫描新域与 replay 配比、学习率或冻结策略，寻找新域收益和旧域回归之间的 Pareto 点。', '发布条件同时约束新域达标、旧域不退和最差切片稳定。个人经历中的约 10% 通用 replay 与两域 CER 是可引用证据。'] },
+          { title: '多语种共享与 LID 的利弊', paragraphs: ['共享 encoder 能让低资源语种借力，但高资源语种会主导梯度；汇总指标必须按语种分别报告，再说明 macro、micro 或业务加权方式。', 'LID 辅助 loss 可能帮助模型形成语言边界，也可能把混说样本强行分开或与 ASR 梯度冲突。看到关闭 LID 后恢复，只能先说“它与退化相关”；要证明梯度冲突，还需梯度相似度或更直接实验。'] },
+          { title: '负收益定位例子', callout: 'ChinaVoices 实验下降时，依次冻结文字 normalizer、数据采样、主模型、LID loss、解码和评分脚本。若统一正字法后差距缩小、关闭 LID 后进一步恢复，就能把“模型不行”拆成口径问题与辅助任务问题，而不是一次改五项后只看最终数字。' }
+        ],
+        exercise: { title: '练习：做一个 2×3 鲁棒实验矩阵', prompt: '选择“真实信道增强”或“新域+通用 replay”，设计两个训练因素和三个评测域；写出单因素、组合、最差切片和阻断发布条件。', checks: ['是否保留 clean/旧域回归集', '是否区分相关性与因果证据', '多语种结果是否避免只报加权平均'] },
+        questionIds: ['asr-channel-robustness', 'asr-domain-adaptation', 'asr-lid', 'asr-multilingual', 'asr-resume-rir-signal-chain', 'asr-resume-domain-mixture', 'asr-resume-error-attribution', 'asr-chinavoices']
+      },
+      {
+        id: 'evaluation-delivery', number: 9, title: '评测与交付：从一个 CER 到可放行的系统结论', duration: '60 分钟',
+        goal: '建立逐样本、切片、显著性、性能和失败率组成的放行报告，并把九章知识压成可追问的 ASR 方案。',
+        bridge: '最后不能用“平均 CER 更低”替代上线结论；需要证明差异稳定、关键人群不退、实时链路满足预算且失败可回退。',
+        sections: [
+          { title: '一张完整评测表至少有四层', steps: ['总体：CER/WER、插入/删除/替换，以及 reference 字数或词数。', '切片：语种、口音、信道、噪声、时长、数字实体、热词、混说和设备。', '统计：保存逐样本错误，做 paired bootstrap 或置信区间，判断差异是否稳定。', '系统：首字/末字、p50/p99、RTF、HWM、失败率、句尾丢字和回退成功率。'] },
+          { title: '配对 Bootstrap 为什么按样本一起抽', paragraphs: ['比较 A/B 时，同一条音频的难度必须共同保留。每次从样本索引有放回抽取一组，分别汇总 A 与 B 的错误率并记录差值；重复多次得到差值分布。若独立抽 A 和 B，会把样本难度差异引入比较。', '统计显著不等于业务重要。0.02 个 CER 点可能稳定但没有产品价值；数字实体错误减少 20% 即使总体变化小，也可能很关键。'] },
+          { title: '放行例子', callout: '候选模型总体 CER 8.10%→7.92%，95% 配对区间完全低于 0；但句尾删除率从 0.7% 升到 1.8%，端侧 p99 超预算。结论应是“离线质量有稳定收益，但暂不流式放行”，并回到第 6 章定位 finalize 与延迟链路。' },
+          { title: '怎样回答最终选型', paragraphs: ['最终答辩应从产品约束出发，再依次解释文字契约、架构、解码、流式状态、数据、切片与回退。个人横评项目可以作为真实证据；课程中新增的系统设计细节若没有当时记录，应明确说是现在的完整方案。'] }
+        ],
+        exercise: { title: '结课前演练：写一页 Release Decision', prompt: '为两个 ASR 候选写“放行 / 条件放行 / 不放行”结论，附总体、五个切片、paired bootstrap、首字/p99/HWM、已知风险和回退版本。', checks: ['统计差异是否按逐样本配对', '是否存在可阻断平均收益的关键切片', '结论是否能回溯到模型、数据和运行版本', '是否明确哪些来自真实项目'] },
+        questionIds: ['asr-eval-metrics', 'asr-resume-paired-bootstrap', 'asr-resume-backbone-audit', 'asr-architecture-compare']
+      }
+    ]
   }
 ];
 
@@ -59781,11 +59931,19 @@ const personalTracks = [
   },
 ];
 
+const savedTutorialProgress = loadTutorialProgress();
+const initialTutorialId = tutorialById(savedTutorialProgress.currentTutorialId)?.id || tutorials[0].id;
+const initialTutorialChapters = { ...(savedTutorialProgress.currentChapterByTutorial || {}) };
+if (initialTutorialChapters[tutorials[0].id] == null && Number.isInteger(savedTutorialProgress.currentChapter)) {
+  initialTutorialChapters[tutorials[0].id] = savedTutorialProgress.currentChapter;
+}
+
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   resumeLevel: 'direct', mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
-  tutorialId: tutorials[0].id, tutorialChapter: loadTutorialProgress().currentChapter || 0,
-  completedTutorialChapters: new Set(loadTutorialProgress().completed || []), remaining: 2700, timerId: null,
+  tutorialId: initialTutorialId, tutorialChapter: initialTutorialChapters[initialTutorialId] || 0,
+  tutorialChapterById: initialTutorialChapters,
+  completedTutorialChapters: new Set(savedTutorialProgress.completed || []), remaining: 2700, timerId: null,
 };
 
 function loadMastered() {
@@ -59803,7 +59961,9 @@ function loadTutorialProgress() {
 function saveTutorialProgress() {
   try {
     localStorage.setItem(tutorialProgressKey, JSON.stringify({
+      currentTutorialId: state.tutorialId,
       currentChapter: state.tutorialChapter,
+      currentChapterByTutorial: state.tutorialChapterById,
       completed: [...state.completedTutorialChapters],
     }));
   } catch {}
@@ -59839,7 +59999,8 @@ function renderCategories() {
   const buttons = [];
   // 前置导航：个人准备台 / 简历专项 / 全部知识库
   buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
-  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course', () => openTutorial(), 'nav-lead nav-course'));
+  buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course' && state.tutorialId === 'project-defense-tech-lead', () => openTutorial('project-defense-tech-lead'), 'nav-lead nav-course'));
+  buttons.push(navButton('▣ 教程 · ASR', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery', () => openTutorial('asr-from-audio-to-delivery'), 'nav-lead nav-course nav-course-asr'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -60339,10 +60500,13 @@ function openCollection(view, category = '全部') {
 
 function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapter.id}`; }
 
-function openTutorial(chapterIndex = state.tutorialChapter) {
-  const tutorial = tutorialById(state.tutorialId) || tutorials[0];
+function openTutorial(tutorialId = state.tutorialId, chapterIndex) {
+  const tutorial = tutorialById(tutorialId) || tutorials[0];
+  state.tutorialId = tutorial.id;
+  const targetChapter = chapterIndex ?? state.tutorialChapterById[tutorial.id] ?? 0;
   state.mode = 'review'; state.view = 'course';
-  state.tutorialChapter = Math.max(0, Math.min(chapterIndex, tutorial.chapters.length - 1));
+  state.tutorialChapter = Math.max(0, Math.min(targetChapter, tutorial.chapters.length - 1));
+  state.tutorialChapterById[tutorial.id] = state.tutorialChapter;
   saveTutorialProgress(); render();
   if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -60409,7 +60573,7 @@ function renderTutorialCourse(container) {
     button.setAttribute('aria-current', index === state.tutorialChapter ? 'step' : 'false');
     const number = document.createElement('span'); number.textContent = isDone ? '✓' : String(item.number).padStart(2, '0');
     const copy = document.createElement('span'); copy.textContent = item.title;
-    button.append(number, copy); button.addEventListener('click', () => openTutorial(index)); rail.append(button);
+    button.append(number, copy); button.addEventListener('click', () => openTutorial(tutorial.id, index)); rail.append(button);
   });
 
   const article = document.createElement('article'); article.className = 'course-article';
@@ -60447,13 +60611,13 @@ function renderTutorialCourse(container) {
   }
 
   const controls = document.createElement('div'); controls.className = 'course-controls';
-  if (state.tutorialChapter > 0) { const previous = document.createElement('button'); previous.className = 'button ghost'; previous.textContent = '← 上一章'; previous.addEventListener('click', () => openTutorial(state.tutorialChapter - 1)); controls.append(previous); }
+  if (state.tutorialChapter > 0) { const previous = document.createElement('button'); previous.className = 'button ghost'; previous.textContent = '← 上一章'; previous.addEventListener('click', () => openTutorial(tutorial.id, state.tutorialChapter - 1)); controls.append(previous); }
   const key = tutorialChapterKey(tutorial, chapter); const isDone = state.completedTutorialChapters.has(key);
   const complete = document.createElement('button'); complete.className = `button ${isDone ? 'mastered' : 'primary'}`;
   complete.textContent = isDone ? '✓ 本章已完成' : (state.tutorialChapter < tutorial.chapters.length - 1 ? '完成本章，进入下一章 →' : '完成课程');
   complete.addEventListener('click', () => {
     state.completedTutorialChapters.add(key); saveTutorialProgress();
-    if (state.tutorialChapter < tutorial.chapters.length - 1) openTutorial(state.tutorialChapter + 1); else render();
+    if (state.tutorialChapter < tutorial.chapters.length - 1) openTutorial(tutorial.id, state.tutorialChapter + 1); else render();
   });
   controls.append(complete); article.append(controls);
   shell.append(rail, article); container.append(shell);
@@ -60479,19 +60643,22 @@ function renderPersonalDashboard() {
   });
   hero.append(copy, stats); wrap.append(hero);
 
-  const tutorial = tutorials[0];
-  const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
-  const courseCard = document.createElement('section'); courseCard.className = 'featured-course';
-  const courseCopy = document.createElement('div');
-  const courseKicker = document.createElement('span'); courseKicker.textContent = 'FIRST GUIDED COURSE';
-  const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
-  const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
-  courseCopy.append(courseKicker, courseTitle, courseText);
-  const courseAction = document.createElement('div');
-  const courseCount = document.createElement('strong'); courseCount.textContent = `${completedChapters} / ${tutorial.chapters.length}`;
-  const courseLabel = document.createElement('span'); courseLabel.textContent = completedChapters ? '继续上次学习' : '从第 1 章开始';
-  const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial());
-  courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); wrap.append(courseCard);
+  const courseLibrary = document.createElement('div'); courseLibrary.className = 'course-library';
+  tutorials.forEach((tutorial, index) => {
+    const completedChapters = tutorial.chapters.filter((chapter) => state.completedTutorialChapters.has(tutorialChapterKey(tutorial, chapter))).length;
+    const courseCard = document.createElement('section'); courseCard.className = `featured-course ${tutorial.id === 'asr-from-audio-to-delivery' ? 'is-asr' : ''}`;
+    const courseCopy = document.createElement('div');
+    const courseKicker = document.createElement('span'); courseKicker.textContent = index === 0 ? 'FIRST GUIDED COURSE' : `GUIDED COURSE ${String(index + 1).padStart(2, '0')}`;
+    const courseTitle = document.createElement('h3'); courseTitle.textContent = tutorial.title;
+    const courseText = document.createElement('p'); courseText.textContent = tutorial.summary;
+    courseCopy.append(courseKicker, courseTitle, courseText);
+    const courseAction = document.createElement('div');
+    const courseCount = document.createElement('strong'); courseCount.textContent = `${completedChapters} / ${tutorial.chapters.length}`;
+    const courseLabel = document.createElement('span'); courseLabel.textContent = completedChapters ? '继续上次学习' : '从第 1 章开始';
+    const courseButton = document.createElement('button'); courseButton.textContent = completedChapters ? '继续教程 →' : '开始教程 →'; courseButton.addEventListener('click', () => openTutorial(tutorial.id));
+    courseAction.append(courseCount, courseLabel, courseButton); courseCard.append(courseCopy, courseAction); courseLibrary.append(courseCard);
+  });
+  wrap.append(courseLibrary);
 
   const heading = document.createElement('div'); heading.className = 'personal-section-head';
   const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
@@ -60601,6 +60768,7 @@ function renderMapPriority() {
 function render() {
   document.body.classList.toggle('map-mode', state.view === 'map');
   document.body.classList.toggle('course-mode', state.view === 'course');
+  document.body.classList.toggle('course-asr-mode', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery');
   renderMode();
   renderCategories();
   renderKindSwitch();
