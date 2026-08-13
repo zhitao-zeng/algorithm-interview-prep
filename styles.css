@@ -154,6 +154,9 @@
 .nav-course-tts { color: #774b78; background: #faf1fa; border-color: #e7cee7; }
 .nav-course-tts:hover { color: #653966; background: #f5e7f5; border-color: #c995c9; }
 .nav-course-tts.active { color: #fff; background: #8b548b; border-color: #8b548b; }
+.nav-course-speech-llm { color: #7a5526; background: #fff7e9; border-color: #efd9ae; }
+.nav-course-speech-llm:hover { color: #694619; background: #fff0d2; border-color: #d8ad61; }
+.nav-course-speech-llm.active { color: #fff; background: #a56d22; border-color: #a56d22; }
 .course-mode .question-pane { grid-column: 2 / 4; border-right: 0; padding-inline: clamp(22px, 4vw, 58px); }
 .course-mode .detail-pane { display: none; }
 .course-view { max-width: 1180px; margin: 0 auto; padding: 2px 0 54px; }
@@ -184,6 +187,14 @@
 .course-tts-mode .course-goal { color: #674766; background: #faf2fa; }
 .course-tts-mode .course-steps li { color: #5f485f; border-left-color: #a96fa6; background: #faf5fa; }
 .course-tts-mode .course-steps li::before { background: #8f568e; }
+.course-speech-llm-mode .course-hero { background: radial-gradient(circle at 88% 10%, rgba(255, 195, 98, .23), transparent 31%), linear-gradient(145deg, #5b4425, #302718 74%); }
+.course-speech-llm-mode .course-eyebrow, .course-speech-llm-mode .course-meta strong { color: #ffd289; }
+.course-speech-llm-mode .course-progress i { background: linear-gradient(90deg, #aa742a, #e4ad52); }
+.course-speech-llm-mode .course-chapter-link.active { color: #704b1d; border-color: #e6d2a9; background: #fff8ea; }
+.course-speech-llm-mode .course-chapter-link.active > span:first-child { background: #aa742a; }
+.course-speech-llm-mode .course-goal { color: #70522d; background: #fff8ea; }
+.course-speech-llm-mode .course-steps li { color: #62513a; border-left-color: #bf8a3d; background: #fdf8ef; }
+.course-speech-llm-mode .course-steps li::before { background: #aa742a; }
 .course-shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 22px; align-items: start; }
 .course-rail { position: sticky; top: 82px; display: grid; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 6px 20px rgba(20, 43, 69, .055); }
 .course-rail > strong { padding: 5px 7px 9px; color: var(--navy); font-size: 13px; }
@@ -248,6 +259,12 @@
 .featured-course.is-tts > div:last-child strong { color: #8b548b; }
 .featured-course.is-tts > div:last-child span { color: #816c80; }
 .featured-course.is-tts button { background: #8b548b; }
+.featured-course.is-speech-llm { border-color: #e6cfa3; background: radial-gradient(circle at 90% 0, rgba(220, 164, 70, .17), transparent 31%), linear-gradient(145deg, #fffdf8, #fff7e9); box-shadow: 0 8px 24px rgba(145, 97, 29, .08); }
+.featured-course.is-speech-llm span { color: #9c6926; }
+.featured-course.is-speech-llm p { color: #746650; }
+.featured-course.is-speech-llm > div:last-child strong { color: #a56d22; }
+.featured-course.is-speech-llm > div:last-child span { color: #7f725e; }
+.featured-course.is-speech-llm button { background: #a56d22; }
 
 @media (max-width: 900px) {
   .course-hero { grid-template-columns: 1fr; }

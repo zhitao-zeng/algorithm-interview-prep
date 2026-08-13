@@ -98,7 +98,7 @@ test('直播变现与增长模块覆盖两份 JD 的业务、算法与工程闭�
 
 test('项目答辩与 Tech Lead 教程形成连续章节并关联全部真实项目卡', () => {
   const tutorial = tutorialById('project-defense-tech-lead');
-  assert.equal(tutorials.length, 3);
+  assert.equal(tutorials.length, 4);
   assert.equal(tutorial.chapters.length, 8);
   assert.equal(new Set(tutorial.chapters.map((chapter) => chapter.id)).size, 8);
   assert.deepEqual(tutorial.chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5, 6, 7, 8]);
@@ -164,6 +164,30 @@ test('TTS 教程沿生成链路覆盖全部 28 张语音合成卡', () => {
   assert.ok(ttsIds.every((id) => relatedIds.has(id)), '教程应把 28 张 TTS 语音合成卡全部编入相关章节');
   assert.match(tutorial.chapters.map((chapter) => chapter.title).join('\n'), /文本前端.*对齐.*声学模型.*声码器.*流式.*评测/s);
   assert.match(tutorial.chapters[5].sections.map((section) => JSON.stringify(section)).join('\n'), /简历明确支持.*中英混读.*三种方言/s);
+  assert.ok(tutorial.capstone.checklist.length >= 8);
+});
+
+test('语音大模型教程覆盖全部 16 张卡并衔接 ASR/TTS 到实时双工', () => {
+  const tutorial = tutorialById('speech-llm-from-representation-to-duplex');
+  assert.ok(tutorial);
+  assert.equal(tutorial.chapters.length, 7);
+  assert.equal(new Set(tutorial.chapters.map((chapter) => chapter.id)).size, 7);
+  assert.deepEqual(tutorial.chapters.map((chapter) => chapter.number), [1, 2, 3, 4, 5, 6, 7]);
+  for (const chapter of tutorial.chapters) {
+    assert.ok(chapter.goal.length >= 20, chapter.id);
+    assert.ok(chapter.bridge.length >= 20, chapter.id);
+    assert.ok(chapter.sections.length >= 4, chapter.id);
+    assert.ok(chapter.sections.some((section) => section.callout), `${chapter.id} 应包含数值或系统例子`);
+    assert.ok(chapter.exercise.checks.length >= 3, chapter.id);
+    assert.ok(chapter.questionIds.length >= 1, chapter.id);
+    assert.ok(chapter.questionIds.every((id) => questions.some((question) => question.id === id)), chapter.id);
+  }
+  const relatedIds = new Set(tutorial.chapters.flatMap((chapter) => chapter.questionIds));
+  const speechLlmIds = questions.filter((question) => question.category === '语音大模型').map((question) => question.id);
+  assert.equal(speechLlmIds.length, 16);
+  assert.ok(speechLlmIds.every((id) => relatedIds.has(id)), '教程应把 16 张语音大模型卡全部编入相关章节');
+  assert.match(tutorial.chapters.map((chapter) => chapter.title).join('\n'), /级联.*连续还是离散.*语音 Token.*Thinker–Talker.*分阶段训练.*实时双工.*分层评测/s);
+  assert.match(`${tutorial.audience}\n${tutorial.capstone.prompt}`, /不默认代表|不把未有履历证据/);
   assert.ok(tutorial.capstone.checklist.length >= 8);
 });
 
@@ -338,6 +362,7 @@ test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
   assert.match(appSource, /教程 · 项目答辩/);
   assert.match(appSource, /教程 · ASR/);
   assert.match(appSource, /教程 · TTS/);
+  assert.match(appSource, /教程 · 语音大模型/);
   assert.match(appSource, /currentChapterByTutorial/);
   assert.match(appSource, /zeng-interview-tutorial-progress/);
   assert.match(appSource, /完成本章，进入下一章/);

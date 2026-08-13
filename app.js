@@ -121,6 +121,7 @@ function renderCategories() {
   buttons.push(navButton('▣ 教程 · 项目答辩', state.view === 'course' && state.tutorialId === 'project-defense-tech-lead', () => openTutorial('project-defense-tech-lead'), 'nav-lead nav-course'));
   buttons.push(navButton('▣ 教程 · ASR', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery', () => openTutorial('asr-from-audio-to-delivery'), 'nav-lead nav-course nav-course-asr'));
   buttons.push(navButton('▣ 教程 · TTS', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech', () => openTutorial('tts-from-text-to-streaming-speech'), 'nav-lead nav-course nav-course-tts'));
+  buttons.push(navButton('▣ 教程 · 语音大模型', state.view === 'course' && state.tutorialId === 'speech-llm-from-representation-to-duplex', () => openTutorial('speech-llm-from-representation-to-duplex'), 'nav-lead nav-course nav-course-speech-llm'));
   buttons.push(navButton(`◎ 简历项目 · ${directResumeQuestions.length}`, state.view === 'resume', () => {
     state.view = 'resume'; state.category = '全部'; state.resumeLevel = 'direct';
     selectQuestion(activeQuestions()[0]?.id); render();
@@ -623,6 +624,7 @@ function tutorialChapterKey(tutorial, chapter) { return `${tutorial.id}:${chapte
 function tutorialThemeClass(tutorial) {
   if (tutorial.id === 'asr-from-audio-to-delivery') return 'is-asr';
   if (tutorial.id === 'tts-from-text-to-streaming-speech') return 'is-tts';
+  if (tutorial.id === 'speech-llm-from-representation-to-duplex') return 'is-speech-llm';
   return '';
 }
 
@@ -896,6 +898,7 @@ function render() {
   document.body.classList.toggle('course-mode', state.view === 'course');
   document.body.classList.toggle('course-asr-mode', state.view === 'course' && state.tutorialId === 'asr-from-audio-to-delivery');
   document.body.classList.toggle('course-tts-mode', state.view === 'course' && state.tutorialId === 'tts-from-text-to-streaming-speech');
+  document.body.classList.toggle('course-speech-llm-mode', state.view === 'course' && state.tutorialId === 'speech-llm-from-representation-to-duplex');
   renderMode();
   renderCategories();
   renderKindSwitch();

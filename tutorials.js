@@ -360,6 +360,112 @@ export const tutorials = [
         questionIds: ['tts-eval', 'tts-eval-prosody', 'tts-resume-listening-test', 'tts-llm-tts']
       }
     ]
+  },
+  {
+    id: 'speech-llm-from-representation-to-duplex',
+    title: '语音大模型：从表示到实时双工',
+    eyebrow: 'COURSE 04 · SPEECH TOKENS TO REAL-TIME DIALOGUE',
+    summary: '在 ASR 与 TTS 基础上学习语音大模型：系统契约 → 连续/离散表示 → 语义与声学 Token → Thinker–Talker → 分阶段训练 → 流式双工 → 分层评测。',
+    outcome: '完成后，你应能画出级联与端到端语音助手，计算 Adapter/Token 压缩带来的序列成本，解释 RVQ 与 Thinker–Talker，并设计支持打断、回声控制和安全降级的实时系统。',
+    audience: '适合多模态大模型面试、语音交互系统设计和前沿技术补课；当前课程内容不默认代表已经在个人项目中完整落地过 Speech LLM。',
+    capstone: {
+      title: '结课设计：可打断、可降级的实时语音助手',
+      prompt: '设计一套支持中英语音输入、边想边说、用户随时打断的语音助手。请在 12 分钟内说明：级联与端到端边界、输入/输出表示、压缩率、语义/声学 Token、Thinker–Talker 同步、训练阶段、全双工状态机、分层 Judge、超时和安全降级。明确说明这是课程系统设计，不把未有履历证据的部分说成个人落地经历。',
+      checklist: ['输入、内部事件和输出接口可版本化', '压缩率同时考虑信息保真和上下文成本', '语义 Token 与声学 Token 有可证伪的解耦实验', 'Thinker 与 Talker 不会在语义未确认时提前承诺', '训练阶段有冻结、混合回放与能力回归', '打断状态机处理 VAD、回声、取消和残留音频', '质量、延迟、轮次和安全分别评测', '端到端失败时能够退回 ASR→LLM→TTS']
+    },
+    chapters: [
+      {
+        id: 'speech-system-contract', number: 1, title: '先画系统：级联语音助手与端到端模型差在哪里', duration: '50 分钟',
+        goal: '建立音频输入、内部表示、语言推理、语音输出与延迟预算的完整接口，理解端到端并不等于没有模块边界。',
+        bridge: 'ASR 和 TTS 已分别解决听与说；语音大模型真正新增的是跨模态表示、联合推理和实时交互怎样形成闭环。',
+        sections: [
+          { title: '两条基本路线', steps: ['级联：Audio → ASR 文本 → LLM → TTS。模块成熟、可观测、易替换，但丢失部分副语言信息，并叠加多个模块延迟。', '端到端/原生语音：Audio Encoder 或 speech token 进入语言模型，再直接产生文本、语义 token 或声学 token。表达力更强，但训练、对齐和故障定位更难。', '混合路线：内部保留文本计划和结构化事件，输出侧使用语音 token；必要时可降级到成熟的 ASR/TTS。'] },
+          { title: '接口契约比模型名字更重要', paragraphs: ['输入需要采样率、声道、chunk、时间戳和 session；内部事件至少区分 partial transcript、turn state、tool call、text plan 与 speech chunk；输出要定义顺序、取消、重试和版本。', '如果模型能同时输出文本与语音，它们必须共享 request/turn ID，并说明哪个是事实来源。否则文本显示“北京”，语音说“上海”时无法判责。'] },
+          { title: '延迟例子：四个 200 ms 不是 800 ms', callout: 'ASR 首字 200 ms、LLM 首 token 200 ms、TTS 首包 200 ms、播放器缓冲 200 ms，串行执行至少约 800 ms；若流式重叠，LLM 可在稳定 partial 后启动、TTS 可在短语确认后启动，总首声可能降低，但错误 partial 会造成说错后撤不回来。延迟优化必须同时写出承诺时点。' },
+          { title: '先保留可降级边界', paragraphs: ['端到端模型超时、输出不可解析或安全策略不确定时，可以退回 ASR→LLM→TTS；但降级会改变音色、上下文和延迟，必须作为真实路径测试，而不是架构图上的虚线。'] }
+        ],
+        exercise: { title: '练习：画两条可观测链路', prompt: '分别画级联与端到端语音助手，标出每个中间产物、首包时间点、可取消点和降级入口；为两条路线各写三个失败模式。', checks: ['文本与语音是否使用同一轮次身份', '是否区分计算完成和对外承诺', '降级链路是否真的具有完整资产'] },
+        questionIds: ['speech-llm-pipeline', 'slm-pipeline']
+      },
+      {
+        id: 'speech-representation', number: 2, title: '连续还是离散：语音怎样进入语言模型', duration: '65 分钟',
+        goal: '理解 Audio Encoder、Adapter、连续表示和离散 Token 的信息与序列成本，能够用任务实验选择表示而不是凭潮流。',
+        bridge: '系统接口确定后，第一个模型问题是：几十秒高频音频怎样压缩成语言模型能承受、又不丢关键信息的序列。',
+        sections: [
+          { title: '连续表示保留什么', paragraphs: ['Audio Encoder 将波形/log-Mel 编码成连续帧，Adapter 再投影到 LLM 维度并做下采样。它保留细腻声学信息、适合理解任务，但长序列昂贵，也缺少可直接生成和传输的离散词表。', 'Adapter 不只是线性层：卷积下采样、pooling、Q-Former 或 CTC/attention 压缩都会改变时间分辨率和信息瓶颈。'] },
+          { title: '离散表示带来什么', paragraphs: ['Codec 或语义 tokenizer 把语音量化成有限 ID，可直接交给 Transformer 建模、生成和缓存；代价是量化误差、长 token 序列和码本可能混入说话人、信道等非目标因素。', '选择连续或离散应看任务：纯理解可偏连续；需要语音续写、生成和统一自回归接口时，离散更自然；混合方案也常见。'] },
+          { title: '压缩率手算', callout: '10 秒音频若 encoder 每 20 ms 输出一帧，共 500 帧。Adapter 4× 下采样后是 125 个向量；若 codec 是 50 Hz、8 个码本交错成 token，则可能是 4000 个 token。前者上下文更省，后者能承载可重建声学细节。不能只说“离散更像文字”。' },
+          { title: '用消融选择压缩率', steps: ['固定 encoder 与 LLM，只改变 Adapter 压缩率。', '分别评测转写、语义理解、情绪/说话人等副语言任务和端到端延迟。', '检查短词、数字、低信噪比和快速语速，因为平均任务分数可能掩盖局部信息被压没。'] }
+        ],
+        exercise: { title: '练习：计算上下文账单', prompt: '对 30 秒音频分别计算 50 Hz 连续帧、4×/8× Adapter，以及 25/50/75 Hz codec token 的序列长度；再为 ASR、情绪识别和语音回复选择表示。', checks: ['是否同时计算序列长度和信息损失', '比较时 encoder/LLM 是否保持不变', '是否包含局部高风险切片'] },
+        questionIds: ['audio-encoder-adapter', 'continuous-vs-discrete-speech', 'slm-audio-encoder-adapter', 'slm-continuous-discrete']
+      },
+      {
+        id: 'speech-tokenization', number: 3, title: '语音 Token：RVQ、语义层与声学层怎样分工', duration: '65 分钟',
+        goal: '理解残差向量量化、多码本码率和语义/声学分层，并能设计真正检验解耦的实验。',
+        bridge: '选了离散路线还不够：一个 token 序列很难同时以低码率表达内容，又无损保留音色、韵律和细节。',
+        sections: [
+          { title: 'RVQ 是逐层量化残差', steps: ['第一层码本选择最接近输入向量的 code，捕捉主要结构。', '计算输入减去已选 code 的残差，第二层再量化残差；重复 K 层。', '解码时把各层 code embedding 相加重建。层数越多通常失真越小，但码率、序列或并行 head 成本增加。'] },
+          { title: '码率手算', callout: '若帧率 50 Hz，每帧使用 8 个码本，每个码本 1024 个 code，需要 10 bit；理论码率约 50×8×10 = 4000 bit/s。只用前 2 层约 1000 bit/s，可能保留内容和粗韵律，却损失高频细节。实际封装还有额外开销。' },
+          { title: '语义 Token 与声学 Token 的直觉', paragraphs: ['语义 token 应主要表达“说了什么”，在说话人、信道或音高变化下尽量稳定；声学 token 补充“谁、怎样说”和重建细节。层级生成可以先规划低码率语义，再条件生成高码率声学层。', '这只是目标，不是天然成立。若语义 token 能轻易识别说话人，或更换声学 token 后文字内容改变，就说明解耦不充分。'] },
+          { title: '怎样证伪解耦', steps: ['Probe：分别从语义/声学 token 预测文本、说话人、F0 和信道。', 'Swap：固定语义 token，替换声学 token，检查内容是否保持、音色是否改变。', 'Ablation：丢弃后几层码本，比较可懂度、相似度和重建质量曲线。'] }
+        ],
+        exercise: { title: '练习：设计一次 Token Swap', prompt: '准备两句内容和两位说话人，列出语义/声学 token 的四种交换组合；写出期望文字、音色、韵律，以及什么结果会推翻“已经解耦”。', checks: ['是否有可证伪而非只看可视化', '码率与重建质量是否同时报告', '是否防止 probe 从数据泄漏中取巧'] },
+        questionIds: ['rvq', 'semantic-vs-acoustic-token', 'slm-semantic-acoustic-token']
+      },
+      {
+        id: 'thinker-talker', number: 4, title: 'Thinker–Talker：怎样边思考边说又不互相打架', duration: '65 分钟',
+        goal: '理解语义规划与声学生成的职责、同步协议和承诺窗口，避免文本计划与实际语音不一致。',
+        bridge: '语义与声学表示分层后，系统可以让一个模块负责内容推理、另一个模块负责实时说话，但两条时间线必须严格同步。',
+        sections: [
+          { title: '两个角色不是简单 LLM 加 TTS', paragraphs: ['Thinker 维护对话、工具结果和语义计划；Talker 消费已确认的语义状态，生成带音色与韵律的声学 token。二者可能共享 backbone、交叉注意力或条件缓存，具体实现不同。', '关键契约是哪些语义已经 committed、哪些仍可修订。Talker 一旦播放出去就无法撤回，因此不能无界领先 Thinker。'] },
+          { title: '同步需要三类位置', steps: ['semantic position：Thinker 已产生到哪个内容 token。', 'acoustic position：Talker 已生成/播放到哪个声学帧或 token。', 'commit frontier：已经允许外放、不能修改的语义边界。队列中未播放内容仍可因打断被取消。'] },
+          { title: '承诺窗口例子', callout: 'Thinker 当前计划“明天北京温度是…”，工具尚未返回数值。Talker 可以先说“明天北京”，但不能猜“二十度”。如果为了 100 ms 延迟让 Talker 越过未确认槽位，得到的是更快的事实错误。可以在不确定点停顿、填充非承诺短语或切回文本确认。' },
+          { title: '一致性检查与降级', paragraphs: ['可以让文本计划、tool result 和 speech token 共享结构化 span ID，离线用 ASR 回识别检查语音内容与计划一致；在线若 Talker 超时或漂移，退回传统 TTS 合成已确认文本。'] }
+        ],
+        exercise: { title: '练习：画 Thinker/Talker 双时间线', prompt: '设计一个需要查天气工具的回复，标出计划、工具等待、commit、声学生成和播放；插入一次 Thinker 改写与一次用户打断。', checks: ['Talker 是否只消费已确认语义', '工具结果是否在说出口前绑定版本', '取消是否覆盖未播放和正在生成的 token'] },
+        questionIds: ['thinker-talker', 'slm-thinker-talker']
+      },
+      {
+        id: 'speech-training', number: 5, title: '分阶段训练：听、想、说怎样学而不互相覆盖', duration: '60 分钟',
+        goal: '把表征预训练、对齐、指令微调、语音生成和偏好/安全训练拆成可回归阶段，理解冻结与混合回放的作用。',
+        bridge: '模型架构能表达多种能力，但一次把所有数据和损失混在一起，常让新能力覆盖原有语言、理解或音质能力。',
+        sections: [
+          { title: '一种可解释的阶段划分', steps: ['训练或加载 Audio Encoder/tokenizer，先验证重建与表征任务。', '冻结大部分底座，训练 Adapter 或投影，让语音表示对齐语言模型空间。', '用语音指令与多任务数据做理解/推理 SFT，混入文本回放保持语言能力。', '训练 Talker/声学生成，并做联合微调；最后加入安全、偏好和实时行为数据。'] },
+          { title: '冻结不是越多越安全', paragraphs: ['完全冻结 LLM 可防遗忘，却可能限制语音信息进入深层推理；全量更新上限高，却更容易破坏文本能力。应比较 Adapter-only、逐层解冻和全量微调，并在每阶段跑旧能力回归。', '多任务 loss 权重决定梯度话语权。样本数最多的 ASR 任务可能压过情绪理解或对话，不能只看总 loss。'] },
+          { title: '混合比例例子', callout: '一批训练含 70% ASR、20% 语音问答、10% 文本指令。若只看 token 数，长 ASR 样本可能实际贡献超过 90% loss。需要按任务采样、token 或 loss scale 明确口径，并观察文本基准、语音理解和生成质量三组曲线。' },
+          { title: '每阶段都要有退出条件', paragraphs: ['Adapter 对齐阶段不能只看 loss，要检查语音任务提升且文本能力未受影响；Talker 阶段除了音质，还要检查语义一致性；联合训练若让某能力退化，应能回到上一个 checkpoint 和数据 manifest。'] }
+        ],
+        exercise: { title: '练习：写四阶段训练表', prompt: '为每阶段写可训练模块、冻结模块、数据混合、loss、三项验收和回滚 checkpoint；说明何时从 Adapter-only 升级为部分解冻。', checks: ['每阶段是否只新增有限变量', '是否持续回归文本与旧语音能力', '数据比例是否按真实 loss 贡献审计'] },
+        questionIds: ['speech-training-stages', 'slm-training-stages']
+      },
+      {
+        id: 'streaming-duplex', number: 6, title: '实时双工：用户一开口，系统怎样正确停下来', duration: '70 分钟',
+        goal: '构建 listen、think、speak、barge-in 和 cancel 状态机，分离用户语音、设备回声与环境噪声，并拆解端到端延迟。',
+        bridge: '单轮流式只要求尽快回答；全双工还要求系统说话时继续听，并在用户真正打断时毫不拖泥带水地停止。',
+        sections: [
+          { title: '打断不是 VAD 检测到声音就停', paragraphs: ['扬声器播放的系统声音会被麦克风重新收进来，环境碰撞声也会触发 VAD。可靠 barge-in 需要 AEC、播放参考信号、speaker/semantic 证据和短暂确认窗口共同判断。', '确认过慢会让系统抢话，确认过快会被自身回声频繁打断。应分别统计 false interrupt、missed interrupt 和 stop latency。'] },
+          { title: '状态机中的原子动作', steps: ['检测候选打断并暂停或降低播放增益。', '确认用户语音后，递增 turn generation ID，取消旧 Talker/工具任务并清空未播放 buffer。', '保留必要对话上下文，但把未说完的旧回复标为 interrupted，避免下一轮误以为已经完整告知用户。', '若判定为回声或噪声，恢复播放并记录 false trigger。'] },
+          { title: '竞态例子：旧音频为什么会“复活”', callout: '用户打断 turn 12 后立即开始 turn 13；turn 12 的异步声码器晚到一个 chunk。若队列只做 clear 而不检查 generation ID，这个旧 chunk 会在新回复中突然播放。每个产物必须携带 session/turn/generation，消费者丢弃过期结果。' },
+          { title: '延迟分解', paragraphs: ['打断延迟从用户起声开始，包含采集、VAD/AEC、确认、取消传播、播放器清空与设备缓冲。模型生成很快也不代表 stop 快；硬件播放 buffer 可能是最后的主因。'] }
+        ],
+        exercise: { title: '练习：模拟四种打断', prompt: '为正常用户打断、系统回声、咳嗽和双人同时说话画事件时间线；写状态转移、超时、generation ID 与恢复策略。', checks: ['是否区分候选打断与确认打断', '取消是否传播到工具、模型和播放器', '是否测 false/missed interrupt 与 stop latency'] },
+        questionIds: ['full-duplex', 'slm-streaming-duplex']
+      },
+      {
+        id: 'speech-evaluation', number: 7, title: '分层评测：一句回答正确，不代表一轮交互成功', duration: '65 分钟',
+        goal: '建立音频感知、语义任务、对话行为、实时交互和安全五层评测，并用短指令 Judge 避免把合理表达判错。',
+        bridge: '语音大模型同时听、想、说和管理轮次，单一 WER、MOS 或文本 Judge 都只能看到局部。',
+        sections: [
+          { title: '五层评测', steps: ['感知层：ASR/关键词、说话人、情绪、噪声与副语言信息。', '任务层：答案正确、工具调用参数、事实一致和拒答边界。', '表达层：可懂度、自然度、音色、韵律及文本计划—语音一致性。', '交互层：首响应、轮次完成、打断成功、抢话、长会话状态。', '安全层：语音越狱、敏感信息、错误工具执行和降级可靠性。'] },
+          { title: '短指令不能只做字符串相等', paragraphs: ['用户说“把灯关了”，模型回答“好的，已经关灯”与 reference“灯已关闭”语义等价。Judge 应先检查动作/槽位，再看语言质量；工具日志比表面措辞更接近事实。', '分层 Judge 可先做确定性规则和结构化执行验证，再让模型判断开放表达；高风险动作必须有人工或强约束兜底。'] },
+          { title: '聚合例子：四个 90 分不等于系统 90 分', callout: '感知、答案、音质、延迟各 90%，若一次任务必须四层都成功，粗略独立估算整轮成功率只有 0.9⁴≈65.6%。真实错误并不独立，但例子说明不能把局部平均分当端到端成功率；应直接统计完整任务完成。' },
+          { title: '测试集要包含时间行为', paragraphs: ['离线音频对无法覆盖说到一半打断、工具迟到、网络抖动和旧 chunk 竞态。需要事件脚本或仿真器控制用户起声、回声、延迟和取消，并保存全链路 timeline。'] }
+        ],
+        exercise: { title: '结课前演练：设计 50 轮语音任务集', prompt: '覆盖信息查询、工具操作、澄清、拒答、打断和降级；为每轮写音频条件、结构化期望、允许表达、延迟与安全门禁。', checks: ['是否直接统计端到端任务成功', 'Judge 是否先验证工具事实再评语言', '是否包含打断、回声、超时和降级', '是否明确这是课程设计而非既有项目经历'] },
+        questionIds: ['slm-embodied-judge']
+      }
+    ]
   }
 ];
 
