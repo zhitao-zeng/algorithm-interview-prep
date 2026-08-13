@@ -1,4 +1,4 @@
-import { categories, questions } from './questions.js?v=b075c089';
+import { categories, questions } from './questions.js?v=fe94e40e';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
@@ -39,7 +39,7 @@ const personalTracks = [
 
 const state = {
   mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
-  mockQuestions: [], revealIndex: 0, detailLevel: 'deep', masteredIds: loadMastered(),
+  mockQuestions: [], revealIndex: 0, detailLevel: 'quick', masteredIds: loadMastered(),
   remaining: 2700, timerId: null,
 };
 
@@ -61,7 +61,7 @@ function selectedQuestion() { return activeQuestions().find((q) => q.id === stat
 function selectQuestion(id) {
   state.selectedId = id;
   state.revealIndex = 0;
-  if (state.mode === 'review') state.detailLevel = 'deep';
+  if (state.mode === 'review') state.detailLevel = 'quick';
 }
 
 function scrollToMobileDetail() {
@@ -124,7 +124,8 @@ function renderList() {
     const meta = document.createElement('div'); meta.className = 'card-meta';
     const kindBadge = document.createElement('span'); kindBadge.className = 'badge'; kindBadge.textContent = q.kind === 'code' ? '代码' : '概念';
     const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = categoryLabel(q.category);
-    const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, metaText);
+    const relationBadge = document.createElement('span'); relationBadge.className = `badge relation ${q.experienceLevel || ''}`; relationBadge.textContent = q.experienceLabel || '';
+    const metaText = document.createElement('span'); metaText.textContent = `${q.difficulty} · ${q.id}`; meta.append(kindBadge, badge, ...(q.resumeCard ? [relationBadge] : []), metaText);
     const title = appendRichText(document.createElement('h3'), q.title);
     const prompt = appendRichText(document.createElement('p'), q.prompt);
     card.append(meta, title, prompt);
@@ -437,6 +438,7 @@ function renderDetail() {
   const tags = document.createElement('div'); tags.className = 'tag-row';
   const questionId = q.kind === 'code' && /^\d+$/.test(q.id) ? `LC ${q.id}` : `ID ${q.id}`;
   [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [categoryLabel(q.category), 'tag'], [q.difficulty, 'tag difficulty'], [questionId, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
+  if (q.resumeCard) { const relation = document.createElement('span'); relation.className = `tag relation ${q.experienceLevel}`; relation.textContent = q.experienceLabel; tags.prepend(relation); }
   const title = appendRichText(document.createElement('h2'), q.title);
   const prompt = appendRichText(document.createElement('p'), q.prompt);
   head.append(tags, title, prompt); pane.append(head);
@@ -691,7 +693,7 @@ function render() {
   el('timer').textContent = formatRemaining(state.remaining);
 }
 function startMock() { state.mode = 'mock'; state.view = 'list'; state.mockQuestions = sampleQuestions(questions, 5); state.selectedId = state.mockQuestions[0]?.id; state.revealIndex = 0; state.detailLevel = 'deep'; state.remaining = 2700; clearInterval(state.timerId); state.timerId = setInterval(tick, 1000); render(); }
-function returnReview() { state.mode = 'review'; state.view = 'map'; state.mapTab = 'personal'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
+function returnReview() { state.mode = 'review'; state.view = 'map'; state.mapTab = 'personal'; state.revealIndex = 0; state.detailLevel = 'quick'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
 el('search-input').addEventListener('input', (event) => { state.query = event.target.value; if (state.view !== 'resume') state.view = 'list'; selectQuestion(activeQuestions()[0]?.id); render(); });
 el('clear-search').addEventListener('click', () => { const view = state.view === 'resume' ? 'resume' : 'list'; state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = view; el('search-input').value = ''; selectQuestion(activeQuestions()[0]?.id); render(); });
 el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview);

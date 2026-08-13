@@ -3215,9 +3215,9 @@ export const questions = [
     ],
     "beginnerSummary": "CTC（Connectionist Temporal Classification）解决「声学模型输出帧数 ≫ 标签数」的对齐问题。它引入一个特殊的空白符 blank（␣），允许模型在任意帧输出 blank 或任意标签，最后通过「合并连续重复标签 + 删除 blank」得到最终文本。Greedy 解码最简单：每一帧取概率最大的 token（argmax），再合并重复、去 blank。",
     "prerequisites": [
-      "声学特征按时间切成很多帧，但对应的文字标签少得多，无法逐帧一一对应。",
-      "blank（␣）代表「此帧不输出字符」，用来吸收静音/重复与对齐余量。",
-      "解码规则：先合并相邻重复的非 blank 标签，再删掉所有 blank，得到最终序列。"
+      "直观关系：声学特征按时间切成很多帧，但对应的文字标签少得多，无法逐帧一一对应。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：blank（␣）代表「此帧不输出字符」，用来吸收静音/重复与对齐余量。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：解码规则：先合并相邻重复的非 blank 标签，再删掉所有 blank，得到最终序列。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "每帧 argmax：C C A T ␣ ␣ → 合并重复 CCAT␣␣ → CAT␣ → 删 blank → \"CAT\"。",
@@ -3230,7 +3230,27 @@ export const questions = [
       "拼接剩余 token 得到解码结果。"
     ],
     "diagram": "标注序列(含 blank ␣):\n  每帧 logit 取 argmax:\n  帧: C  C  A  T  ␣  ␣\n  → 合并重复: CCAT␣␣ → CAT␣\n  → 去 blank: \"CAT\"",
-    "order": 1
+    "order": 1,
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：先合并连续重复 token，再删除 blank；顺序不能颠倒。",
+      "2 分钟展开·原理：CTC Greedy Decode：先合并连续重复 token，再删除 blank；顺序不能颠倒。",
+      "2 分钟展开·实现：先合并连续重复 token，再删除 blank；顺序不能颠倒。",
+      "2 分钟展开·边界：全 blank 帧：结果为空字符串。 同时避免：合并重复时把不相邻的相同标签也合并（只有「连续相同」才合并）。"
+    ],
+    "conceptPath": [
+      "先识别问题：把逐帧 argmax token 解码为文本。",
+      "再抓核心机制：先合并连续重复 token，再删除 blank；顺序不能颠倒。",
+      "然后跑一个具体例子：每帧 argmax：C C A T ␣ ␣ → 合并重复 CCAT␣␣ → CAT␣ → 删 blank → \"CAT\"。",
+      "最后检查失败边界：全 blank 帧：结果为空字符串。"
+    ],
+    "guidedExample": [
+      "第 1 步：每帧 argmax：C C A T ␣ ␣ → 合并重复 CCAT␣␣ → CAT␣ → 删 blank → \"CAT\"。",
+      "第 2 步：若某段输出 A A B ␣ → 合并 A B ␣ → AB␣ → \"AB\"（连续相同才合并，A 只合并一次）。",
+      "边界检查：全 blank 帧：结果为空字符串。",
+      "反向自检：合并重复时把不相邻的相同标签也合并（只有「连续相同」才合并）。"
+    ]
   },
   {
     "kind": "code",
@@ -3281,9 +3301,9 @@ export const questions = [
     ],
     "beginnerSummary": "CTC Prefix Beam Search 是比 Greedy 更准的解码：在 beam 宽度内维护若干「前缀」（已部分解码的标签序列），每读一帧，对每个前缀考虑两种扩展——「输出 blank（前缀不变）」和「输出某个标签（前缀追加该标签）」——用动态规划累计概率，只保留总分最高的若干前缀，最后取最优。它能利用标签转移概率，避免 Greedy 的短视。",
     "prerequisites": [
-      "维护两类概率：以 blank 结尾的前缀概率（prefix stays）、以某标签结尾的前缀概率（prefix extends）。",
-      "每帧用当前帧的 log 概率更新所有候选前缀的两条路径。",
-      "beam_size 限制同时保留的前缀数量，控制开销。"
+      "直观关系：维护两类概率：以 blank 结尾的前缀概率（prefix stays）、以某标签结尾的前缀概率（prefix extends）。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：每帧用当前帧的 log 概率更新所有候选前缀的两条路径。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：beam_size 限制同时保留的前缀数量，控制开销。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "t0：\"\"(1.0)。t1：\"C\"(0.6)、\"\"(0.4)。t2：\"CA\"(0.5)、\"C\"(0.3)（保留概率最高的前缀）。",
@@ -3296,7 +3316,27 @@ export const questions = [
       "按总概率排序保留 top-beam_size 前缀，最终取最优。"
     ],
     "diagram": "前缀波束 beam=2:\nt0: \"\"        (1.0)\nt1: \"C\"(0.6), \"\"(0.4)\nt2: \"CA\"(0.5), \"C\"(0.3)\n保留高概率前缀, 空白/非空白两路扩展\n最终取最高前缀 → 去 blank",
-    "order": 2
+    "order": 2,
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：同一前缀以 blank/nonblank 结尾的转移不同；分开累计才能正确处理重复字符。",
+      "2 分钟展开·原理：CTC Prefix Beam Search：同一前缀以 blank/nonblank 结尾的转移不同；分开累计才能正确处理重复字符。",
+      "2 分钟展开·实现：同一前缀以 blank/nonblank 结尾的转移不同；分开累计才能正确处理重复字符。",
+      "2 分钟展开·边界：空输入（len(log_probs)==0）：应返回空或报错（code 已校验）。 同时避免：重复 token 转移未用 blank 路径隔离，导致同一标签被错误合并或重复累计概率。"
+    ],
+    "conceptPath": [
+      "先识别问题：说明 prefix beam 为什么维护 p_blank 和 p_nonblank。",
+      "再抓核心机制：同一前缀以 blank/nonblank 结尾的转移不同；分开累计才能正确处理重复字符。",
+      "然后跑一个具体例子：t0：\"\"(1.0)。t1：\"C\"(0.6)、\"\"(0.4)。t2：\"CA\"(0.5)、\"C\"(0.3)（保留概率最高的前缀）。",
+      "最后检查失败边界：空输入（len(log_probs)==0）：应返回空或报错（code 已校验）。"
+    ],
+    "guidedExample": [
+      "第 1 步：t0：\"\"(1.0)。t1：\"C\"(0.6)、\"\"(0.4)。t2：\"CA\"(0.5)、\"C\"(0.3)（保留概率最高的前缀）。",
+      "第 2 步：最终取最高前缀，合并重复 + 去 blank 得结果；beam 越大越接近全局最优。",
+      "边界检查：空输入（len(log_probs)==0）：应返回空或报错（code 已校验）。",
+      "反向自检：重复 token 转移未用 blank 路径隔离，导致同一标签被错误合并或重复累计概率。"
+    ]
   },
   {
     "kind": "code",
@@ -3347,9 +3387,9 @@ export const questions = [
     ],
     "beginnerSummary": "RNN-T 的贪心解码：从第 0 帧、空标签历史出发，反复调用 join 网络。若当前帧输出是 blank，就前进到下一帧（不输出文字）；若输出某个 label，就把它接到结果并移动 label 指针（时间停在原帧）。直到所有帧处理完，得到完整输出序列。是最简单、最快的 RNN-T 解码方式。",
     "prerequisites": [
-      "维护当前帧索引 t 与当前已输出 label 数 u。",
-      "join(f_t, g_u) 的 argmax 决定动作：blank → t+1；label k → 输出 k 且 u+1。",
-      "为防止单帧无限输出 label，通常限制每帧最大符号数（max_symbols_per_frame，必须 positive）。"
+      "直观关系：维护当前帧索引 t 与当前已输出 label 数 u。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：join(f_t, g_u) 的 argmax 决定动作：blank → t+1；label k → 输出 k 且 u+1。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：为防止单帧无限输出 label，通常限制每帧最大符号数（max_symbols_per_frame，必须 positive）。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "逐帧：帧1 argmax=blank → 前进帧2；帧2 argmax=\"C\" → 输出 C，u+1，仍停帧2；帧2 再 argmax=blank → 前进帧3…… 最终得 \"CAT\"。",
@@ -3363,7 +3403,27 @@ export const questions = [
       "返回结果序列。"
     ],
     "diagram": "每帧取 join 输出最大:\n  若 blank → t+1 (不输出)\n  若 label → 输出该 label, u+1\n直到 t 走完所有帧\n沿最可能路径贪心解码",
-    "order": 3
+    "order": 3,
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：每个 encoder 帧反复取 joint 网络最大 token；若是 blank 则前进到下一帧，否则输出 token 并更新 prediction state。",
+      "2 分钟展开·原理：RNN-T Greedy Decode：每个 encoder 帧反复取 joint 网络最大 token；若是 blank 则前进到下一帧，否则输出 token 并更新 prediction state。",
+      "2 分钟展开·实现：每个 encoder 帧反复取 joint 网络最大 token；若是 blank 则前进到下一帧，否则输出 token 并更新 prediction state。",
+      "2 分钟展开·边界：所有帧都输出 blank：结果为空。 同时避免：没限制每帧最大符号数，单帧持续输出 label 造成死循环。"
+    ],
+    "conceptPath": [
+      "先识别问题：实现 RNN-T 的时间同步贪心解码。",
+      "再抓核心机制：每个 encoder 帧反复取 joint 网络最大 token；若是 blank 则前进到下一帧，否则输出 token 并更新 prediction state。",
+      "然后跑一个具体例子：逐帧：帧1 argmax=blank → 前进帧2；帧2 argmax=\"C\" → 输出 C，u+1，仍停帧2；帧2 再 argmax=blank → 前进帧3…… 最终得 \"CAT\"。",
+      "最后检查失败边界：所有帧都输出 blank：结果为空。"
+    ],
+    "guidedExample": [
+      "第 1 步：逐帧：帧1 argmax=blank → 前进帧2；帧2 argmax=\"C\" → 输出 C，u+1，仍停帧2；帧2 再 argmax=blank → 前进帧3…… 最终得 \"CAT\"。",
+      "第 2 步：当某帧连续输出多个 label 后遇 blank 才前进，符合 RNN-T 对齐。",
+      "边界检查：所有帧都输出 blank：结果为空。",
+      "反向自检：没限制每帧最大符号数，单帧持续输出 label 造成死循环。"
+    ]
   },
   {
     "kind": "code",
@@ -3414,9 +3474,9 @@ export const questions = [
     ],
     "beginnerSummary": "RNN-T（RNN Transducer）允许声学帧数与输出标签数不对齐，且支持流式。它用一个「联合网络 join」把编码器（acoustic）与预测网络（label 历史）融合，在每个 (t,u) 状态输出：要么输出一个 label（u+1，时间停在原帧），要么输出 blank（t+1，帧前进、label 不变）。整条对齐路径是空白与标签交织的序列。",
     "prerequisites": [
-      "编码器 f_t 处理第 t 个声学帧；预测网络 g_u 处理已输出的前 u 个 label。",
-      "join(f_t, g_u) 输出对「所有 label + 1 个 blank」的 logits。",
-      "转移：blank → 时间前进 t+1；label → 输出该 label 且 u+1（时间不动）。"
+      "直观关系：编码器 f_t 处理第 t 个声学帧；预测网络 g_u 处理已输出的前 u 个 label。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：join(f_t, g_u) 输出对「所有 label + 1 个 blank」的 logits。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：转移：blank → 时间前进 t+1；label → 输出该 label 且 u+1（时间不动）。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "输入帧 t，目标位置 u：join 得分布。若选 blank，前进到下一帧 t+1；若选某 label（如 \"C\"），输出 \"C\"，u 增 1，仍停在当前帧准备接下一个 label。",
@@ -3429,7 +3489,27 @@ export const questions = [
       "到达 (T, U)（全部帧用完且全部标签输出）结束。"
     ],
     "diagram": "输入帧 t, 目标位置 u → 联合网络\n  f_t = encoder 帧特征\n  g_u = predictor 上一输出\n  y = join(f_t, g_u)\n  blank → 前进到下一帧 t+1\n  label → 输出该 label, u+1",
-    "order": 4
+    "order": 4,
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：encoder 推进时间 t，prediction 网络推进标签 u；blank 走 (t+1,u)，标签走 (t,u+1)。",
+      "2 分钟展开·原理：RNN-T 前向递推：encoder 推进时间 t，prediction 网络推进标签 u；blank 走 (t+1,u)，标签走 (t,u+1)。",
+      "2 分钟展开·实现：encoder 推进时间 t，prediction 网络推进标签 u；blank 走 (t+1,u)，标签走 (t,u+1)。",
+      "2 分钟展开·边界：空目标（U=0）：只能一路走 blank 到结束。 同时避免：混淆 blank 与 label 两种转移：blank 只前进时间、不输出；label 只输出、不前进时间。"
+    ],
+    "conceptPath": [
+      "先识别问题：解释 RNN-T 的 t/u 二维格点与 blank、label 转移。",
+      "再抓核心机制：encoder 推进时间 t，prediction 网络推进标签 u；blank 走 (t+1,u)，标签走 (t,u+1)。",
+      "然后跑一个具体例子：输入帧 t，目标位置 u：join 得分布。若选 blank，前进到下一帧 t+1；若选某 label（如 \"C\"），输出 \"C\"，u 增 1，仍停在当前帧准备接下一个 label。",
+      "最后检查失败边界：空目标（U=0）：只能一路走 blank 到结束。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入帧 t，目标位置 u：join 得分布。若选 blank，前进到下一帧 t+1；若选某 label（如 \"C\"），输出 \"C\"，u 增 1，仍停在当前帧准备接下一个 label。",
+      "第 2 步：完整路径形如 ␣ C ␣ A ␣ T ␣，最终合并去 blank 得 \"CAT\"。",
+      "边界检查：空目标（U=0）：只能一路走 blank 到结束。",
+      "反向自检：混淆 blank 与 label 两种转移：blank 只前进时间、不输出；label 只输出、不前进时间。"
+    ]
   },
   {
     "kind": "code",
@@ -3480,9 +3560,9 @@ export const questions = [
     ],
     "beginnerSummary": "流式 ASR 不能等整段音频结束再识别，而是把音频切成小块（chunk）逐块送入编码器，并用「缓存（cache）」保留历史 chunk 的高层特征，使当前块能利用上下文。常见做法：每个 chunk 的编码器输出拼上左侧历史上下文（left context）与可选的右侧前瞻（look-ahead），解码器基于增量缓存产出部分结果，大幅降低延迟。",
     "prerequisites": [
-      "音频分块：固定长度 chunk（如 1 秒）依次到达，逐块处理。",
-      "缓存保存前面若干 chunk 的编码器隐状态，作为当前块的 left context。",
-      "left_context 控制能看到多少历史；若 <0 非法（code 已校验）。"
+      "直观关系：音频分块：固定长度 chunk（如 1 秒）依次到达，逐块处理。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：缓存保存前面若干 chunk 的编码器隐状态，作为当前块的 left context。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：left_context 控制能看到多少历史；若 <0 非法（code 已校验）。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "chunk1 [0:1s] 进编码器，结果存入 cache。",
@@ -3496,7 +3576,28 @@ export const questions = [
       "把当前块特征写入 cache，滑动窗口淘汰过旧块。"
     ],
     "diagram": "流式音频分块:\nchunk1 [0:1s] → encoder → cache\nchunk2 [1:2s] → 复用 chunk1 高层特征(cache)\n            └ 拼接历史上下文\n输出增量解码, 低延迟",
-    "order": 5
+    "order": 5,
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：缓存历史 KV 或左上下文；每个 chunk 只算新增帧，并控制右上下文带来的延迟。",
+      "2 分钟展开·原理：流式 ASR 缓存：缓存历史 KV 或左上下文；每个 chunk 只算新增帧，并控制右上下文带来的延迟。",
+      "2 分钟展开·实现：缓存历史 KV 或左上下文；每个 chunk 只算新增帧，并控制右上下文带来的延迟。",
+      "2 分钟展开·边界：left_context<0：非法，校验报错。 同时避免：left_context 为负或不合法却不校验，导致索引错误。"
+    ],
+    "conceptPath": [
+      "先识别问题：Transformer/Conformer 流式识别如何缓存。",
+      "再抓核心机制：缓存历史 KV 或左上下文；每个 chunk 只算新增帧，并控制右上下文带来的延迟。",
+      "然后跑一个具体例子：chunk1 [0:1s] 进编码器，结果存入 cache。",
+      "最后检查失败边界：left_context<0：非法，校验报错。"
+    ],
+    "guidedExample": [
+      "第 1 步：chunk1 [0:1s] 进编码器，结果存入 cache。",
+      "第 2 步：chunk2 [1:2s] 编码时拼接 cache 中的历史高层特征（left context），得到含上下文的表示，再增量解码。",
+      "第 3 步：类似地 chunk3 复用 chunk1+2 的缓存，延迟始终只取决于单块长度。",
+      "边界检查：left_context<0：非法，校验报错。",
+      "反向自检：left_context 为负或不合法却不校验，导致索引错误。"
+    ]
   },
   {
     "id": "as-asr-codec",
@@ -3531,8 +3632,8 @@ export const questions = [
       "把 codec token 当文本直接对齐，忽略其多层残差量化结构。"
     ],
     "prerequisites": [
-      "STFT 与梅尔尺度",
-      "矢量量化（VQ）与自编码器"
+      "STFT 与梅尔尺度：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。",
+      "矢量量化（VQ）与自编码器：向量量化把连续音频表示映射为有限编号；RVQ 用多层码本逐步编码残差，以更多 token 换取更高保真。"
     ],
     "workedExample": [
       "16kHz 语音用 n_fft=400、hop=160 提 80 维 log-Mel，送入 Conformer 做识别。",
@@ -3560,7 +3661,27 @@ export const questions = [
       "不能简单替代：log-Mel 适合识别前端，codec token 适合生成/统一表征，常各自服务于识别与合成两端。",
       "可把 codec token 当输入序列训练识别模型，或作为中间表征桥接识别与合成，实现语音到语音的端到端建模。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：log-Mel 滤波器组贴近人耳临界带、降维且去相关性，比原始波形更易学习；神经 codec（如 EnCodec）把音频压成离散 token，使语音可作为“语言”被自回归模型直接生成，支撑语音合成与音频大模型。",
+      "2 分钟展开·原理：是什么：语音特征与编解码研究如何把波形表示为更适合模型的形式——传统用 log-Mel 滤波器组，新趋势用神经音频 codec 把语音压缩为离散 token，统一了识别、合成与生成。",
+      "2 分钟展开·实现：前端先用 STFT 取幅度谱，经梅尔滤波器组加权再取 log 得 80 维特征供 ASR；codec 路线则训练 encoder-decoder + 残差矢量量化，把波形编码为多层离散 token，供下游生成/识别共享表征。",
+      "2 分钟展开·边界：采样率不一致：16k 与 8k 模型特征尺度不同需重采样。 同时避免：忘记 log 压缩，线性幅度谱动态范围大、训练不稳定。"
+    ],
+    "conceptPath": [
+      "先识别问题：为什么现代 ASR 多用 log-Mel 滤波器组而非原始波形或裸 MFCC，且近年又出现神经音频 codec？",
+      "再抓核心机制：前端先用 STFT 取幅度谱，经梅尔滤波器组加权再取 log 得 80 维特征供 ASR；codec 路线则训练 encoder-decoder + 残差矢量量化，把波形编码为多层离散 token，供下游生成/识别共享表征。",
+      "然后跑一个具体例子：16kHz 语音用 n_fft=400、hop=160 提 80 维 log-Mel，送入 Conformer 做识别。",
+      "最后检查失败边界：采样率不一致：16k 与 8k 模型特征尺度不同需重采样。"
+    ],
+    "guidedExample": [
+      "第 1 步：16kHz 语音用 n_fft=400、hop=160 提 80 维 log-Mel，送入 Conformer 做识别。",
+      "第 2 步：EnCodec 以 24kHz、7 层残差量化把音频压成 token，供语音生成模型自回归解码。",
+      "边界检查：采样率不一致：16k 与 8k 模型特征尺度不同需重采样。",
+      "反向自检：忘记 log 压缩，线性幅度谱动态范围大、训练不稳定。"
+    ]
   },
   {
     "id": "as-conformer",
@@ -3595,8 +3716,8 @@ export const questions = [
       "忽视 Swish/BN 在推理时的融合，导致部署 RTF 偏高。"
     ],
     "prerequisites": [
-      "Transformer 自注意力与位置编码",
-      "卷积神经网络（depthwise separable conv）与 pooling"
+      "Transformer 自注意力与位置编码：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "卷积神经网络（depthwise separable conv）与 pooling：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。"
     ],
     "workedExample": [
       "输入 16kHz 语音提 80 维 fbank，4 倍下采样得到 T=200 帧、d=512，送入 16 层 Conformer 得到上下文表示。",
@@ -3625,7 +3746,27 @@ export const questions = [
       "Conformer-T 减少注意力头数与层数、用相对位置编码以降低延迟，适合流式场景。",
       "GLU 提供门控能力，缓解梯度饱和并提升表示容量，在语音任务上更稳定。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Conformer 在 Transformer 块中插入卷积子模块，采用 Macaron 结构（卷积放在 FFN 前后各一半）并用多头自注意力捕获全局依赖，从而同时建模语音的局部声学细节与长程上下文。",
+      "2 分钟展开·原理：是什么：Conformer 是一种用于语音识别的编码器架构，它在 Transformer 模块两侧分别加入卷积子模块，用 Macaron 结构同时捕获局部细节与全局依赖，是流式/非流式 ASR 的主流 backbone。",
+      "2 分钟展开·实现：以 Transformer 编码块为骨架，在 FFN 之前和之后各加一个卷积模块（Macaron 0.5 权重），中间保留多头自注意力；卷积模块使用 pointwise → GLU → depthwise → BN → Swish → pointwise 的结构并做下采样感知。",
+      "2 分钟展开·边界：极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。 同时避免：把卷积放在注意力之前就当成普通 Transformer，忘了 Macaron 的 0.5 权重与对称结构。"
+    ],
+    "conceptPath": [
+      "先识别问题：Conformer 是如何把卷积的局部建模与 Transformer 的全局建模结合起来的？",
+      "再抓核心机制：以 Transformer 编码块为骨架，在 FFN 之前和之后各加一个卷积模块（Macaron 0.5 权重），中间保留多头自注意力；卷积模块使用 pointwise → GLU → depthwise → BN → Swish → pointwise 的结构并做下采样感知。",
+      "然后跑一个具体例子：输入 16kHz 语音提 80 维 fbank，4 倍下采样得到 T=200 帧、d=512，送入 16 层 Conformer 得到上下文表示。",
+      "最后检查失败边界：极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入 16kHz 语音提 80 维 fbank，4 倍下采样得到 T=200 帧、d=512，送入 16 层 Conformer 得到上下文表示。",
+      "第 2 步：在 AISHELL 上用 Conformer 替换 Transformer 编码器，WER 从 5.8% 降到 4.7%。",
+      "边界检查：极长短音频：序列过长时注意力 O(T²) 显存爆掉，需要分块或流式处理。",
+      "反向自检：把卷积放在注意力之前就当成普通 Transformer，忘了 Macaron 的 0.5 权重与对称结构。"
+    ]
   },
   {
     "id": "as-ctc-align",
@@ -3660,8 +3801,8 @@ export const questions = [
       "直接用每帧 argmax 当对齐，忘记合并重复与删 blank，结果偏移严重。"
     ],
     "prerequisites": [
-      "动态规划与前向-后向算法",
-      "条件独立假设与对数域运算"
+      "动态规划与前向-后向算法：把指数条路径按共享子问题聚合，并在 log 域用 log-sum-exp 避免概率连乘下溢。",
+      "条件独立假设与对数域运算：把指数条路径按共享子问题聚合，并在 log 域用 log-sum-exp 避免概率连乘下溢。"
     ],
     "workedExample": [
       "标签 “cat” 扩展为 “- c a t -”，T=4 时一条合法路径为 blank,c,a,t，另一条为 c,blank,a,t。",
@@ -3690,7 +3831,27 @@ export const questions = [
       "CTC 条件独立、无语言模型；RNN-T 用预测网络引入自回归依赖，对齐同时建模语言上下文。",
       "对每个字符取其在最优对齐中首次/末次出现的帧索引，乘帧移得到起止时间。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：CTC 在标签序列中插入 blank 并允许重复，把任意 T 帧映射到长度≤T 的标签路径；前向-后向算法递推每条路径概率，求和得到标注似然，并可反推每帧最可能标签，实现强制对齐。",
+      "2 分钟展开·原理：是什么：CTC 对齐指在不依赖逐帧标注的情况下，用前向-后向动态规划把音频帧与文本建立多对一映射；强制对齐（forced alignment）是利用训练好的 CTC 为无标注音频生成帧级标签。",
+      "2 分钟展开·实现：先扩展标签为 l'=blank+label+blank+...；前向 α 从 t=1 递推到 T，后向 β 从 T 递推回 1；某帧某标签的占用概率 ∝ α·β，归一化后取 argmax 即得每帧标签，从而强制对齐到音素/字。",
+      "2 分钟展开·边界：连续相同字符：如“你好”中重复音需 blank 隔开，否则无法区分。 同时避免：忽略 blank 索引导致标签扩展错位，整个 DP 维度错。"
+    ],
+    "conceptPath": [
+      "先识别问题：CTC 的前向后向算法是如何在“允许 blank 与重复”的条件下，把音频帧序列对齐到标注文本的？",
+      "再抓核心机制：先扩展标签为 l'=blank+label+blank+...；前向 α 从 t=1 递推到 T，后向 β 从 T 递推回 1；某帧某标签的占用概率 ∝ α·β，归一化后取 argmax 即得每帧标签，从而强制对齐到音素/字。",
+      "然后跑一个具体例子：标签 “cat” 扩展为 “- c a t -”，T=4 时一条合法路径为 blank,c,a,t，另一条为 c,blank,a,t。",
+      "最后检查失败边界：连续相同字符：如“你好”中重复音需 blank 隔开，否则无法区分。"
+    ],
+    "guidedExample": [
+      "第 1 步：标签 “cat” 扩展为 “- c a t -”，T=4 时一条合法路径为 blank,c,a,t，另一条为 c,blank,a,t。",
+      "第 2 步：用训练好 CTC 对 1 小时音频做强制对齐，得到每字起止时间用于切词。",
+      "边界检查：连续相同字符：如“你好”中重复音需 blank 隔开，否则无法区分。",
+      "反向自检：忽略 blank 索引导致标签扩展错位，整个 DP 维度错。"
+    ]
   },
   {
     "id": "as-hotword",
@@ -3725,8 +3886,8 @@ export const questions = [
       "boost 固定不变，未随置信度自适应，安静与嘈杂环境误触发差异大。"
     ],
     "prerequisites": [
-      "Beam Search 解码与 logits",
-      "WFST / 分词（BPE）表示"
+      "Beam Search 解码与 logits：Beam Search 每一步只保留若干高分候选，用更多计算换取比逐步贪心更好的全局序列。",
+      "WFST / 分词（BPE）表示：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。"
     ],
     "workedExample": [
       "将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
@@ -3754,7 +3915,27 @@ export const questions = [
       "热词通常基于词表 ID 加偏置；上下文偏置进一步用编码器隐状态做动态注意力偏置，能处理长上下文短语。",
       "用二遍解码只在候选接近热词时加分，或按声学置信度阈值门控 boost。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：在解码阶段对热词对应的输出单元做偏置（logit bias）或构造热词级 FST 并入解码图，也可用浅融合（shallow fusion）把热词语言模型加权；无需重训声学模型即可显著提升命中率。",
+      "2 分钟展开·原理：是什么：热词（hotword）机制是在不重新训练声学模型的前提下，通过解码期偏置或融合让系统更倾向于输出用户指定的词或专有名词。",
+      "2 分钟展开·实现：方案一是解码时对热词 token/音素路径的 logits 加固定 boost；二是在 WFST 中挂热词子图做偏向；三是用热词白名单走单独的高效匹配（如二遍解码）并发射偏置。",
+      "2 分钟展开·边界：同音词冲突：热词“小智”与“小志”音近，boost 易串。 同时避免：只对词表 ID 加偏置却忽略子词/BPE 切分，导致热词根本匹配不上。"
+    ],
+    "conceptPath": [
+      "先识别问题：当用户提到“自定义唤醒词/专有名词”时，如何提升 ASR 的识别准确率而不重新训练模型？",
+      "再抓核心机制：方案一是解码时对热词 token/音素路径的 logits 加固定 boost；二是在 WFST 中挂热词子图做偏向；三是用热词白名单走单独的高效匹配（如二遍解码）并发射偏置。",
+      "然后跑一个具体例子：将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
+      "最后检查失败边界：同音词冲突：热词“小智”与“小志”音近，boost 易串。"
+    ],
+    "guidedExample": [
+      "第 1 步：将“CodeBuddy”加入热词表、boost=4.0，在 100 条含该词音频上命中率从 62% 提升到 95%。",
+      "第 2 步：boost=8.0 时误触发率从 0.5% 升到 6%，说明需调参平衡。",
+      "边界检查：同音词冲突：热词“小智”与“小志”音近，boost 易串。",
+      "反向自检：只对词表 ID 加偏置却忽略子词/BPE 切分，导致热词根本匹配不上。"
+    ]
   },
   {
     "id": "as-rnnt-pruning",
@@ -3789,8 +3970,8 @@ export const questions = [
       "剪枝阈值固定，未考虑静音帧与语音帧的差异，静音时仍全量计算。"
     ],
     "prerequisites": [
-      "RNN-T 联合网络与预测网络结构",
-      "Beam Search 与 top-k 操作"
+      "RNN-T 联合网络与预测网络结构：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
+      "Beam Search 与 top-k 操作：Beam Search 每一步只保留若干高分候选，用更多计算换取比逐步贪心更好的全局序列。"
     ],
     "workedExample": [
       "V=4096、k=64、B=8 时相比全词表解码 RTF 从 1.8 降到 0.3，WER 仅升 0.1%。",
@@ -3818,7 +3999,27 @@ export const questions = [
       "可以，剪枝减候选数、量化减单次计算精度，二者正交；量化后需注意 top-k 数值稳定性。",
       "不冲突，剪枝只限制候选规模，对齐由 blank 机制保证，只要保留 blank 分支即可。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：主要在解码 beam 内做 top-k 剪枝：对联合网络输出 vocab 取 top-k、对预测网络历史做 beam 截断，并用前缀共享（label-synchronous）避免重复计算；也可对声学隐状态做帧级丢弃。",
+      "2 分钟展开·原理：是什么：RNN-T 剪枝是在不重训或仅轻量微调的前提下，削减解码时的候选规模与计算量，使联合网络与词汇输出在流式推理中保持低延迟。",
+      "2 分钟展开·实现：在每帧对联合网络 logits 取 top-k 候选词，beam 仅保留得分前 B 的假设；用前缀束搜索共享相同前缀的历史、只展开差异 token；预测网络可缓存并量化，联合网络可用小矩阵近似。",
+      "2 分钟展开·边界：罕见词被剪掉：专业术语在 top-k 外导致漏识。 同时避免：对所有 beam 历史重复算联合网络而不共享，浪费大量算力。"
+    ],
+    "conceptPath": [
+      "先识别问题：RNN-T 的联合网络与词汇输出很大，推理时有哪些剪枝手段能在不明显掉点的情况下加速？",
+      "再抓核心机制：在每帧对联合网络 logits 取 top-k 候选词，beam 仅保留得分前 B 的假设；用前缀束搜索共享相同前缀的历史、只展开差异 token；预测网络可缓存并量化，联合网络可用小矩阵近似。",
+      "然后跑一个具体例子：V=4096、k=64、B=8 时相比全词表解码 RTF 从 1.8 降到 0.3，WER 仅升 0.1%。",
+      "最后检查失败边界：罕见词被剪掉：专业术语在 top-k 外导致漏识。"
+    ],
+    "guidedExample": [
+      "第 1 步：V=4096、k=64、B=8 时相比全词表解码 RTF 从 1.8 降到 0.3，WER 仅升 0.1%。",
+      "第 2 步：用前缀束搜索共享 “你” 开头的历史，重复联合计算减少约 40%。",
+      "边界检查：罕见词被剪掉：专业术语在 top-k 外导致漏识。",
+      "反向自检：对所有 beam 历史重复算联合网络而不共享，浪费大量算力。"
+    ]
   },
   {
     "id": "as-streaming-asr",
@@ -3853,8 +4054,8 @@ export const questions = [
       "忽略 chunk 边界处状态传递，导致 Conformer/Transformer 跨块状态错位。"
     ],
     "prerequisites": [
-      "CTC 与 RNN-T 解码原理",
-      "因果卷积与 Masked 自注意力"
+      "CTC 与 RNN-T 解码原理：CTC 在帧级预测 token 或 blank，再合并连续重复并删除 blank，从而处理音频帧数远多于文字数的问题。",
+      "因果卷积与 Masked 自注意力：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。"
     ],
     "workedExample": [
       "设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
@@ -3883,7 +4084,27 @@ export const questions = [
       "训练时对每个样本随机采样 chunk 大小与右上下文，并加 causality mask，使模型适配不同流式配置。",
       "RNN-T 自带自回归语言模型、逐帧发射更自然，流式体验更好；CTC 需额外 WFST/beam 才能平滑流式。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：把音频切成定长 chunk，每个 chunk 仅利用有限左/右上下文进行编码并即时输出，配合 CTC 或 RNN-T 逐帧发射；常用动态分块注意力、因果卷积与右上下文来平衡延迟与精度。",
+      "2 分钟展开·原理：是什么：流式 ASR 是一类在音频持续输入时增量输出文本的系统，通过限制每个时刻可看的未来上下文来控制延迟，区别于整句输入的非流式 ASR。",
+      "2 分钟展开·实现：采用 chunk-based 流式：编码器每次消费 N 帧，允许左看 L 帧、右看 R 帧（右上下文提升精度但增加延迟）；解码用 RNN-T 或 CTC 前缀束搜索，并在端点检测后做整体重打分。",
+      "2 分钟展开·边界：静音段过长：需静音抑制与端点检测避免空识别。 同时避免：右上下文设得过大，名义“流式”实际延迟接近非流式。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何设计一个低延迟的流式 ASR 系统，使得用户说话时就能看到部分识别结果？",
+      "再抓核心机制：采用 chunk-based 流式：编码器每次消费 N 帧，允许左看 L 帧、右看 R 帧（右上下文提升精度但增加延迟）；解码用 RNN-T 或 CTC 前缀束搜索，并在端点检测后做整体重打分。",
+      "然后跑一个具体例子：设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
+      "最后检查失败边界：静音段过长：需静音抑制与端点检测避免空识别。"
+    ],
+    "guidedExample": [
+      "第 1 步：设定 chunk=16、right=8、帧率 100fps，首字延迟约 (16+8)/100=240ms，满足实时字幕需求。",
+      "第 2 步：用 RNN-T 在 AISHELL 上对比 right=0 与 right=8，WER 从 6.1% 降到 5.2%。",
+      "边界检查：静音段过长：需静音抑制与端点检测避免空识别。",
+      "反向自检：右上下文设得过大，名义“流式”实际延迟接近非流式。"
+    ]
   },
   {
     "id": "as-whisper",
@@ -3918,8 +4139,8 @@ export const questions = [
       "直接用于低延迟流式，而 Whisper 原生为非流式 30s 窗设计。"
     ],
     "prerequisites": [
-      "Transformer 编码器-解码器",
-      "log-Mel 频谱与多任务学习"
+      "Transformer 编码器-解码器：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "log-Mel 频谱与多任务学习：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。"
     ],
     "workedExample": [
       "输入中文 30s 音频，前缀 <zh><transcribe>，Whisper large 直接输出中文文本，WER 约 4%。",
@@ -3947,7 +4168,27 @@ export const questions = [
       "Whisper 多语言零样本、易部署但不流式；Conformer-CTC/RNN-T 更适合低延迟流式与领域微调。",
       "原生非流式；可借助 chunk 化与 token 缓冲近似流式，但延迟与稳定性不如专用流式架构。"
     ],
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Whisper 在 68 万小时多语言弱监督数据上训练一个标准 Encoder-Decoder Transformer，把语言/任务（转录、翻译）作为特殊前缀 token 输入解码器，从而零样本泛化到多种语言与任务，无需每语言单独微调。",
+      "2 分钟展开·原理：是什么：Whisper 是 OpenAI 开源的语音识别/翻译模型，采用标准 Transformer 编码器-解码器，在海量弱监督多语言数据上训练，用特殊控制 token 实现零样本多语言转录与翻译。",
+      "2 分钟展开·实现：音频经 log-Mel 谱送 Encoder 得隐表示；Decoder 自回归生成文本，起始 token 指定语言与任务（如 <zh>、<transcribe>）；训练目标是多任务混合的交叉熵，推理用贪心或 beam 即可。",
+      "2 分钟展开·边界：无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。 同时避免：忘记加语言 token 导致自动检测错误、输出错误语言。"
+    ],
+    "conceptPath": [
+      "先识别问题：Whisper 为什么只用 Transformer 编码器-解码器加大规模弱监督，就能做到多语言零样本转录？",
+      "再抓核心机制：音频经 log-Mel 谱送 Encoder 得隐表示；Decoder 自回归生成文本，起始 token 指定语言与任务（如 <zh>、<transcribe>）；训练目标是多任务混合的交叉熵，推理用贪心或 beam 即可。",
+      "然后跑一个具体例子：输入中文 30s 音频，前缀 <zh><transcribe>，Whisper large 直接输出中文文本，WER 约 4%。",
+      "最后检查失败边界：无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入中文 30s 音频，前缀 <zh><transcribe>，Whisper large 直接输出中文文本，WER 约 4%。",
+      "第 2 步：前缀 <en><translate> 时同一音频被翻译成英文，体现控制 token 的任务切换。",
+      "边界检查：无语音/纯噪声：模型可能幻觉出文字，需要 VAD 前置。",
+      "反向自检：忘记加语言 token 导致自动检测错误、输出错误语言。"
+    ]
   },
   {
     "id": "asr-architecture-compare",
@@ -3976,9 +4217,9 @@ export const questions = [
       "横评时前后处理不一致（归一化/采样率）导致指标不可比。"
     ],
     "prerequisites": [
-      "Encoder-Decoder 与自回归解码",
-      "Transducer 与 CTC 对齐",
-      "非自回归（NAR）建模"
+      "Encoder-Decoder 与自回归解码：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "Transducer 与 CTC 对齐：CTC 在帧级预测 token 或 blank，再合并连续重复并删除 blank，从而处理音频帧数远多于文字数的问题。",
+      "非自回归（NAR）建模：非自回归模型可并行生成多个位置，速度快，但需要额外解决长度、对齐和位置间依赖。"
     ],
     "workedExample": [
       "步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
@@ -4007,7 +4248,28 @@ export const questions = [
     ],
     "invariant": "transcribe 对任意已知 arch 必分发到对应实现且返回解码文本，未知 arch 触发 KeyError 需调用方保证合法值。",
     "walkthrough": "ASRBackbone('paraformer').transcribe(audio) → 查表命中 _san_parallel 并行解码返回文本；'qwen3-asr' → _llm 大模型解码。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
+      "2 分钟展开·原理：为什么需要：四类架构在准确率、延迟、流式与端侧成本上权衡不同，统一接口才能公平横评并按场景选型。",
+      "2 分钟展开·实现：Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
+      "2 分钟展开·边界：Whisper 自回归易重复解码（hallucination），长音频需 chunk。 同时避免：把 Whisper 当万能，端侧硬上导致延迟爆表。"
+    ],
+    "conceptPath": [
+      "先识别问题：Whisper、Paraformer、Zipformer-Transducer 与 Qwen3-ASR 四类架构的核心差异是什么，如何按场景选型？",
+      "再抓核心机制：Whisper 是 Encoder-Decoder 自回归、Paraformer 用 SAN 非自回归并行、Zipformer-Transducer 做单元级流式对齐、Qwen3-ASR 大模型化；端侧选 Paraformer/Whisper-tiny，高准确选 Qwen3，流式选 Zipformer。",
+      "然后跑一个具体例子：步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
+      "最后检查失败边界：Whisper 自回归易重复解码（hallucination），长音频需 chunk。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：用 ASRBackbone 封装四架构，输入同一音频。",
+      "第 2 步：步骤2：在盲测集跑三层口径，记录 CER 与延迟。",
+      "第 3 步：步骤3：端侧 200MB 选 Paraformer，高准确选 Qwen3-ASR。",
+      "边界检查：Whisper 自回归易重复解码（hallucination），长音频需 chunk。",
+      "反向自检：把 Whisper 当万能，端侧硬上导致延迟爆表。"
+    ]
   },
   {
     "id": "asr-channel-robustness",
@@ -4036,9 +4298,9 @@ export const questions = [
       "把业务集 3.62% 当成上限而忽略退化集，掩盖了增强未覆盖的信道。"
     ],
     "prerequisites": [
-      "卷积与 FFT",
-      "房间脉冲响应（RIR）与混响",
-      "音频 Codec 与增益控制基础"
+      "卷积与 FFT：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。",
+      "房间脉冲响应（RIR）与混响：真实信道会叠加混响、频响、增益控制、编解码和削顶；增强顺序必须尽量贴近真实播放链路。",
+      "音频 Codec 与增益控制基础：真实信道会叠加混响、频响、增益控制、编解码和削顶；增强顺序必须尽量贴近真实播放链路。"
     ],
     "workedExample": [
       "步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
@@ -4068,7 +4330,28 @@ export const questions = [
     ],
     "invariant": "对于任意 speech 与 rir，因 nfft≥L+M−1，FFT 卷积在完整线性卷积长度 [:n] 上与时域卷积数值完全一致、无循环混叠；输出含长度 M−1 的混响尾，若需与输入等长可再裁到 [:len(speech)]。",
     "walkthrough": "speech 长 16000、rir 长 4000 → n=20000，nfft=32768；rfft 后 S·R 逆变换取前 n=20000 点，即得与时域卷积完全等价的混响语音（含 4000 点混响尾）；如需与输入等长再裁到前 16000 点。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
+      "2 分钟展开·原理：为什么需要：真实播放链路（扬声器→房间→麦克风→Codec）引入混响、频响凹陷、增益与削波，训练集若只有 clean 语音会在真实信道上 WER 飙升。",
+      "2 分钟展开·实现：按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
+      "2 分钟展开·边界：RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。 同时避免：只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何用播放链路建模（RIR、频响、AGC、Codec、Clipping）提升真实信道鲁棒性，并避免只拟合模拟失真？",
+      "再抓核心机制：按真实播放链路分阶段构造 RIR 卷积、频响均衡、AGC 增益、Codec 量化与 Clipping 截断来模拟失真，并以 clean/augmented/in-domain 混合训练让模型学到真实退化；信道退化集 WER 28.66%→20.32%，独立业务集降至 3.62%，RIR 卷积改 FFT 提速约 30x。",
+      "然后跑一个具体例子：步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
+      "最后检查失败边界：RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：采集 5 条真实 RIR，用 apply_rir_fft 对 1 万条 clean 语音做混响增强。",
+      "第 2 步：步骤2：混合 60% clean、30% augmented、10% in-domain 真实退化数据训练。",
+      "第 3 步：步骤3：在独立业务集上测到 WER 3.62%，验证未过拟合模拟失真。",
+      "边界检查：RIR 长度远大于语音时 FFT padding 不足造成循环卷积混叠，需用 nfft≥N+M-1。",
+      "反向自检：只用 augmented 数据训练，模型学到模拟失真特征而非真实退化，业务集泛化差。"
+    ]
   },
   {
     "id": "asr-chinavoices",
@@ -4097,9 +4380,9 @@ export const questions = [
       "把 Reference Set 与外部数据混用未控制变量，结论不可信。"
     ],
     "prerequisites": [
-      "消融实验设计",
-      "正字法归一化",
-      "多任务梯度干扰（见 asr-lid）"
+      "消融实验设计：消融要一次只改变一个因素并固定预算；多指标融合前要明确各指标的业务含义与权重。",
+      "正字法归一化：把数字、日期、符号、大小写和口语写法统一成可比较文本，否则同一句话也可能被错误地计入识别错误。",
+      "多任务梯度干扰（见 asr-lid）：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。"
     ],
     "workedExample": [
       "步骤1：baseline 全参微调得 CER 基准。",
@@ -4128,7 +4411,28 @@ export const questions = [
     ],
     "invariant": "ablation_log 输出的 delta 恒等于 round(cer - baseline_cer, 3)，positive 为真当且仅当 cer < baseline_cer，自洽无矛盾。",
     "walkthrough": "name='external_data', cer=14.0, baseline=13.5 → delta=0.5, positive=False 记为负收益；修正后 cer=13.2 → delta=-0.3, positive=True。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
+      "2 分钟展开·原理：为什么需要：竞赛多策略叠加易互相吞噬收益，必须逐因素消融才能定位负收益来源。",
+      "2 分钟展开·实现：逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
+      "2 分钟展开·边界：外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。 同时避免：多策略一把梭不消融，负收益被正收益掩盖。"
+    ],
+    "conceptPath": [
+      "先识别问题：在 ChinaVoices 竞赛中，如何通过全参 vs decoder-only、外部数据 vs Reference Set、Hard Focus、多任务学习的消融，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰等负收益来源并拿到 CER 13.423%？",
+      "再抓核心机制：逐因素消融全参/decoder-only、外部数据/RefSet、Hard Focus、多任务，定位外部语料正字法不一致、过采样遗忘、LID 梯度干扰为负收益后修正，最终 CER 13.423%（第 2）。",
+      "然后跑一个具体例子：步骤1：baseline 全参微调得 CER 基准。",
+      "最后检查失败边界：外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：baseline 全参微调得 CER 基准。",
+      "第 2 步：步骤2：逐项加 decoder-only、外部数据、Hard Focus、多任务，ablation_log 记录 delta。",
+      "第 3 步：步骤3：发现外部数据负收益（正字法不一致）与多任务负收益（LID 干扰），修正后 CER 13.423% 第 2。",
+      "边界检查：外部语料与比赛集正字法（数字/标点）不一致，消融呈负收益需先归一。",
+      "反向自检：多策略一把梭不消融，负收益被正收益掩盖。"
+    ]
   },
   {
     "id": "asr-domain-adaptation",
@@ -4157,9 +4461,9 @@ export const questions = [
       "回放比例拍脑袋，未以双域折中做消融。"
     ],
     "prerequisites": [
-      "灾难性遗忘（catastrophic forgetting）",
-      "经验回放（replay）",
-      "CER 评测"
+      "灾难性遗忘（catastrophic forgetting）：适配新说话人或新域时模型可能丢失旧能力，常用 replay、冻结层和较小学习率控制回归。",
+      "经验回放（replay）：适配新说话人或新域时模型可能丢失旧能力，常用 replay、冻结层和较小学习率控制回归。",
+      "CER 评测：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
     ],
     "workedExample": [
       "步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
@@ -4188,7 +4492,28 @@ export const questions = [
     ],
     "invariant": "当且仅当业务域 CER 严格下降且通用域 CER 不上升时，accept_domain_adaptation 返回 True。",
     "walkthrough": "biz 19.27→12.24（降）、gen 9.31→9.03（降）→ 返回 True 放行；若 gen 9.31→9.50（升）→ 返回 False 拒收。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
+      "2 分钟展开·原理：为什么需要：只在业务域数据上微调会让通用域 CER 反弹（灾难性遗忘），需约束双域同时达标。",
+      "2 分钟展开·实现：业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
+      "2 分钟展开·边界：业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。 同时避免：只盯业务域 CER 下降就上线，通用域已悄悄退化。"
+    ],
+    "conceptPath": [
+      "先识别问题：业务域 ASR 域适应时，如何用双域门禁与通用数据回放避免灾难性遗忘？",
+      "再抓核心机制：业务域微调时回放约 10% 通用数据作双域门禁，只有业务域 CER 下降且通用域不退化才合并权重；业务 19.27%→12.24%，通用 9.31%→9.03%。",
+      "然后跑一个具体例子：步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
+      "最后检查失败边界：业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：业务域微调，batch 中混入 10% 通用数据做回放。",
+      "第 2 步：步骤2：每轮在业务/通用双验证集测 CER。",
+      "第 3 步：步骤3：业务 19.27%→12.24% 且通用 9.31%→9.03% 时 accept_domain_adaptation 返回 True，合并权重。",
+      "边界检查：业务域验证集过小，CER 波动让门禁时放时拒，需多次评估取稳。",
+      "反向自检：只盯业务域 CER 下降就上线，通用域已悄悄退化。"
+    ]
   },
   {
     "id": "asr-eval-metrics",
@@ -4217,9 +4542,9 @@ export const questions = [
       "把 CER 数字当绝对质量，忽视语义与下游。"
     ],
     "prerequisites": [
-      "编辑距离",
-      "CER 与 WER 定义",
-      "语义相似度与机器翻译评测"
+      "编辑距离：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
+      "CER 与 WER 定义：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
+      "语义相似度与机器翻译评测：字面错误率之外还要检查意思是否保持，以及错误是否会传递到翻译等下游任务。"
     ],
     "workedExample": [
       "步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
@@ -4248,7 +4573,28 @@ export const questions = [
     ],
     "invariant": "cer 返回值恒在 [0, ∞)（正常 [0,1]），参考为空时返回 0 而非报错（max 防除零）。",
     "walkthrough": "ref='abc', hyp='ab' → 编辑距离 1，len(ref)=3，返回 1/3≈0.333；ref='' → max(0,1)=1，dist=0，返回 0。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
+      "2 分钟展开·原理：为什么需要：单看 CER/WER 会漏掉“字错但意对”或“字对但下游翻译崩”的情况，需多层口径反映真实可用性。",
+      "2 分钟展开·实现：ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
+      "2 分钟展开·边界：中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。 同时避免：只用 WER 评中文，汉字错误被低估（应 CER）。"
+    ],
+    "conceptPath": [
+      "先识别问题：为什么 ASR 评测需要文字单元、语义质量、Translation-Aware 下游影响三层口径，各自如何计算？",
+      "再抓核心机制：ASR 需三层口径：文字单元层用编辑距离算 CER/WER，语义质量层用 LLM 判等/相似度，Translation-Aware 层看下游翻译 BLEU 差；中文用 CER、西英用词 WER。",
+      "然后跑一个具体例子：步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
+      "最后检查失败边界：中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：ref='北京明天有雨'，hyp='北京明天又雨' → 编辑距离 1，CER=1/7≈14.3%。",
+      "第 2 步：步骤2：语义层判“又雨”≈“有雨”，语义一致通过。",
+      "第 3 步：步骤3：把 hyp 喂翻译得 BLEU，与 ref 翻译 BLEU 求差，量化下游影响。",
+      "边界检查：中文用 CER、西语用词 WER，分母单位不同不能直接跨语种比。",
+      "反向自检：只用 WER 评中文，汉字错误被低估（应 CER）。"
+    ]
   },
   {
     "id": "asr-lid",
@@ -4277,9 +4623,9 @@ export const questions = [
       "把 LID 准确率 67.57% 当成可用，未意识到其梯度对 ASR 有害。"
     ],
     "prerequisites": [
-      "多任务学习与共享编码器",
-      "梯度冲突与 PCGrad",
-      "语种识别（LID）任务"
+      "多任务学习与共享编码器：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。",
+      "梯度冲突与 PCGrad：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。",
+      "语种识别（LID）任务：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。"
     ],
     "workedExample": [
       "步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
@@ -4308,7 +4654,28 @@ export const questions = [
     ],
     "invariant": "project_conflict 输出的 LID 梯度与 grad_asr 的内积恒非负（去冲突），且不改变 grad_asr 本身。",
     "walkthrough": "grad_asr=[1,0], grad_lid=[-1,1] 内积=-1<0 → 投影为 [-1,1]-(-1)/1*[1,0]=[0,1]，与 grad_asr 正交；若 grad_lid=[1,1] 内积=1≥0 → 原样返回。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "executable",
+    "interviewAnswer": [
+      "30 秒结论：ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
+      "2 分钟展开·原理：为什么需要：ChinaVoices 中 LID 仅 67.57%，弱监督 LID 头与 ASR 共享编码器，反向传播时梯度冲突拖累 ASR，造成负收益。",
+      "2 分钟展开·实现：ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
+      "2 分钟展开·边界：梯度内积接近 0 时投影不稳定，需数值稳定项。 同时避免：默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。"
+    ],
+    "conceptPath": [
+      "先识别问题：在 ChinaVoices LID 仅 67.57% 的多任务学习中，LID 梯度干扰为何导致 ASR 负收益，应如何隔离？",
+      "再抓核心机制：ChinaVoices 中 LID 仅 67.57%，弱监督头与 ASR 共享编码器时梯度冲突拖累 ASR；用 PCGrad 式投影把 LID 梯度投影到 ASR 梯度正交方向以隔离干扰。",
+      "然后跑一个具体例子：步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
+      "最后检查失败边界：梯度内积接近 0 时投影不稳定，需数值稳定项。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：取 ASR 与 LID 在共享编码器上的梯度 grad_asr、grad_lid。",
+      "第 2 步：步骤2：算内积，若为负则对 grad_lid 做正交投影。",
+      "第 3 步：步骤3：用投影后梯度更新，验证 ASR CER 不再因 LID 任务上升。",
+      "边界检查：梯度内积接近 0 时投影不稳定，需数值稳定项。",
+      "反向自检：默认多任务直接相加损失，忽视梯度冲突，ASR 被弱 LID 带偏。"
+    ]
   },
   {
     "id": "asr-multilingual",
@@ -4337,9 +4704,9 @@ export const questions = [
       "盲测集若与训练域同源则高估 9.15%，需保证盲测独立采样。"
     ],
     "prerequisites": [
-      "编辑距离与 CER/WER 定义",
-      "多语种文字单元（字符/BPE/词）差异",
-      "端侧推理内存与算力约束"
+      "编辑距离与 CER/WER 定义：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。",
+      "多语种文字单元（字符/BPE/词）差异：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。",
+      "端侧推理内存与算力约束：部署要同时检查算子支持、数值一致性、动态长度、延迟和内存；压缩只有在目标硬件有对应 kernel 时才可能真加速。"
     ],
     "workedExample": [
       "步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
@@ -4373,7 +4740,28 @@ export const questions = [
     ],
     "invariant": "对任意输入 (lang, text_unit, edge_budget_mb)，函数始终返回某一真实存在且与该语种文字单元兼容的基座名，不会返回空或非法值。",
     "walkthrough": "输入 lang='es', text_unit='word', edge_budget_mb=180 → 命中 edge_budget<200 分支，edge_friendly['es']='paraformer' 返回；若 edge_budget_mb=600，则跳过端侧分支，text_unit='word' 非 'char'，返回 'whisper-large'。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
+      "2 分钟展开·原理：为什么需要：11 个语种文字单元差异巨大（西语词/中文字符/BPE），单模型与单指标无法公平横评，且端侧内存/算力约束要求分路选型而非统一大模型。",
+      "2 分钟展开·实现：按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
+      "2 分钟展开·边界：语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。 同时避免：仅用 WER 横评中文会严重失真（应用 CER），必须按文字单元切换指标。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何为覆盖 11 个语种的多语种 ASR 设计分路建模与统一评测体系，并基于文字单元与端侧约束进行基座选型？",
+      "再抓核心机制：按语种文字单元（字符/BPE/词）与端侧内存/算力约束分路选择基座（西语等用 Paraformer、英文用 Zipformer-Transducer、中文用 Paraformer，受限端侧用 Whisper-tiny），并用 CER/WER、语义质量、Translation-Aware 下游影响三层口径统一横评；盲测 7 语种整体 CER 9.15% vs 商用基线 30.77%。",
+      "然后跑一个具体例子：步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
+      "最后检查失败边界：语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：对西语 10k 抽样的测试集分别用 Paraformer 与商用 API 转写，统计词级 WER。",
+      "第 2 步：步骤2：把 7 语种盲测集统一送三层评测脚本，得出整体 CER 9.15% 与基线 30.77%。",
+      "第 3 步：步骤3：端侧 200MB 预算下路由到 Whisper-tiny，验证内存约束满足。",
+      "边界检查：语种路由把方言/混合语错判为相邻语种，触发不匹配基座导致 CER 飙升。",
+      "反向自检：仅用 WER 横评中文会严重失真（应用 CER），必须按文字单元切换指标。"
+    ]
   },
   {
     "id": "asr-new-backbones",
@@ -4402,9 +4790,9 @@ export const questions = [
       "用 Transducer 硬刚难口音，准确率达不到业务要求。"
     ],
     "prerequisites": [
-      "Transducer 与流式对齐",
-      "大模型化 ASR（LLM-based）",
-      "量化与蒸馏"
+      "Transducer 与流式对齐：RNN-T 用 encoder 表示音频、predictor 表示文本历史、joiner 决定输出 label 还是 blank，天然支持流式对齐。",
+      "大模型化 ASR（LLM-based）：LLM 擅长语义和序列推理，但不能直接高效处理高帧率声学向量，需要 encoder、adapter 或离散 token 降采样对齐。",
+      "量化与蒸馏：部署要同时检查算子支持、数值一致性、动态长度、延迟和内存；压缩只有在目标硬件有对应 kernel 时才可能真加速。"
     ],
     "workedExample": [
       "步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
@@ -4433,7 +4821,28 @@ export const questions = [
     ],
     "invariant": "choose_backbone 对任意合法输入必从 {'zipformer-transducer','qwen3-asr','fireredasr2'} 中返回一个，且延迟<300ms 时必为 zipformer-transducer。",
     "walkthrough": "scenario='hard-accent', sla=500 → 不进低延迟分支，scenario 命中返回 'qwen3-asr'；sla=200 → 返回 'zipformer-transducer' 不论场景。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
+      "2 分钟展开·原理：为什么需要：大模型化 ASR（FireRedASR2、Qwen3-ASR）靠海量数据与参数提升准确率，但推理成本高，需与经典 Transducer 按延迟/准确率取舍。",
+      "2 分钟展开·实现：低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
+      "2 分钟展开·边界：大模型量化过度导致难口音准确率回落，需选合适位宽。 同时避免：盲目上大模型忽视端侧延迟，线上超时。"
+    ],
+    "conceptPath": [
+      "先识别问题：FireRedASR2 与 Qwen3-ASR 代表的大模型化 ASR 相比经典 Transducer，在准确率与延迟上如何取舍？",
+      "再抓核心机制：低延迟（<300ms）走 Zipformer-Transducer，宽松且难口音走 Qwen3-ASR、通用高准确走 FireRedASR2；大模型更准但吃资源，Transducer 在端侧流式仍不可替代。",
+      "然后跑一个具体例子：步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
+      "最后检查失败边界：大模型量化过度导致难口音准确率回落，需选合适位宽。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：测端侧延迟 SLA，若 <300ms 选 Zipformer-Transducer。",
+      "第 2 步：步骤2：SLA 宽松且场景为 hard-accent，选 Qwen3-ASR。",
+      "第 3 步：步骤3：通用高准确场景选 FireRedASR2，并在盲测验证 CER 优势。",
+      "边界检查：大模型量化过度导致难口音准确率回落，需选合适位宽。",
+      "反向自检：盲目上大模型忽视端侧延迟，线上超时。"
+    ]
   },
   {
     "id": "asr-pseudo-label",
@@ -4462,9 +4871,9 @@ export const questions = [
       "把“换标签比例”当目标，忽视独立验证集 CER，可能越洗越差。"
     ],
     "prerequisites": [
-      "伪标签（pseudo-labeling）与自训练",
-      "模型置信度校准",
-      "带噪学习基础"
+      "伪标签（pseudo-labeling）与自训练：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。",
+      "模型置信度校准：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。",
+      "带噪学习基础：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。"
     ],
     "workedExample": [
       "步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
@@ -4493,7 +4902,28 @@ export const questions = [
     ],
     "invariant": "relabel_decision 对任意输入恒返回 orig 或 pred 之一，不会产出第三值；高置信一致时必返回 orig。",
     "walkthrough": "输入 orig='hola', pred='hola', conf=0.95 → 命中高置信一致分支返回 'hola'；若 pred='ola'、conf=0.92 → 采纳 'ola'；若 conf=0.6 → 保留 'hola'。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
+      "2 分钟展开·原理：为什么需要：西语 10k 抽样人工核对发现 8.2% 真实标签噪声，脏标签直接训练会污染模型，需可验证的清洗闭环。",
+      "2 分钟展开·实现：在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
+      "2 分钟展开·边界：Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。 同时避免：阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。"
+    ],
+    "conceptPath": [
+      "先识别问题：在西语 10k 抽样中发现 8.2% 真实标签噪声时，如何用 Qwen3-ASR 重标注构建可验证的带噪学习闭环？",
+      "再抓核心机制：在西语 10k 抽样发现 8.2% 标签噪声时，用 Qwen3-ASR 重标注并以置信度、原标注一致性与回灌训练控制伪标签质量，把“换标签”转为可验证的带噪学习闭环。",
+      "然后跑一个具体例子：步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
+      "最后检查失败边界：Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：用 Qwen3-ASR 对西语 10k 重标，记录每条置信度与与原标签是否一致。",
+      "第 2 步：步骤2：conf≥0.9 且与原标签一致保留，conf≥0.9 但不一致采纳新标签，其余保留原标签。",
+      "第 3 步：步骤3：把采纳新标签的样本回灌训练，独立验证集 CER 持续下降即闭环有效。",
+      "边界检查：Qwen3-ASR 与原有标注都不对的样本（双错），筛选逻辑无法纠正，需人工兜底。",
+      "反向自检：阈值设过高导致几乎不换标签，清洗无效；设过低则引入新噪声。"
+    ]
   },
   {
     "id": "asr-streaming",
@@ -4522,9 +4952,9 @@ export const questions = [
       "一味 flush 追求低延迟，空结果率上升却未接 whole-buffer 回退。"
     ],
     "prerequisites": [
-      "流式 ASR 与 VAD",
-      "动态解码分块（DDS）",
-      "端侧 session 生命周期管理"
+      "流式 ASR 与 VAD：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "动态解码分块（DDS）：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "端侧 session 生命周期管理：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。"
     ],
     "workedExample": [
       "步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
@@ -4553,7 +4983,28 @@ export const questions = [
     ],
     "invariant": "对任意帧序列，若最终有语音内容，streaming_decode 在静音后必返回非空结果（要么 flush 成功，要么 whole-buffer 回退成功），不会静默丢指令。",
     "walkthrough": "连续语音帧 → 每帧 feed+step 增量出字；末帧后静音 → force_flush 得尾字；若 flush 空 → decode_whole_buffer 返回整句，保证非空。",
-    "kind": "code"
+    "kind": "code",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
+      "2 分钟展开·原理：为什么需要：具身短指令要求低延迟流式响应，但 drain/flush 时机错、pre-roll 丢开头、常驻 session 状态污染都会导致空结果或截断。",
+      "2 分钟展开·实现：把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
+      "2 分钟展开·边界：静音段误判为结束触发过早 flush，丢失尾字。 同时避免：把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。"
+    ],
+    "conceptPath": [
+      "先识别问题：把端侧具身短指令流式 ASR 拆为音频生命周期、VAD、DDS、解码四层后，如何修正 drain/flush、pre-roll 与常驻 session 陷阱？",
+      "再抓核心机制：把流式拆为音频生命周期、VAD、DDS、解码四层：VAD 管起止、DDS 增量解码、静音 force-flush 落空时回退 whole-buffer，并区分 drain/flush、补 pre-roll、常驻 session 用完复位。",
+      "然后跑一个具体例子：步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
+      "最后检查失败边界：静音段误判为结束触发过早 flush，丢失尾字。"
+    ],
+    "guidedExample": [
+      "第 1 步：步骤1：VAD 检测到语音，feed 帧给常驻 session 并由 DDS 逐步出字。",
+      "第 2 步：步骤2：VAD 判静音，调用 force_flush 输出尾段。",
+      "第 3 步：步骤3：flush 为空则 decode_whole_buffer 回退，避免空结果。",
+      "边界检查：静音段误判为结束触发过早 flush，丢失尾字。",
+      "反向自检：把 drain 与 flush 混为一谈，drain 不清状态导致常驻 session 累积错误。"
+    ]
   },
   {
     "id": "asr-resume-backbone-audit",
@@ -4563,15 +5014,20 @@ export const questions = [
     "prompt": "如何公平比较 Whisper、Qwen3-ASR、FireRedASR2、Zipformer 和 Paraformer，而不把模型规模、提示能力和测试口径混在一起？",
     "quickAnswer": "先统一音频前处理、文本归一化、语言与标点口径，再区分 encoder-decoder、Transducer、非自回归等范式；把参数量、可流式性、提示依赖、延迟、显存和各语种错误切片放进同一 scorecard。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：横评 Whisper、Zipformer-Transducer、Paraformer 与 Qwen3-ASR，并按文字单元和端侧约束选型。",
+    "safeAnswer": "我做的是统一评测口径下的模型横评：先统一数据和 CER/WER 计算，再同时看精度、速度、流式能力和端侧成本，最后按场景选模型。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Whisper、Qwen3-ASR 与 FireRedASR2 统一横评”背后的判断依据，并用可复核证据说明结论。多模型横评最容易因 tokenizer、标点、reference 清洗和外部提示不同而得出伪结论。",
     "approach": "建立 frozen reference set；统一采样率、VAD、normalizer 和 CER/WER 脚本；明确 zero-shot、prompted、decoder-only 等运行模式，分别记录能力与成本。",
     "complexity": "N 个模型、M 个切片、K 条样本的评测约 O(NK) 次推理与 O(NMK) 的聚合统计。",
-    "beginnerSummary": "这题不是让你背“Whisper、Qwen3-ASR 与 FireRedASR2 统一横评”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：多模型横评最容易因 tokenizer、标点、reference 清洗和外部提示不同而得出伪结论。",
+    "beginnerSummary": "简历明确经历。我做的是统一评测口径下的模型横评：先统一数据和 CER/WER 计算，再同时看精度、速度、流式能力和端侧成本，最后按场景选模型。",
     "interviewAnswer": [
-      "30 秒回答：先统一音频前处理、文本归一化、语言与标点口径，再区分 encoder-decoder、Transducer、非自回归等范式；把参数量、可流式性、提示依赖、延迟、显存和各语种错误切片放进同一 scorecard。",
-      "2 分钟展开·为什么：多模型横评最容易因 tokenizer、标点、reference 清洗和外部提示不同而得出伪结论。",
-      "2 分钟展开·怎么做：建立 frozen reference set；统一采样率、VAD、normalizer 和 CER/WER 脚本；明确 zero-shot、prompted、decoder-only 等运行模式，分别记录能力与成本。",
-      "2 分钟展开·取舍与结论：完全统一配置可能抹掉某模型的最佳用法；按最优配置比较又会引入额外系统差异，因此应同时给能力上限与受控对照。 最后用这些指标收口：主表报告 CER/WER、RTF、显存、首包和失败率；附表按语种、口音、噪声、长音频、数字实体和 hallucination 切片。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我做的是统一评测口径下的模型横评：先统一数据和 CER/WER 计算，再同时看精度、速度、流式能力和端侧成本，最后按场景选模型。",
+      "简历依据：简历写明：横评 Whisper、Zipformer-Transducer、Paraformer 与 Qwen3-ASR，并按文字单元和端侧约束选型。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：Whisper、Qwen3-ASR 与 FireRedASR2 统一横评",
@@ -4635,75 +5091,80 @@ export const questions = [
     "id": "asr-resume-confidence-calibration",
     "category": "ASR 专项",
     "difficulty": "Hard",
-    "title": "ASR 伪标签置信度校准与选择性风险",
-    "prompt": "为什么平均 token 概率不能直接作为伪标签可信度？如何校准阈值并决定哪些样本回灌训练？",
-    "quickAnswer": "序列长度、blank、beam 和语言模型都会扭曲原始分数，应先构造 utterance-level 特征，再用温度缩放、Platt 或 isotonic 在人工审计集上校准；按 coverage-risk 曲线选阈值，而不是拍脑袋设 0.9。",
+    "title": "Qwen3-ASR 重标注结果怎么筛选和验证",
+    "prompt": "西语标签清洗时，为什么不能直接把 Qwen3-ASR 的输出全部替换原标签？你实际怎样判断新标签是否值得采用？",
+    "quickAnswer": "我没有把模型输出直接当真值，而是结合模型置信度、与原标注是否一致和抽样复听筛选；最关键的验证是把候选新标签回灌训练，再看独立验证集是否稳定提升。",
     "resumeCard": true,
-    "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“ASR 伪标签置信度校准与选择性风险”背后的判断依据，并用可复核证据说明结论。未校准的高置信错误会通过自训练放大，尤其集中在口音、噪声和专有名词切片。",
-    "approach": "聚合长度归一化 log probability、beam margin、熵和 LID 等特征；在独立人工集拟合校准器；阈值由目标伪标签错误率或人工预算反推。",
-    "complexity": "校准拟合约 O(NF) 到 O(NF²)，线上打分 O(F)；N 为审计样本数，F 为置信特征数。",
-    "beginnerSummary": "这题不是让你背“ASR 伪标签置信度校准与选择性风险”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：未校准的高置信错误会通过自训练放大，尤其集中在口音、噪声和专有名词切片。",
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：西语 10k 抽样发现 8.2% 真实标签噪声；用 Qwen3-ASR 重标注，并以置信度、与原标注一致性和回灌训练控制伪标签质量。",
+    "safeAnswer": "我没有直接相信 Qwen3-ASR 的新标签，而是把模型置信度、与原标注是否一致和抽样复听结合起来；最终是否采用，要看回灌训练后独立验证集有没有真实改善。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
+    "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Qwen3-ASR 重标注结果怎么筛选和验证”背后的判断依据，并用可复核证据说明结论。Qwen3-ASR 也会出错；若直接全量换标签，可能只是把旧噪声换成新噪声。",
+    "approach": "先比较新旧标签并按一致/不一致、置信度和语种场景分组；对高风险差异样本抽样复听；只将较可信的新标签用于训练，再用相同验证集和基线比较。",
+    "complexity": "主要成本来自差异样本复听和一次回灌对照训练；不需要先引入复杂校准模型。",
+    "beginnerSummary": "简历明确经历。我没有直接相信 Qwen3-ASR 的新标签，而是把模型置信度、与原标注是否一致和抽样复听结合起来；最终是否采用，要看回灌训练后独立验证集有没有真实改善。",
     "interviewAnswer": [
-      "30 秒回答：序列长度、blank、beam 和语言模型都会扭曲原始分数，应先构造 utterance-level 特征，再用温度缩放、Platt 或 isotonic 在人工审计集上校准；按 coverage-risk 曲线选阈值，而不是拍脑袋设 0.9。",
-      "2 分钟展开·为什么：未校准的高置信错误会通过自训练放大，尤其集中在口音、噪声和专有名词切片。",
-      "2 分钟展开·怎么做：聚合长度归一化 log probability、beam margin、熵和 LID 等特征；在独立人工集拟合校准器；阈值由目标伪标签错误率或人工预算反推。",
-      "2 分钟展开·取舍与结论：阈值高则纯度高但覆盖低；校准器会随模型、语种和域漂移，需要分组或周期重校。 最后用这些指标收口：报告 ECE/Brier、可靠性图、coverage-risk 曲线，以及回灌后独立验证集 CER 与坏切片回归。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我没有直接相信 Qwen3-ASR 的新标签，而是把模型置信度、与原标注是否一致和抽样复听结合起来；最终是否采用，要看回灌训练后独立验证集有没有真实改善。",
+      "简历依据：简历写明：西语 10k 抽样发现 8.2% 真实标签噪声；用 Qwen3-ASR 重标注，并以置信度、与原标注一致性和回灌训练控制伪标签质量。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
-      "要证明的主张：ASR 伪标签置信度校准与选择性风险",
-      "控制变量与实现：聚合长度归一化 log probability、beam margin、熵和 LID 等特征；在独立人工集拟合校准器；阈值由目标伪标签错误率或人工预算反推。",
-      "第一份具体证据：原始 0.9 分数样本实际仅 82% 正确，校准后映射为 0.82。",
-      "第二份对照证据：要求伪标签错误率低于 3%，从 risk curve 选择 coverage 约 55% 的工作点。",
-      "上线或决策门槛：报告 ECE/Brier、可靠性图、coverage-risk 曲线，以及回灌后独立验证集 CER 与坏切片回归。"
+      "要证明的主张：Qwen3-ASR 重标注结果怎么筛选和验证",
+      "控制变量与实现：先比较新旧标签并按一致/不一致、置信度和语种场景分组；对高风险差异样本抽样复听；只将较可信的新标签用于训练，再用相同验证集和基线比较。",
+      "第一份具体证据：模型新标签与原标签一致时先视为低风险；不一致时进入抽样复听，而不是自动判定原标签错误。",
+      "第二份对照证据：使用筛选后的新标签训练一个对照版本；只有独立验证集优于旧标签基线，才说明这轮重标注有价值。",
+      "上线或决策门槛：报告抽样确认的标签问题比例、筛选后样本量，以及回灌前后独立验证集 CER；关键语种和坏例不能退化。"
     ],
     "derivation": [
-      "为什么需要：未校准的高置信错误会通过自训练放大，尤其集中在口音、噪声和专有名词切片。",
-      "怎么实现：聚合长度归一化 log probability、beam margin、熵和 LID 等特征；在独立人工集拟合校准器；阈值由目标伪标签错误率或人工预算反推。",
-      "有什么代价：阈值高则纯度高但覆盖低；校准器会随模型、语种和域漂移，需要分组或周期重校。",
-      "怎么评测：报告 ECE/Brier、可靠性图、coverage-risk 曲线，以及回灌后独立验证集 CER 与坏切片回归。"
+      "为什么需要：Qwen3-ASR 也会出错；若直接全量换标签，可能只是把旧噪声换成新噪声。",
+      "怎么实现：先比较新旧标签并按一致/不一致、置信度和语种场景分组；对高风险差异样本抽样复听；只将较可信的新标签用于训练，再用相同验证集和基线比较。",
+      "有什么代价：筛选严格会减少可用新标签，筛选宽松会引入错误；因此不能只看筛中多少条，要看回灌后的真实收益和坏例。",
+      "怎么评测：报告抽样确认的标签问题比例、筛选后样本量，以及回灌前后独立验证集 CER；关键语种和坏例不能退化。"
     ],
     "prerequisites": [
-      "token/sequence 对数概率：token 概率要先转 log 再相加；序列分数还需处理长度，否则长句天然得到更低乘积概率。",
-      "温度缩放与 isotonic regression：温度缩放用一个参数调整 logits；isotonic 用单调非参数映射，表达力更强但更易受小样本影响。",
-      "选择性预测与 ECE：模型可拒绝低置信样本；ECE 衡量分桶后的置信度与真实正确率差距，但会掩盖切片问题。"
+      "CER 错误和标签错误的区别：CER 错误是模型输出与 reference 不同；只有人工依据音频和标注规范确认后，才能判定 reference 本身有错。",
+      "标注一致性与仲裁：多人独立标注后计算一致性，分歧交给更高等级规则或专家仲裁，不能简单多数投票。",
+      "对照实验与随机种子：除目标变量外保持数据、预算和评测一致，并用多个 seed 判断提升是否依赖偶然初始化。"
     ],
     "workedExample": [
-      "第 1 步：原始 0.9 分数样本实际仅 82% 正确，校准后映射为 0.82。",
-      "第 2 步：要求伪标签错误率低于 3%，从 risk curve 选择 coverage 约 55% 的工作点。",
-      "第 3 步：主动检查失败边界——人工校准集过小且不含稀有口音。出现这种情况时，不能继续沿用正常样本的结论。",
-      "第 4 步：说明取舍——阈值高则纯度高但覆盖低；校准器会随模型、语种和域漂移，需要分组或周期重校。",
-      "第 5 步：按预先约定的口径收口——报告 ECE/Brier、可靠性图、coverage-risk 曲线，以及回灌后独立验证集 CER 与坏切片回归。"
+      "第 1 步：模型新标签与原标签一致时先视为低风险；不一致时进入抽样复听，而不是自动判定原标签错误。",
+      "第 2 步：使用筛选后的新标签训练一个对照版本；只有独立验证集优于旧标签基线，才说明这轮重标注有价值。",
+      "第 3 步：主动检查失败边界——模型和原标签可能一起错。出现这种情况时，不能继续沿用正常样本的结论。",
+      "第 4 步：说明取舍——筛选严格会减少可用新标签，筛选宽松会引入错误；因此不能只看筛中多少条，要看回灌后的真实收益和坏例。",
+      "第 5 步：按预先约定的口径收口——报告抽样确认的标签问题比例、筛选后样本量，以及回灌前后独立验证集 CER；关键语种和坏例不能退化。"
     ],
     "comparison": [
       {
         "a": "弱回答",
         "b": "强回答",
-        "note": "弱回答只复述“ASR 伪标签置信度校准与选择性风险”的术语；强回答会给出控制变量、具体对照、失败切片和决策门槛。"
+        "note": "弱回答只复述“Qwen3-ASR 重标注结果怎么筛选和验证”的术语；强回答会给出控制变量、具体对照、失败切片和决策门槛。"
       },
       {
         "a": "最好数字",
         "b": "可复核证据",
-        "note": "单个最好数字不能证明结论；需要把“聚合长度归一化 log probability、beam margin、熵和 LID 等特征；在独立人工集拟合校准器；阈值由目标伪标签错误率或人工预算反推。”与逐样本结果、回归护栏和复现条件一起说明。"
+        "note": "单个最好数字不能证明结论；需要把“先比较新旧标签并按一致/不一致、置信度和语种场景分组；对高风险差异样本抽样复听；只将较可信的新标签用于训练，再用相同验证集和基线比较。”与逐样本结果、回归护栏和复现条件一起说明。"
       }
     ],
     "edgeCases": [
-      "人工校准集过小且不含稀有口音",
-      "模型升级后分数分布漂移",
-      "超长句平均分被长度归一化掩盖局部错误"
+      "模型和原标签可能一起错",
+      "罕见口音上的置信度不可靠",
+      "回灌收益可能来自训练波动而非标签改善"
     ],
     "followUps": [
       {
-        "question": "ECE 很低是否代表阈值一定好？",
-        "answer": "不一定。ECE 是分桶平均误差，可能掩盖关键切片；仍需看目标错误率下的 coverage、分语种可靠性与下游回灌效果。"
+        "question": "这里的“伪标签”是什么意思？",
+        "answer": "就是模型自动生成、还没有被当作人工真值确认的标签。在你的项目里，它主要指 Qwen3-ASR 给出的候选新转写。"
       },
       {
-        "question": "没有足够人工标签怎么办？",
-        "answer": "优先分层抽样高风险切片，结合双模型一致性和 beam margin 做弱监督，但必须保留小型人工金标集做最终校准。"
+        "question": "你做过专门的概率校准模型吗？",
+        "answer": "简历没有这项证据。安全回答是：我使用置信度、一致性、抽样复听和回灌结果做筛选；没有做过的高级校准方法不应声称已经做过。"
       }
     ],
     "pitfalls": [
-      "直接把 softmax 最大值当真实正确率",
-      "用同一批伪标签同时调阈值和报告收益"
+      "把 Qwen3-ASR 当成绝对正确的老师",
+      "只看新标签数量，不做回灌对照"
     ],
     "kind": "concept"
   },
@@ -4715,15 +5176,20 @@ export const questions = [
     "prompt": "如何解释新域 CER 19.27%→12.24%，同时旧域 9.31%→9.03%？数据配比、采样和门禁应怎样设计？",
     "quickAnswer": "训练中按目标比例混合新域、通用 replay 和难例，必要时冻结底层或使用较小学习率；发布条件同时约束新域增益、旧域不退化和关键切片稳定，不能只优化新域平均 CER。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：业务域训练回放约 10% 通用数据，使业务 CER 19.27%→12.24%，同时通用域 9.31%→9.03%。",
+    "safeAnswer": "我在新业务域微调时混入约 10% 通用数据，并同时看业务域和通用域；只有新域提升且旧域不退化才放行。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“新域适配、Replay 与回归门禁”背后的判断依据，并用可复核证据说明结论。域适配最常见失败是新域大涨、通用域悄悄退化，简历数字必须能对应可复现的数据和门禁策略。",
     "approach": "建立 domain-aware sampler；扫描新域:通用域比例与学习率；保存 old/new/hard 三套验证集；用多 seed 实验选 Pareto 工作点。",
     "complexity": "单次训练复杂度不变，但比例与超参扫描使总成本约乘以候选配置数 H 和随机种子数 S。",
-    "beginnerSummary": "这题不是让你背“新域适配、Replay 与回归门禁”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：域适配最常见失败是新域大涨、通用域悄悄退化，简历数字必须能对应可复现的数据和门禁策略。",
+    "beginnerSummary": "简历明确经历。我在新业务域微调时混入约 10% 通用数据，并同时看业务域和通用域；只有新域提升且旧域不退化才放行。",
     "interviewAnswer": [
-      "30 秒回答：训练中按目标比例混合新域、通用 replay 和难例，必要时冻结底层或使用较小学习率；发布条件同时约束新域增益、旧域不退化和关键切片稳定，不能只优化新域平均 CER。",
-      "2 分钟展开·为什么：域适配最常见失败是新域大涨、通用域悄悄退化，简历数字必须能对应可复现的数据和门禁策略。",
-      "2 分钟展开·怎么做：建立 domain-aware sampler；扫描新域:通用域比例与学习率；保存 old/new/hard 三套验证集；用多 seed 实验选 Pareto 工作点。",
-      "2 分钟展开·取舍与结论：replay 比例高会稀释新域学习，低则遗忘；冻结层提高稳定性但限制上限；多域门禁增加实验周期。 最后用这些指标收口：报告各域 CER、插删替、置信区间与最差切片；发布要求新域达到目标且旧域回归低于预设阈值。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我在新业务域微调时混入约 10% 通用数据，并同时看业务域和通用域；只有新域提升且旧域不退化才放行。",
+      "简历依据：简历写明：业务域训练回放约 10% 通用数据，使业务 CER 19.27%→12.24%，同时通用域 9.31%→9.03%。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：新域适配、Replay 与回归门禁",
@@ -4791,15 +5257,20 @@ export const questions = [
     "prompt": "ChinaVoices 横评出现某模型负收益时，如何定位是语料正字法、decoder-only、外部数据、Reference Set 还是 LID 梯度干扰？",
     "quickAnswer": "先冻结输入、normalizer、reference 和 decoder 模式形成受控主表，再逐项加入外部数据、提示和多任务头；用 S/D/I、正字法映射、LID 混淆和 hard-focus 切片把负收益归因到可验证机制。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：ChinaVoices 横评中定位外部语料正字法不一致、过采样遗忘及 LID 梯度干扰等负收益来源。",
+    "safeAnswer": "我先统一评分口径，再逐项做消融，区分问题来自文字规范、数据采样还是 LID 多任务；不把所有下降都笼统归因给模型。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“ASR 负收益归因与统一 Scorecard”背后的判断依据，并用可复核证据说明结论。Tech Lead 的价值不只是找到第一名，还要解释其他方案为什么输，避免把口径差异误判为模型能力。",
     "approach": "建立 model card 与 run manifest；原始输出不可覆盖；按“预处理→模型→解码→后处理→评分”逐层复算；每个收益来源必须有单变量消融。",
     "complexity": "若有 C 个候选与 A 个单变量消融，推理成本约 O((C+A)N)；归因可信度通常比单次跑分更重要。",
-    "beginnerSummary": "这题不是让你背“ASR 负收益归因与统一 Scorecard”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：Tech Lead 的价值不只是找到第一名，还要解释其他方案为什么输，避免把口径差异误判为模型能力。",
+    "beginnerSummary": "简历明确经历。我先统一评分口径，再逐项做消融，区分问题来自文字规范、数据采样还是 LID 多任务；不把所有下降都笼统归因给模型。",
     "interviewAnswer": [
-      "30 秒回答：先冻结输入、normalizer、reference 和 decoder 模式形成受控主表，再逐项加入外部数据、提示和多任务头；用 S/D/I、正字法映射、LID 混淆和 hard-focus 切片把负收益归因到可验证机制。",
-      "2 分钟展开·为什么：Tech Lead 的价值不只是找到第一名，还要解释其他方案为什么输，避免把口径差异误判为模型能力。",
-      "2 分钟展开·怎么做：建立 model card 与 run manifest；原始输出不可覆盖；按“预处理→模型→解码→后处理→评分”逐层复算；每个收益来源必须有单变量消融。",
-      "2 分钟展开·取舍与结论：受控实验数量多；完全拆分交互项困难；修正正字法可能提升分数但偏离真实产品输出。 最后用这些指标收口：主指标加切片 scorecard，给每项变更的 ΔCER、置信区间、代价与失败样本；结论区分模型、数据、decoder 和口径。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我先统一评分口径，再逐项做消融，区分问题来自文字规范、数据采样还是 LID 多任务；不把所有下降都笼统归因给模型。",
+      "简历依据：简历写明：ChinaVoices 横评中定位外部语料正字法不一致、过采样遗忘及 LID 梯度干扰等负收益来源。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：ASR 负收益归因与统一 Scorecard",
@@ -4867,22 +5338,27 @@ export const questions = [
     "prompt": "从 Lhotse manifest、动态采样、特征、checkpoint 到 k2 解码，讲清一个可复现的 icefall ASR recipe。",
     "quickAnswer": "Lhotse 用 Recording/Supervision/Cut manifest 把音频、标注和切片版本化；sampler 依时长动态组 batch，icefall 负责模型训练、断点恢复和 k2 解码，配置、随机种子与数据清单共同决定可复现性。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历“专业技能”列出 k2/icefall/lhotse，但项目 bullet 没有写你从零搭建过完整 recipe。",
+    "safeAnswer": "我需要能讲清自己用到的训练数据清单、动态 batch、断点恢复和解码入口；如果没独立搭过整套流水线，就明确说是在已有 recipe 上修改和实验。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“icefall 与 Lhotse 训练流水线”背后的判断依据，并用可复核证据说明结论。简历列出工具链后，面试官会区分“跑过脚本”和“能设计、定位、复现整条训练管线”。",
     "approach": "校验 manifest 与音频可读性，固定特征和 tokenizer 版本；按总时长动态 batch；记录 config、git SHA、数据 hash、seed 与 checkpoint；解码输出保留原始 hypothesis。",
     "complexity": "数据扫描 O(N)，动态分桶通常 O(N log N) 或近线性；训练成本由总音频时长与模型前向决定。",
-    "beginnerSummary": "这题不是让你背“icefall 与 Lhotse 训练流水线”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：简历列出工具链后，面试官会区分“跑过脚本”和“能设计、定位、复现整条训练管线”。",
+    "beginnerSummary": "相关技术补课。我需要能讲清自己用到的训练数据清单、动态 batch、断点恢复和解码入口；如果没独立搭过整套流水线，就明确说是在已有 recipe 上修改和实验。",
     "interviewAnswer": [
-      "30 秒回答：Lhotse 用 Recording/Supervision/Cut manifest 把音频、标注和切片版本化；sampler 依时长动态组 batch，icefall 负责模型训练、断点恢复和 k2 解码，配置、随机种子与数据清单共同决定可复现性。",
-      "2 分钟展开·为什么：简历列出工具链后，面试官会区分“跑过脚本”和“能设计、定位、复现整条训练管线”。",
-      "2 分钟展开·怎么做：校验 manifest 与音频可读性，固定特征和 tokenizer 版本；按总时长动态 batch；记录 config、git SHA、数据 hash、seed 与 checkpoint；解码输出保留原始 hypothesis。",
-      "2 分钟展开·取舍与结论：动态 batch 提升利用率但使 step 间样本数变化；在线特征节省存储却增加 CPU 抖动；严格复现会降低部分吞吐优化空间。 最后用这些指标收口：除 loss/CER 外监控 batch 时长、dataloader wait、坏音频率、GPU 利用率、恢复后一致性和 decoder 失败率。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要能讲清自己用到的训练数据清单、动态 batch、断点恢复和解码入口；如果没独立搭过整套流水线，就明确说是在已有 recipe 上修改和实验。",
+      "简历依据：简历“专业技能”列出 k2/icefall/lhotse，但项目 bullet 没有写你从零搭建过完整 recipe。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：icefall 与 Lhotse 训练流水线",
-      "控制变量与实现：校验 manifest 与音频可读性，固定特征和 tokenizer 版本；按总时长动态 batch；记录 config、git SHA、数据 hash、seed 与 checkpoint；解码输出保留原始 hypothesis。",
-      "第一份具体证据：将每 batch 上限设为 300 秒而非固定 32 条，使短句 batch 更大、长句 batch 自动变小。",
-      "第二份对照证据：从 step 20k 恢复后比较下一批样本 ID、学习率和 loss，验证随机状态完整恢复。",
-      "上线或决策门槛：除 loss/CER 外监控 batch 时长、dataloader wait、坏音频率、GPU 利用率、恢复后一致性和 decoder 失败率。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历“专业技能”列出 k2/icefall/lhotse，但项目 bullet 没有写你从零搭建过完整 recipe。",
+      "需要理解的核心：我需要能讲清自己用到的训练数据清单、动态 batch、断点恢复和解码入口；如果没独立搭过整套流水线，就明确说是在已有 recipe 上修改和实验。",
+      "用于理解的例子：将每 batch 上限设为 300 秒而非固定 32 条，使短句 batch 更大、长句 batch 自动变小。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：简历列出工具链后，面试官会区分“跑过脚本”和“能设计、定位、复现整条训练管线”。",
@@ -4943,22 +5419,27 @@ export const questions = [
     "prompt": "简历写了 k2/icefall：请解释 FSA、FST、semiring、compose/intersect 与 pruning 在 ASR 解码中的作用。",
     "quickAnswer": "k2 用张量化 FSA 表示候选路径，把 acoustic lattice 与 token、lexicon、语言模型约束组合后求最优或 N-best；剪枝保留分数接近最优的活跃路径，控制显存与时延。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历“专业技能”列出 k2/icefall/lhotse，但没有写你亲自实现 FSA/FST 算法。",
+    "safeAnswer": "我需要理解 k2 用图保存候选路径并施加词典或语言约束；除非确实改过解码图，否则只说使用和调试过，不说从零实现过。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“k2 FSA/FST 解码图与剪枝”背后的判断依据，并用可复核证据说明结论。只会调用 icefall recipe 不能证明理解解码，面试官通常会从 H/L/G 图、blank 和 beam 剪枝追到实现。",
     "approach": "定义状态、弧、label、aux_label 和 score；构造 token/lexicon/LM 图，与逐帧 dense scores 做 pruned intersection，再 shortest path 或 N-best 重排。",
     "complexity": "最坏复杂度随活跃状态和弧组合爆炸；实际由 beam、max_active_states 等剪枝参数控制。",
-    "beginnerSummary": "这题不是让你背“k2 FSA/FST 解码图与剪枝”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：只会调用 icefall recipe 不能证明理解解码，面试官通常会从 H/L/G 图、blank 和 beam 剪枝追到实现。",
+    "beginnerSummary": "相关技术补课。我需要理解 k2 用图保存候选路径并施加词典或语言约束；除非确实改过解码图，否则只说使用和调试过，不说从零实现过。",
     "interviewAnswer": [
-      "30 秒回答：k2 用张量化 FSA 表示候选路径，把 acoustic lattice 与 token、lexicon、语言模型约束组合后求最优或 N-best；剪枝保留分数接近最优的活跃路径，控制显存与时延。",
-      "2 分钟展开·为什么：只会调用 icefall recipe 不能证明理解解码，面试官通常会从 H/L/G 图、blank 和 beam 剪枝追到实现。",
-      "2 分钟展开·怎么做：定义状态、弧、label、aux_label 和 score；构造 token/lexicon/LM 图，与逐帧 dense scores 做 pruned intersection，再 shortest path 或 N-best 重排。",
-      "2 分钟展开·取舍与结论：beam 太小会剪掉正确路径，太大则 lattice 膨胀；图组合增强语言约束但增加构图、存储和词表维护成本。 最后用这些指标收口：画 beam-精度-RTF-显存曲线，检查 OOV、热词、长句和多语种图，并验证空 lattice 与数值异常率。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要理解 k2 用图保存候选路径并施加词典或语言约束；除非确实改过解码图，否则只说使用和调试过，不说从零实现过。",
+      "简历依据：简历“专业技能”列出 k2/icefall/lhotse，但没有写你亲自实现 FSA/FST 算法。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：k2 FSA/FST 解码图与剪枝",
-      "控制变量与实现：定义状态、弧、label、aux_label 和 score；构造 token/lexicon/LM 图，与逐帧 dense scores 做 pruned intersection，再 shortest path 或 N-best 重排。",
-      "第一份具体证据：两条路径声学分分别为 -3 和 -3.4，beam=0.3 时第二条被剪，beam=0.5 时保留。",
-      "第二份对照证据：将词典图 L 与语言模型图 G 组合后，非法 token-to-word 路径不再进入候选。",
-      "上线或决策门槛：画 beam-精度-RTF-显存曲线，检查 OOV、热词、长句和多语种图，并验证空 lattice 与数值异常率。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历“专业技能”列出 k2/icefall/lhotse，但没有写你亲自实现 FSA/FST 算法。",
+      "需要理解的核心：我需要理解 k2 用图保存候选路径并施加词典或语言约束；除非确实改过解码图，否则只说使用和调试过，不说从零实现过。",
+      "用于理解的例子：两条路径声学分分别为 -3 和 -3.4，beam=0.3 时第二条被剪，beam=0.5 时保留。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：只会调用 icefall recipe 不能证明理解解码，面试官通常会从 H/L/G 图、blank 和 beam 剪枝追到实现。",
@@ -5019,15 +5500,20 @@ export const questions = [
     "prompt": "简历中的“西语 10k 抽样识别出 8.2% 真实标签噪声”应如何抽样、复听、估计区间并避免把模型错误当标签错误？",
     "quickAnswer": "应按来源、时长、口音、置信度和模型分歧分层抽样，由至少两名标注者盲审音频与原标签，分歧仲裁；8.2% 必须同时给分母、噪声定义、加权方式和置信区间。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：在西语 10k 抽样中识别出 8.2% 真实标签噪声，并用重标注和回灌训练验证。",
+    "safeAnswer": "先解释 8.2% 怎么来的：抽样后听音频、对照原标签、确认到底是模型错还是标签错；然后说明重标注只有经过回灌验证才算有效。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“8.2% 标签噪声的审计设计”背后的判断依据，并用可复核证据说明结论。标签噪声比例会直接决定清洗投入和伪标签策略，抽样偏差或单人主观判断会把结论带偏。",
     "approach": "预注册标签错误 taxonomy；随机层与高风险层分开抽样；双人独立复听加仲裁；按真实数据分布加权估计总体比例并保存审计证据。",
     "complexity": "统计计算 O(N)，主要成本是 O(N·r) 的人工复听，r 为每条标注者数量。",
-    "beginnerSummary": "这题不是让你背“8.2% 标签噪声的审计设计”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：标签噪声比例会直接决定清洗投入和伪标签策略，抽样偏差或单人主观判断会把结论带偏。",
+    "beginnerSummary": "简历明确经历。先解释 8.2% 怎么来的：抽样后听音频、对照原标签、确认到底是模型错还是标签错；然后说明重标注只有经过回灌验证才算有效。",
     "interviewAnswer": [
-      "30 秒回答：应按来源、时长、口音、置信度和模型分歧分层抽样，由至少两名标注者盲审音频与原标签，分歧仲裁；8.2% 必须同时给分母、噪声定义、加权方式和置信区间。",
-      "2 分钟展开·为什么：标签噪声比例会直接决定清洗投入和伪标签策略，抽样偏差或单人主观判断会把结论带偏。",
-      "2 分钟展开·怎么做：预注册标签错误 taxonomy；随机层与高风险层分开抽样；双人独立复听加仲裁；按真实数据分布加权估计总体比例并保存审计证据。",
-      "2 分钟展开·取舍与结论：严格双审成本高；纯随机抽样估总体无偏但难发现长尾；风险抽样发现问题快却不能直接当总体比例。 最后用这些指标收口：报告噪声点估计、Wilson/Bootstrap 区间、标注一致率、各切片比例和重审复现率。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：先解释 8.2% 怎么来的：抽样后听音频、对照原标签、确认到底是模型错还是标签错；然后说明重标注只有经过回灌验证才算有效。",
+      "简历依据：简历写明：在西语 10k 抽样中识别出 8.2% 真实标签噪声，并用重标注和回灌训练验证。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：8.2% 标签噪声的审计设计",
@@ -5095,22 +5581,27 @@ export const questions = [
     "prompt": "模型 A 比 B 的 CER 低 0.2%，如何判断不是测试集抽样波动？为什么应按 utterance 做 paired bootstrap？",
     "quickAnswer": "A/B 在同一批 utterance 上产生相关误差，必须成对重采样句子并每次重新聚合编辑距离；观察 ΔCER 分布、置信区间与胜率，不能把 token 当独立样本。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历报告了 CER/WER 数字，但没有写使用 paired bootstrap 或显著性检验。",
+    "safeAnswer": "这是严谨比较小幅 CER 差异的方法。面试中可以说“若差异很小，我会补配对重采样判断是否稳定”，不要说项目里已经做过。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“CER/WER 差值的配对显著性检验”背后的判断依据，并用可复核证据说明结论。简历包含多组小数点后三位的提升，如果没有不确定性分析，很容易被质疑为偶然或口径差。",
     "approach": "保存每句 A/B 的 S/D/I/N；以句为单位有放回抽样 B 次，每次分别求 corpus CER 后取差；同时对业务关键切片做预注册检验。",
     "complexity": "若预存每句计数，B 次 bootstrap 约 O(BN)，空间 O(N)；可向量化并行。",
-    "beginnerSummary": "这题不是让你背“CER/WER 差值的配对显著性检验”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：简历包含多组小数点后三位的提升，如果没有不确定性分析，很容易被质疑为偶然或口径差。",
+    "beginnerSummary": "通用方法，不代表做过。这是严谨比较小幅 CER 差异的方法。面试中可以说“若差异很小，我会补配对重采样判断是否稳定”，不要说项目里已经做过。",
     "interviewAnswer": [
-      "30 秒回答：A/B 在同一批 utterance 上产生相关误差，必须成对重采样句子并每次重新聚合编辑距离；观察 ΔCER 分布、置信区间与胜率，不能把 token 当独立样本。",
-      "2 分钟展开·为什么：简历包含多组小数点后三位的提升，如果没有不确定性分析，很容易被质疑为偶然或口径差。",
-      "2 分钟展开·怎么做：保存每句 A/B 的 S/D/I/N；以句为单位有放回抽样 B 次，每次分别求 corpus CER 后取差；同时对业务关键切片做预注册检验。",
-      "2 分钟展开·取舍与结论：bootstrap 计算便宜但依赖测试集代表性；切片过多会产生多重比较问题；统计显著不等于业务显著。 最后用这些指标收口：报告 ΔCER 点估计、95% 区间、P(Δ<0)、多 seed 稳定性和最小业务可感知差异。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是严谨比较小幅 CER 差异的方法。面试中可以说“若差异很小，我会补配对重采样判断是否稳定”，不要说项目里已经做过。",
+      "简历依据：简历报告了 CER/WER 数字，但没有写使用 paired bootstrap 或显著性检验。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：CER/WER 差值的配对显著性检验",
-      "控制变量与实现：保存每句 A/B 的 S/D/I/N；以句为单位有放回抽样 B 次，每次分别求 corpus CER 后取差；同时对业务关键切片做预注册检验。",
-      "第一份具体证据：重采样 10,000 次，Δ=A-B 的 95% 区间为 [-0.35,-0.08]，支持 A 更优。",
-      "第二份对照证据：若区间跨 0，即使点估计 -0.2%，也应表述为“方向有利但证据不足”。",
-      "上线或决策门槛：报告 ΔCER 点估计、95% 区间、P(Δ<0)、多 seed 稳定性和最小业务可感知差异。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历报告了 CER/WER 数字，但没有写使用 paired bootstrap 或显著性检验。",
+      "需要理解的核心：这是严谨比较小幅 CER 差异的方法。面试中可以说“若差异很小，我会补配对重采样判断是否稳定”，不要说项目里已经做过。",
+      "用于理解的例子：重采样 10,000 次，Δ=A-B 的 95% 区间为 [-0.35,-0.08]，支持 A 更优。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：简历包含多组小数点后三位的提升，如果没有不确定性分析，很容易被质疑为偶然或口径差。",
@@ -5171,22 +5662,27 @@ export const questions = [
     "prompt": "Paraformer 为什么能非自回归解码？请解释 CIF 如何把帧级声学表示变成 token 级表示，以及预测长度错误会怎样传播。",
     "quickAnswer": "CIF 为每帧预测权重并累加到阈值，触发一次 fire 得到一个 token 级声学向量；Paraformer 据此并行预测 token，速度快但长度和边界预测错误会造成整句插删错。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写明横评 Paraformer，但没有写你实现或修改过 CIF。",
+    "safeAnswer": "我需要知道 Paraformer 用 CIF 把帧级表示聚合成 token 级表示，从而并行解码；项目经历只说横评和选型，不说实现了 CIF。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Paraformer 与 CIF 非自回归对齐”背后的判断依据，并用可复核证据说明结论。简历把 Paraformer 放进统一横评时，必须能解释它与 CTC、RNN-T 在对齐和解码依赖上的本质差异。",
     "approach": "从 encoder 帧表示预测 α_t，累加到阈值 1 并按权重整合向量；训练时加入 token 数量约束和采样策略，推理时一次性送入并行 decoder。",
     "complexity": "encoder 取决于主干；CIF 聚合 O(Td)，并行 decoder 通常一次前向，避免自回归 O(U) 次串行调用。",
-    "beginnerSummary": "这题不是让你背“Paraformer 与 CIF 非自回归对齐”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：简历把 Paraformer 放进统一横评时，必须能解释它与 CTC、RNN-T 在对齐和解码依赖上的本质差异。",
+    "beginnerSummary": "相关技术补课。我需要知道 Paraformer 用 CIF 把帧级表示聚合成 token 级表示，从而并行解码；项目经历只说横评和选型，不说实现了 CIF。",
     "interviewAnswer": [
-      "30 秒回答：CIF 为每帧预测权重并累加到阈值，触发一次 fire 得到一个 token 级声学向量；Paraformer 据此并行预测 token，速度快但长度和边界预测错误会造成整句插删错。",
-      "2 分钟展开·为什么：简历把 Paraformer 放进统一横评时，必须能解释它与 CTC、RNN-T 在对齐和解码依赖上的本质差异。",
-      "2 分钟展开·怎么做：从 encoder 帧表示预测 α_t，累加到阈值 1 并按权重整合向量；训练时加入 token 数量约束和采样策略，推理时一次性送入并行 decoder。",
-      "2 分钟展开·取舍与结论：非自回归吞吐高，但 CIF 数量误差直接变成插入或删除；语言依赖和长句一致性通常弱于自回归路径。 最后用这些指标收口：同时报告 CER、插入/删除/替换分解、预测 token 数偏差、RTF，并按长句和数字实体切片。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要知道 Paraformer 用 CIF 把帧级表示聚合成 token 级表示，从而并行解码；项目经历只说横评和选型，不说实现了 CIF。",
+      "简历依据：简历写明横评 Paraformer，但没有写你实现或修改过 CIF。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：Paraformer 与 CIF 非自回归对齐",
-      "控制变量与实现：从 encoder 帧表示预测 α_t，累加到阈值 1 并按权重整合向量；训练时加入 token 数量约束和采样策略，推理时一次性送入并行 decoder。",
-      "第一份具体证据：帧权重 [0.4,0.7,0.2,0.8] 依次累积，跨过 1 时 fire，并把溢出权重留给下一个 token。",
-      "第二份对照证据：若目标 10 个字但 α 总和只接近 9，至少会产生一个删除风险。",
-      "上线或决策门槛：同时报告 CER、插入/删除/替换分解、预测 token 数偏差、RTF，并按长句和数字实体切片。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写明横评 Paraformer，但没有写你实现或修改过 CIF。",
+      "需要理解的核心：我需要知道 Paraformer 用 CIF 把帧级表示聚合成 token 级表示，从而并行解码；项目经历只说横评和选型，不说实现了 CIF。",
+      "用于理解的例子：帧权重 [0.4,0.7,0.2,0.8] 依次累积，跨过 1 时 fire，并把溢出权重留给下一个 token。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：简历把 Paraformer 放进统一横评时，必须能解释它与 CTC、RNN-T 在对齐和解码依赖上的本质差异。",
@@ -5247,15 +5743,20 @@ export const questions = [
     "prompt": "怎样按真实播放链路构造 RIR、频响、AGC、Codec、Clipping 失真，为什么顺序和响度归一化会影响训练收益？",
     "quickAnswer": "应先依据真实链路确定顺序：卷积 RIR/设备频响，再做增益或 AGC、非线性 clipping 与 codec；每步保存参数并在合理响度范围内归一化，避免把伪影或音量捷径当鲁棒性。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：按播放链路构造 RIR、频响、AGC、Codec 与 Clipping，信道退化集 WER 28.66%→20.32%，并把 RIR 卷积改为 FFT 加速约 30 倍。",
+    "safeAnswer": "我按真实信号链顺序模拟混响、设备频响、增益、编解码和削顶，并混合 clean/augmented/in-domain 数据；收益用真实信道集而不只用合成集验证。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“RIR、频响、AGC、Codec 与 Clipping 信道仿真”背后的判断依据，并用可复核证据说明结论。随机叠增广容易生成物理上不存在的信号，模型学到仿真器特征而非真实信道不变性。",
     "approach": "用 FFT overlap-add 计算 x*h；从实测分布采样 RT60、频响、增益、codec 码率和 clipping threshold；按 clean/augmented/in-domain 比例回放并记录 recipe。",
     "complexity": "直接卷积 O(TK)，FFT overlap-add 约 O(T log K)；额外存储取决于 FFT block 与 RIR 长度。",
-    "beginnerSummary": "这题不是让你背“RIR、频响、AGC、Codec 与 Clipping 信道仿真”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：随机叠增广容易生成物理上不存在的信号，模型学到仿真器特征而非真实信道不变性。",
+    "beginnerSummary": "简历明确经历。我按真实信号链顺序模拟混响、设备频响、增益、编解码和削顶，并混合 clean/augmented/in-domain 数据；收益用真实信道集而不只用合成集验证。",
     "interviewAnswer": [
-      "30 秒回答：应先依据真实链路确定顺序：卷积 RIR/设备频响，再做增益或 AGC、非线性 clipping 与 codec；每步保存参数并在合理响度范围内归一化，避免把伪影或音量捷径当鲁棒性。",
-      "2 分钟展开·为什么：随机叠增广容易生成物理上不存在的信号，模型学到仿真器特征而非真实信道不变性。",
-      "2 分钟展开·怎么做：用 FFT overlap-add 计算 x*h；从实测分布采样 RT60、频响、增益、codec 码率和 clipping threshold；按 clean/augmented/in-domain 比例回放并记录 recipe。",
-      "2 分钟展开·取舍与结论：参数范围太窄覆盖不足，太宽会伤害 clean；串联失真越多越难定位单项收益，且 codec 调用增加数据生成成本。 最后用这些指标收口：做单因子与组合消融，分别报告 clean、合成信道、真实信道 CER，并比较仿真参数分布与线上采样分布。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我按真实信号链顺序模拟混响、设备频响、增益、编解码和削顶，并混合 clean/augmented/in-domain 数据；收益用真实信道集而不只用合成集验证。",
+      "简历依据：简历写明：按播放链路构造 RIR、频响、AGC、Codec 与 Clipping，信道退化集 WER 28.66%→20.32%，并把 RIR 卷积改为 FFT 加速约 30 倍。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：RIR、频响、AGC、Codec 与 Clipping 信道仿真",
@@ -5323,22 +5824,27 @@ export const questions = [
     "prompt": "如何在 RNN-T 解码中注入热词，同时避免前缀只匹配一半时错误加分和 blank 路径分数失真？",
     "quickAnswer": "把热词 token 序列构造成 trie/FSA，beam 中每条 hypothesis 携带 context 状态；匹配弧时增量加分，失败或回退时撤销未完成奖励，并保持 blank 只推进 encoder 时间、不推进预测网络标签状态。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写明横评 Zipformer-Transducer，专业技能列出热词，但没有写你实现过 RNN-T Context Graph。",
+    "safeAnswer": "我需要理解热词是在解码时给匹配路径有限加分，并监控误触发；若没改过 Context Graph，就只把它作为解码原理补课。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“RNN-T Beam Search 与热词 Context Graph”背后的判断依据，并用可复核证据说明结论。业务热词不是简单把最终字符串加分，错误的状态与回退会造成大量误触发和普通词退化。",
     "approach": "为每条 beam 保存 token prefix、predictor state、context state 和 score；扩展非 blank token 时转移 context graph，完成词给终结奖励，失配按 failure link 回退。",
     "complexity": "约 O(T·B·K)，T 为 encoder 步数、B 为 beam、K 为每步候选 token 数；context 转移可近似 O(1)。",
-    "beginnerSummary": "这题不是让你背“RNN-T Beam Search 与热词 Context Graph”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：业务热词不是简单把最终字符串加分，错误的状态与回退会造成大量误触发和普通词退化。",
+    "beginnerSummary": "相关技术补课。我需要理解热词是在解码时给匹配路径有限加分，并监控误触发；若没改过 Context Graph，就只把它作为解码原理补课。",
     "interviewAnswer": [
-      "30 秒回答：把热词 token 序列构造成 trie/FSA，beam 中每条 hypothesis 携带 context 状态；匹配弧时增量加分，失败或回退时撤销未完成奖励，并保持 blank 只推进 encoder 时间、不推进预测网络标签状态。",
-      "2 分钟展开·为什么：业务热词不是简单把最终字符串加分，错误的状态与回退会造成大量误触发和普通词退化。",
-      "2 分钟展开·怎么做：为每条 beam 保存 token prefix、predictor state、context state 和 score；扩展非 blank token 时转移 context graph，完成词给终结奖励，失配按 failure link 回退。",
-      "2 分钟展开·取舍与结论：热词权重大提高召回但增加误识；大词表扩大 beam 状态和延迟；不同 tokenizer 下同一热词可能有多种切分。 最后用这些指标收口：同时报告热词召回/精确率、通用 CER、误触发率、RTF，并按前缀重叠和同音词构造 hard set。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要理解热词是在解码时给匹配路径有限加分，并监控误触发；若没改过 Context Graph，就只把它作为解码原理补课。",
+      "简历依据：简历写明横评 Zipformer-Transducer，专业技能列出热词，但没有写你实现过 RNN-T Context Graph。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：RNN-T Beam Search 与热词 Context Graph",
-      "控制变量与实现：为每条 beam 保存 token prefix、predictor state、context state 和 score；扩展非 blank token 时转移 context graph，完成词给终结奖励，失配按 failure link 回退。",
-      "第一份具体证据：热词“北京”切成 [北,京]，只匹配“北”时记录中间奖励，下一 token 失配则撤销。",
-      "第二份对照证据：两条 beam 文本相同但 predictor/context state 不同，不能只按字符串盲目合并。",
-      "上线或决策门槛：同时报告热词召回/精确率、通用 CER、误触发率、RTF，并按前缀重叠和同音词构造 hard set。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写明横评 Zipformer-Transducer，专业技能列出热词，但没有写你实现过 RNN-T Context Graph。",
+      "需要理解的核心：我需要理解热词是在解码时给匹配路径有限加分，并监控误触发；若没改过 Context Graph，就只把它作为解码原理补课。",
+      "用于理解的例子：热词“北京”切成 [北,京]，只匹配“北”时记录中间奖励，下一 token 失配则撤销。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：业务热词不是简单把最终字符串加分，错误的状态与回退会造成大量误触发和普通词退化。",
@@ -5399,22 +5905,27 @@ export const questions = [
     "prompt": "简历写了 Zipformer-Transducer：请从多尺度帧率、模块堆叠、流式缓存和计算量解释为什么它适合端侧 ASR。",
     "quickAnswer": "Zipformer 在不同 stack 使用不同时间分辨率，让高帧率层保留局部细节、低帧率层承担长上下文建模，再通过跨尺度连接融合；流式部署必须显式维护卷积与注意力左上下文状态。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写明横评 Zipformer-Transducer，但没有写你修改过 Zipformer 内部结构。",
+    "safeAnswer": "我需要能解释它为何适合流式和端侧，并把横评中的精度、延迟和内存说清；不声称自己设计了 Zipformer。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Zipformer 内部结构与流式状态”背后的判断依据，并用可复核证据说明结论。只说“Zipformer 比 Conformer 快”不足以支撑模型选型，面试官会追问速度来自哪里、流式状态如何落地。",
     "approach": "画出特征下采样、多尺度 encoder stack、跨尺度融合和 RNN-T decoder；逐层列出 chunk、left context、缓存张量形状，并用相同数据与 decoder 横评精度、RTF 和峰值内存。",
     "complexity": "自注意力部分约为 O(Σ_s L_s²d_s)，多尺度让多数 block 在较短 L_s 上运行；缓存空间约 O(Σ_s C_s d_s)。",
-    "beginnerSummary": "这题不是让你背“Zipformer 内部结构与流式状态”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：只说“Zipformer 比 Conformer 快”不足以支撑模型选型，面试官会追问速度来自哪里、流式状态如何落地。",
+    "beginnerSummary": "相关技术补课。我需要能解释它为何适合流式和端侧，并把横评中的精度、延迟和内存说清；不声称自己设计了 Zipformer。",
     "interviewAnswer": [
-      "30 秒回答：Zipformer 在不同 stack 使用不同时间分辨率，让高帧率层保留局部细节、低帧率层承担长上下文建模，再通过跨尺度连接融合；流式部署必须显式维护卷积与注意力左上下文状态。",
-      "2 分钟展开·为什么：只说“Zipformer 比 Conformer 快”不足以支撑模型选型，面试官会追问速度来自哪里、流式状态如何落地。",
-      "2 分钟展开·怎么做：画出特征下采样、多尺度 encoder stack、跨尺度融合和 RNN-T decoder；逐层列出 chunk、left context、缓存张量形状，并用相同数据与 decoder 横评精度、RTF 和峰值内存。",
-      "2 分钟展开·取舍与结论：降采样过强会损伤短音素和边界；缓存越长精度越好但内存和首包时延增加；不同实现版本的 block 细节不能混讲。 最后用这些指标收口：除 CER/WER 外，按短词、长句、噪声和语速切片，报告 RTF、首包、峰值内存以及 chunk 改变后的精度曲线。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要能解释它为何适合流式和端侧，并把横评中的精度、延迟和内存说清；不声称自己设计了 Zipformer。",
+      "简历依据：简历写明横评 Zipformer-Transducer，但没有写你修改过 Zipformer 内部结构。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：Zipformer 内部结构与流式状态",
-      "控制变量与实现：画出特征下采样、多尺度 encoder stack、跨尺度融合和 RNN-T decoder；逐层列出 chunk、left context、缓存张量形状，并用相同数据与 decoder 横评精度、RTF 和峰值内存。",
-      "第一份具体证据：把 100 Hz 输入在不同 stack 压到 50/25 Hz，比较注意力序列长度与短词召回。",
-      "第二份对照证据：将 left context 从 32 帧改为 64 帧，验证 CER 收益是否值得额外缓存。",
-      "上线或决策门槛：除 CER/WER 外，按短词、长句、噪声和语速切片，报告 RTF、首包、峰值内存以及 chunk 改变后的精度曲线。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写明横评 Zipformer-Transducer，但没有写你修改过 Zipformer 内部结构。",
+      "需要理解的核心：我需要能解释它为何适合流式和端侧，并把横评中的精度、延迟和内存说清；不声称自己设计了 Zipformer。",
+      "用于理解的例子：把 100 Hz 输入在不同 stack 压到 50/25 Hz，比较注意力序列长度与短词召回。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：只说“Zipformer 比 Conformer 快”不足以支撑模型选型，面试官会追问速度来自哪里、流式状态如何落地。",
@@ -11042,15 +11553,20 @@ export const questions = [
     "prompt": "简历写“buffer 复用降低约 220 MiB HWM”：为什么复用能降峰值？并发请求下怎样避免数据竞争和隐式重新分配？",
     "quickAnswer": "预先按 profile 上界分配输入、输出和 workspace，生命周期跨请求复用，可避免 allocator 水位、碎片和短时双份 buffer；并发时必须为每个 execution context 配独立 buffer，或用有界池显式租借。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：PP-OCRv6 small 迁移 TensorRT，buffer 复用降低约 220 MiB HWM。",
+    "safeAnswer": "我复用推理过程中的中间 buffer，减少重复申请和短时间双份内存；回答时说明测量场景和高水位变化，不必扩展成复杂对象池设计。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Buffer 复用、峰值内存与并发安全”背后的判断依据，并用可复核证据说明结论。单线程复用很容易，并发安全、真实 HWM 测量和异常 shape 才是工程难点。",
     "approach": "构建 context+buffer pool；按 shape bucket 分配；RAII/try-finally 归还；记录 in-use、等待、扩容和 HWM；禁止超 profile 请求偷偷 realloc。",
     "complexity": "池租借平均 O(1)，内存约 O(P·B_max)，P 为 slot 数、B_max 为单 slot 上界。",
-    "beginnerSummary": "这题不是让你背“Buffer 复用、峰值内存与并发安全”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：单线程复用很容易，并发安全、真实 HWM 测量和异常 shape 才是工程难点。",
+    "beginnerSummary": "简历明确经历。我复用推理过程中的中间 buffer，减少重复申请和短时间双份内存；回答时说明测量场景和高水位变化，不必扩展成复杂对象池设计。",
     "interviewAnswer": [
-      "30 秒回答：预先按 profile 上界分配输入、输出和 workspace，生命周期跨请求复用，可避免 allocator 水位、碎片和短时双份 buffer；并发时必须为每个 execution context 配独立 buffer，或用有界池显式租借。",
-      "2 分钟展开·为什么：单线程复用很容易，并发安全、真实 HWM 测量和异常 shape 才是工程难点。",
-      "2 分钟展开·怎么做：构建 context+buffer pool；按 shape bucket 分配；RAII/try-finally 归还；记录 in-use、等待、扩容和 HWM；禁止超 profile 请求偷偷 realloc。",
-      "2 分钟展开·取舍与结论：池过大常驻内存高，过小增加排队；按最大 shape 分配浪费，按多 bucket 管理复杂；零拷贝可能限制内存布局。 最后用这些指标收口：在固定并发和 shape 分布下比较稳态/HWM、P99、allocator 次数、等待时间，并做竞态与异常恢复压力测试。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我复用推理过程中的中间 buffer，减少重复申请和短时间双份内存；回答时说明测量场景和高水位变化，不必扩展成复杂对象池设计。",
+      "简历依据：简历写明：PP-OCRv6 small 迁移 TensorRT，buffer 复用降低约 220 MiB HWM。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：Buffer 复用、峰值内存与并发安全",
@@ -11118,15 +11634,20 @@ export const questions = [
     "prompt": "MNN/ORT 在 CPU 上线程越多为何可能越慢？如何拆分预处理、推理、后处理并定位 3.1 倍加速来自哪里？",
     "quickAnswer": "线程过多会产生调度、缓存争用和应用线程抢核；应固定大小核/频率条件，分别测预处理、runtime node、内存拷贝和后处理，扫描 intra/inter-op 线程与 affinity，报告端到端而非只报 kernel。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：PP-OCRv6 small 迁移 TensorRT 后较 CPU MNN 加速约 3.1 倍。",
+    "safeAnswer": "我先固定输入和硬件，再拆预处理、推理和后处理测量，确认 3.1 倍来自哪里；若没有做线程亲和性实验，就不要主动说做过。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“端侧 CPU 线程、亲和性与算子 Profiling”背后的判断依据，并用可复核证据说明结论。移动和嵌入式 CPU 性能受 DVFS、热降频和线程竞争影响，桌面单次 warm benchmark 不可信。",
     "approach": "预热后跑长时压测；记录 wall/cpu time、上下文切换、cache miss、频率和温度；逐阶段埋点并用 runtime profiler 找 top operators。",
     "complexity": "线程配置扫描约 O(H·N·C)，H 为配置数、N 为请求数、C 为单次端到端成本。",
-    "beginnerSummary": "这题不是让你背“端侧 CPU 线程、亲和性与算子 Profiling”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：移动和嵌入式 CPU 性能受 DVFS、热降频和线程竞争影响，桌面单次 warm benchmark 不可信。",
+    "beginnerSummary": "简历明确经历。我先固定输入和硬件，再拆预处理、推理和后处理测量，确认 3.1 倍来自哪里；若没有做线程亲和性实验，就不要主动说做过。",
     "interviewAnswer": [
-      "30 秒回答：线程过多会产生调度、缓存争用和应用线程抢核；应固定大小核/频率条件，分别测预处理、runtime node、内存拷贝和后处理，扫描 intra/inter-op 线程与 affinity，报告端到端而非只报 kernel。",
-      "2 分钟展开·为什么：移动和嵌入式 CPU 性能受 DVFS、热降频和线程竞争影响，桌面单次 warm benchmark 不可信。",
-      "2 分钟展开·怎么做：预热后跑长时压测；记录 wall/cpu time、上下文切换、cache miss、频率和温度；逐阶段埋点并用 runtime profiler 找 top operators。",
-      "2 分钟展开·取舍与结论：绑核提高稳定性但可能影响系统其他任务；少线程延迟稳却降低峰值吞吐；高性能核耗电与发热更高。 最后用这些指标收口：给线程数-延迟-吞吐-功耗曲线，至少报告 P50/P99、冷启动、稳态热机和端到端加速分解。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我先固定输入和硬件，再拆预处理、推理和后处理测量，确认 3.1 倍来自哪里；若没有做线程亲和性实验，就不要主动说做过。",
+      "简历依据：简历写明：PP-OCRv6 small 迁移 TensorRT 后较 CPU MNN 加速约 3.1 倍。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：端侧 CPU 线程、亲和性与算子 Profiling",
@@ -11194,22 +11715,27 @@ export const questions = [
     "prompt": "ASR/TTS/OCR 输入长度变化时，ONNX/TensorRT 的 dynamic axis、optimization profile 和 shape tensor 如何设计？",
     "quickAnswer": "ONNX dynamic axis 只声明维度可变，TensorRT 还需为每个动态输入配置 min/opt/max profile；依赖运行时长度的 reshape/slice 应使用合法 shape tensor，并验证所有边界 shape。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写了 ONNX Runtime、TensorRT 和端侧交付，但没有写你专门设计过 dynamic shape profile。",
+    "safeAnswer": "我需要知道动态输入除 ONNX 声明外，TensorRT 还要设置 min/opt/max；它是部署补课，不默认是项目贡献。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Dynamic Shape、Opset 与 Shape Tensor”背后的判断依据，并用可复核证据说明结论。只在 opt shape 跑通不代表真实业务可用，超长、空 chunk 或不同 batch 常在运行时才失败。",
     "approach": "从线上分布确定 profile；为 batch/time/height/width 分别声明；检查算子在目标 opset 的动态语义；构建多 profile 或按场景拆引擎。",
     "complexity": "运行计算随实际 shape；构建时 tactic 搜索成本随 profile 数与候选算法显著增加。",
-    "beginnerSummary": "这题不是让你背“Dynamic Shape、Opset 与 Shape Tensor”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：只在 opt shape 跑通不代表真实业务可用，超长、空 chunk 或不同 batch 常在运行时才失败。",
+    "beginnerSummary": "相关技术补课。我需要知道动态输入除 ONNX 声明外，TensorRT 还要设置 min/opt/max；它是部署补课，不默认是项目贡献。",
     "interviewAnswer": [
-      "30 秒回答：ONNX dynamic axis 只声明维度可变，TensorRT 还需为每个动态输入配置 min/opt/max profile；依赖运行时长度的 reshape/slice 应使用合法 shape tensor，并验证所有边界 shape。",
-      "2 分钟展开·为什么：只在 opt shape 跑通不代表真实业务可用，超长、空 chunk 或不同 batch 常在运行时才失败。",
-      "2 分钟展开·怎么做：从线上分布确定 profile；为 batch/time/height/width 分别声明；检查算子在目标 opset 的动态语义；构建多 profile 或按场景拆引擎。",
-      "2 分钟展开·取舍与结论：profile 范围大增加 tactic 搜索、workspace 与性能波动；范围小需要更多引擎并增加调度复杂度。 最后用这些指标收口：min/opt/max 和分位 shape 全覆盖，检查 build time、引擎大小、延迟分布、失败率与 padding 浪费。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要知道动态输入除 ONNX 声明外，TensorRT 还要设置 min/opt/max；它是部署补课，不默认是项目贡献。",
+      "简历依据：简历写了 ONNX Runtime、TensorRT 和端侧交付，但没有写你专门设计过 dynamic shape profile。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：Dynamic Shape、Opset 与 Shape Tensor",
-      "控制变量与实现：从线上分布确定 profile；为 batch/time/height/width 分别声明；检查算子在目标 opset 的动态语义；构建多 profile 或按场景拆引擎。",
-      "第一份具体证据：ASR chunk 长度 profile 设置 16/64/256 帧，线上 99.9% 不超过 256。",
-      "第二份对照证据：输入 300 帧应被上游切块或路由到长序列 profile，而不是直接让执行失败。",
-      "上线或决策门槛：min/opt/max 和分位 shape 全覆盖，检查 build time、引擎大小、延迟分布、失败率与 padding 浪费。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写了 ONNX Runtime、TensorRT 和端侧交付，但没有写你专门设计过 dynamic shape profile。",
+      "需要理解的核心：我需要知道动态输入除 ONNX 声明外，TensorRT 还要设置 min/opt/max；它是部署补课，不默认是项目贡献。",
+      "用于理解的例子：ASR chunk 长度 profile 设置 16/64/256 帧，线上 99.9% 不超过 256。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：只在 opt shape 跑通不代表真实业务可用，超长、空 chunk 或不同 batch 常在运行时才失败。",
@@ -11270,22 +11796,27 @@ export const questions = [
     "prompt": "模型导出 ONNX 后整体精度下降，如何区分预处理、算子语义、动态 shape、精度格式和后处理差异？",
     "quickAnswer": "先冻结同一输入与预后处理，比较 PyTorch/ONNX 的最终输出；再为关键层导出中间张量，寻找首个超容差节点，并核对 eval 状态、opset、padding、resize、normalization 和 dtype。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写了 ONNX/TensorRT 交付，但没有写逐层数值一致性定位的具体案例。",
+    "safeAnswer": "这是导出精度下降时的排查方法：固定同一输入，先比最终输出，再找第一个偏离的算子。可以说会这样排查，不说已经做过某个 Resize 案例。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“PyTorch→ONNX 数值一致性与逐层定位”背后的判断依据，并用可复核证据说明结论。只看最终 CER/F1 无法定位导出错误，端侧部署最重要的是建立可重复的 parity pipeline。",
     "approach": "保存 golden input/output；强制 eval 与固定 seed；逐层记录 max/mean error、cosine similarity；二分模型子图定位首个漂移算子，再替换或写 plugin。",
     "complexity": "逐层全量比较约 O(L·C)，二分子图可将定位轮数降到 O(log L)，C 为一次推理成本。",
-    "beginnerSummary": "这题不是让你背“PyTorch→ONNX 数值一致性与逐层定位”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：只看最终 CER/F1 无法定位导出错误，端侧部署最重要的是建立可重复的 parity pipeline。",
+    "beginnerSummary": "相关技术补课。这是导出精度下降时的排查方法：固定同一输入，先比最终输出，再找第一个偏离的算子。可以说会这样排查，不说已经做过某个 Resize 案例。",
     "interviewAnswer": [
-      "30 秒回答：先冻结同一输入与预后处理，比较 PyTorch/ONNX 的最终输出；再为关键层导出中间张量，寻找首个超容差节点，并核对 eval 状态、opset、padding、resize、normalization 和 dtype。",
-      "2 分钟展开·为什么：只看最终 CER/F1 无法定位导出错误，端侧部署最重要的是建立可重复的 parity pipeline。",
-      "2 分钟展开·怎么做：保存 golden input/output；强制 eval 与固定 seed；逐层记录 max/mean error、cosine similarity；二分模型子图定位首个漂移算子，再替换或写 plugin。",
-      "2 分钟展开·取舍与结论：导出大量中间节点增加模型体积和调试时间；容差过严会误报正常浮点差，过松会放过累计误差。 最后用这些指标收口：单元层容差、端到端任务指标、不同 shape/dtype/device 的矩阵测试全部通过，才能进入性能优化。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：这是导出精度下降时的排查方法：固定同一输入，先比最终输出，再找第一个偏离的算子。可以说会这样排查，不说已经做过某个 Resize 案例。",
+      "简历依据：简历写了 ONNX/TensorRT 交付，但没有写逐层数值一致性定位的具体案例。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：PyTorch→ONNX 数值一致性与逐层定位",
-      "控制变量与实现：保存 golden input/output；强制 eval 与固定 seed；逐层记录 max/mean error、cosine similarity；二分模型子图定位首个漂移算子，再替换或写 plugin。",
-      "第一份具体证据：最终 cosine 从 0.999 降到 0.91，逐层发现 Resize 后首次异常。",
-      "第二份对照证据：核对后发现 align_corners 语义不同，显式设置导出属性后恢复一致。",
-      "上线或决策门槛：单元层容差、端到端任务指标、不同 shape/dtype/device 的矩阵测试全部通过，才能进入性能优化。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写了 ONNX/TensorRT 交付，但没有写逐层数值一致性定位的具体案例。",
+      "需要理解的核心：这是导出精度下降时的排查方法：固定同一输入，先比最终输出，再找第一个偏离的算子。可以说会这样排查，不说已经做过某个 Resize 案例。",
+      "用于理解的例子：最终 cosine 从 0.999 降到 0.91，逐层发现 Resize 后首次异常。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：只看最终 CER/F1 无法定位导出错误，端侧部署最重要的是建立可重复的 parity pipeline。",
@@ -11346,15 +11877,20 @@ export const questions = [
     "prompt": "端侧 INT8 为什么可能总体指标不变但长尾小字、低能量音素或深度边界明显退化？如何做校准和敏感层回退？",
     "quickAnswer": "校准集若缺少长尾动态范围，scale 会让稀有激活被截断或量化到同一格；应分切片覆盖真实分布，逐层做 FP32/FP16 回退敏感性实验，并用任务级 hard set 守护。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：完成 sherpa-onnx 量化、打包与端侧运行。",
+    "safeAnswer": "我需要说明量化前后比较了模型大小、端侧速度和任务质量；若没做逐层敏感性回退，就只说做过的校准与端到端回归。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“INT8 校准集、敏感层与混合精度回退”背后的判断依据，并用可复核证据说明结论。量化不是只看模型大小和平均精度，端侧项目往往败在少数高代价切片。",
     "approach": "采样代表性校准集；记录激活直方图与 clipping；比较 per-tensor/per-channel；逐层或分组回退，寻找最小精度成本组合。",
     "complexity": "校准约 O(N·C_model)，逐层回退扫描最坏 O(L·N·C_model)，可用误差排序减少候选。",
-    "beginnerSummary": "这题不是让你背“INT8 校准集、敏感层与混合精度回退”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：量化不是只看模型大小和平均精度，端侧项目往往败在少数高代价切片。",
+    "beginnerSummary": "简历明确经历。我需要说明量化前后比较了模型大小、端侧速度和任务质量；若没做逐层敏感性回退，就只说做过的校准与端到端回归。",
     "interviewAnswer": [
-      "30 秒回答：校准集若缺少长尾动态范围，scale 会让稀有激活被截断或量化到同一格；应分切片覆盖真实分布，逐层做 FP32/FP16 回退敏感性实验，并用任务级 hard set 守护。",
-      "2 分钟展开·为什么：量化不是只看模型大小和平均精度，端侧项目往往败在少数高代价切片。",
-      "2 分钟展开·怎么做：采样代表性校准集；记录激活直方图与 clipping；比较 per-tensor/per-channel；逐层或分组回退，寻找最小精度成本组合。",
-      "2 分钟展开·取舍与结论：回退层越多精度越稳但速度和内存收益下降；校准集扩大增加准备成本，且未来域漂移仍需重校。 最后用这些指标收口：报告总体与 hard-set 指标、逐层误差、P50/P99 延迟、峰值内存和能耗，形成精度-性能 Pareto。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我需要说明量化前后比较了模型大小、端侧速度和任务质量；若没做逐层敏感性回退，就只说做过的校准与端到端回归。",
+      "简历依据：简历写明：完成 sherpa-onnx 量化、打包与端侧运行。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：INT8 校准集、敏感层与混合精度回退",
@@ -11422,22 +11958,27 @@ export const questions = [
     "prompt": "端侧模型不像服务端能随时热修，如何设计模型包灰度、兼容校验、线上指标和回滚？",
     "quickAnswer": "模型包需签名、版本化并声明 runtime/设备兼容；分设备和人群逐级灰度，监控崩溃、加载失败、延迟、内存和任务代理指标；保留上一稳定包与原子切换，失败自动回退。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历写了端侧交付，但没有写模型包灰度、自动回滚或线上事故案例。",
+    "safeAnswer": "这是成熟端侧发布应具备的方法。面试可以回答“如果负责上线，我会版本化、校验、灰度并保留旧包”，不能伪造成既有项目。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“端侧模型灰度、监控与可恢复回滚”背后的判断依据，并用可复核证据说明结论。端侧碎片化和弱联网使错误传播后修复慢，发布机制与模型精度同等重要。",
     "approach": "manifest 包含 schema、hash、最低 runtime、shape profile；下载后校验并离线冒烟；1%→10%→50%→100% 灰度；触发阈值自动停止和回滚。",
     "complexity": "发布控制本身 O(设备数)；双版本存储约为 2 倍模型包体，telemetry 成本随采样率线性增长。",
-    "beginnerSummary": "这题不是让你背“端侧模型灰度、监控与可恢复回滚”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：端侧碎片化和弱联网使错误传播后修复慢，发布机制与模型精度同等重要。",
+    "beginnerSummary": "通用方法，不代表做过。这是成熟端侧发布应具备的方法。面试可以回答“如果负责上线，我会版本化、校验、灰度并保留旧包”，不能伪造成既有项目。",
     "interviewAnswer": [
-      "30 秒回答：模型包需签名、版本化并声明 runtime/设备兼容；分设备和人群逐级灰度，监控崩溃、加载失败、延迟、内存和任务代理指标；保留上一稳定包与原子切换，失败自动回退。",
-      "2 分钟展开·为什么：端侧碎片化和弱联网使错误传播后修复慢，发布机制与模型精度同等重要。",
-      "2 分钟展开·怎么做：manifest 包含 schema、hash、最低 runtime、shape profile；下载后校验并离线冒烟；1%→10%→50%→100% 灰度；触发阈值自动停止和回滚。",
-      "2 分钟展开·取舍与结论：保留双版本占包体；细粒度 telemetry 有隐私和流量成本；代理质量指标不等于金标精度。 最后用这些指标收口：演练损坏包、断网、磁盘不足、runtime 不兼容和质量回归，验证回滚成功率、恢复时长与数据完整性。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是成熟端侧发布应具备的方法。面试可以回答“如果负责上线，我会版本化、校验、灰度并保留旧包”，不能伪造成既有项目。",
+      "简历依据：简历写了端侧交付，但没有写模型包灰度、自动回滚或线上事故案例。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：端侧模型灰度、监控与可恢复回滚",
-      "控制变量与实现：manifest 包含 schema、hash、最低 runtime、shape profile；下载后校验并离线冒烟；1%→10%→50%→100% 灰度；触发阈值自动停止和回滚。",
-      "第一份具体证据：1% 灰度发现某 GPU driver 加载失败率 8%，按设备型号停止扩量并回退旧包。",
-      "第二份对照证据：新包校验通过才原子更新 active pointer；断电时仍能启动旧版本。",
-      "上线或决策门槛：演练损坏包、断网、磁盘不足、runtime 不兼容和质量回归，验证回滚成功率、恢复时长与数据完整性。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历写了端侧交付，但没有写模型包灰度、自动回滚或线上事故案例。",
+      "需要理解的核心：这是成熟端侧发布应具备的方法。面试可以回答“如果负责上线，我会版本化、校验、灰度并保留旧包”，不能伪造成既有项目。",
+      "用于理解的例子：1% 灰度发现某 GPU driver 加载失败率 8%，按设备型号停止扩量并回退旧包。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：端侧碎片化和弱联网使错误传播后修复慢，发布机制与模型精度同等重要。",
@@ -11498,15 +12039,20 @@ export const questions = [
     "prompt": "同一个 ASR/TTS/OCR 模型何时选 MNN、ONNX Runtime、TensorRT 或 sherpa-onnx？请给出硬件、算子、流式状态和维护成本的选型矩阵。",
     "quickAnswer": "TensorRT 适合 NVIDIA GPU 极致性能，MNN 偏移动/嵌入式多后端，ONNX Runtime 适合通用跨平台与多 EP，sherpa-onnx 提供语音前后处理和流式状态封装；最终应以目标设备实测而非框架名决定。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明使用 MNN、ONNX Runtime、TensorRT、sherpa-onnx，并完成端侧量化、打包和运行。",
+    "safeAnswer": "我按目标硬件、算子支持、精度、延迟和包体选择运行时；用真实设备端到端结果做决定，而不是只看框架宣传。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“MNN、ONNX Runtime、TensorRT 与 sherpa-onnx 选型”背后的判断依据，并用可复核证据说明结论。运行时性能取决于目标硬件、算子落地、线程和内存，不能用单机 benchmark 替代产品选型。",
     "approach": "列出设备/OS/加速器、模型算子、动态 shape、流式 API、包体、冷启动和维护能力；同一模型和输入在候选 runtime 上跑 parity 与性能矩阵。",
     "complexity": "选型评测约 O(R·D·S)，R 为 runtime 数、D 为设备数、S 为测试场景数。",
-    "beginnerSummary": "这题不是让你背“MNN、ONNX Runtime、TensorRT 与 sherpa-onnx 选型”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：运行时性能取决于目标硬件、算子落地、线程和内存，不能用单机 benchmark 替代产品选型。",
+    "beginnerSummary": "简历明确经历。我按目标硬件、算子支持、精度、延迟和包体选择运行时；用真实设备端到端结果做决定，而不是只看框架宣传。",
     "interviewAnswer": [
-      "30 秒回答：TensorRT 适合 NVIDIA GPU 极致性能，MNN 偏移动/嵌入式多后端，ONNX Runtime 适合通用跨平台与多 EP，sherpa-onnx 提供语音前后处理和流式状态封装；最终应以目标设备实测而非框架名决定。",
-      "2 分钟展开·为什么：运行时性能取决于目标硬件、算子落地、线程和内存，不能用单机 benchmark 替代产品选型。",
-      "2 分钟展开·怎么做：列出设备/OS/加速器、模型算子、动态 shape、流式 API、包体、冷启动和维护能力；同一模型和输入在候选 runtime 上跑 parity 与性能矩阵。",
-      "2 分钟展开·取舍与结论：专用 runtime 性能高但锁定硬件；通用 runtime 易维护但关键算子可能回退 CPU；语音封装省工程却限制底层定制。 最后用这些指标收口：在真实设备测精度、RTF/延迟、P99、HWM、包体、冷启动、功耗和异常恢复，并给出版本升级成本。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我按目标硬件、算子支持、精度、延迟和包体选择运行时；用真实设备端到端结果做决定，而不是只看框架宣传。",
+      "简历依据：简历写明使用 MNN、ONNX Runtime、TensorRT、sherpa-onnx，并完成端侧量化、打包和运行。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：MNN、ONNX Runtime、TensorRT 与 sherpa-onnx 选型",
@@ -11574,15 +12120,20 @@ export const questions = [
     "prompt": "ASR/TTS 用 sherpa-onnx 端侧交付时，如何管理 stream state、chunk、tokenizer、模型资产、取消与错误恢复？",
     "quickAnswer": "模型、tokens、配置和前后处理必须作为版本化原子资产；每会话拥有独立 stream state，chunk 按模型约束推进；取消时清空队列与缓存，异常后不得复用污染状态。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：完成 sherpa-onnx 量化、打包与端侧运行；并修正 drain/flush、pre-roll/尾静音及常驻 session，使结果恶化验证后回退。",
+    "safeAnswer": "我重点处理流式会话的开始、增量输入、flush、取消和资源释放；改动若让结果变差就回退，不为“做了优化”硬找收益。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“sherpa-onnx 流式状态与端到端打包”背后的判断依据，并用可复核证据说明结论。模型能推理不等于 SDK 可交付，端侧最常见故障来自资产错配、跨会话状态串扰和生命周期管理。",
     "approach": "定义 create/accept/decode/flush/reset/destroy 状态机；验证模型 hash 与 token 表；音频线程和推理线程用有界队列解耦；暴露 trace 与错误码。",
     "complexity": "每 chunk 推理成本由模型决定；状态内存约 O(S·C)，S 为并发会话，C 为单会话缓存。",
-    "beginnerSummary": "这题不是让你背“sherpa-onnx 流式状态与端到端打包”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：模型能推理不等于 SDK 可交付，端侧最常见故障来自资产错配、跨会话状态串扰和生命周期管理。",
+    "beginnerSummary": "简历明确经历。我重点处理流式会话的开始、增量输入、flush、取消和资源释放；改动若让结果变差就回退，不为“做了优化”硬找收益。",
     "interviewAnswer": [
-      "30 秒回答：模型、tokens、配置和前后处理必须作为版本化原子资产；每会话拥有独立 stream state，chunk 按模型约束推进；取消时清空队列与缓存，异常后不得复用污染状态。",
-      "2 分钟展开·为什么：模型能推理不等于 SDK 可交付，端侧最常见故障来自资产错配、跨会话状态串扰和生命周期管理。",
-      "2 分钟展开·怎么做：定义 create/accept/decode/flush/reset/destroy 状态机；验证模型 hash 与 token 表；音频线程和推理线程用有界队列解耦；暴露 trace 与错误码。",
-      "2 分钟展开·取舍与结论：chunk 小首包快但调用和边界成本高，chunk 大吞吐好但延迟高；状态隔离增加内存；严格版本校验降低热更新灵活性。 最后用这些指标收口：测首包、RTF、连续时长、取消响应、内存泄漏、并发会话、资产损坏和重启恢复。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我重点处理流式会话的开始、增量输入、flush、取消和资源释放；改动若让结果变差就回退，不为“做了优化”硬找收益。",
+      "简历依据：简历写明：完成 sherpa-onnx 量化、打包与端侧运行；并修正 drain/flush、pre-roll/尾静音及常驻 session，使结果恶化验证后回退。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：sherpa-onnx 流式状态与端到端打包",
@@ -13948,15 +14499,20 @@ export const questions = [
     "prompt": "面对 Zipformer、Paraformer、Whisper、Qwen3-ASR 等候选，Tech Lead 如何从业务目标走到可审计的选型结论？",
     "quickAnswer": "先把业务约束翻译成精度、延迟、内存、可流式、许可、维护和数据要求，再分硬门槛与可优化指标；用冻结 scorecard 和代表性 PoC 选 Pareto 解，而非追单一榜单第一。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：作为语音方向 Tech Lead，负责语音与多模态算法的技术选型、实验放行和跨端交付。",
+    "safeAnswer": "我把质量、延迟、内存、交付风险和业务约束放在同一张表里选型；结论要能落到真实场景和放行门槛。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Tech Lead 的模型选型决策”背后的判断依据，并用可复核证据说明结论。Tech Lead 的职责是为约束下的结果负责，模型名字只是候选，决策过程必须能被团队复核。",
     "approach": "与产品/端侧确认 SLA 和高代价错误；先用低成本 smoke test 淘汰硬不兼容项，再对少数候选做完整数据、部署和维护评审；记录 ADR。",
     "complexity": "选型成本约 O(C·S)，C 为候选数、S 为评测场景数；分阶段淘汰可显著减少完整实验数。",
-    "beginnerSummary": "这题不是让你背“Tech Lead 的模型选型决策”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：Tech Lead 的职责是为约束下的结果负责，模型名字只是候选，决策过程必须能被团队复核。",
+    "beginnerSummary": "简历明确经历。我把质量、延迟、内存、交付风险和业务约束放在同一张表里选型；结论要能落到真实场景和放行门槛。",
     "interviewAnswer": [
-      "30 秒回答：先把业务约束翻译成精度、延迟、内存、可流式、许可、维护和数据要求，再分硬门槛与可优化指标；用冻结 scorecard 和代表性 PoC 选 Pareto 解，而非追单一榜单第一。",
-      "2 分钟展开·为什么：Tech Lead 的职责是为约束下的结果负责，模型名字只是候选，决策过程必须能被团队复核。",
-      "2 分钟展开·怎么做：与产品/端侧确认 SLA 和高代价错误；先用低成本 smoke test 淘汰硬不兼容项，再对少数候选做完整数据、部署和维护评审；记录 ADR。",
-      "2 分钟展开·取舍与结论：评测越完整成本越高；过早锁定会错过更优方案，长期保持过多候选又拖慢交付。 最后用这些指标收口：选型不仅看离线表，还看 PoC 上线后的回归、故障、维护投入和未来扩展；事后复盘假设是否成立。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我把质量、延迟、内存、交付风险和业务约束放在同一张表里选型；结论要能落到真实场景和放行门槛。",
+      "简历依据：简历写明：作为语音方向 Tech Lead，负责语音与多模态算法的技术选型、实验放行和跨端交付。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：Tech Lead 的模型选型决策",
@@ -14025,22 +14581,27 @@ export const questions = [
     "prompt": "算力和人力有限时，如何决定先做数据、模型、解码还是部署优化？什么情况下应停止一个实验方向？",
     "quickAnswer": "按预期业务价值×成功概率÷成本排序，同时考虑信息增益和关键依赖；每个实验预设时间盒、主指标、护栏和停止条件，先做能最大幅度缩小不确定性的便宜实验。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历写了实验放行，但没有写 RICE、时间盒或正式停止条件流程。",
+    "safeAnswer": "这是管理实验队列的方法。可以说“如果多个实验竞争资源，我会按影响、证据和成本排序并设停止条件”，不说已经采用某套框架。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“实验优先级、时间盒与停止条件”背后的判断依据，并用可复核证据说明结论。团队绩效来自减少无效搜索，不是把所有想法都跑一遍；没有停止条件的实验会持续吞噬资源。",
     "approach": "为候选写 one-page：假设、机制、最小验证、资源、成功/失败阈值和下一步；每周按证据更新，不按投入多少决定继续。",
     "complexity": "排序本身 O(E log E)，真正目标是降低总实验与等待成本。",
-    "beginnerSummary": "这题不是让你背“实验优先级、时间盒与停止条件”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：团队绩效来自减少无效搜索，不是把所有想法都跑一遍；没有停止条件的实验会持续吞噬资源。",
+    "beginnerSummary": "通用方法，不代表做过。这是管理实验队列的方法。可以说“如果多个实验竞争资源，我会按影响、证据和成本排序并设停止条件”，不说已经采用某套框架。",
     "interviewAnswer": [
-      "30 秒回答：按预期业务价值×成功概率÷成本排序，同时考虑信息增益和关键依赖；每个实验预设时间盒、主指标、护栏和停止条件，先做能最大幅度缩小不确定性的便宜实验。",
-      "2 分钟展开·为什么：团队绩效来自减少无效搜索，不是把所有想法都跑一遍；没有停止条件的实验会持续吞噬资源。",
-      "2 分钟展开·怎么做：为候选写 one-page：假设、机制、最小验证、资源、成功/失败阈值和下一步；每周按证据更新，不按投入多少决定继续。",
-      "2 分钟展开·取舍与结论：过度量化会低估高不确定创新；时间盒太短看不到训练收益，太长又延迟反馈；需保留小比例探索预算。 最后用这些指标收口：追踪实验命中率、决策周期、每单位算力带来的指标或信息增益，以及被停止项目是否按规则退出。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是管理实验队列的方法。可以说“如果多个实验竞争资源，我会按影响、证据和成本排序并设停止条件”，不说已经采用某套框架。",
+      "简历依据：简历写了实验放行，但没有写 RICE、时间盒或正式停止条件流程。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：实验优先级、时间盒与停止条件",
-      "控制变量与实现：为候选写 one-page：假设、机制、最小验证、资源、成功/失败阈值和下一步；每周按证据更新，不按投入多少决定继续。",
-      "第一份具体证据：先检查标签噪声而不是直接换更大模型，因为数据审计便宜且能解释多个候选共同失败。",
-      "第二份对照证据：探索模型两周未过 smoke gate，按预设条件停止，不因已投入算力继续加码。",
-      "上线或决策门槛：追踪实验命中率、决策周期、每单位算力带来的指标或信息增益，以及被停止项目是否按规则退出。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历写了实验放行，但没有写 RICE、时间盒或正式停止条件流程。",
+      "需要理解的核心：这是管理实验队列的方法。可以说“如果多个实验竞争资源，我会按影响、证据和成本排序并设停止条件”，不说已经采用某套框架。",
+      "用于理解的例子：先检查标签噪声而不是直接换更大模型，因为数据审计便宜且能解释多个候选共同失败。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：团队绩效来自减少无效搜索，不是把所有想法都跑一遍；没有停止条件的实验会持续吞噬资源。",
@@ -14102,15 +14663,20 @@ export const questions = [
     "prompt": "带领 2 人算法小组时，如何拆分研究、数据、评测与交付，既并行推进又避免只有一个人懂关键模块？",
     "quickAnswer": "按可独立验收的接口拆工作而非按文件拆；每项有 owner 和 reviewer，关键链路双人可运行；通过短设计文档、复现实验和轮换 on-call 降低 bus factor。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：带领 2 人小组负责算法路线、实验评测与端侧交付。",
+    "safeAnswer": "我按数据、模型、评测和交付拆出明确 owner 与验收物，同时通过 review 和文档避免只有一个人懂关键链路。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“两人算法小组的任务拆解与 Bus Factor”背后的判断依据，并用可复核证据说明结论。小团队速度快但单点风险高，Tech Lead 既要明确责任，又不能亲自成为所有模块的瓶颈。",
     "approach": "拆成数据/模型/评测/部署里程碑，定义输入输出和 DoD；每周一次交叉复现，PR 由非 owner review；关键脚本和 runbook 必须可由另一人执行。",
     "complexity": "协调成本随依赖边增长；清晰接口可让两人主要并行，避免频繁串行等待。",
-    "beginnerSummary": "这题不是让你背“两人算法小组的任务拆解与 Bus Factor”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：小团队速度快但单点风险高，Tech Lead 既要明确责任，又不能亲自成为所有模块的瓶颈。",
+    "beginnerSummary": "简历明确经历。我按数据、模型、评测和交付拆出明确 owner 与验收物，同时通过 review 和文档避免只有一个人懂关键链路。",
     "interviewAnswer": [
-      "30 秒回答：按可独立验收的接口拆工作而非按文件拆；每项有 owner 和 reviewer，关键链路双人可运行；通过短设计文档、复现实验和轮换 on-call 降低 bus factor。",
-      "2 分钟展开·为什么：小团队速度快但单点风险高，Tech Lead 既要明确责任，又不能亲自成为所有模块的瓶颈。",
-      "2 分钟展开·怎么做：拆成数据/模型/评测/部署里程碑，定义输入输出和 DoD；每周一次交叉复现，PR 由非 owner review；关键脚本和 runbook 必须可由另一人执行。",
-      "2 分钟展开·取舍与结论：交叉学习占用短期速度；过度文档化拖慢探索；完全共享 ownership 又容易没人负责。 最后用这些指标收口：看里程碑准时率、review 周期、复现成功率、单人请假时关键链路是否继续，以及线上问题恢复时间。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我按数据、模型、评测和交付拆出明确 owner 与验收物，同时通过 review 和文档避免只有一个人懂关键链路。",
+      "简历依据：简历写明：带领 2 人小组负责算法路线、实验评测与端侧交付。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：两人算法小组的任务拆解与 Bus Factor",
@@ -14179,15 +14745,20 @@ export const questions = [
     "prompt": "算法模型离线达标后，如何推动端侧集成、产品验收和灰度，避免“算法已完成”但项目仍不能上线？",
     "quickAnswer": "从项目开始就共同定义端到端 DoD：模型资产、SDK 接口、设备矩阵、质量/性能 SLA、埋点、错误码和回滚；每个里程碑交付可运行 artifact，而不是只交 checkpoint。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：负责跨端交付，并完成 ASR、TTS、OCR、深度与多模态生成的端侧或产品化工作。",
+    "safeAnswer": "我会从项目开始就和端侧、产品统一输入输出、质量和性能门槛，交付可运行资产与验收结果，而不只是 checkpoint。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“算法、端侧与产品的跨团队交付”背后的判断依据，并用可复核证据说明结论。跨团队失败通常发生在接口、口径、设备和时间预期，而非模型结构本身。",
     "approach": "建立单一 owner map 和周风险表；接口先行；用 golden sample 做联调；算法与端侧共同维护性能分解；产品按冻结验收集签字。",
     "complexity": "交付复杂度随设备、runtime 和接口组合增长，契约测试可把重复联调降为自动矩阵。",
-    "beginnerSummary": "这题不是让你背“算法、端侧与产品的跨团队交付”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：跨团队失败通常发生在接口、口径、设备和时间预期，而非模型结构本身。",
+    "beginnerSummary": "简历明确经历。我会从项目开始就和端侧、产品统一输入输出、质量和性能门槛，交付可运行资产与验收结果，而不只是 checkpoint。",
     "interviewAnswer": [
-      "30 秒回答：从项目开始就共同定义端到端 DoD：模型资产、SDK 接口、设备矩阵、质量/性能 SLA、埋点、错误码和回滚；每个里程碑交付可运行 artifact，而不是只交 checkpoint。",
-      "2 分钟展开·为什么：跨团队失败通常发生在接口、口径、设备和时间预期，而非模型结构本身。",
-      "2 分钟展开·怎么做：建立单一 owner map 和周风险表；接口先行；用 golden sample 做联调；算法与端侧共同维护性能分解；产品按冻结验收集签字。",
-      "2 分钟展开·取舍与结论：前置对齐占用探索时间；接口过早冻结限制模型变化；需将稳定协议与可变模型配置分层。 最后用这些指标收口：追踪端到端里程碑、集成缺陷、跨设备通过率、灰度指标、回滚演练和问题平均解决时间。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我会从项目开始就和端侧、产品统一输入输出、质量和性能门槛，交付可运行资产与验收结果，而不只是 checkpoint。",
+      "简历依据：简历写明：负责跨端交付，并完成 ASR、TTS、OCR、深度与多模态生成的端侧或产品化工作。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：算法、端侧与产品的跨团队交付",
@@ -14256,22 +14827,27 @@ export const questions = [
     "prompt": "新模型灰度后某方言 CER 或端侧崩溃率异常，Tech Lead 前 30 分钟、当天和一周内分别做什么？",
     "quickAnswer": "先停止扩量并按预案回滚，保护用户；随后冻结证据、按版本/设备/域切片定位，建立最小复现；修复需通过原事故集和完整回归，复盘关注系统防线而非追责个人。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历没有写某次线上事故的止损、回滚和复盘经历。",
+    "safeAnswer": "这是事故题的通用答法：先止损和保留证据，再定位、修复、全量回归并补防线。若没有真实事故，不要虚构具体时间线。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“算法线上事故的止损、归因与复盘”背后的判断依据，并用可复核证据说明结论。事故处理考验优先级、沟通和系统设计，继续调模型而不先止损会扩大影响。",
     "approach": "前 30 分钟确认影响、owner、回滚和通报；当天完成时间线、切片和复现；一周内补测试、监控、runbook、发布门禁并验证修复。",
     "complexity": "事故响应不是算法复杂度问题，目标是通过自动检测和回滚把影响窗口与 MTTR 最小化。",
-    "beginnerSummary": "这题不是让你背“算法线上事故的止损、归因与复盘”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：事故处理考验优先级、沟通和系统设计，继续调模型而不先止损会扩大影响。",
+    "beginnerSummary": "通用方法，不代表做过。这是事故题的通用答法：先止损和保留证据，再定位、修复、全量回归并补防线。若没有真实事故，不要虚构具体时间线。",
     "interviewAnswer": [
-      "30 秒回答：先停止扩量并按预案回滚，保护用户；随后冻结证据、按版本/设备/域切片定位，建立最小复现；修复需通过原事故集和完整回归，复盘关注系统防线而非追责个人。",
-      "2 分钟展开·为什么：事故处理考验优先级、沟通和系统设计，继续调模型而不先止损会扩大影响。",
-      "2 分钟展开·怎么做：前 30 分钟确认影响、owner、回滚和通报；当天完成时间线、切片和复现；一周内补测试、监控、runbook、发布门禁并验证修复。",
-      "2 分钟展开·取舍与结论：快速回滚可能丢失新版本收益，但应优先恢复稳定；证据收集和隐私要求需平衡。 最后用这些指标收口：看 MTTA/MTTR、回滚成功率、影响请求数、复发率和 action item 完成度，而非只看修复后的离线指标。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是事故题的通用答法：先止损和保留证据，再定位、修复、全量回归并补防线。若没有真实事故，不要虚构具体时间线。",
+      "简历依据：简历没有写某次线上事故的止损、回滚和复盘经历。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：算法线上事故的止损、归因与复盘",
-      "控制变量与实现：前 30 分钟确认影响、owner、回滚和通报；当天完成时间线、切片和复现；一周内补测试、监控、runbook、发布门禁并验证修复。",
-      "第一份具体证据：某设备加载失败率升高，立即停止该设备型号扩量并恢复旧资产。",
-      "第二份对照证据：根因是 opset/runtime 不兼容，补 manifest compatibility gate 和设备矩阵测试。",
-      "上线或决策门槛：看 MTTA/MTTR、回滚成功率、影响请求数、复发率和 action item 完成度，而非只看修复后的离线指标。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历没有写某次线上事故的止损、回滚和复盘经历。",
+      "需要理解的核心：这是事故题的通用答法：先止损和保留证据，再定位、修复、全量回归并补防线。若没有真实事故，不要虚构具体时间线。",
+      "用于理解的例子：某设备加载失败率升高，立即停止该设备型号扩量并恢复旧资产。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：事故处理考验优先级、沟通和系统设计，继续调模型而不先止损会扩大影响。",
@@ -14333,22 +14909,27 @@ export const questions = [
     "prompt": "成员坚持更大模型，端侧坚持更低延迟，产品坚持尽快上线时，Tech Lead 如何决策并让团队成长？",
     "quickAnswer": "先把立场翻译成共同指标和不可违反约束，用小型可证伪实验减少争论；明确 DRI 和决策期限，记录取舍；反馈针对行为与影响，并让成员拥有方案和复盘，而非只执行答案。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历没有写一场具体的技术冲突或成员反馈案例。",
+    "safeAnswer": "这是管理题模板。最好以后换成一个真实分歧；现在只能回答决策原则，不能编造某位成员或某次冲突。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“技术分歧、反馈与成员培养”背后的判断依据，并用可复核证据说明结论。技术领导不是所有争论都靠权威拍板，而是建立能持续产出高质量决策的机制。",
     "approach": "分别复述各方目标；列硬约束与未知；设计时间盒 PoC；由 DRI 依据预设阈值决策；一对一反馈使用具体事实、影响和下一步。",
     "complexity": "决策流程应与风险匹配：可逆低风险决策快速下放，不可逆高风险决策增加证据和评审。",
-    "beginnerSummary": "这题不是让你背“技术分歧、反馈与成员培养”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：技术领导不是所有争论都靠权威拍板，而是建立能持续产出高质量决策的机制。",
+    "beginnerSummary": "通用方法，不代表做过。这是管理题模板。最好以后换成一个真实分歧；现在只能回答决策原则，不能编造某位成员或某次冲突。",
     "interviewAnswer": [
-      "30 秒回答：先把立场翻译成共同指标和不可违反约束，用小型可证伪实验减少争论；明确 DRI 和决策期限，记录取舍；反馈针对行为与影响，并让成员拥有方案和复盘，而非只执行答案。",
-      "2 分钟展开·为什么：技术领导不是所有争论都靠权威拍板，而是建立能持续产出高质量决策的机制。",
-      "2 分钟展开·怎么做：分别复述各方目标；列硬约束与未知；设计时间盒 PoC；由 DRI 依据预设阈值决策；一对一反馈使用具体事实、影响和下一步。",
-      "2 分钟展开·取舍与结论：共识过程需要时间；紧急情况可能必须先决策后解释；过度追求一致会造成迟迟不定。 最后用这些指标收口：看决策周期、返工、团队能否复述理由、成员后续能否独立负责类似问题，以及冲突是否反复出现。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是管理题模板。最好以后换成一个真实分歧；现在只能回答决策原则，不能编造某位成员或某次冲突。",
+      "简历依据：简历没有写一场具体的技术冲突或成员反馈案例。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：技术分歧、反馈与成员培养",
-      "控制变量与实现：分别复述各方目标；列硬约束与未知；设计时间盒 PoC；由 DRI 依据预设阈值决策；一对一反馈使用具体事实、影响和下一步。",
-      "第一份具体证据：用真实设备比较大模型和轻模型的 CER/RTF/P99，若大模型违反硬 SLA 即停止争论。",
-      "第二份对照证据：让成员主导实验和 ADR，Tech Lead review 风险，使其下次能独立选型。",
-      "上线或决策门槛：看决策周期、返工、团队能否复述理由、成员后续能否独立负责类似问题，以及冲突是否反复出现。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历没有写一场具体的技术冲突或成员反馈案例。",
+      "需要理解的核心：这是管理题模板。最好以后换成一个真实分歧；现在只能回答决策原则，不能编造某位成员或某次冲突。",
+      "用于理解的例子：用真实设备比较大模型和轻模型的 CER/RTF/P99，若大模型违反硬 SLA 即停止争论。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：技术领导不是所有争论都靠权威拍板，而是建立能持续产出高质量决策的机制。",
@@ -14410,22 +14991,27 @@ export const questions = [
     "prompt": "如何把“CER 下降、F1 提升、端侧加速”等简历 bullet 讲成 3 分钟主线，并承受 15 分钟技术追问？",
     "quickAnswer": "用 Situation/Task 交代约束，Action 只讲本人关键决策和机制，Result 给口径完整的数字，最后 Learning 说明失败、取舍和下一步；每个数字准备数据、消融、统计、部署四层证据。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "这是简历表达方法，本身不是一段项目经历。",
+    "safeAnswer": "用背景、任务、个人行动、结果和复盘讲真实 bullet，并明确“我做了什么、团队做了什么”；所有例子必须来自真实经历。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“把简历 Bullet 讲成可追问的 STAR-L”背后的判断依据，并用可复核证据说明结论。堆技术名词会让贡献边界不清，只有结果数字又无法证明技术深度和领导力。",
     "approach": "每个项目准备 30 秒摘要、3 分钟主线和深挖附录；标出“我决定/我实现/团队完成”；为失败方案和反事实各准备一个例子。",
     "complexity": "准备成本与项目数线性；使用统一七问模板可复用数据、消融、部署和复盘证据。",
-    "beginnerSummary": "这题不是让你背“把简历 Bullet 讲成可追问的 STAR-L”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：堆技术名词会让贡献边界不清，只有结果数字又无法证明技术深度和领导力。",
+    "beginnerSummary": "通用方法，不代表做过。用背景、任务、个人行动、结果和复盘讲真实 bullet，并明确“我做了什么、团队做了什么”；所有例子必须来自真实经历。",
     "interviewAnswer": [
-      "30 秒回答：用 Situation/Task 交代约束，Action 只讲本人关键决策和机制，Result 给口径完整的数字，最后 Learning 说明失败、取舍和下一步；每个数字准备数据、消融、统计、部署四层证据。",
-      "2 分钟展开·为什么：堆技术名词会让贡献边界不清，只有结果数字又无法证明技术深度和领导力。",
-      "2 分钟展开·怎么做：每个项目准备 30 秒摘要、3 分钟主线和深挖附录；标出“我决定/我实现/团队完成”；为失败方案和反事实各准备一个例子。",
-      "2 分钟展开·取舍与结论：讲太细超时，讲太抽象像背稿；需要按面试官追问动态展开而不是一次倾倒全部细节。 最后用这些指标收口：模拟面试中让听者复述问题、你的独立贡献、核心机制、结果口径和最大风险；任何一项不清楚就重写。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：用背景、任务、个人行动、结果和复盘讲真实 bullet，并明确“我做了什么、团队做了什么”；所有例子必须来自真实经历。",
+      "简历依据：这是简历表达方法，本身不是一段项目经历。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：把简历 Bullet 讲成可追问的 STAR-L",
-      "控制变量与实现：每个项目准备 30 秒摘要、3 分钟主线和深挖附录；标出“我决定/我实现/团队完成”；为失败方案和反事实各准备一个例子。",
-      "第一份具体证据：30 秒：信道退化导致 WER 28.66%，我构建真实链路增强与回归门禁，降到 20.32%，业务集 3.62%。",
-      "第二份对照证据：深挖时再展开 RIR FFT、数据配比、消融、显著性和线上监控。",
-      "上线或决策门槛：模拟面试中让听者复述问题、你的独立贡献、核心机制、结果口径和最大风险；任何一项不清楚就重写。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：这是简历表达方法，本身不是一段项目经历。",
+      "需要理解的核心：用背景、任务、个人行动、结果和复盘讲真实 bullet，并明确“我做了什么、团队做了什么”；所有例子必须来自真实经历。",
+      "用于理解的例子：30 秒：信道退化导致 WER 28.66%，我构建真实链路增强与回归门禁，降到 20.32%，业务集 3.62%。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：堆技术名词会让贡献边界不清，只有结果数字又无法证明技术深度和领导力。",
@@ -39810,15 +40396,20 @@ export const questions = [
     "prompt": "RIR、数据混合、模型替换和 decoder 调参同时变化后指标提升，怎样设计消融才能说明各自贡献？",
     "quickAnswer": "先定义共同 baseline，做 one-at-a-time 主效应，再对可能交互的关键因素做小型 factorial；所有 run 固定数据、seed、评测链和预算，报告增量与组合是否非加性。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历多处写明横评、消融和负收益定位，例如 ChinaVoices 的外部语料、过采样、LID 梯度干扰归因。",
+    "safeAnswer": "我尽量一次只改一个关键因素并保持数据与评测口径不变；组合改动有收益时，再补单项对照判断贡献来自哪里。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“单变量消融、交互项与收益归因”背后的判断依据，并用可复核证据说明结论。多项同时变化只能证明组合有效，不能支撑“某技术带来多少收益”的简历陈述。",
     "approach": "建立 A baseline、A+RIR、A+mix、A+decoder、A+RIR+mix 等矩阵；按相同训练预算和多 seed 运行；用差分估主效应与交互。",
     "complexity": "完整 factorial 为 O(2^k)，筛选设计可降到 O(k) 到 O(k²) 个实验。",
-    "beginnerSummary": "这题不是让你背“单变量消融、交互项与收益归因”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：多项同时变化只能证明组合有效，不能支撑“某技术带来多少收益”的简历陈述。",
+    "beginnerSummary": "简历明确经历。我尽量一次只改一个关键因素并保持数据与评测口径不变；组合改动有收益时，再补单项对照判断贡献来自哪里。",
     "interviewAnswer": [
-      "30 秒回答：先定义共同 baseline，做 one-at-a-time 主效应，再对可能交互的关键因素做小型 factorial；所有 run 固定数据、seed、评测链和预算，报告增量与组合是否非加性。",
-      "2 分钟展开·为什么：多项同时变化只能证明组合有效，不能支撑“某技术带来多少收益”的简历陈述。",
-      "2 分钟展开·怎么做：建立 A baseline、A+RIR、A+mix、A+decoder、A+RIR+mix 等矩阵；按相同训练预算和多 seed 运行；用差分估主效应与交互。",
-      "2 分钟展开·取舍与结论：完整 2^k factorial 成本指数增长；只做单变量又会漏掉交互，因此要按机制预判选择关键组合。 最后用这些指标收口：报告每项 Δmetric 的均值/区间、训练成本和最差切片；组合收益需与单项收益之和对比。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我尽量一次只改一个关键因素并保持数据与评测口径不变；组合改动有收益时，再补单项对照判断贡献来自哪里。",
+      "简历依据：简历多处写明横评、消融和负收益定位，例如 ChinaVoices 的外部语料、过采样、LID 梯度干扰归因。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：单变量消融、交互项与收益归因",
@@ -39886,22 +40477,27 @@ export const questions = [
     "prompt": "CER、WER、F1、Judge mean、RTF、FPS 和 23 min/segment 如何写成不可歧义、可复算的 metric contract？",
     "quickAnswer": "每个指标必须固定输入集合、过滤规则、分母、聚合方式、硬件、并发、预热、版本和失败样本处理；同时保存逐样本结果，使任何人可从原始记录复算简历数字。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历报告 CER/WER、F1、Judge mean、FPS 与 min/segment，但没有写正式的 Metric Contract。",
+    "safeAnswer": "我至少要能说清每个数字的数据集、分母、硬件和是否包含预后处理；“Metric Contract”只是把这些口径规范化的补课概念。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“简历指标的口径、分母与 Metric Contract”背后的判断依据，并用可复核证据说明结论。同名指标常因 macro/micro、忽略失败、硬件或后处理不同而不可比较，精确小数反而更容易被质疑。",
     "approach": "为每个指标定义 schema：dataset hash、sample ID、raw output、parser、S/D/I/N 或 TP/FP/FN、latency timeline、hardware manifest 和 aggregation version。",
     "complexity": "聚合 O(N)，存储 O(N·R)，R 为每样本保留的原始输出与诊断字段大小。",
-    "beginnerSummary": "这题不是让你背“简历指标的口径、分母与 Metric Contract”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：同名指标常因 macro/micro、忽略失败、硬件或后处理不同而不可比较，精确小数反而更容易被质疑。",
+    "beginnerSummary": "相关技术补课。我至少要能说清每个数字的数据集、分母、硬件和是否包含预后处理；“Metric Contract”只是把这些口径规范化的补课概念。",
     "interviewAnswer": [
-      "30 秒回答：每个指标必须固定输入集合、过滤规则、分母、聚合方式、硬件、并发、预热、版本和失败样本处理；同时保存逐样本结果，使任何人可从原始记录复算简历数字。",
-      "2 分钟展开·为什么：同名指标常因 macro/micro、忽略失败、硬件或后处理不同而不可比较，精确小数反而更容易被质疑。",
-      "2 分钟展开·怎么做：为每个指标定义 schema：dataset hash、sample ID、raw output、parser、S/D/I/N 或 TP/FP/FN、latency timeline、hardware manifest 和 aggregation version。",
-      "2 分钟展开·取舍与结论：严格 contract 增加数据和版本维护成本，但能避免评测漂移；保存逐样本结果需要隐私和存储治理。 最后用这些指标收口：由第二人独立运行复算，结果在容差内一致；修改 normalizer/过滤规则必须触发版本变化和新旧对账。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我至少要能说清每个数字的数据集、分母、硬件和是否包含预后处理；“Metric Contract”只是把这些口径规范化的补课概念。",
+      "简历依据：简历报告 CER/WER、F1、Judge mean、FPS 与 min/segment，但没有写正式的 Metric Contract。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：简历指标的口径、分母与 Metric Contract",
-      "控制变量与实现：为每个指标定义 schema：dataset hash、sample ID、raw output、parser、S/D/I/N 或 TP/FP/FN、latency timeline、hardware manifest 和 aggregation version。",
-      "第一份具体证据：20 FPS 必须说明分辨率、batch、硬件、是否含预后处理和持续运行窗口。",
-      "第二份对照证据：23 min/segment 必须说明 segment 时长、50 steps、并行数以及是否包含编码和落盘。",
-      "上线或决策门槛：由第二人独立运行复算，结果在容差内一致；修改 normalizer/过滤规则必须触发版本变化和新旧对账。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历报告 CER/WER、F1、Judge mean、FPS 与 min/segment，但没有写正式的 Metric Contract。",
+      "需要理解的核心：我至少要能说清每个数字的数据集、分母、硬件和是否包含预后处理；“Metric Contract”只是把这些口径规范化的补课概念。",
+      "用于理解的例子：20 FPS 必须说明分辨率、batch、硬件、是否含预后处理和持续运行窗口。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：同名指标常因 macro/micro、忽略失败、硬件或后处理不同而不可比较，精确小数反而更容易被质疑。",
@@ -39962,22 +40558,27 @@ export const questions = [
     "prompt": "横评 5 个模型、11 个语种和多个切片时，怎样避免“总能找到一个显著提升”？测试集需要多大？",
     "quickAnswer": "先指定主假设与最小业务效应，按历史方差估功效和样本量；次级切片使用 FDR/Bonferroni 或分层模型控制多重比较，并同时报告效应大小和区间。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历没有写 power analysis、FDR 或 Bonferroni 多重比较。",
+    "safeAnswer": "这是大量模型和切片比较时的统计补课。小幅差异时可以说需要扩大样本或补统计检验，不要声称项目里做过。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“样本量、检验功效与多重比较”背后的判断依据，并用可复核证据说明结论。模型和切片越多，偶然显著结果越常见；小样本“不显著”也可能只是功效不足。",
     "approach": "预注册 primary metric/model comparison；用 pilot 数据或 bootstrap 模拟不同 N 下检出率；主结论只依赖预注册检验，探索结果明确标注。",
     "complexity": "功效模拟约 O(BN)，多重校正 O(M log M)，M 为假设数。",
-    "beginnerSummary": "这题不是让你背“样本量、检验功效与多重比较”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：模型和切片越多，偶然显著结果越常见；小样本“不显著”也可能只是功效不足。",
+    "beginnerSummary": "通用方法，不代表做过。这是大量模型和切片比较时的统计补课。小幅差异时可以说需要扩大样本或补统计检验，不要声称项目里做过。",
     "interviewAnswer": [
-      "30 秒回答：先指定主假设与最小业务效应，按历史方差估功效和样本量；次级切片使用 FDR/Bonferroni 或分层模型控制多重比较，并同时报告效应大小和区间。",
-      "2 分钟展开·为什么：模型和切片越多，偶然显著结果越常见；小样本“不显著”也可能只是功效不足。",
-      "2 分钟展开·怎么做：预注册 primary metric/model comparison；用 pilot 数据或 bootstrap 模拟不同 N 下检出率；主结论只依赖预注册检验，探索结果明确标注。",
-      "2 分钟展开·取舍与结论：Bonferroni 保守、需要更大样本；FDR 允许少量假发现；分层模型更高效但解释和假设更复杂。 最后用这些指标收口：报告目标效应、N、power、校正方法、原始/校正后区间与探索性分析边界。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是大量模型和切片比较时的统计补课。小幅差异时可以说需要扩大样本或补统计检验，不要声称项目里做过。",
+      "简历依据：简历没有写 power analysis、FDR 或 Bonferroni 多重比较。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：样本量、检验功效与多重比较",
-      "控制变量与实现：预注册 primary metric/model comparison；用 pilot 数据或 bootstrap 模拟不同 N 下检出率；主结论只依赖预注册检验，探索结果明确标注。",
-      "第一份具体证据：5×11=55 个检验若每个 α=0.05，至少一个假阳性的概率会显著上升。",
-      "第二份对照证据：目标检测 CER 绝对下降 0.3%，用 pilot 的 paired 差值分布模拟 N，直到 power≥80%。",
-      "上线或决策门槛：报告目标效应、N、power、校正方法、原始/校正后区间与探索性分析边界。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历没有写 power analysis、FDR 或 Bonferroni 多重比较。",
+      "需要理解的核心：这是大量模型和切片比较时的统计补课。小幅差异时可以说需要扩大样本或补统计检验，不要声称项目里做过。",
+      "用于理解的例子：5×11=55 个检验若每个 α=0.05，至少一个假阳性的概率会显著上升。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：模型和切片越多，偶然显著结果越常见；小样本“不显著”也可能只是功效不足。",
@@ -40038,22 +40639,27 @@ export const questions = [
     "prompt": "半年后如何复现简历中的最好结果？一个 run manifest 至少应保存哪些模型、数据、环境和评测信息？",
     "quickAnswer": "必须固化 git SHA、配置、数据/标签 hash、tokenizer、预训练权重、随机种子、容器与驱动、硬件、训练日志、checkpoint、原始输出和评测脚本版本，形成从结论回溯到样本的证据链。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历没有写不可变 run manifest、artifact registry 或由第二人完整复现。",
+    "safeAnswer": "这是理想的实验复现规范。可以说自己会保存配置、代码版本、数据版本和原始结果；没有证据时不要宣称完整系统已经落地。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“实验可复现的 Run Manifest 与证据链”背后的判断依据，并用可复核证据说明结论。只保存 checkpoint 无法知道数据、代码和后处理，既不能复现，也无法在模型回归时定位变化。",
     "approach": "训练入口自动生成不可变 run ID 和 manifest；artifact 使用内容 hash；评测引用 run ID；表格与简历数字由结果文件自动生成而非手填。",
     "complexity": "manifest 生成 O(文件数)，内容 hash 与 artifact 大小线性；主要成本是存储和治理。",
-    "beginnerSummary": "这题不是让你背“实验可复现的 Run Manifest 与证据链”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：只保存 checkpoint 无法知道数据、代码和后处理，既不能复现，也无法在模型回归时定位变化。",
+    "beginnerSummary": "通用方法，不代表做过。这是理想的实验复现规范。可以说自己会保存配置、代码版本、数据版本和原始结果；没有证据时不要宣称完整系统已经落地。",
     "interviewAnswer": [
-      "30 秒回答：必须固化 git SHA、配置、数据/标签 hash、tokenizer、预训练权重、随机种子、容器与驱动、硬件、训练日志、checkpoint、原始输出和评测脚本版本，形成从结论回溯到样本的证据链。",
-      "2 分钟展开·为什么：只保存 checkpoint 无法知道数据、代码和后处理，既不能复现，也无法在模型回归时定位变化。",
-      "2 分钟展开·怎么做：训练入口自动生成不可变 run ID 和 manifest；artifact 使用内容 hash；评测引用 run ID；表格与简历数字由结果文件自动生成而非手填。",
-      "2 分钟展开·取舍与结论：完整 artifact 存储昂贵；容器仍不能完全冻结硬件非确定性；需要设置保留层级与隐私权限。 最后用这些指标收口：由新环境和第二位工程师从 manifest 重跑，关键指标落在预设容差，且任一汇总数字能追到逐样本记录。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是理想的实验复现规范。可以说自己会保存配置、代码版本、数据版本和原始结果；没有证据时不要宣称完整系统已经落地。",
+      "简历依据：简历没有写不可变 run manifest、artifact registry 或由第二人完整复现。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：实验可复现的 Run Manifest 与证据链",
-      "控制变量与实现：训练入口自动生成不可变 run ID 和 manifest；artifact 使用内容 hash；评测引用 run ID；表格与简历数字由结果文件自动生成而非手填。",
-      "第一份具体证据：run 记录 dataset manifest SHA，而不是只写“西语 10k”。",
-      "第二份对照证据：报告中的 CER 单元格链接到 hypothesis/reference 和 scorer version，可重新聚合。",
-      "上线或决策门槛：由新环境和第二位工程师从 manifest 重跑，关键指标落在预设容差，且任一汇总数字能追到逐样本记录。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历没有写不可变 run manifest、artifact registry 或由第二人完整复现。",
+      "需要理解的核心：这是理想的实验复现规范。可以说自己会保存配置、代码版本、数据版本和原始结果；没有证据时不要宣称完整系统已经落地。",
+      "用于理解的例子：run 记录 dataset manifest SHA，而不是只写“西语 10k”。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：只保存 checkpoint 无法知道数据、代码和后处理，既不能复现，也无法在模型回归时定位变化。",
@@ -40114,15 +40720,20 @@ export const questions = [
     "prompt": "为什么平均 CER/F1 提升仍可能不能上线？如何定义语种、噪声、设备、长句和高代价实体的 regression gate？",
     "quickAnswer": "平均值会被大切片支配，应预注册关键切片和业务代价，分别设置不退化上限、最小样本量和区间；发布需要主指标提升且所有硬门禁通过。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明按语种、真实信道、业务域、独立业务集和旧域回归判断模型是否放行。",
+    "safeAnswer": "我不只看平均指标，而是同时看关键语种、信道和旧域；主指标提升但关键切片退化时不放行。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“平均指标、关键切片与回归门禁”背后的判断依据，并用可复核证据说明结论。语音和端侧系统的长尾通常对应真实投诉，不能让总体提升掩盖某语种、设备或实体类别崩坏。",
     "approach": "从流量、风险和模型机制定义切片；冻结 slice query；为每项设置 warn/block 阈值；小样本用区间或贝叶斯收缩，不用单点。",
     "complexity": "预定义 M 个切片聚合约 O(NM)，使用倒排标签可近似 O(N+总标签数)。",
-    "beginnerSummary": "这题不是让你背“平均指标、关键切片与回归门禁”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：语音和端侧系统的长尾通常对应真实投诉，不能让总体提升掩盖某语种、设备或实体类别崩坏。",
+    "beginnerSummary": "简历明确经历。我不只看平均指标，而是同时看关键语种、信道和旧域；主指标提升但关键切片退化时不放行。",
     "interviewAnswer": [
-      "30 秒回答：平均值会被大切片支配，应预注册关键切片和业务代价，分别设置不退化上限、最小样本量和区间；发布需要主指标提升且所有硬门禁通过。",
-      "2 分钟展开·为什么：语音和端侧系统的长尾通常对应真实投诉，不能让总体提升掩盖某语种、设备或实体类别崩坏。",
-      "2 分钟展开·怎么做：从流量、风险和模型机制定义切片；冻结 slice query；为每项设置 warn/block 阈值；小样本用区间或贝叶斯收缩，不用单点。",
-      "2 分钟展开·取舍与结论：门禁太多使任何方案都难上线，多重检验增加误报；门禁太松又失去保护，需要区分 hard gate 与观察项。 最后用这些指标收口：输出主指标、关键切片、最差切片、样本量与区间；灰度阶段继续监控对应线上代理指标。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我不只看平均指标，而是同时看关键语种、信道和旧域；主指标提升但关键切片退化时不放行。",
+      "简历依据：简历写明按语种、真实信道、业务域、独立业务集和旧域回归判断模型是否放行。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：平均指标、关键切片与回归门禁",
@@ -50196,9 +50807,9 @@ export const questions = [
       "误以为非自回归一定更好：并行带来速度，但单向长度规整会削弱跨帧依赖，低资源下质量可能不如自回归。"
     ],
     "prerequisites": [
-      "序列到序列模型与注意力机制（encoder-decoder、attention）",
-      "mel 频谱等声学表征与 STFT 基础",
-      "Transformer 自注意力与位置编码"
+      "序列到序列模型与注意力机制（encoder-decoder、attention）：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "mel 频谱等声学表征与 STFT 基础：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。",
+      "Transformer 自注意力与位置编码：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。"
     ],
     "workedExample": [
       "输入‘你好世界’：Tacotron 在注意力图上应沿对角线逐字对齐，逐帧吐出 4 个汉字对应的 mel 段。",
@@ -50223,7 +50834,27 @@ export const questions = [
       "通常用自回归 teacher（如 Transformer-TTS）的注意力/对齐作为软标签，因真实帧级对齐难获取；蒸馏让非自回归学生学到与自回归一致的对齐分布，否则时长预测无监督极易崩溃。",
       "FastSpeech 2 直接用真实语音提取的时长（forced alignment）和音高/能量方差信息作监督，并引入 variance adaptor（pitch/energy predictor），减少对 teacher 的依赖、提升韵律与训练效率。"
     ],
-    "order": 1
+    "order": 1,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Tacotron 2 用编码器-注意力-解码器的自回归结构逐帧生成 mel 频谱，质量高但速度慢、易出错（重复/漏读）。FastSpeech 用 Transformer 非自回归结构，配合时长预测器把音素对齐到帧数后一次性并行生成，推理快且鲁棒。端到端 TTS 演进主线是：从级联（文本→音素→声学→声码器）到端到端（文本→频谱），再到非自回归与完全端到端（如 VITS）。",
+      "2 分钟展开·原理：是什么：声学模型（acoustic model）是端到端 TTS 的核心组件，负责把输入文本（字符/音素）映射为中间声学表征（通常是 mel 频谱）。Tacotron 2 采用编码器-注意力-解码器的自回归结构逐帧生成频谱；FastSpeech 采用基于 Transformer 的非自回归结构，配合时长预测器一次性并行生成全部帧，从而解决自回归的速度与鲁棒性问题。",
+      "2 分钟展开·实现：核心思路是‘先对齐、再生成’：自回归 Tacotron 用注意力在解码时隐式学习文本-频谱对齐，逐帧条件生成；非自回归 FastSpeech 先用时长预测器显式给出每个音素对应的帧数，再用长度规整（length regulation）把隐状态扩展到目标长度，从而彻底消除帧间依赖、实现并行合成。",
+      "2 分钟展开·边界：未见过的稀有词/专有名词：子词或字符级建模更易泛化，否则易念错。 同时避免：把 FastSpeech 时长预测器的监督信号当成‘真实’，实际常来自自回归 teacher 的注意力对齐，teacher 出错会被继承。"
+    ],
+    "conceptPath": [
+      "先识别问题：请对比 Tacotron 系列（自回归）与 FastSpeech（非自回归）声学模型的差异，并说明时长建模与端到端 TTS 的演进脉络？",
+      "再抓核心机制：核心思路是‘先对齐、再生成’：自回归 Tacotron 用注意力在解码时隐式学习文本-频谱对齐，逐帧条件生成；非自回归 FastSpeech 先用时长预测器显式给出每个音素对应的帧数，再用长度规整（length regulation）把隐状态扩展到目标长度，从而彻底消除帧间依赖、实现并行合成。",
+      "然后跑一个具体例子：输入‘你好世界’：Tacotron 在注意力图上应沿对角线逐字对齐，逐帧吐出 4 个汉字对应的 mel 段。",
+      "最后检查失败边界：未见过的稀有词/专有名词：子词或字符级建模更易泛化，否则易念错。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入‘你好世界’：Tacotron 在注意力图上应沿对角线逐字对齐，逐帧吐出 4 个汉字对应的 mel 段。",
+      "第 2 步：FastSpeech 中‘你/好/世/界’时长预测为 [8,8,10,10] 帧，经长度规整把 4 个音素隐状态扩展到 36 帧后再并行解码。",
+      "边界检查：未见过的稀有词/专有名词：子词或字符级建模更易泛化，否则易念错。",
+      "反向自检：把 FastSpeech 时长预测器的监督信号当成‘真实’，实际常来自自回归 teacher 的注意力对齐，teacher 出错会被继承。"
+    ]
   },
   {
     "id": "tts-vits",
@@ -50255,9 +50886,9 @@ export const questions = [
       "忽略对抗与重建损失的平衡，判别器过强会让生成器只产‘骗过判别器’但听感差的样本。"
     ],
     "prerequisites": [
-      "变分自编码器（VAE）与 KL 散度",
-      "Normalizing Flow 可逆变换与 Jacobian 对数行列式",
-      "生成对抗网络（GAN）与多尺度判别器"
+      "变分自编码器（VAE）与 KL 散度：VAE 用重建项保证内容，用 KL 项约束潜变量接近可采样先验；两项失衡会造成模糊或后验坍塌。",
+      "Normalizing Flow 可逆变换与 Jacobian 对数行列式：Flow 用可逆变换或连续速度场把简单分布映射到目标分布，可并行生成，但依赖正确对齐和数值积分。",
+      "生成对抗网络（GAN）与多尺度判别器：生成器产生波形或声学特征，判别器区分真伪；二者对抗能提升真实感，但训练容易不稳定。"
     ],
     "workedExample": [
       "训练时：输入文本‘天气真好’与对应真人波形，后验编码器抽 z，先验网络从文本预测 z；两者 KL 拉近，解码出波形与真人波形被判别器比对。",
@@ -50283,7 +50914,27 @@ export const questions = [
       "后验编码器只在训练时提供真实语音的潜变量作监督；推理时直接从文本先验采样 z 并经流与解码器生成波形，因此可丢弃后验分支，实现纯文本到波形。",
       "文本先验初始是简单高斯，难以刻画语音复杂分布；流提供可逆非线性变换，将高斯映射为富有结构的语音潜分布，使先验更贴近后验，降低 KL 同时提升音质。"
     ],
-    "order": 2
+    "order": 2,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：VITS 把文本前端、声学模型与声码器统一为一个端到端网络，直接从文本生成波形。它用变分自编码器（后验编码器+先验）建模语音潜变量，用归一化流（Normalizing Flow）把简单高斯先验变换成更灵活的语音分布，并用 HiFi-GAN 式判别器做对抗训练提升音质。推理时只走先验+流+解码器，无需 mel 中间表征。",
+      "2 分钟展开·原理：是什么：VITS 是一种完全端到端的 TTS 模型，将传统‘文本→mel→波形’级联压缩为单一可微网络。它把语音建模为潜变量 z，用变分推断（后验编码器从真实波形取 z、先验从文本生成 z）学习分布，用 Normalizing Flow 提升先验表达力，用对抗损失让生成波形更自然，从而在 mel 重建之外直接优化听感。",
+      "2 分钟展开·实现：核心思路是‘用隐变量桥接文本与波形并联合对抗优化’：训练时用后验编码器从真实音频抽 z 作为监督，先验网络从文本预测 z 的分布；归一化流把各向同性高斯变换成复杂分布；波形解码器（HiFi-GAN 生成器）把 z 还原成波形，判别器做多尺度对抗判别，使合成与真实难以区分。",
+      "2 分钟展开·边界：说话人 unseen：依赖 speaker embedding 的零样本泛化，否则音色漂移。 同时避免：把 KL 权重设得过大导致后验被先验压垮（后验坍塌），语音变平淡；过小则对齐混乱。"
+    ],
+    "conceptPath": [
+      "先识别问题：请解释 VITS 端到端 TTS 的结构与训练原理，说明变分推断、归一化流与对抗训练各自的作用？",
+      "再抓核心机制：核心思路是‘用隐变量桥接文本与波形并联合对抗优化’：训练时用后验编码器从真实音频抽 z 作为监督，先验网络从文本预测 z 的分布；归一化流把各向同性高斯变换成复杂分布；波形解码器（HiFi-GAN 生成器）把 z 还原成波形，判别器做多尺度对抗判别，使合成与真实难以区分。",
+      "然后跑一个具体例子：训练时：输入文本‘天气真好’与对应真人波形，后验编码器抽 z，先验网络从文本预测 z；两者 KL 拉近，解码出波形与真人波形被判别器比对。",
+      "最后检查失败边界：说话人 unseen：依赖 speaker embedding 的零样本泛化，否则音色漂移。"
+    ],
+    "guidedExample": [
+      "第 1 步：训练时：输入文本‘天气真好’与对应真人波形，后验编码器抽 z，先验网络从文本预测 z；两者 KL 拉近，解码出波形与真人波形被判别器比对。",
+      "第 2 步：推理时：只跑先验->流->解码器，从文本采样 z 直接合成波形，不依赖 mel 也不需后验编码器。",
+      "边界检查：说话人 unseen：依赖 speaker embedding 的零样本泛化，否则音色漂移。",
+      "反向自检：把 KL 权重设得过大导致后验被先验压垮（后验坍塌），语音变平淡；过小则对齐混乱。"
+    ]
   },
   {
     "id": "tts-hifigan",
@@ -50315,9 +50966,9 @@ export const questions = [
       "上采样率乘积必须等于 mel 帧率到采样率的转换比，否则相位/时长错位产生杂音。"
     ],
     "prerequisites": [
-      "一维卷积与转置卷积（上采样）",
-      "生成对抗网络与判别器设计",
-      "STFT / mel 频谱与采样率关系"
+      "一维卷积与转置卷积（上采样）：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。",
+      "生成对抗网络与判别器设计：生成器产生波形或声学特征，判别器区分真伪；二者对抗能提升真实感，但训练容易不稳定。",
+      "STFT / mel 频谱与采样率关系：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。"
     ],
     "workedExample": [
       "mel 帧率 80Hz、目标 16kHz：上采样率乘积需为 16000/80=200（如 8×5×5 或 8×8×2×2≈需校准），逐层转置卷积把 80 通道特征扩到波形长度。",
@@ -50343,7 +50994,27 @@ export const questions = [
       "语音是强周期信号，MPD 按不同周期把波形折叠成 2D 网格再用二维卷积判别，能显式建模谐波/基频结构，比只看时域或单一 STFT 的判别器更有效防止蜂鸣与金属声。",
       "可以，它本质是通用波形生成器，也用于音乐生成、语音增强与神经音频编解码（如 SoundStream 的波形重建端），只要提供合适的条件输入或频谱表征。"
     ],
-    "order": 3
+    "order": 3,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：HiFi-GAN 是一个一维卷积生成器，通过逐级上采样的转置卷积把低帧率 mel 还原为高采样率波形，并用多感受野融合（MRF）模块增强局部细节。它用多尺度判别器（不同 STFT 分辨率）与多周期判别器（不同周期切片）联合对抗训练，迫使生成波形在频域与周期结构上逼真。纯卷积、无自回归使其可实时、低延时合成。",
+      "2 分钟展开·原理：是什么：神经声码器（neural vocoder）负责把声学模型输出的中间表征（通常是 mel 频谱）还原成时域波形。HiFi-GAN 是一种基于 GAN 的一维卷积声码器，相比 WaveNet 的自回归逐采样生成，它用全卷积生成器一次性并行产出波形，在保持高音质的同时实现远超实时的推理速度。",
+      "2 分钟展开·实现：核心思路是‘多分辨率对抗 + 局部感受野融合’：生成器用转置卷积逐级上采样 mel 到波形，并用多感受野融合模块（多个不同膨胀率的卷积残差块求和）捕捉多尺度局部结构；判别器侧同时用多尺度（不同下采样率）与多周期（按周期 reshape 成 2D 后卷积）判别器，从时频与周期两个角度施加对抗压力。",
+      "2 分钟展开·边界：输入 mel 含噪或裁剪：生成波形可能爆音，需幅度裁剪/限幅。 同时避免：只用波形级 L1 重建损失，会平滑高频导致‘闷’；必须配合判别器与特征匹配损失。"
+    ],
+    "conceptPath": [
+      "先识别问题：请说明 HiFi-GAN 神经声码器如何把 mel 频谱还原成波形，多尺度/多周期判别器如何工作，以及它为什么能实时？",
+      "再抓核心机制：核心思路是‘多分辨率对抗 + 局部感受野融合’：生成器用转置卷积逐级上采样 mel 到波形，并用多感受野融合模块（多个不同膨胀率的卷积残差块求和）捕捉多尺度局部结构；判别器侧同时用多尺度（不同下采样率）与多周期（按周期 reshape 成 2D 后卷积）判别器，从时频与周期两个角度施加对抗压力。",
+      "然后跑一个具体例子：mel 帧率 80Hz、目标 16kHz：上采样率乘积需为 16000/80=200（如 8×5×5 或 8×8×2×2≈需校准），逐层转置卷积把 80 通道特征扩到波形长度。",
+      "最后检查失败边界：输入 mel 含噪或裁剪：生成波形可能爆音，需幅度裁剪/限幅。"
+    ],
+    "guidedExample": [
+      "第 1 步：mel 帧率 80Hz、目标 16kHz：上采样率乘积需为 16000/80=200（如 8×5×5 或 8×8×2×2≈需校准），逐层转置卷积把 80 通道特征扩到波形长度。",
+      "第 2 步：多周期判别器以周期 p=2,3,5,7,11 把波形 reshape 成 (p, N/p) 的 2D，用二维卷积判别，专门捕捉基频谐波结构。",
+      "边界检查：输入 mel 含噪或裁剪：生成波形可能爆音，需幅度裁剪/限幅。",
+      "反向自检：只用波形级 L1 重建损失，会平滑高频导致‘闷’；必须配合判别器与特征匹配损失。"
+    ]
   },
   {
     "id": "tts-streaming",
@@ -50375,9 +51046,9 @@ export const questions = [
       "忽略播放缓冲与生成的速率匹配，造成欠载（卡顿）或过载（延迟累积）。"
     ],
     "prerequisites": [
-      "TTS 声学模型与声码器基础",
-      "流式系统与队列/背压概念",
-      "VAD 与端点检测（用于打断）"
+      "TTS 声学模型与声码器基础：声学模型把音素等文本表示变成 Mel 频谱，声码器再把频谱还原成可播放波形；两段的错误会以不同形式传到最终音频。",
+      "流式系统与队列/背压概念：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "VAD 与端点检测（用于打断）：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。"
     ],
     "workedExample": [
       "输入长文本流‘请…帮我查一下…今天的天气’，按‘请/帮我查一下/今天的天气’分三 chunk，第一 chunk 合成后即播放，用户中途说‘不用了’触发打断清空缓冲。",
@@ -50403,7 +51074,27 @@ export const questions = [
       "常用做法是为每个 chunk 引入左/右上下文窗口（前后若干词）参与合成，或用语义边界感知的分块；声码器用重叠-相加的流式窗口抹平边界，并在句末显式预测尾音拖尾。",
       "用对话状态机管理‘听/想/说/打断’：ASR 检测到用户语音活动（VAD+端点）即发打断事件，TTS 侧停止生成并清空播放缓冲，ASR 进入识别态，识别完成后触发下一轮合成，形成双向实时环路。"
     ],
-    "order": 4
+    "order": 4,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：流式 TTS 把长文本切分为 chunk（句子/短语级）逐块合成并边合成边播放，首包延迟取决于前端分块与前几帧生成耗时而非整句。常用前缀/增量解码、上下文窗口、以及声码器流式上采样实现低延时。与 ASR 全双工联动时，用打断检测（VAD/端点）在用户插话时立即停止当前播放并切换状态，形成双向实时对话。",
+      "2 分钟展开·原理：是什么：流式 TTS（streaming TTS）指模型不必等整句文本到齐、也不等整句合成完，而是边接收文本边分块合成、边把已生成的音频推给播放器。它与‘整句合成后播放’相对，目标是把首包延迟（Time-to-First-Audio，TTFA）和端到端时延压到可对话级别（通常 < 300ms）。",
+      "2 分钟展开·实现：核心思路是‘分块 + 增量 + 即时播放’：前端按语义边界（标点/句子）切 chunk，声学模型对每个 chunk 做带左/右上下文的局部合成，声码器以流式窗口上采样输出波形帧；同时维护播放缓冲与打断信号，一旦收到 ASR 的打断事件就清空缓冲并停止生成，实现全双工。",
+      "2 分钟展开·边界：chunk 在词中间切断：需基于词/子句边界而非定长切分。 同时避免：为降延迟把 chunk 切太碎，破坏韵律短语导致‘一字一顿’。"
+    ],
+    "conceptPath": [
+      "先识别问题：请说明流式 TTS 的工作原理，如何做 chunk 级合成、降低首包延迟，以及与 ASR 的全双工联动？",
+      "再抓核心机制：核心思路是‘分块 + 增量 + 即时播放’：前端按语义边界（标点/句子）切 chunk，声学模型对每个 chunk 做带左/右上下文的局部合成，声码器以流式窗口上采样输出波形帧；同时维护播放缓冲与打断信号，一旦收到 ASR 的打断事件就清空缓冲并停止生成，实现全双工。",
+      "然后跑一个具体例子：输入长文本流‘请…帮我查一下…今天的天气’，按‘请/帮我查一下/今天的天气’分三 chunk，第一 chunk 合成后即播放，用户中途说‘不用了’触发打断清空缓冲。",
+      "最后检查失败边界：chunk 在词中间切断：需基于词/子句边界而非定长切分。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入长文本流‘请…帮我查一下…今天的天气’，按‘请/帮我查一下/今天的天气’分三 chunk，第一 chunk 合成后即播放，用户中途说‘不用了’触发打断清空缓冲。",
+      "第 2 步：声码器维护 200ms 滑动窗口，每收到一段 mel 就输出对应波形帧，播放器从队列取帧，TTFA 仅取决于首 chunk 处理时间。",
+      "边界检查：chunk 在词中间切断：需基于词/子句边界而非定长切分。",
+      "反向自检：为降延迟把 chunk 切太碎，破坏韵律短语导致‘一字一顿’。"
+    ]
   },
   {
     "id": "tts-llm-tts",
@@ -50435,9 +51126,9 @@ export const questions = [
       "零样本克隆过度依赖参考音质量，误以为任意参考都能高保真，实际对录音条件敏感。"
     ],
     "prerequisites": [
-      "Transformer 自回归生成与 token 化",
-      "神经音频编解码器与残差向量量化（RVQ）",
-      "说话人嵌入与零样本学习概念"
+      "Transformer 自回归生成与 token 化：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "神经音频编解码器与残差向量量化（RVQ）：向量量化把连续音频表示映射为有限编号；RVQ 用多层码本逐步编码残差，以更多 token 换取更高保真。",
+      "说话人嵌入与零样本学习概念：说话人 embedding 压缩音色信息，但也可能混入信道、情绪和文本，需要跨设备与跨内容验证。"
     ],
     "workedExample": [
       "VALL-E：给 3 秒‘参考说话人’音频 + 文本‘你好’，模型先编码参考得到声纹 token 作 prompt，再自回归生成匹配音色的语音 token 并解码。",
@@ -50463,7 +51154,27 @@ export const questions = [
       "传统 TTS 需为说话人训练或微调显式声纹模型；VALL-E 把合成建模为‘条件续写’，推理时把参考音频的 token 作为 prompt 注入，模型从海量多说话人数据中学到‘按提示模仿’的泛化能力，故无需微调即可克隆。",
       "RVQ 层数越多可还原的细节越丰富、音质越高，但 token 序列更长、码率更高、推理与存储成本上升；层数少则延迟低但量化伪影明显，需在音质与效率间权衡。"
     ],
-    "order": 5
+    "order": 5,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：语音大模型把语音 token 化（如 EnCodec/SoundStream 神经编解码器把波形压成离散 token），再用类 LLM 的自回归/非自回归 Transformer 在‘文本 token + 说话人提示 token’条件下生成语音 token，最后由解码器还原波形。它支持零样本声音克隆（给 3 秒参考即可模仿音色）、多语种与风格控制，把 TTS 从专用流水线升级为统一生成范式。",
+      "2 分钟展开·原理：是什么：LLM-TTS（语音大模型合成）指用大规模语言模型式架构做语音合成，先由神经音频编解码器（SoundStream/EnCodec）把波形离散化成 token 序列，再用 Transformer 在文本与说话人提示条件下自回归（VALL-E）或并行（AudioPaLM）地生成语音 token，最后由编解码器解码回波形。",
+      "2 分钟展开·实现：核心思路是‘把语音当语言来生成’：用残差向量量化（RVQ）把波形编码成多层 token；训练时用大规模无标注/弱标注语音做 next-token 预测；推理时以文本 token 和声纹提示（参考音频的 token）为条件，模型‘续写’出目标语音 token 再解码。零样本克隆天然来自‘提示条件生成’而非显式说话人建模。",
+      "2 分钟展开·边界：参考音频过短或含噪：声纹提示不稳，克隆失真。 同时避免：把编解码器重建损失当成听感代理，忽视高层语义与韵律，导致‘清晰但机械’。"
+    ],
+    "conceptPath": [
+      "先识别问题：请说明语音大模型（如 VALL-E / AudioPaLM / SoundStream）的合成范式，如何从文本或说话人提示生成语音，与传统 TTS 有何不同？",
+      "再抓核心机制：核心思路是‘把语音当语言来生成’：用残差向量量化（RVQ）把波形编码成多层 token；训练时用大规模无标注/弱标注语音做 next-token 预测；推理时以文本 token 和声纹提示（参考音频的 token）为条件，模型‘续写’出目标语音 token 再解码。零样本克隆天然来自‘提示条件生成’而非显式说话人建模。",
+      "然后跑一个具体例子：VALL-E：给 3 秒‘参考说话人’音频 + 文本‘你好’，模型先编码参考得到声纹 token 作 prompt，再自回归生成匹配音色的语音 token 并解码。",
+      "最后检查失败边界：参考音频过短或含噪：声纹提示不稳，克隆失真。"
+    ],
+    "guidedExample": [
+      "第 1 步：VALL-E：给 3 秒‘参考说话人’音频 + 文本‘你好’，模型先编码参考得到声纹 token 作 prompt，再自回归生成匹配音色的语音 token 并解码。",
+      "第 2 步：AudioPaLM：同一词表混合文本与语音 token，可输入‘语音提问’输出‘语音回答’，实现跨模态续写。",
+      "边界检查：参考音频过短或含噪：声纹提示不稳，克隆失真。",
+      "反向自检：把编解码器重建损失当成听感代理，忽视高层语义与韵律，导致‘清晰但机械’。"
+    ]
   },
   {
     "id": "tts-multilingual-emotion",
@@ -50495,9 +51206,9 @@ export const questions = [
       "语言嵌入仅在推理时切换但训练覆盖不均，小语种被大语种主导。"
     ],
     "prerequisites": [
-      "说话人嵌入（d-vector/x-vector）与说话人验证",
-      "风格建模（GST/参考编码器/AdaIN）",
-      "多语种音素与国际音标（IPA）基础"
+      "说话人嵌入（d-vector/x-vector）与说话人验证：说话人 embedding 压缩音色信息，但也可能混入信道、情绪和文本，需要跨设备与跨内容验证。",
+      "风格建模（GST/参考编码器/AdaIN）：情感和韵律主要体现在时长、音高、能量与停顿；控制向量还要与说话人身份解耦。",
+      "多语种音素与国际音标（IPA）基础：G2P 把文本转成音素；中文多音字和跨语言音素必须结合词级上下文与语言信息处理。"
     ],
     "workedExample": [
       "跨语种迁移：一个中英混合模型，输入中文文本+英文语言嵌入，复用共享韵律知识产出带英文韵律的中文朗读。",
@@ -50523,7 +51234,27 @@ export const questions = [
       "关键是解耦训练：用正交约束/互信息最小化或独立编码器分别建模情感与说话人，并在推理时验证两者余弦相似度互不影响；也可采用解耦更彻底的 VAE 式分离，使风格向量各司其职。",
       "零样本（编码器/提示）无需训练、即时可用、适合海量临时说话人但上限受参考质量限制；微调克隆在特定说话人上音质更高更稳，但需训练时间与过拟合风险，适合固定主播等高频场景。"
     ],
-    "order": 6
+    "order": 6,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：多语种 TTS 常用共享音素/字符空间或语言无关表征（如国际音标 IPA、可学习的语言嵌入）让模型跨语种共享韵律与声学知识，实现跨语种迁移。情感/风格控制通过显式标签嵌入、参考编码器（从参考音频提取风格向量）或无监督解耦（如全局/局部风格 token）注入。零样本声音克隆则依赖说话人编码器（如 d-vector/x-vector）或语音大模型的提示条件，无需微调即可复现音色。",
+      "2 分钟展开·原理：是什么：多语种与情感/风格控制 TTS 是在基础合成能力之上，叠加‘说哪种语言、带什么情绪、像谁在说’三类可控维度的能力。多语种强调跨语言共享表征与迁移；情感/风格强调把韵律（音高、能量、语速）从内容中解耦并可被外部信号驱动；零样本克隆强调脱离微调复现任意说话人音色。",
+      "2 分钟展开·实现：核心思路是‘解耦 + 条件注入’：文本侧用语言 ID/共享音素表区分语种；韵律侧用参考编码器或风格 token 把情感/说话人压缩成向量并做归一化解耦（如 GST、VITS 的说话人适配器）；推理时把语言、情感、说话人三类条件拼接进模型，从而自由组合‘语种×情感×说话人’。",
+      "2 分钟展开·边界：低资源语种：数据稀疏导致韵律生硬。 同时避免：风格与说话人向量未解耦，导致‘换情绪却也换了音色’的串扰。"
+    ],
+    "conceptPath": [
+      "先识别问题：请说明多语种 TTS 的跨语种迁移、情感/韵律标签控制，以及零样本声音克隆的实现要点？",
+      "再抓核心机制：核心思路是‘解耦 + 条件注入’：文本侧用语言 ID/共享音素表区分语种；韵律侧用参考编码器或风格 token 把情感/说话人压缩成向量并做归一化解耦（如 GST、VITS 的说话人适配器）；推理时把语言、情感、说话人三类条件拼接进模型，从而自由组合‘语种×情感×说话人’。",
+      "然后跑一个具体例子：跨语种迁移：一个中英混合模型，输入中文文本+英文语言嵌入，复用共享韵律知识产出带英文韵律的中文朗读。",
+      "最后检查失败边界：低资源语种：数据稀疏导致韵律生硬。"
+    ],
+    "guidedExample": [
+      "第 1 步：跨语种迁移：一个中英混合模型，输入中文文本+英文语言嵌入，复用共享韵律知识产出带英文韵律的中文朗读。",
+      "第 2 步：情感控制：给定‘愤怒’参考音频提取 emotion_vec，注入后合成语句音高上升、能量增强、语速加快，而内容不变。",
+      "边界检查：低资源语种：数据稀疏导致韵律生硬。",
+      "反向自检：风格与说话人向量未解耦，导致‘换情绪却也换了音色’的串扰。"
+    ]
   },
   {
     "id": "tts-eval-prosody",
@@ -50555,9 +51286,9 @@ export const questions = [
       "把可懂度（WER）等同于自然度，忽视韵律平淡问题。"
     ],
     "prerequisites": [
-      "梅尔频谱与倒谱系数基础",
-      "MOS 与主观听评实验设计",
-      "ASR 回环评测与词错率（WER）"
+      "梅尔频谱与倒谱系数基础：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。",
+      "MOS 与主观听评实验设计：MOS 让人对自然度等维度评分；必须盲测、随机化并报告置信区间，不能只报一个平均分。",
+      "ASR 回环评测与词错率（WER）：CER/WER 用替换、删除、插入次数除以参考字符或词数；比较前必须统一文本归一化口径。"
     ],
     "workedExample": [
       "MOS 测试：招募 20 名听评员对 A/B 两系统各 50 句打分（1-5），系统 A 平均 4.1、B 3.8，做 t 检验确认差异显著。",
@@ -50582,7 +51313,27 @@ export const questions = [
       "MCD 只比较静态谱包络均值，对动态韵律（基频轮廓、停顿、重音）不敏感；语音机械感多来自韵律缺乏变化，而这些未被 MCD 捕获，需结合 F0 动态误差与 MOS 才能反映。",
       "建立客观指标看板（MCD/F0 RMSE/WER/RTF）+ 周期性小样本 MOS 抽检；并用神经 MOS 预测模型（如基于 wav2vec 的 UT-MOS）做近似自动打分，仅在版本上线前做正式人工评测。"
     ],
-    "order": 7
+    "order": 7,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：TTS 评测分主观与客观：主观以 MOS（平均意见分，5 分制）评自然度，常辅以 ABX 偏好测试；客观用 MCD（梅尔倒谱距离）、F0 包络误差、WER（把合成音频 ASR 转写看可懂度）、RTF（实时率）等。韵律自然度靠基频/能量/时长分布的统计相似度与听感打分，可懂度由 ASR-WER 与人工辨听共同衡量，二者需同时达标。",
+      "2 分钟展开·原理：是什么：TTS 评测是衡量合成语音‘像不像人、听不听得清、对不对味’的体系。主观评测以人类打分（MOS、AB 测试）为金标准，反映真实听感；客观评测用可计算的声学/语义指标（MCD、F0 RMSE、WER、RTF）做低成本自动化监控。韵律自然度关注音高、能量、节奏的拟真，可懂度关注内容是否被正确传达。",
+      "2 分钟展开·实现：核心思路是‘主观定标、客观监控、分维拆解’：用 MOS/ABX 确立上限与发布结论；用 MCD/F0 距离量化谱与韵律偏差；用 ASR 回环（WER）客观估计可懂度；把韵律拆成基频轮廓、能量包络、停顿与语速分布，分别与真人统计对比，定位‘机械感/平淡/错位’等具体缺陷。",
+      "2 分钟展开·边界：评测样本过短：MOS 方差大、不稳定。 同时避免：只用 MCD 等客观指标做发布结论，忽略 MOS，可能选了‘指标好但难听’的模型。"
+    ],
+    "conceptPath": [
+      "先识别问题：请说明 TTS 系统的评测方法，主观 MOS 与客观指标如何权衡，以及如何评价韵律自然度与可懂度？",
+      "再抓核心机制：核心思路是‘主观定标、客观监控、分维拆解’：用 MOS/ABX 确立上限与发布结论；用 MCD/F0 距离量化谱与韵律偏差；用 ASR 回环（WER）客观估计可懂度；把韵律拆成基频轮廓、能量包络、停顿与语速分布，分别与真人统计对比，定位‘机械感/平淡/错位’等具体缺陷。",
+      "然后跑一个具体例子：MOS 测试：招募 20 名听评员对 A/B 两系统各 50 句打分（1-5），系统 A 平均 4.1、B 3.8，做 t 检验确认差异显著。",
+      "最后检查失败边界：评测样本过短：MOS 方差大、不稳定。"
+    ],
+    "guidedExample": [
+      "第 1 步：MOS 测试：招募 20 名听评员对 A/B 两系统各 50 句打分（1-5），系统 A 平均 4.1、B 3.8，做 t 检验确认差异显著。",
+      "第 2 步：可懂度回环：把合成音频送 ASR，原文‘北京市’被识别成‘北经市’则记一次替换错误，统计 WER 反映可懂度。",
+      "边界检查：评测样本过短：MOS 方差大、不稳定。",
+      "反向自检：只用 MCD 等客观指标做发布结论，忽略 MOS，可能选了‘指标好但难听’的模型。"
+    ]
   },
   {
     "id": "tts-codeswitch",
@@ -50611,8 +51362,8 @@ export const questions = [
       "微调时混读比例失衡导致单向偏移。"
     ],
     "prerequisites": [
-      "语言识别与分词",
-      "多语言音素体系"
+      "语言识别与分词：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。",
+      "多语言音素体系：G2P 把文本转成音素；中文多音字和跨语言音素必须结合词级上下文与语言信息处理。"
     ],
     "workedExample": [
       "\"我用了 GPT 模型\"→切分[中:我用了][英:GPT][中:模型]。",
@@ -50639,7 +51390,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：code-switching(语码转换)指一句话中中英文交替；混读偏移是模型在切换时把某语言的发音/韵律错误地带入另一方。本课关注其控制方法。",
     "approach": "前端用语言切分把文本按段分语言并各自 G2P，在边界做韵律平滑；训练/微调侧控制混读比例与边界一致性，抑制向单一语言偏移。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：混读偏移指模型在夹杂英文时音素/韵律向某一方言或语言倾斜(如中文词带英文腔或反之)；需在前端按语言精确切分 G2P，并在训练/微调时控制 code-switch 比例与语言边界平滑。",
+      "2 分钟展开·原理：是什么：code-switching(语码转换)指一句话中中英文交替；混读偏移是模型在切换时把某语言的发音/韵律错误地带入另一方。本课关注其控制方法。",
+      "2 分钟展开·实现：前端用语言切分把文本按段分语言并各自 G2P，在边界做韵律平滑；训练/微调侧控制混读比例与边界一致性，抑制向单一语言偏移。",
+      "2 分钟展开·边界：中英夹杂无空格(如\"这个API\")的切分。 同时避免：切分按字符而非语义，把\"API\"拆散读错。"
+    ],
+    "conceptPath": [
+      "先识别问题：中英混读 TTS 中常见的\"混读偏移\"是什么，如何在前端与模型两侧控制其分布？",
+      "再抓核心机制：前端用语言切分把文本按段分语言并各自 G2P，在边界做韵律平滑；训练/微调侧控制混读比例与边界一致性，抑制向单一语言偏移。",
+      "然后跑一个具体例子：\"我用了 GPT 模型\"→切分[中:我用了][英:GPT][中:模型]。",
+      "最后检查失败边界：中英夹杂无空格(如\"这个API\")的切分。"
+    ],
+    "guidedExample": [
+      "第 1 步：\"我用了 GPT 模型\"→切分[中:我用了][英:GPT][中:模型]。",
+      "第 2 步：各段走对应 G2P，边界加短停与音高过渡。",
+      "边界检查：中英夹杂无空格(如\"这个API\")的切分。",
+      "反向自检：切分按字符而非语义，把\"API\"拆散读错。"
+    ]
   },
   {
     "id": "tts-dialect-finetune",
@@ -50668,8 +51439,8 @@ export const questions = [
       "只看 MOS 忽略稳定性，线上偶发崩坏未被发现。"
     ],
     "prerequisites": [
-      "说话人自适应与微调基础",
-      "音频预处理(重采样/响度归一化)"
+      "说话人自适应与微调基础：说话人 embedding 压缩音色信息，但也可能混入信道、情绪和文本，需要跨设备与跨内容验证。",
+      "音频预处理(重采样/响度归一化)：真实信道会叠加混响、频响、增益控制、编解码和削顶；增强顺序必须尽量贴近真实播放链路。"
     ],
     "workedExample": [
       "收集天津话音频→统一 24k、响度 -23 LUFS→基模型低 lr 微调。",
@@ -50696,7 +51467,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：方言声线微调是在通用 TTS 基模型上用方言数据做自适应，使音色与口音方言化。本课关注崩坏归因与稳定化流程。",
     "approach": "先统一数据条件(采样率/响度/去噪去混响)、控制 code-switching 分布，再用低学习率微调，并以\"音色相似度+自然度+韵律+稳定性\"四维回归验收。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：崩坏多源于训练数据被噪声/混响污染、采样率与响度混杂、以及 code-switching 分布偏移；应统一采样率与响度、控制混读比例，并建立音色相似度/自然度/韵律/稳定性的回归流程。",
+      "2 分钟展开·原理：是什么：方言声线微调是在通用 TTS 基模型上用方言数据做自适应，使音色与口音方言化。本课关注崩坏归因与稳定化流程。",
+      "2 分钟展开·实现：先统一数据条件(采样率/响度/去噪去混响)、控制 code-switching 分布，再用低学习率微调，并以\"音色相似度+自然度+韵律+稳定性\"四维回归验收。",
+      "2 分钟展开·边界：方言中夹杂普通话词比例过高导致偏移。 同时避免：直接用原始脏数据微调导致音色污染与尖叫。"
+    ],
+    "conceptPath": [
+      "先识别问题：对北京话/河南话/天津话等方言做声线微调时，常见的崩坏原因有哪些，如何用统一数据与回归流程控制稳定性？",
+      "再抓核心机制：先统一数据条件(采样率/响度/去噪去混响)、控制 code-switching 分布，再用低学习率微调，并以\"音色相似度+自然度+韵律+稳定性\"四维回归验收。",
+      "然后跑一个具体例子：收集天津话音频→统一 24k、响度 -23 LUFS→基模型低 lr 微调。",
+      "最后检查失败边界：方言中夹杂普通话词比例过高导致偏移。"
+    ],
+    "guidedExample": [
+      "第 1 步：收集天津话音频→统一 24k、响度 -23 LUFS→基模型低 lr 微调。",
+      "第 2 步：回归集上跑相似度/自然度/韵律/稳定性四维打分验收。",
+      "边界检查：方言中夹杂普通话词比例过高导致偏移。",
+      "反向自检：直接用原始脏数据微调导致音色污染与尖叫。"
+    ]
   },
   {
     "id": "tts-emotion",
@@ -50725,8 +51516,8 @@ export const questions = [
       "离散标签过粗丢失细腻情绪层次。"
     ],
     "prerequisites": [
-      "说话人嵌入与条件生成",
-      "情感维度理论(效价/唤醒)"
+      "说话人嵌入与条件生成：说话人 embedding 压缩音色信息，但也可能混入信道、情绪和文本，需要跨设备与跨内容验证。",
+      "情感维度理论(效价/唤醒)：情感和韵律主要体现在时长、音高、能量与停顿；控制向量还要与说话人身份解耦。"
     ],
     "workedExample": [
       "标签\"开心\"→emotion_encoder→向量 e。",
@@ -50753,7 +51544,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：情感 TTS 通过韵律嵌入控制语音的情绪表达，控制粒度可为离散标签、连续维度或参考音频。本课关注情感与韵律的注入方式。",
     "approach": "将情感标签/参考音频编码为全局或局部韵律条件，注入解码器或归一化流，并用解耦训练避免与说话人身份混淆。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：将情感标签或参考音频编码为韵律嵌入(全局/局部条件)，注入解码器或后验；可用离散情感分类、连续维度(效价-唤醒)或参考编码器三种方式控制。",
+      "2 分钟展开·原理：是什么：情感 TTS 通过韵律嵌入控制语音的情绪表达，控制粒度可为离散标签、连续维度或参考音频。本课关注情感与韵律的注入方式。",
+      "2 分钟展开·实现：将情感标签/参考音频编码为全局或局部韵律条件，注入解码器或归一化流，并用解耦训练避免与说话人身份混淆。",
+      "2 分钟展开·边界：中性与微情绪边界模糊难标注。 同时避免：把说话人信息当情绪控制，导致变声而非变情绪。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何在 TTS 中注入情感与韵律控制，使合成语音表达不同情绪？",
+      "再抓核心机制：将情感标签/参考音频编码为全局或局部韵律条件，注入解码器或归一化流，并用解耦训练避免与说话人身份混淆。",
+      "然后跑一个具体例子：标签\"开心\"→emotion_encoder→向量 e。",
+      "最后检查失败边界：中性与微情绪边界模糊难标注。"
+    ],
+    "guidedExample": [
+      "第 1 步：标签\"开心\"→emotion_encoder→向量 e。",
+      "第 2 步：解码器在文本隐变量上叠加 e，生成上扬基频的开心语音。",
+      "边界检查：中性与微情绪边界模糊难标注。",
+      "反向自检：把说话人信息当情绪控制，导致变声而非变情绪。"
+    ]
   },
   {
     "id": "tts-eval",
@@ -50782,8 +51593,8 @@ export const questions = [
       "样本量小导致 MOS 无统计意义。"
     ],
     "prerequisites": [
-      "说话人验证/编码器",
-      "语音质量客观指标"
+      "说话人验证/编码器：说话人 embedding 压缩音色信息，但也可能混入信道、情绪和文本，需要跨设备与跨内容验证。",
+      "语音质量客观指标：客观指标从频谱距离、可懂度或感知模型分数近似评价音质，但与真实听感并不完全一致，必须和主观听评配合。"
     ],
     "workedExample": [
       "收集 50 句合成音频，20 人打 MOS 与相似度(1-5)。",
@@ -50811,7 +51622,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：TTS 评测用主观(人听打分)与客观(自动指标)共同衡量自然度、相似度与稳定性。本课给出可落地的指标组合。",
     "approach": "主观以 MOS/相似度/ABX 为主，客观以说话人余弦、PESQ/STOI、WER 与稳定性指标为辅，跨系统做显著性检验综合判定。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：主观用 MOS/相似度/自然度人工打分与 AB 测试；客观用说话人编码器余弦相似度、STOI/PESQ、音素错误率与稳定性指标，二者结合判断优劣。",
+      "2 分钟展开·原理：是什么：TTS 评测用主观(人听打分)与客观(自动指标)共同衡量自然度、相似度与稳定性。本课给出可落地的指标组合。",
+      "2 分钟展开·实现：主观以 MOS/相似度/ABX 为主，客观以说话人余弦、PESQ/STOI、WER 与稳定性指标为辅，跨系统做显著性检验综合判定。",
+      "2 分钟展开·边界：评测员疲劳导致打分漂移。 同时避免：只用客观指标(如 PESQ)误判自然度。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何对 TTS 系统做全面评测，覆盖 MOS、说话人相似度与自然度等主客观指标？",
+      "再抓核心机制：主观以 MOS/相似度/ABX 为主，客观以说话人余弦、PESQ/STOI、WER 与稳定性指标为辅，跨系统做显著性检验综合判定。",
+      "然后跑一个具体例子：收集 50 句合成音频，20 人打 MOS 与相似度(1-5)。",
+      "最后检查失败边界：评测员疲劳导致打分漂移。"
+    ],
+    "guidedExample": [
+      "第 1 步：收集 50 句合成音频，20 人打 MOS 与相似度(1-5)。",
+      "第 2 步：客观算 ECAPA 余弦与 PESQ，综合排序。",
+      "边界检查：评测员疲劳导致打分漂移。",
+      "反向自检：只用客观指标(如 PESQ)误判自然度。"
+    ]
   },
   {
     "id": "tts-fastspeech",
@@ -50840,8 +51671,8 @@ export const questions = [
       "忽略时长预测的方差，推理时取 argmax 丢失韵律多样性。"
     ],
     "prerequisites": [
-      "自回归 TTS（如 Tacotron/VITS）",
-      "时长建模与对齐（forced alignment）"
+      "自回归 TTS（如 Tacotron/VITS）：自回归模型一步依赖前一步，表达力强但难并行，误差还可能在长句中累积。",
+      "时长建模与对齐（forced alignment）：TTS 要知道每个音素对应多少声学帧；时长或对齐错误会直接产生漏读、重复和节奏异常。"
     ],
     "workedExample": [
       "FastSpeech 用自回归 teacher 提供的时长作为监督，训练并行时长预测器。",
@@ -50869,7 +51700,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：非自回归 TTS 通过显式时长预测把文本一次性展开为声学帧序列再并行合成，从而把推理时延与音频长度解耦，是实现实时、流式与端侧 TTS（如 FastSpeech、Matcha、Melo）的关键思路。",
     "approach": "核心思路是先预测时长、再并行生成：时长预测器 + length regulator 负责把音素映射成帧数，声学模型与声码器并行前向；训练时常借助自回归 teacher 蒸馏来补偿并行带来的上下文弱化。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：自回归 TTS 逐帧生成、速度受序列长度限制；非自回归 TTS 通过显式时长预测（length regulator）把音素一次性展开成帧序列再并行声学/波形合成，推理延迟与长度解耦，易于流式与端侧落地（如简历中的 Matcha / Melo）。",
+      "2 分钟展开·原理：是什么：非自回归 TTS 通过显式时长预测把文本一次性展开为声学帧序列再并行合成，从而把推理时延与音频长度解耦，是实现实时、流式与端侧 TTS（如 FastSpeech、Matcha、Melo）的关键思路。",
+      "2 分钟展开·实现：核心思路是先预测时长、再并行生成：时长预测器 + length regulator 负责把音素映射成帧数，声学模型与声码器并行前向；训练时常借助自回归 teacher 蒸馏来补偿并行带来的上下文弱化。",
+      "2 分钟展开·边界：静音/停顿时长估计偏差导致节奏怪异。 同时避免：直接用自回归模型做 teacher 未做长度匹配，蒸馏失效。"
+    ],
+    "conceptPath": [
+      "先识别问题：为什么非自回归 TTS（如 FastSpeech、Matcha-TTS）能做到实时并行合成，它和自回归 TTS 在时长建模上有什么根本区别？",
+      "再抓核心机制：核心思路是先预测时长、再并行生成：时长预测器 + length regulator 负责把音素映射成帧数，声学模型与声码器并行前向；训练时常借助自回归 teacher 蒸馏来补偿并行带来的上下文弱化。",
+      "然后跑一个具体例子：FastSpeech 用自回归 teacher 提供的时长作为监督，训练并行时长预测器。",
+      "最后检查失败边界：静音/停顿时长估计偏差导致节奏怪异。"
+    ],
+    "guidedExample": [
+      "第 1 步：FastSpeech 用自回归 teacher 提供的时长作为监督，训练并行时长预测器。",
+      "第 2 步：简历中 Matcha-TTS / Melo 以非自回归流式结构交付中英混读与多方言，正是该思路的工程化。",
+      "边界检查：静音/停顿时长估计偏差导致节奏怪异。",
+      "反向自检：直接用自回归模型做 teacher 未做长度匹配，蒸馏失效。"
+    ]
   },
   {
     "id": "tts-frontend-prosody",
@@ -50898,8 +51749,8 @@ export const questions = [
       "重音过密等于无重音，反而打乱整体节奏。"
     ],
     "prerequisites": [
-      "中文分词与句法分析",
-      "韵律学基本层级（词/短语/句）"
+      "中文分词与句法分析：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。",
+      "韵律学基本层级（词/短语/句）：情感和韵律主要体现在时长、音高、能量与停顿；控制向量还要与说话人身份解耦。"
     ],
     "workedExample": [
       "输入\"今天天气好，我们去公园吧。\"→逗号处标等级 1、句号处等级 3。",
@@ -50927,7 +51778,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：TTS 前端负责把文本转成\"带韵律信息的语言表征\"，包括分词、读音与韵律边界/重音标注。韵律建模决定语音的节奏与重点。",
     "approach": "在分词基础上构建\"韵律词-韵律短语-句子\"层级，结合标点与句法预测停顿等级，并用重音模型标注焦点，将结果作为条件注入声学模型。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：前端先做分词与词性标注，再基于标点、韵律词/韵律短语层级预测停顿等级，并用重音模型标记焦点位置；这些韵律标签作为条件注入声学模型。",
+      "2 分钟展开·原理：是什么：TTS 前端负责把文本转成\"带韵律信息的语言表征\"，包括分词、读音与韵律边界/重音标注。韵律建模决定语音的节奏与重点。",
+      "2 分钟展开·实现：在分词基础上构建\"韵律词-韵律短语-句子\"层级，结合标点与句法预测停顿等级，并用重音模型标注焦点，将结果作为条件注入声学模型。",
+      "2 分钟展开·边界：连续标点（如\"？！\"）的停顿叠加处理。 同时避免：仅按标点定停顿会忽略语义边界，导致断句奇怪。"
+    ],
+    "conceptPath": [
+      "先识别问题：中文 TTS 前端如何建模韵律边界、停顿与重音，使合成语音自然不\"机器人\"？",
+      "再抓核心机制：在分词基础上构建\"韵律词-韵律短语-句子\"层级，结合标点与句法预测停顿等级，并用重音模型标注焦点，将结果作为条件注入声学模型。",
+      "然后跑一个具体例子：输入\"今天天气好，我们去公园吧。\"→逗号处标等级 1、句号处等级 3。",
+      "最后检查失败边界：连续标点（如\"？！\"）的停顿叠加处理。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入\"今天天气好，我们去公园吧。\"→逗号处标等级 1、句号处等级 3。",
+      "第 2 步：\"我们『去公园』\"中\"去公园\"被标为重音焦点，基频上扬。",
+      "边界检查：连续标点（如\"？！\"）的停顿叠加处理。",
+      "反向自检：仅按标点定停顿会忽略语义边界，导致断句奇怪。"
+    ]
   },
   {
     "id": "tts-g2p",
@@ -50956,9 +51827,9 @@ export const questions = [
       "置信度阈值设得过高会频繁回退、过低会放过错误读音。"
     ],
     "prerequisites": [
-      "中文分词与语言识别基础",
-      "拼音与音素表示（pinyin/phoneme）",
-      "模型置信度与阈值策略"
+      "中文分词与语言识别基础：BPE 把文字切成可学习子词；WFST 用图组合声学 token、词典和语言模型约束解码路径。",
+      "拼音与音素表示（pinyin/phoneme）：G2P 把文本转成音素；中文多音字和跨语言音素必须结合词级上下文与语言信息处理。",
+      "模型置信度与阈值策略：伪标签必须用人工金标校准置信度，并按语种与场景检查错误率；高分不等于真实正确概率高。"
     ],
     "workedExample": [
       "输入\"他重(chóng)新读了 GPT 论文\"，split_by_lang 切成中文段\"他重新读了\"与英文段\"GPT 论文\"。",
@@ -50986,7 +51857,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：G2P（Grapheme-to-Phoneme）把文字转为拼音或音素序列；本课关注中文多音字与中英混读场景下的三级回退策略。它是 TTS 前端最易出错、最影响自然度的环节。",
     "approach": "以 split_by_lang 做语言切分，中文走\"双层词典→G2PW→pypinyin\"三级回退，英文走英文 G2P，并用轻量服务拟合 G2PW、把读音标签从 8 类扩到 18 类以支撑多方言与韵律。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：采用 split_by_lang 先按语言切分，中文段优先查双层词典（多音字特殊词+常规词典），再调用 G2PW 模型；当 G2PW 置信度低于阈值时用 pypinyin 兜底，英文段走英文 G2P，从而保证混读稳定。",
+      "2 分钟展开·原理：是什么：G2P（Grapheme-to-Phoneme）把文字转为拼音或音素序列；本课关注中文多音字与中英混读场景下的三级回退策略。它是 TTS 前端最易出错、最影响自然度的环节。",
+      "2 分钟展开·实现：以 split_by_lang 做语言切分，中文走\"双层词典→G2PW→pypinyin\"三级回退，英文走英文 G2P，并用轻量服务拟合 G2PW、把读音标签从 8 类扩到 18 类以支撑多方言与韵律。",
+      "2 分钟展开·边界：多音字在专有名词中读错（如\"重庆\"的\"重\"）。 同时避免：把 pypinyin 当主模型用会丢失上下文消歧能力，多音字全错。"
+    ],
+    "conceptPath": [
+      "先识别问题：在中文 TTS 前端中，如何用双层词典、G2PW 与 pypinyin 三级回退处理多音字与低置信词组，保证中英混读稳定？",
+      "再抓核心机制：以 split_by_lang 做语言切分，中文走\"双层词典→G2PW→pypinyin\"三级回退，英文走英文 G2P，并用轻量服务拟合 G2PW、把读音标签从 8 类扩到 18 类以支撑多方言与韵律。",
+      "然后跑一个具体例子：输入\"他重(chóng)新读了 GPT 论文\"，split_by_lang 切成中文段\"他重新读了\"与英文段\"GPT 论文\"。",
+      "最后检查失败边界：多音字在专有名词中读错（如\"重庆\"的\"重\"）。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入\"他重(chóng)新读了 GPT 论文\"，split_by_lang 切成中文段\"他重新读了\"与英文段\"GPT 论文\"。",
+      "第 2 步：\"重\"命中多音字词典得 chóng；\"GPT\"走英文 G2P；低置信词组回退 pypinyin 保证不崩。",
+      "边界检查：多音字在专有名词中读错（如\"重庆\"的\"重\"）。",
+      "反向自检：把 pypinyin 当主模型用会丢失上下文消歧能力，多音字全错。"
+    ]
   },
   {
     "id": "tts-matcha-melo",
@@ -51015,8 +51906,8 @@ export const questions = [
       "Melo 多语言共享过强导致方言特色被\"普通话化\"。"
     ],
     "prerequisites": [
-      "非自回归生成(如 Flow/Glow)",
-      "说话人嵌入与零样本克隆"
+      "非自回归生成(如 Flow/Glow)：Flow 用可逆变换或连续速度场把简单分布映射到目标分布，可并行生成，但依赖正确对齐和数值积分。",
+      "说话人嵌入与零样本克隆：说话人 embedding 压缩音色信息，但也可能混入信道、情绪和文本，需要跨设备与跨内容验证。"
     ],
     "workedExample": [
       "Matcha 输入文本→duration 预测→一次解码梅尔→逐帧推流到声码器。",
@@ -51044,7 +51935,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：Matcha-TTS 是基于梯度流的非自回归流式 TTS；Melo-TTS 是多语言/多方言 TTS，支持零样本声音克隆。二者分别面向低延迟与跨语言能力。",
     "approach": "Matcha 用流模型一次产出梅尔并分块流式；Melo 以共享底层+语言相关适配器实现多语言/方言统一建模，并控制混读分布。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Matcha-TTS 用基于流的时长模型一次前向产出梅尔，天然支持帧级流式输出、降低首包延迟；Melo-TTS 以共享底层+语言相关适配器实现多语言/方言零样本克隆，控制混读分布。",
+      "2 分钟展开·原理：是什么：Matcha-TTS 是基于梯度流的非自回归流式 TTS；Melo-TTS 是多语言/多方言 TTS，支持零样本声音克隆。二者分别面向低延迟与跨语言能力。",
+      "2 分钟展开·实现：Matcha 用流模型一次产出梅尔并分块流式；Melo 以共享底层+语言相关适配器实现多语言/方言统一建模，并控制混读分布。",
+      "2 分钟展开·边界：流式截断导致句末拖音或截断。 同时避免：把 Matcha 当纯离线用会浪费其流式低延迟优势。"
+    ],
+    "conceptPath": [
+      "先识别问题：Matcha-TTS 的非自回归流式合成与 Melo-TTS 的多语言/方言设计分别如何解决延迟与跨语言问题？",
+      "再抓核心机制：Matcha 用流模型一次产出梅尔并分块流式；Melo 以共享底层+语言相关适配器实现多语言/方言统一建模，并控制混读分布。",
+      "然后跑一个具体例子：Matcha 输入文本→duration 预测→一次解码梅尔→逐帧推流到声码器。",
+      "最后检查失败边界：流式截断导致句末拖音或截断。"
+    ],
+    "guidedExample": [
+      "第 1 步：Matcha 输入文本→duration 预测→一次解码梅尔→逐帧推流到声码器。",
+      "第 2 步：Melo 选 lang=\"en\" 适配器，同一说话人嵌入生成英文口音语音。",
+      "边界检查：流式截断导致句末拖音或截断。",
+      "反向自检：把 Matcha 当纯离线用会浪费其流式低延迟优势。"
+    ]
   },
   {
     "id": "tts-onnx-deploy",
@@ -51073,8 +51984,8 @@ export const questions = [
       "忘记关闭训练态(BN/dropout)再导出，推理结果漂移。"
     ],
     "prerequisites": [
-      "ONNX 导出与推理基础",
-      "模型量化(INT8)概念"
+      "ONNX 导出与推理基础：部署要同时检查算子支持、数值一致性、动态长度、延迟和内存；压缩只有在目标硬件有对应 kernel 时才可能真加速。",
+      "模型量化(INT8)概念：部署要同时检查算子支持、数值一致性、动态长度、延迟和内存；压缩只有在目标硬件有对应 kernel 时才可能真加速。"
     ],
     "workedExample": [
       "导出 VITS+HiFi-GAN 为 ONNX→量化工具生成 int8 模型。",
@@ -51101,7 +52012,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：sherpa-onnx 是基于 ONNX Runtime 的跨平台语音工具链，支持把 TTS 模型量化并在端侧(手机/嵌入式)离线运行。本课关注 INT8 量化与打包交付。",
     "approach": "将模型导出 ONNX，用校准集做 INT8 量化以压缩体积、降低延迟，再与词典/配置打包，通过 OfflineTts API 在 CPU 或 NPU 后端推理。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：将训练好的模型/声码器导出为 ONNX，用 sherpa-onnx 的量化工具做 INT8 校准量化，打包为端侧资源(模型+词典+配置)，通过 OfflineTts API 在 CPU/移动端推理。",
+      "2 分钟展开·原理：是什么：sherpa-onnx 是基于 ONNX Runtime 的跨平台语音工具链，支持把 TTS 模型量化并在端侧(手机/嵌入式)离线运行。本课关注 INT8 量化与打包交付。",
+      "2 分钟展开·实现：将模型导出 ONNX，用校准集做 INT8 量化以压缩体积、降低延迟，再与词典/配置打包，通过 OfflineTts API 在 CPU 或 NPU 后端推理。",
+      "2 分钟展开·边界：校准集不含方言导致量化后方言崩坏。 同时避免：校准集太小导致量化误差大、音质明显下降。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何把 TTS 模型用 sherpa-onnx 做 INT8 量化、打包并在端侧运行交付？",
+      "再抓核心机制：将模型导出 ONNX，用校准集做 INT8 量化以压缩体积、降低延迟，再与词典/配置打包，通过 OfflineTts API 在 CPU 或 NPU 后端推理。",
+      "然后跑一个具体例子：导出 VITS+HiFi-GAN 为 ONNX→量化工具生成 int8 模型。",
+      "最后检查失败边界：校准集不含方言导致量化后方言崩坏。"
+    ],
+    "guidedExample": [
+      "第 1 步：导出 VITS+HiFi-GAN 为 ONNX→量化工具生成 int8 模型。",
+      "第 2 步：端侧用 OfflineTts 加载，num_threads 调优跑通推理。",
+      "边界检查：校准集不含方言导致量化后方言崩坏。",
+      "反向自检：校准集太小导致量化误差大、音质明显下降。"
+    ]
   },
   {
     "id": "tts-patent",
@@ -51130,8 +52061,8 @@ export const questions = [
       "实施例与 claim 不对应，审查受阻。"
     ],
     "prerequisites": [
-      "专利权利要求撰写基础",
-      "前端 G2P 与韵律流程"
+      "专利权利要求撰写基础：权利要求要写清必要技术特征和保护边界，不能只描述效果，也不能把实施例细节全部写死。",
+      "前端 G2P 与韵律流程：G2P 把文本转成音素；中文多音字和跨语言音素必须结合词级上下文与语言信息处理。"
     ],
     "workedExample": [
       "独立权利要求：获取文本→split_by_lang→分语言 G2P→输出带韵律音素序列。",
@@ -51158,7 +52089,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：本课把\"中文及中英混读 TTS 前端\"整理为可专利化的技术方案，核心是语言切分→分语言 G2P→韵律标注的流程及其独创点。",
     "approach": "以方法权利要求覆盖\"混合语言切分+分语言 G2P+韵律标注\"主流程，用从属权利要求保护多音字三级回退、低置信兜底与混读边界平滑，并配实施例与对比数据支撑创造性。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：专利应围绕\"混合语言切分→分语言 G2P→韵律标注\"的前端流程，突出多音字三级回退、混读边界平滑与低置信兜底等独创点，并给出具体实施例与效果数据。",
+      "2 分钟展开·原理：是什么：本课把\"中文及中英混读 TTS 前端\"整理为可专利化的技术方案，核心是语言切分→分语言 G2P→韵律标注的流程及其独创点。",
+      "2 分钟展开·实现：以方法权利要求覆盖\"混合语言切分+分语言 G2P+韵律标注\"主流程，用从属权利要求保护多音字三级回退、低置信兜底与混读边界平滑，并配实施例与对比数据支撑创造性。",
+      "2 分钟展开·边界：权利要求过宽被驳回需缩范围。 同时避免：只写系统不写方法，保护面过窄。"
+    ],
+    "conceptPath": [
+      "先识别问题：若在中文及中英混读 TTS 前端方向申请发明专利，核心权利要求与独创点应如何组织？",
+      "再抓核心机制：以方法权利要求覆盖\"混合语言切分+分语言 G2P+韵律标注\"主流程，用从属权利要求保护多音字三级回退、低置信兜底与混读边界平滑，并配实施例与对比数据支撑创造性。",
+      "然后跑一个具体例子：独立权利要求：获取文本→split_by_lang→分语言 G2P→输出带韵律音素序列。",
+      "最后检查失败边界：权利要求过宽被驳回需缩范围。"
+    ],
+    "guidedExample": [
+      "第 1 步：独立权利要求：获取文本→split_by_lang→分语言 G2P→输出带韵律音素序列。",
+      "第 2 步：从属权利要求：多音字三级回退、低置信 pypinyin 兜底、混读边界平滑。",
+      "边界检查：权利要求过宽被驳回需缩范围。",
+      "反向自检：只写系统不写方法，保护面过窄。"
+    ]
   },
   {
     "id": "tts-phoneme-prosody",
@@ -51187,8 +52138,8 @@ export const questions = [
       "忽略上下文使重音位置错乱。"
     ],
     "prerequisites": [
-      "音素与声学特征",
-      "序列预测基础"
+      "音素与声学特征：G2P 把文本转成音素；中文多音字和跨语言音素必须结合词级上下文与语言信息处理。",
+      "序列预测基础：模型根据已有上下文预测后续 token 或标签，需要处理长度变化、停止条件和误差累积。"
     ],
     "workedExample": [
       "文本\"你好\"→音素[n i x ao]→预测帧数[8,6,10,12]。",
@@ -51215,7 +52166,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：音素级建模把文本映射到音素序列并预测每个音素的持续时长与韵律(基频/能量)，决定朗读的节奏与轻重。本课聚焦时长与韵律模型。",
     "approach": "用时长预测器依据音素上下文估计每音素帧数并上采样对齐，配合韵律模型生成基频/能量轮廓，共同作为声学模型的条件。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：用时长预测器依据音素上下文预测每个音素占的帧数，再配合韵律模型(基频/能量曲线)塑造节奏与轻重；非自回归模型常把时长作为显式条件。",
+      "2 分钟展开·原理：是什么：音素级建模把文本映射到音素序列并预测每个音素的持续时长与韵律(基频/能量)，决定朗读的节奏与轻重。本课聚焦时长与韵律模型。",
+      "2 分钟展开·实现：用时长预测器依据音素上下文估计每音素帧数并上采样对齐，配合韵律模型生成基频/能量轮廓，共同作为声学模型的条件。",
+      "2 分钟展开·边界：停顿符号被当成音素分配了时长。 同时避免：直接指数化输出未裁剪导致时长过长爆炸。"
+    ],
+    "conceptPath": [
+      "先识别问题：TTS 中如何基于音素建模时长与韵律，使朗读节奏符合语言习惯？",
+      "再抓核心机制：用时长预测器依据音素上下文估计每音素帧数并上采样对齐，配合韵律模型生成基频/能量轮廓，共同作为声学模型的条件。",
+      "然后跑一个具体例子：文本\"你好\"→音素[n i x ao]→预测帧数[8,6,10,12]。",
+      "最后检查失败边界：停顿符号被当成音素分配了时长。"
+    ],
+    "guidedExample": [
+      "第 1 步：文本\"你好\"→音素[n i x ao]→预测帧数[8,6,10,12]。",
+      "第 2 步：上采样后送入解码器，长音素占更多帧形成节奏。",
+      "边界检查：停顿符号被当成音素分配了时长。",
+      "反向自检：直接指数化输出未裁剪导致时长过长爆炸。"
+    ]
   },
   {
     "id": "tts-resume-codeswitch-phoneme",
@@ -51225,15 +52196,20 @@ export const questions = [
     "prompt": "中文、英文和中英混读三路交付时，split_by_lang、G2P、音素表与韵律上下文怎样协同，避免语言边界处突变？",
     "quickAnswer": "先做保留实体的语言/脚本分段，各段进入对应 G2P，再映射到共享或带 language ID 的音素空间；声学模型必须看到跨段上下文，边界处单独约束时长、F0 和能量连续。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：完成中文、英文及中英混读三路模型交付，并使用 split_by_lang、G2PW、pypinyin 三级回退保证混读稳定。",
+    "safeAnswer": "我先切分中英文片段，再走各自的 G2P 和音素处理，同时保留跨语言边界上下文，重点回归技术词、缩写和边界停顿。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“中英混读的语言切分与共享音素空间”背后的判断依据，并用可复核证据说明结论。逐段独立合成再拼接会出现音色、语速、响度和停顿跳变，技术词与缩写还可能被错误切分。",
     "approach": "language segmenter 输出 span 与置信度；中文/英文 G2P 生成音素并注入 language embedding；保留整句 prosody encoder 或跨段上下文窗口。",
     "complexity": "分段与 G2P 近似 O(n)，整句声学模型复杂度由主干决定。",
-    "beginnerSummary": "这题不是让你背“中英混读的语言切分与共享音素空间”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：逐段独立合成再拼接会出现音色、语速、响度和停顿跳变，技术词与缩写还可能被错误切分。",
+    "beginnerSummary": "简历明确经历。我先切分中英文片段，再走各自的 G2P 和音素处理，同时保留跨语言边界上下文，重点回归技术词、缩写和边界停顿。",
     "interviewAnswer": [
-      "30 秒回答：先做保留实体的语言/脚本分段，各段进入对应 G2P，再映射到共享或带 language ID 的音素空间；声学模型必须看到跨段上下文，边界处单独约束时长、F0 和能量连续。",
-      "2 分钟展开·为什么：逐段独立合成再拼接会出现音色、语速、响度和停顿跳变，技术词与缩写还可能被错误切分。",
-      "2 分钟展开·怎么做：language segmenter 输出 span 与置信度；中文/英文 G2P 生成音素并注入 language embedding；保留整句 prosody encoder 或跨段上下文窗口。",
-      "2 分钟展开·取舍与结论：共享音素便于迁移但可能混淆语言特有发音；独立音素清晰但参数和数据更分散；过强语言切换标签会产生生硬边界。 最后用这些指标收口：除整体 MOS 外，专测边界前后音素错误、停顿时长、音高跳变、技术词准确率和语言身份一致性。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我先切分中英文片段，再走各自的 G2P 和音素处理，同时保留跨语言边界上下文，重点回归技术词、缩写和边界停顿。",
+      "简历依据：简历写明：完成中文、英文及中英混读三路模型交付，并使用 split_by_lang、G2PW、pypinyin 三级回退保证混读稳定。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：中英混读的语言切分与共享音素空间",
@@ -51301,15 +52277,20 @@ export const questions = [
     "prompt": "双层词典→G2PW→pypinyin 的三级回退如何定阈值？怎样避免低置信回退反而把正确上下文读音改错？",
     "quickAnswer": "词典只覆盖高精度固定词组；G2PW 输出需在多音字金标集上校准；pypinyin 是保证可读的最后兜底而非准确率上限。阈值应按词频、实体类型和错误代价分组选择。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：用双层词典处理低置信词组，并以 split_by_lang、G2PW、pypinyin 三级回退保证混读稳定。",
+    "safeAnswer": "我的重点是词典优先、G2PW 处理中间情况、pypinyin 做最后兜底，并用错误样本持续补词典；不要把它说成做过复杂概率校准，除非确有记录。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“G2PW 置信度、词典与三级回退校准”背后的判断依据，并用可复核证据说明结论。统一阈值会让高频词过度回退、长尾实体置信虚高，无法解释线上多音字错读。",
     "approach": "记录每个字的候选、上下文、模型分数与词典来源；对温度或 isotonic 做校准；高风险实体要求词典或人工白名单，普通词按 coverage-risk 阈值回退。",
     "complexity": "Trie 词典匹配约 O(n)，G2PW 取决于 encoder 前向，校准映射线上近似 O(1)。",
-    "beginnerSummary": "这题不是让你背“G2PW 置信度、词典与三级回退校准”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：统一阈值会让高频词过度回退、长尾实体置信虚高，无法解释线上多音字错读。",
+    "beginnerSummary": "简历明确经历。我的重点是词典优先、G2PW 处理中间情况、pypinyin 做最后兜底，并用错误样本持续补词典；不要把它说成做过复杂概率校准，除非确有记录。",
     "interviewAnswer": [
-      "30 秒回答：词典只覆盖高精度固定词组；G2PW 输出需在多音字金标集上校准；pypinyin 是保证可读的最后兜底而非准确率上限。阈值应按词频、实体类型和错误代价分组选择。",
-      "2 分钟展开·为什么：统一阈值会让高频词过度回退、长尾实体置信虚高，无法解释线上多音字错读。",
-      "2 分钟展开·怎么做：记录每个字的候选、上下文、模型分数与词典来源；对温度或 isotonic 做校准；高风险实体要求词典或人工白名单，普通词按 coverage-risk 阈值回退。",
-      "2 分钟展开·取舍与结论：词典越大冲突与维护越多；回退率高提高稳定性却损失上下文消歧；按类型设阈值使系统更复杂。 最后用这些指标收口：报告多音字准确率、错误代价加权分、回退覆盖率、校准误差，并按人名地名、方言和 code-switch 切片。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我的重点是词典优先、G2PW 处理中间情况、pypinyin 做最后兜底，并用错误样本持续补词典；不要把它说成做过复杂概率校准，除非确有记录。",
+      "简历依据：简历写明：用双层词典处理低置信词组，并以 split_by_lang、G2PW、pypinyin 三级回退保证混读稳定。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：G2PW 置信度、词典与三级回退校准",
@@ -51377,22 +52358,27 @@ export const questions = [
     "prompt": "如何设计能支持模型定版的 TTS 主观听测，避免说话人、句子顺序、响度和评测者偏好造成结论偏差？",
     "quickAnswer": "冻结代表性文本和音频后处理，随机化并盲化模型身份，按评测者与句子平衡分配；MOS 测绝对质量，CMOS/AB 测成对偏好，ABX 可检验相似性，并用分层 bootstrap 或 mixed-effects 模型给区间。",
     "resumeCard": true,
+    "experienceLevel": "general",
+    "experienceLabel": "通用方法，不代表做过",
+    "resumeSource": "简历写了模型和稳定性回归，但没有写 MOS、CMOS、ABX 的正式听测设计。",
+    "safeAnswer": "这是模型定版时可以补充的标准听测方法。可以回答“如果做正式听测，我会盲测、随机顺序并控制响度”，不要说已经做过。",
+    "claimBoundary": "这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“MOS、CMOS、ABX 与 TTS 显著性”背后的判断依据，并用可复核证据说明结论。TTS 最终目标是听感，但主观分数若无实验设计，比自动指标更容易受偏差影响。",
     "approach": "预注册主问题和样本量；响度归一但不修复模型伪影；随机呈现；加入 gold/trap 样本筛评测者；保留评测者和句子 ID 做分层统计。",
     "complexity": "听测成本约 O(M·R)，M 为样本数、R 为每样本评分人数；统计计算相对可忽略。",
-    "beginnerSummary": "这题不是让你背“MOS、CMOS、ABX 与 TTS 显著性”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：TTS 最终目标是听感，但主观分数若无实验设计，比自动指标更容易受偏差影响。",
+    "beginnerSummary": "通用方法，不代表做过。这是模型定版时可以补充的标准听测方法。可以回答“如果做正式听测，我会盲测、随机顺序并控制响度”，不要说已经做过。",
     "interviewAnswer": [
-      "30 秒回答：冻结代表性文本和音频后处理，随机化并盲化模型身份，按评测者与句子平衡分配；MOS 测绝对质量，CMOS/AB 测成对偏好，ABX 可检验相似性，并用分层 bootstrap 或 mixed-effects 模型给区间。",
-      "2 分钟展开·为什么：TTS 最终目标是听感，但主观分数若无实验设计，比自动指标更容易受偏差影响。",
-      "2 分钟展开·怎么做：预注册主问题和样本量；响度归一但不修复模型伪影；随机呈现；加入 gold/trap 样本筛评测者；保留评测者和句子 ID 做分层统计。",
-      "2 分钟展开·取舍与结论：MOS 可横向理解但方差大；成对比较更敏感却只能给相对结论；专业评测者稳定但不一定代表目标用户。 最后用这些指标收口：报告均值、95% CI、有效评测人数、句子和说话人覆盖、评测者一致性，并与 CER、speaker similarity、RTF 联合定版。"
+      "先定范围：通用方法，不代表做过。",
+      "30 秒安全回答：这是模型定版时可以补充的标准听测方法。可以回答“如果做正式听测，我会盲测、随机顺序并控制响度”，不要说已经做过。",
+      "简历依据：简历写了模型和稳定性回归，但没有写 MOS、CMOS、ABX 的正式听测设计。",
+      "被继续追问时：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "evidenceChain": [
-      "要证明的主张：MOS、CMOS、ABX 与 TTS 显著性",
-      "控制变量与实现：预注册主问题和样本量；响度归一但不修复模型伪影；随机呈现；加入 gold/trap 样本筛评测者；保留评测者和句子 ID 做分层统计。",
-      "第一份具体证据：A/B 每对音频随机左右位置，避免默认偏好左侧。",
-      "第二份对照证据：CMOS 均值 +0.12 但 95% 区间跨 0，应结论为未证实优于基线，而非“显著提升”。",
-      "上线或决策门槛：报告均值、95% CI、有效评测人数、句子和说话人覆盖、评测者一致性，并与 CER、speaker similarity、RTF 联合定版。"
+      "定位：这是“通用方法，不代表做过”，不是新增的一段项目经历。",
+      "和简历的关系：简历写了模型和稳定性回归，但没有写 MOS、CMOS、ABX 的正式听测设计。",
+      "需要理解的核心：这是模型定版时可以补充的标准听测方法。可以回答“如果做正式听测，我会盲测、随机顺序并控制响度”，不要说已经做过。",
+      "用于理解的例子：A/B 每对音频随机左右位置，避免默认偏好左侧。",
+      "回答边界：这是一种更规范的面试方法或工程做法，可以回答“如果让我做，我会这样设计”，不能使用“我当时就是这样做的”。"
     ],
     "derivation": [
       "为什么需要：TTS 最终目标是听感，但主观分数若无实验设计，比自动指标更容易受偏差影响。",
@@ -51453,22 +52439,27 @@ export const questions = [
     "prompt": "请从概率路径、速度场训练、ODE 采样和步数解释 Matcha-TTS，不能只说“它比 diffusion 快”。",
     "quickAnswer": "Matcha 在文本和时长条件下学习把简单噪声分布沿连续概率路径运输到 mel 分布的速度场；训练随机采样时间 t 回归目标速度，推理从噪声用 ODE solver 积分少量步得到 mel。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写明按任务拆分 Matcha / VITS-Melo 模型，但没有写你实现过 Flow Matching 或 ODE solver。",
+    "safeAnswer": "我需要理解 Matcha 从噪声经过少量数值步骤生成 Mel 频谱的基本思路；项目上只说使用、微调和交付 Matcha，除非确实改过算法。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“Matcha-TTS 的条件 Flow Matching”背后的判断依据，并用可复核证据说明结论。简历声称交付 Matcha/VITS-Melo，面试官会要求区分 flow matching、diffusion score matching 与普通非自回归模型。",
     "approach": "文本 encoder 与时长/对齐给条件 μ；采样 x0、x1 和 t 构造 x_t；网络预测 vθ(x_t,t,cond) 并回归目标速度；推理选 Euler/Heun 和步数。",
     "complexity": "训练一次网络前向；采样约 O(NFE·C_model)，NFE 为 ODE 函数评估次数。",
-    "beginnerSummary": "这题不是让你背“Matcha-TTS 的条件 Flow Matching”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：简历声称交付 Matcha/VITS-Melo，面试官会要求区分 flow matching、diffusion score matching 与普通非自回归模型。",
+    "beginnerSummary": "相关技术补课。我需要理解 Matcha 从噪声经过少量数值步骤生成 Mel 频谱的基本思路；项目上只说使用、微调和交付 Matcha，除非确实改过算法。",
     "interviewAnswer": [
-      "30 秒回答：Matcha 在文本和时长条件下学习把简单噪声分布沿连续概率路径运输到 mel 分布的速度场；训练随机采样时间 t 回归目标速度，推理从噪声用 ODE solver 积分少量步得到 mel。",
-      "2 分钟展开·为什么：简历声称交付 Matcha/VITS-Melo，面试官会要求区分 flow matching、diffusion score matching 与普通非自回归模型。",
-      "2 分钟展开·怎么做：文本 encoder 与时长/对齐给条件 μ；采样 x0、x1 和 t 构造 x_t；网络预测 vθ(x_t,t,cond) 并回归目标速度；推理选 Euler/Heun 和步数。",
-      "2 分钟展开·取舍与结论：步数少速度快但离散误差大；对齐和时长错误仍会造成漏读重读；solver、温度和条件强度影响自然度与多样性。 最后用这些指标收口：画 NFE/RTF/MOS Pareto 曲线，报告 mel 失真、漏读重读率、长句稳定性和不同 solver 的重复实验。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要理解 Matcha 从噪声经过少量数值步骤生成 Mel 频谱的基本思路；项目上只说使用、微调和交付 Matcha，除非确实改过算法。",
+      "简历依据：简历写明按任务拆分 Matcha / VITS-Melo 模型，但没有写你实现过 Flow Matching 或 ODE solver。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：Matcha-TTS 的条件 Flow Matching",
-      "控制变量与实现：文本 encoder 与时长/对齐给条件 μ；采样 x0、x1 和 t 构造 x_t；网络预测 vθ(x_t,t,cond) 并回归目标速度；推理选 Euler/Heun 和步数。",
-      "第一份具体证据：训练时随机取 t=0.4 构造中间状态，网络学习此处应朝目标 mel 移动的速度。",
-      "第二份对照证据：推理用 4、8、16 步 Euler，观察 8→16 步听感收益是否值得两倍时延。",
-      "上线或决策门槛：画 NFE/RTF/MOS Pareto 曲线，报告 mel 失真、漏读重读率、长句稳定性和不同 solver 的重复实验。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写明按任务拆分 Matcha / VITS-Melo 模型，但没有写你实现过 Flow Matching 或 ODE solver。",
+      "需要理解的核心：我需要理解 Matcha 从噪声经过少量数值步骤生成 Mel 频谱的基本思路；项目上只说使用、微调和交付 Matcha，除非确实改过算法。",
+      "用于理解的例子：训练时随机取 t=0.4 构造中间状态，网络学习此处应朝目标 mel 移动的速度。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：简历声称交付 Matcha/VITS-Melo，面试官会要求区分 flow matching、diffusion score matching 与普通非自回归模型。",
@@ -51529,15 +52520,20 @@ export const questions = [
     "prompt": "北京话、河南话、天津话专属声色微调时，如何归因噪声、混响、采样率和 code-switch 偏移，并避免音色提高但可懂度崩坏？",
     "quickAnswer": "先统一采样率、响度、切分和标注，按说话人/信道/文本覆盖做数据审计；从条件 embedding 和少量层开始微调，保留通用 replay，并以音色、可懂度、韵律和稳定性四类指标共同选型。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：完成北京话、河南话、天津话专属音色微调，归因噪声、混响污染、采样率与响度混杂及 code-switch 偏移。",
+    "safeAnswer": "我先统一采样率、响度和数据质量，再做声线微调；选择模型时同时看音色、可懂度和长句稳定性，不能只看像不像。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“小数据方言声线微调与崩坏回归”背后的判断依据，并用可复核证据说明结论。小数据最容易记住信道和文本，而不是方言音色；单看 speaker similarity 会选出漏读、爆音或韵律僵硬的模型。",
     "approach": "建立 clean/noisy、方言现象、code-switch 和长句切片；逐步解冻；扫描学习率与 replay 比例；每个 checkpoint 做 ASR back-transcription 和声纹评测。",
     "complexity": "总训练成本约为 checkpoint 候选数乘以微调步数；多指标离线评测可并行。",
-    "beginnerSummary": "这题不是让你背“小数据方言声线微调与崩坏回归”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：小数据最容易记住信道和文本，而不是方言音色；单看 speaker similarity 会选出漏读、爆音或韵律僵硬的模型。",
+    "beginnerSummary": "简历明确经历。我先统一采样率、响度和数据质量，再做声线微调；选择模型时同时看音色、可懂度和长句稳定性，不能只看像不像。",
     "interviewAnswer": [
-      "30 秒回答：先统一采样率、响度、切分和标注，按说话人/信道/文本覆盖做数据审计；从条件 embedding 和少量层开始微调，保留通用 replay，并以音色、可懂度、韵律和稳定性四类指标共同选型。",
-      "2 分钟展开·为什么：小数据最容易记住信道和文本，而不是方言音色；单看 speaker similarity 会选出漏读、爆音或韵律僵硬的模型。",
-      "2 分钟展开·怎么做：建立 clean/noisy、方言现象、code-switch 和长句切片；逐步解冻；扫描学习率与 replay 比例；每个 checkpoint 做 ASR back-transcription 和声纹评测。",
-      "2 分钟展开·取舍与结论：冻结多则音色适配不足，解冻多则遗忘；强去噪可能损伤说话人细节；通用 replay 会稀释方言特征。 最后用这些指标收口：联合报告 speaker similarity、MOS/CMOS、回识 CER、F0/时长、长句崩坏率和旧声线回归。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我先统一采样率、响度和数据质量，再做声线微调；选择模型时同时看音色、可懂度和长句稳定性，不能只看像不像。",
+      "简历依据：简历写明：完成北京话、河南话、天津话专属音色微调，归因噪声、混响污染、采样率与响度混杂及 code-switch 偏移。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：小数据方言声线微调与崩坏回归",
@@ -51605,15 +52601,20 @@ export const questions = [
     "prompt": "“概率模型 + 确定性规则”如何处理日期、金额、电话、单位和编号？为什么 TTS 前端不能完全交给大模型自由改写？",
     "quickAnswer": "先识别实体类型与上下文，再由可审计规则生成候选读法；概率模型只负责歧义分类，最终输出必须满足 schema、长度和字符守卫，不能擅自改动姓名、日期与数字。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：以“概率模型 + 确定性规则”覆盖中文多音字长尾。",
+    "safeAnswer": "确定性的日期、金额、编号先走可审计规则；概率模型只处理上下文歧义，姓名和数字等事实字段不能让模型自由改写。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“中文 TTS 文本归一化的确定性规则”背后的判断依据，并用可复核证据说明结论。文本归一化错误会被后续声学模型完整读出来，属于高可感知、可规避且可能改变事实的错误。",
     "approach": "按优先级匹配电话/日期/金额/计量单位/编号；为歧义构造候选；分类模型选读法；validator 检查原始事实字段、可逆映射和未处理符号。",
     "complexity": "使用编译后的规则/FST 可近似 O(n)，多候选分类增加 O(k) 次局部打分。",
-    "beginnerSummary": "这题不是让你背“中文 TTS 文本归一化的确定性规则”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：文本归一化错误会被后续声学模型完整读出来，属于高可感知、可规避且可能改变事实的错误。",
+    "beginnerSummary": "简历明确经历。确定性的日期、金额、编号先走可审计规则；概率模型只处理上下文歧义，姓名和数字等事实字段不能让模型自由改写。",
     "interviewAnswer": [
-      "30 秒回答：先识别实体类型与上下文，再由可审计规则生成候选读法；概率模型只负责歧义分类，最终输出必须满足 schema、长度和字符守卫，不能擅自改动姓名、日期与数字。",
-      "2 分钟展开·为什么：文本归一化错误会被后续声学模型完整读出来，属于高可感知、可规避且可能改变事实的错误。",
-      "2 分钟展开·怎么做：按优先级匹配电话/日期/金额/计量单位/编号；为歧义构造候选；分类模型选读法；validator 检查原始事实字段、可逆映射和未处理符号。",
-      "2 分钟展开·取舍与结论：规则精确但维护成本高，模型泛化强却可能改事实；实体规则优先级不当会互相吞噬。 最后用这些指标收口：建立实体级准确率、整句可读率、事实保持率和未知模式率；对姓名、金额、日期设置零容忍回归集。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：确定性的日期、金额、编号先走可审计规则；概率模型只处理上下文歧义，姓名和数字等事实字段不能让模型自由改写。",
+      "简历依据：简历写明：以“概率模型 + 确定性规则”覆盖中文多音字长尾。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：中文 TTS 文本归一化的确定性规则",
@@ -51681,15 +52682,20 @@ export const questions = [
     "prompt": "中文 TTS 前端怎样区分词典音、表层变调和声学韵律？读音标签从 8 类扩到 18 类时应如何验证确有收益？",
     "quickAnswer": "先输出词典层音素，再根据分词、词性和句法应用三声变调、“一/不”变调、轻声与儿化；韵律边界单独建模停顿、重音和时长。标签扩展必须有清晰语义、可靠标注和逐类收益。",
     "resumeCard": true,
+    "experienceLevel": "direct",
+    "experienceLabel": "简历明确经历",
+    "resumeSource": "简历写明：训练轻量 G2P 服务拟合 G2PW，并将读音标签由 8 类扩至 18 类。",
+    "safeAnswer": "我需要说清新增标签解决了哪些具体读音现象，以及如何用逐类错误和试听回归证明有收益；不需要主动扩展成完整语言学体系。",
+    "claimBoundary": "可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“变调、轻声、儿化与韵律边界”背后的判断依据，并用可复核证据说明结论。把所有现象塞进一个音素标签会造成数据稀疏和不可控，扩类也可能只是提高训练复杂度。",
     "approach": "建立 lexical phoneme→surface phoneme→prosody 三层表示；规则处理确定性变调，模型预测歧义边界；18 类逐一定义触发条件并做旧类到新类映射。",
     "complexity": "规则扫描近似 O(n)，韵律模型通常 O(n²d) 或按所用 encoder 计算。",
-    "beginnerSummary": "这题不是让你背“变调、轻声、儿化与韵律边界”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：把所有现象塞进一个音素标签会造成数据稀疏和不可控，扩类也可能只是提高训练复杂度。",
+    "beginnerSummary": "简历明确经历。我需要说清新增标签解决了哪些具体读音现象，以及如何用逐类错误和试听回归证明有收益；不需要主动扩展成完整语言学体系。",
     "interviewAnswer": [
-      "30 秒回答：先输出词典层音素，再根据分词、词性和句法应用三声变调、“一/不”变调、轻声与儿化；韵律边界单独建模停顿、重音和时长。标签扩展必须有清晰语义、可靠标注和逐类收益。",
-      "2 分钟展开·为什么：把所有现象塞进一个音素标签会造成数据稀疏和不可控，扩类也可能只是提高训练复杂度。",
-      "2 分钟展开·怎么做：建立 lexical phoneme→surface phoneme→prosody 三层表示；规则处理确定性变调，模型预测歧义边界；18 类逐一定义触发条件并做旧类到新类映射。",
-      "2 分钟展开·取舍与结论：细标签控制力强但标注一致性下降；规则稳定却可能与方言或特定声线不匹配；边界预测错误会造成断句。 最后用这些指标收口：逐类 precision/recall、音素错误率、停顿 F1、时长/基频相关性，再做 MOS/AB 偏好与长句崩坏率。"
+      "先定范围：简历明确经历。",
+      "30 秒安全回答：我需要说清新增标签解决了哪些具体读音现象，以及如何用逐类错误和试听回归证明有收益；不需要主动扩展成完整语言学体系。",
+      "简历依据：简历写明：训练轻量 G2P 服务拟合 G2PW，并将读音标签由 8 类扩至 18 类。",
+      "被继续追问时：可以说简历原文和自己确认做过的步骤；未写进简历、自己也记不清的高级方法，不要补成个人实践。"
     ],
     "evidenceChain": [
       "要证明的主张：变调、轻声、儿化与韵律边界",
@@ -51757,22 +52763,27 @@ export const questions = [
     "prompt": "VITS-Melo 中 posterior encoder、text prior、flow、duration predictor、decoder 和 discriminator 各自做什么？训练与推理路径为何不同？",
     "quickAnswer": "训练时 posterior 从真实语音提取潜变量，flow 将其对齐到文本条件 prior，MAS/时长模块学习单调对齐，decoder 与多尺度/多周期判别器重建波形；推理时没有真实语音，只从文本 prior 和预测时长采样后经逆 flow/decoder 出声。",
     "resumeCard": true,
+    "experienceLevel": "supporting",
+    "experienceLabel": "相关技术补课",
+    "resumeSource": "简历写明使用 VITS-Melo 完成模型交付，但没有写你修改过其全部损失与内部模块。",
+    "safeAnswer": "我需要能画出 VITS-Melo 训练和推理的主路径，知道文本、对齐、潜变量和声码器各自作用；只把实际改过的模块说成个人工作。",
+    "claimBoundary": "只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。",
     "explanationFocus": "这道题真正考察的不是名词记忆，而是你能否解释“VITS-Melo 的损失、对齐与推理路径”背后的判断依据，并用可复核证据说明结论。只背 VAE+GAN 无法解释声音微调为何崩、哪些模块能冻结、推理时为何不需要 posterior。",
     "approach": "分别画训练和推理计算图；列 mel/feature、KL、duration、adversarial、feature matching 等损失；微调按数据量选择冻结 text encoder、flow 或 decoder。",
     "complexity": "训练含生成器与判别器多次前后向；推理主要为文本 encoder、时长、flow 与并行 decoder，近似随输出长度线性增长。",
-    "beginnerSummary": "这题不是让你背“VITS-Melo 的损失、对齐与推理路径”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：只背 VAE+GAN 无法解释声音微调为何崩、哪些模块能冻结、推理时为何不需要 posterior。",
+    "beginnerSummary": "相关技术补课。我需要能画出 VITS-Melo 训练和推理的主路径，知道文本、对齐、潜变量和声码器各自作用；只把实际改过的模块说成个人工作。",
     "interviewAnswer": [
-      "30 秒回答：训练时 posterior 从真实语音提取潜变量，flow 将其对齐到文本条件 prior，MAS/时长模块学习单调对齐，decoder 与多尺度/多周期判别器重建波形；推理时没有真实语音，只从文本 prior 和预测时长采样后经逆 flow/decoder 出声。",
-      "2 分钟展开·为什么：只背 VAE+GAN 无法解释声音微调为何崩、哪些模块能冻结、推理时为何不需要 posterior。",
-      "2 分钟展开·怎么做：分别画训练和推理计算图；列 mel/feature、KL、duration、adversarial、feature matching 等损失；微调按数据量选择冻结 text encoder、flow 或 decoder。",
-      "2 分钟展开·取舍与结论：端到端联合优化自然度高但损失互相牵制；GAN 不稳定；小数据全量更新容易破坏发音和韵律。 最后用这些指标收口：监控各 loss 只是诊断，最终需 MOS、说话人相似度、音素错误、时长/F0、崩坏率和 unseen text 泛化。"
+      "先定范围：相关技术补课。",
+      "30 秒安全回答：我需要能画出 VITS-Melo 训练和推理的主路径，知道文本、对齐、潜变量和声码器各自作用；只把实际改过的模块说成个人工作。",
+      "简历依据：简历写明使用 VITS-Melo 完成模型交付，但没有写你修改过其全部损失与内部模块。",
+      "被继续追问时：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "evidenceChain": [
-      "要证明的主张：VITS-Melo 的损失、对齐与推理路径",
-      "控制变量与实现：分别画训练和推理计算图；列 mel/feature、KL、duration、adversarial、feature matching 等损失；微调按数据量选择冻结 text encoder、flow 或 decoder。",
-      "第一份具体证据：训练时 wav→posterior z，文本→prior，二者通过 flow 对齐；推理时 posterior 分支完全移除。",
-      "第二份对照证据：2 小时方言数据只更新 speaker/language embedding 与部分 decoder，和全量微调比较旧域发音退化。",
-      "上线或决策门槛：监控各 loss 只是诊断，最终需 MOS、说话人相似度、音素错误、时长/F0、崩坏率和 unseen text 泛化。"
+      "定位：这是“相关技术补课”，不是新增的一段项目经历。",
+      "和简历的关系：简历写明使用 VITS-Melo 完成模型交付，但没有写你修改过其全部损失与内部模块。",
+      "需要理解的核心：我需要能画出 VITS-Melo 训练和推理的主路径，知道文本、对齐、潜变量和声码器各自作用；只把实际改过的模块说成个人工作。",
+      "用于理解的例子：训练时 wav→posterior z，文本→prior，二者通过 flow 对齐；推理时 posterior 分支完全移除。",
+      "回答边界：只说“我使用或横评过相关模型，所以补充理解它的原理”；不要说自己实现过内部算法，除非能拿出代码或实验记录。"
     ],
     "derivation": [
       "为什么需要：只背 VAE+GAN 无法解释声音微调为何崩、哪些模块能冻结、推理时为何不需要 posterior。",
@@ -51852,8 +52863,8 @@ export const questions = [
       "阈值固定不变，模型迭代后误报/漏报。"
     ],
     "prerequisites": [
-      "KL 散度与变分训练",
-      "异常检测基础"
+      "KL 散度与变分训练：VAE 用重建项保证内容，用 KL 项约束潜变量接近可采样先验；两项失衡会造成模糊或后验坍塌。",
+      "异常检测基础：先定义正常分布或可接受范围，再用重建误差、距离或分类分数发现偏离样本。"
     ],
     "workedExample": [
       "对回归集每句算 KL，>THRESH 或 NaN 计为崩溃。",
@@ -51881,7 +52892,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：TTS 稳定性指模型在多样输入下不出现重复/尖叫/静音等\"崩坏\"的能力；KL loss 爆炸是变分模型训练失稳的典型信号。本课关注归因与回归评测。",
     "approach": "以逐句 KL/重构损失监控结合阈值报警捕捉异常，并用覆盖疑难句的稳定性回归集统计崩坏率，辅以 KL 退火与梯度裁剪从源头抑制。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：崩坏常来自对齐失败、后验坍塌、训练数据噪声与学习率过大导致 KL 爆炸；应监控逐句 KL/重构损失、设阈值报警，并用稳定性回归集统计崩坏率与异常样本。",
+      "2 分钟展开·原理：是什么：TTS 稳定性指模型在多样输入下不出现重复/尖叫/静音等\"崩坏\"的能力；KL loss 爆炸是变分模型训练失稳的典型信号。本课关注归因与回归评测。",
+      "2 分钟展开·实现：以逐句 KL/重构损失监控结合阈值报警捕捉异常，并用覆盖疑难句的稳定性回归集统计崩坏率，辅以 KL 退火与梯度裁剪从源头抑制。",
+      "2 分钟展开·边界：极短文本(单字)易重复崩坏。 同时避免：只看平均 loss 掩盖个别崩坏句。"
+    ],
+    "conceptPath": [
+      "先识别问题：TTS 合成中\"崩坏\"与 KL loss 爆炸通常如何归因，怎样用回归评测尽早发现并抑制？",
+      "再抓核心机制：以逐句 KL/重构损失监控结合阈值报警捕捉异常，并用覆盖疑难句的稳定性回归集统计崩坏率，辅以 KL 退火与梯度裁剪从源头抑制。",
+      "然后跑一个具体例子：对回归集每句算 KL，>THRESH 或 NaN 计为崩溃。",
+      "最后检查失败边界：极短文本(单字)易重复崩坏。"
+    ],
+    "guidedExample": [
+      "第 1 步：对回归集每句算 KL，>THRESH 或 NaN 计为崩溃。",
+      "第 2 步：崩坏率 = 崩溃句数/总数，趋势上升即回退模型版本。",
+      "边界检查：极短文本(单字)易重复崩坏。",
+      "反向自检：只看平均 loss 掩盖个别崩坏句。"
+    ]
   },
   {
     "id": "tts-vocoder",
@@ -51910,8 +52941,8 @@ export const questions = [
       "只用 MSD 忽略周期结构，高频容易糊。"
     ],
     "prerequisites": [
-      "梅尔谱与短时傅里叶变换",
-      "GAN 与判别器设计"
+      "梅尔谱与短时傅里叶变换：短时傅里叶变换把波形分帧变成频谱，Mel 尺度再按人耳频率分辨率压缩，是常见声学输入。",
+      "GAN 与判别器设计：生成器产生波形或声学特征，判别器区分真伪；二者对抗能提升真实感，但训练容易不稳定。"
     ],
     "workedExample": [
       "输入 80 维梅尔(帧×80)→生成器逐级上采样到波形。",
@@ -51939,7 +52970,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：神经声码器把声学模型输出的梅尔谱还原成时域波形；HiFi-GAN 以生成器+多判别器对抗训练实现高保真、低延迟合成。",
     "approach": "用一维转置卷积生成器逐级上采样梅尔，配合多周期与多尺度判别器的对抗损失与特征匹配损失，逼近真实波形分布。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：HiFi-GAN 用多周期判别器(MPD)与多尺度判别器(MSD)对抗训练，生成器通过一维转置卷积逐级上采样梅尔到波形，推理极快且保真度高。",
+      "2 分钟展开·原理：是什么：神经声码器把声学模型输出的梅尔谱还原成时域波形；HiFi-GAN 以生成器+多判别器对抗训练实现高保真、低延迟合成。",
+      "2 分钟展开·实现：用一维转置卷积生成器逐级上采样梅尔，配合多周期与多尺度判别器的对抗损失与特征匹配损失，逼近真实波形分布。",
+      "2 分钟展开·边界：静音段产生的底噪需要抑制。 同时避免：上采样率乘积算错导致输出长度与音频不匹配。"
+    ],
+    "conceptPath": [
+      "先识别问题：以 HiFi-GAN 为例，神经声码器如何把梅尔谱高效还原为波形，兼顾质量与速度？",
+      "再抓核心机制：用一维转置卷积生成器逐级上采样梅尔，配合多周期与多尺度判别器的对抗损失与特征匹配损失，逼近真实波形分布。",
+      "然后跑一个具体例子：输入 80 维梅尔(帧×80)→生成器逐级上采样到波形。",
+      "最后检查失败边界：静音段产生的底噪需要抑制。"
+    ],
+    "guidedExample": [
+      "第 1 步：输入 80 维梅尔(帧×80)→生成器逐级上采样到波形。",
+      "第 2 步：判别器对真实/生成波形打分，反向更新生成器逼近真实分布。",
+      "边界检查：静音段产生的底噪需要抑制。",
+      "反向自检：上采样率乘积算错导致输出长度与音频不匹配。"
+    ]
   },
   {
     "kind": "concept",
@@ -51990,9 +53041,9 @@ export const questions = [
     ],
     "beginnerSummary": "语音大模型让一个模型既能“听懂”语音又能“说出”语音。它通常分四段：先用 Audio Encoder 把声音变成一串特征；再用 Adapter 把这串特征压缩并翻译成大模型能看懂的“词向量”；然后 LLM 像平常一样理解并生成文本；最后 Talker 把模型想说的内容变成声音。理解这条流水线，就理解了所有语音大模型的骨架。",
     "prerequisites": [
-      "声音被切成很多帧，每帧有特征向量。",
-      "大语言模型(LLM)按“词/token”一步步生成文本。",
-      "把声音接到 LLM 上，需要把“帧特征”变成“token 表示”。"
+      "直观关系：声音被切成很多帧，每帧有特征向量。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：大语言模型(LLM)按“词/token”一步步生成文本。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：把声音接到 LLM 上，需要把“帧特征”变成“token 表示”。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "你说“今天天气”→ Encoder 出 30 帧特征 → Adapter 压成 4 个向量 → LLM 理解并续写“不错” → Talker 合成语音。",
@@ -52005,7 +53056,27 @@ export const questions = [
       "Talker：把 LLM 隐状态/规划解码为语音 unit 或波形。"
     ],
     "diagram": "波形 ─▶ Audio Encoder ─▶ Adapter ─▶ LLM ─▶ Talker ─▶ 语音\n (高帧率特征)    (下采样投影)   (理解/生成)   (合成)\n                              │\n                              └▶ 文本输出",
-    "order": 1
+    "order": 1,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Audio Encoder 提取声学特征 → Adapter 下采样/投影到 LLM 词空间 → LLM 做语义理解与文本生成 → Talker 把 LLM 隐状态解码成语音 token/波形。",
+      "2 分钟展开·原理：四段式流水线：编码器、适配器、语言模型、说话器。",
+      "2 分钟展开·实现：Audio Encoder 提取声学特征 → Adapter 下采样/投影到 LLM 词空间 → LLM 做语义理解与文本生成 → Talker 把 LLM 隐状态解码成语音 token/波形。",
+      "2 分钟展开·边界：长静音/噪声：Encoder 仍会输出帧，Adapter 需压缩冗余。 同时避免：把 Encoder 帧率直接当 token 率，导致 LLM 上下文爆炸。"
+    ],
+    "conceptPath": [
+      "先识别问题：画出自带语音理解与生成的大模型（Speech LLM）的数据流：音频经过哪些模块最终输出文本与语音？",
+      "再抓核心机制：Audio Encoder 提取声学特征 → Adapter 下采样/投影到 LLM 词空间 → LLM 做语义理解与文本生成 → Talker 把 LLM 隐状态解码成语音 token/波形。",
+      "然后跑一个具体例子：你说“今天天气”→ Encoder 出 30 帧特征 → Adapter 压成 4 个向量 → LLM 理解并续写“不错” → Talker 合成语音。",
+      "最后检查失败边界：长静音/噪声：Encoder 仍会输出帧，Adapter 需压缩冗余。"
+    ],
+    "guidedExample": [
+      "第 1 步：你说“今天天气”→ Encoder 出 30 帧特征 → Adapter 压成 4 个向量 → LLM 理解并续写“不错” → Talker 合成语音。",
+      "第 2 步：若直接把 30 帧喂 LLM，上下文会爆；Adapter 先压到 4 个，省算力。",
+      "边界检查：长静音/噪声：Encoder 仍会输出帧，Adapter 需压缩冗余。",
+      "反向自检：把 Encoder 帧率直接当 token 率，导致 LLM 上下文爆炸。"
+    ]
   },
   {
     "kind": "concept",
@@ -52056,9 +53127,9 @@ export const questions = [
     ],
     "beginnerSummary": "语音可以有两种“写法”：连续写法像一张高清照片（信息完整但占地方、不好逐字生成）；离散写法像用一套编号把声音“拼写”出来（方便像打字一样一个接一个生成，但会丢失一点细节）。语音大模型通常两头占：让模型“听懂”时用连续特征保留细节，让模型“说话”时用离散编号方便自回归生成。",
     "prerequisites": [
-      "声音可表示为一串向量（连续）。",
-      "离散化=用有限编号替代向量。",
-      "自回归生成更适合离散 token。"
+      "直观关系：声音可表示为一串向量（连续）。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：离散化=用有限编号替代向量。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：自回归生成更适合离散 token。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "连续：Encoder 输出 (T,1024) 浮点向量，保真但长。",
@@ -52071,7 +53142,27 @@ export const questions = [
       "离散 token 用交叉熵做 next-token 训练。"
     ],
     "diagram": "连续: 波形 ─▶ Encoder ─▶ (T,D) 浮点  ─▶ LLM前缀(理解)\n离散: 波形 ─▶ Encoder ─▶ RVQ ─▶ (T,L) 整数 ─▶ 自回归生成",
-    "order": 2
+    "order": 2,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：连续表示（Encoder 隐状态）信息完整、保真高但序列长、难与 LLM 词表对齐；离散 token（RVQ/VQ 单元）可像文本一样被 LLM 自回归生成、易训练，但有量化损失。主流做法：理解端用连续特征接 Adapter，生成端用离散 unit 自回归。",
+      "2 分钟展开·原理：连续=高保真难对齐；离散=易生成有损。按“理解/生成”分工。",
+      "2 分钟展开·实现：连续表示信息完整、保真高但序列长、难与 LLM 词表对齐；离散 token 可像文本一样被 LLM 自回归生成、易训练，但有量化损失。主流做法：理解端用连续特征接 Adapter，生成端用离散 unit 自回归。",
+      "2 分钟展开·边界：连续路径显存大、训练慢。 同时避免：把连续特征直接当 token 自回归，训练目标不一致。"
+    ],
+    "conceptPath": [
+      "先识别问题：语音表示有“连续向量”和“离散 token”两种，各有什么优缺点？语音大模型怎么选？",
+      "再抓核心机制：连续表示信息完整、保真高但序列长、难与 LLM 词表对齐；离散 token 可像文本一样被 LLM 自回归生成、易训练，但有量化损失。主流做法：理解端用连续特征接 Adapter，生成端用离散 unit 自回归。",
+      "然后跑一个具体例子：连续：Encoder 输出 (T,1024) 浮点向量，保真但长。",
+      "最后检查失败边界：连续路径显存大、训练慢。"
+    ],
+    "guidedExample": [
+      "第 1 步：连续：Encoder 输出 (T,1024) 浮点向量，保真但长。",
+      "第 2 步：离散：RVQ 编成 (T, L) 整数序列，可直接 CE 训练生成。",
+      "边界检查：连续路径显存大、训练慢。",
+      "反向自检：把连续特征直接当 token 自回归，训练目标不一致。"
+    ]
   },
   {
     "kind": "concept",
@@ -52122,9 +53213,9 @@ export const questions = [
     ],
     "beginnerSummary": "同一句话“你好”可以用不同声音、不同情绪说出来。语音里有两种信息：语义 token 记录“说了什么”（内容），声学 token 记录“怎么说的”（谁在说、什么情绪、什么音调）。大模型先处理语义 token 来理解与生成文字内容，再用声学 token 把具体的声音细节补回来，这样既能听懂，又能合成有辨识度的声音。",
     "prerequisites": [
-      "同一句话可以有不同音色/情绪。",
-      "离散 token 是“把连续声音映射到有限编号”。",
-      "大模型更擅长处理“内容/语义”而非原始声学细节。"
+      "直观关系：同一句话可以有不同音色/情绪。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：离散 token 是“把连续声音映射到有限编号”。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：大模型更擅长处理“内容/语义”而非原始声学细节。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "“你好”由 A 说和由 B 说，语义 token 相同，声学 token 不同。",
@@ -52137,7 +53228,27 @@ export const questions = [
       "合成时再叠加声学 token 还原音色与韵律。"
     ],
     "diagram": "语音波形 ─▶ Encoder ─▶ RVQ 多层码本\n                ├─ 层1: 语义 token (说什么)\n                └─ 层2..N: 声学 token (怎么说的/音色)\nLLM 用 层1 推理, 合成用 全部层",
-    "order": 3
+    "order": 3,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：语义 token 编码“说了什么”（内容/语言信息，如 HuBERT 离散单元），声学 token 编码“怎么说的”（音色/韵律/细节）。大模型先用语义 token 做理解与生成，再用声学 token 还原音色与副语言。",
+      "2 分钟展开·原理：语义=内容，声学=音色/细节；二者目标不同、互补。",
+      "2 分钟展开·实现：语义 token 编码“说了什么”（内容/语言信息），声学 token 编码“怎么说的”（音色/韵律/细节）。大模型先用语义 token 做理解与生成，再用声学 token 还原音色与副语言。",
+      "2 分钟展开·边界：同音词：语义 token 相同但声学 token 不同（语气差异）。 同时避免：把声学 token 当语义用，导致内容理解差。"
+    ],
+    "conceptPath": [
+      "先识别问题：语音里的“语义 token”和“声学 token”分别指什么？为什么大模型常先用语义 token？",
+      "再抓核心机制：语义 token 编码“说了什么”（内容/语言信息），声学 token 编码“怎么说的”（音色/韵律/细节）。大模型先用语义 token 做理解与生成，再用声学 token 还原音色与副语言。",
+      "然后跑一个具体例子：“你好”由 A 说和由 B 说，语义 token 相同，声学 token 不同。",
+      "最后检查失败边界：同音词：语义 token 相同但声学 token 不同（语气差异）。"
+    ],
+    "guidedExample": [
+      "第 1 步：“你好”由 A 说和由 B 说，语义 token 相同，声学 token 不同。",
+      "第 2 步：SpeechTokenizer 第1层码本≈语义，第2~N层≈声学残差。",
+      "边界检查：同音词：语义 token 相同但声学 token 不同（语气差异）。",
+      "反向自检：把声学 token 当语义用，导致内容理解差。"
+    ]
   },
   {
     "kind": "concept",
@@ -52188,9 +53299,9 @@ export const questions = [
     ],
     "beginnerSummary": "向量量化(VQ)就是把一个向量“取整”到离它最近的那个标准向量（码本里的一个点），用一个编号表示。残差向量量化(RVQ)做了件聪明的事：先用第 1 个码本取整，算出“还差多少”（残差），再用第 2 个码本去取整这个残差，如此层层递进。这样少量编号就能高精度地表示声音。而且第 1 层近似“说了什么”，后面层补“声音细节”。",
     "prerequisites": [
-      "向量量化=用有限码本近似连续向量。",
-      "残差=原始减去预测后的“剩余误差”。",
-      "多层近似能逐步逼近高保真。"
+      "直观关系：向量量化=用有限码本近似连续向量。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：残差=原始减去预测后的“剩余误差”。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：多层近似能逐步逼近高保真。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "x 经码本1得中心 c1，残差 r1=x−c1；r1 经码本2得 c2…",
@@ -52203,7 +53314,27 @@ export const questions = [
       "收集所有层索引作为离散 token；重建时求和各层中心。"
     ],
     "diagram": "x ─▶ [码本1]─idx1─▶ 残差 r1 ─▶ [码本2]─idx2─▶ r2 ─▶ ...\n重建: x̂ = c1 + c2 + ... + cL",
-    "order": 4
+    "order": 4,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：RVQ 用多个码本逐级量化：第1个码本量化原始向量，后续每个码本量化“前一级的残差”，逐级逼近。多层码本能用较少比特表达高保真声音，并可按层近似看作‘从粗到细’；但‘首层语义、后续声学’并非 RVQ 天然属性，需专门训练（如 SpeechTokenizer 的层级解耦）才出现。",
+      "2 分钟展开·原理：RVQ = 串行残差量化；多层码本换高保真与分层语义。",
+      "2 分钟展开·实现：RVQ 用多个码本逐级量化：第1个码本量化原始向量，后续每个码本量化“前一级的残差”，逐级逼近。多层码本能用较少比特表达高保真声音，并可按层近似看作‘从粗到细’；但‘首层语义、后续声学’并非 RVQ 天然属性，需专门训练（如 SpeechTokenizer 的层级解耦）才出现。",
+      "2 分钟展开·边界：码本崩溃：某层某些 entry 从不被选，需 codebook reset。 同时避免：单层 VQ 码本过大导致训练不稳定。"
+    ],
+    "conceptPath": [
+      "先识别问题：什么是残差向量量化（RVQ）？为什么语音 codec 要用多层码本？",
+      "再抓核心机制：RVQ 用多个码本逐级量化：第1个码本量化原始向量，后续每个码本量化“前一级的残差”，逐级逼近。多层码本能用较少比特表达高保真声音，并可按层近似看作‘从粗到细’；但‘首层语义、后续声学’并非 RVQ 天然属性，需专门训练（如 SpeechTokenizer 的层级解耦）才出现。",
+      "然后跑一个具体例子：x 经码本1得中心 c1，残差 r1=x−c1；r1 经码本2得 c2…",
+      "最后检查失败边界：码本崩溃：某层某些 entry 从不被选，需 codebook reset。"
+    ],
+    "guidedExample": [
+      "第 1 步：x 经码本1得中心 c1，残差 r1=x−c1；r1 经码本2得 c2…",
+      "第 2 步：重建 x̂ = c1 + c2 + c3，层数越多越像原声。",
+      "边界检查：码本崩溃：某层某些 entry 从不被选，需 codebook reset。",
+      "反向自检：单层 VQ 码本过大导致训练不稳定。"
+    ]
   },
   {
     "kind": "concept",
@@ -52254,9 +53385,9 @@ export const questions = [
     ],
     "beginnerSummary": "Audio Encoder 像“听觉皮层”，把声音变成一串高频率的特征向量（比如每秒 50 个）。但大模型的“词”没那么密（比如每秒 12 个）。Adapter 就是中间的“翻译+压缩器”：先把特征投影到大模型熟悉的维度，再按固定步长抽稀，让序列变短。这样大模型既能听懂声音，又不会被超长序列拖垮。",
     "prerequisites": [
-      "声音特征是一串按时间排列的向量。",
-      "大模型按 token 序列处理，序列越长越慢。",
-      "需要把“帧特征”变成“短而对齐的 token 表示”。"
+      "直观关系：声音特征是一串按时间排列的向量。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：大模型按 token 序列处理，序列越长越慢。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：需要把“帧特征”变成“短而对齐的 token 表示”。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "Encoder 出 200 帧 → Adapter 投影到 4096 维 → 每 4 帧取 1 帧 → 50 个向量喂 LLM。",
@@ -52269,7 +53400,27 @@ export const questions = [
       "输出作为 LLM 的前缀 token 序列。"
     ],
     "diagram": "Encoder(50Hz) ─▶ (B,T,768)\n                    │ proj\n                    ▼\n                 (B,T,4096)\n                    │ 每4帧取1 (downsample)\n                    ▼\n              Adapter 输出 (B,50,4096) ─▶ LLM",
-    "order": 5
+    "order": 5,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Encoder（如 Whisper/HuBERT）输出高帧率声学特征；Adapter 通过下采样（CTC 合并或卷积/pooling）与时序投影把帧率降到 LLM 词率、并把维度映射到 LLM 词空间。",
+      "2 分钟展开·原理：Encoder 给“声学特征”，Adapter 做“帧率压缩+空间投影”两件事。",
+      "2 分钟展开·实现：Encoder（如 Whisper/HuBERT）输出高帧率声学特征；Adapter 通过下采样与时序投影把帧率降到 LLM 词率、并把维度映射到 LLM 词空间。",
+      "2 分钟展开·边界：流式：Adapter 必须支持 chunk 级下采样，不能看未来帧。 同时避免：下采样率过大导致辅音/短词丢失。"
+    ],
+    "conceptPath": [
+      "先识别问题：语音大模型里 Audio Encoder 和 Adapter 分别干什么？为什么不能把 Encoder 输出直接喂 LLM？",
+      "再抓核心机制：Encoder（如 Whisper/HuBERT）输出高帧率声学特征；Adapter 通过下采样与时序投影把帧率降到 LLM 词率、并把维度映射到 LLM 词空间。",
+      "然后跑一个具体例子：Encoder 出 200 帧 → Adapter 投影到 4096 维 → 每 4 帧取 1 帧 → 50 个向量喂 LLM。",
+      "最后检查失败边界：流式：Adapter 必须支持 chunk 级下采样，不能看未来帧。"
+    ],
+    "guidedExample": [
+      "第 1 步：Encoder 出 200 帧 → Adapter 投影到 4096 维 → 每 4 帧取 1 帧 → 50 个向量喂 LLM。",
+      "第 2 步：若不做 Adapter 直接喂 200 帧，LLM 自注意力成本约 16 倍于 50 帧。",
+      "边界检查：流式：Adapter 必须支持 chunk 级下采样，不能看未来帧。",
+      "反向自检：下采样率过大导致辅音/短词丢失。"
+    ]
   },
   {
     "kind": "concept",
@@ -52320,9 +53471,9 @@ export const questions = [
     ],
     "beginnerSummary": "训练一个会听会说的语音大模型像盖楼，分四层：第一层先把声音压缩成稳定 token（codec 预训练）；第二层用大量“听写/翻译/问答”任务让它学会基本功（多任务监督）；第三层用对话例子教它怎么像人一样聊天（SFT 指令微调）；第四层用人类偏好打分让它说得更对、更自然、更安全（RL 后训练）。一层层叠加，能力越来越强。",
     "prerequisites": [
-      "声音要先变成可训练 token。",
-      "监督学习打基础，RL 做对齐。",
-      "阶段训练避免从零直接训对话。"
+      "直观关系：声音要先变成可训练 token。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：监督学习打基础，RL 做对齐。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：阶段训练避免从零直接训对话。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "阶段1：海量无标音频训 codec。",
@@ -52335,7 +53486,27 @@ export const questions = [
       "RL 后训练：以偏好奖励提升质量与安全。"
     ],
     "diagram": "L1 Codec预训练 ─▶ L2 多任务监督 ─▶ L3 SFT ─▶ L4 RLHF/DPO\n (声学token)      (听想说基础)      (对话风格)   (偏好对齐)",
-    "order": 6
+    "order": 6,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：典型四阶段：(1) Encoder/Codec 预训练（自监督声学表征或 RVQ codec）；(2) 多任务监督预训练（ASR/ST/TTS/QA 等混合，带文本对齐）；(3) 指令微调 SFT（对话/多轮）；(4) 偏好/RL 后训练（RLHF/DPO 提升自然度、正确率、安全性）。",
+      "2 分钟展开·原理：预训练表征→多任务对齐→SFT→RL 后训练，逐阶段提能力与对齐。",
+      "2 分钟展开·实现：典型四阶段：(1) Codec 预训练；(2) 多任务监督预训练；(3) 指令微调 SFT；(4) 偏好/RL 后训练（RLHF/DPO）。",
+      "2 分钟展开·边界：阶段间灾难性遗忘：需保留部分前阶段数据回放。 同时避免：跳过表征预训练直接 SFT，收敛差。"
+    ],
+    "conceptPath": [
+      "先识别问题：一个语音大模型通常分哪几个训练阶段？各阶段目标与数据是什么？",
+      "再抓核心机制：典型四阶段：(1) Codec 预训练；(2) 多任务监督预训练；(3) 指令微调 SFT；(4) 偏好/RL 后训练（RLHF/DPO）。",
+      "然后跑一个具体例子：阶段1：海量无标音频训 codec。",
+      "最后检查失败边界：阶段间灾难性遗忘：需保留部分前阶段数据回放。"
+    ],
+    "guidedExample": [
+      "第 1 步：阶段1：海量无标音频训 codec。",
+      "第 2 步：阶段2：ASR+翻译混合数据。阶段3：多轮对话。阶段4：用偏好数据 RLHF。",
+      "边界检查：阶段间灾难性遗忘：需保留部分前阶段数据回放。",
+      "反向自检：跳过表征预训练直接 SFT，收敛差。"
+    ]
   },
   {
     "kind": "concept",
@@ -52386,9 +53557,9 @@ export const questions = [
     ],
     "beginnerSummary": "对讲机是“半双工”：你按住说话时听不到对方。真人对话是“全双工”：一边听一边说，还能随时插话。Moshi 这类系统把“对方的语音”和“自己的语音”都变成一串 token，让同一个模型同时预测这两串 token 的下一个，就像左右手同时写两个字。再配上“打断检测”，你一插话它就停，从而实现自然的实时对话。",
     "prerequisites": [
-      "半双工=轮流说；全双工=同时说听。",
-      "音频可离散成 token 流。",
-      "对话需要低延迟与可打断。"
+      "直观关系：半双工=轮流说；全双工=同时说听。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：音频可离散成 token 流。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：对话需要低延迟与可打断。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "你说到一半改口，系统检测到插话→停掉自己的声音→听你说完再答。",
@@ -52401,7 +53572,27 @@ export const questions = [
       "打断检测触发停止说、继续听并重规划。"
     ],
     "diagram": "用户音频 ─┐\n            ├─▶ 统一模型 ─▶ 预测[听token|说token]\n模型音频 ─┘        │\n         打断检测◀───┘ (插话时停\"说\",续\"听\")",
-    "order": 7
+    "order": 7,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：全双工指模型同时收听与发声（双向并行），不像半双工（对讲机）必须交替。实现要点：把“听流”与“说流”都建模为时间对齐的 token 流，用单一 Transformer 同时预测“对方下一音频 token”和“自己下一音频 token”，并以时间步对齐+打断检测实现自然插话。",
+      "2 分钟展开·原理：全双工=同时听与说；核心是双流 token + 时间对齐 + 打断。",
+      "2 分钟展开·实现：全双工指模型同时收听与发声（双向并行）。实现要点：把“听流”与“说流”都建模为时间对齐的 token 流，用单一模型同时预测双方的下一音频 token，并以时间步对齐+打断检测实现自然插话。",
+      "2 分钟展开·边界：双方同时说话：需优先级/能量判停一方。 同时避免：误把半双工当全双工，体验像对讲机。"
+    ],
+    "conceptPath": [
+      "先识别问题：什么是“全双工”语音对话？Moshi / MiniCPM-o 这类系统是怎么做到边听边说的？",
+      "再抓核心机制：全双工指模型同时收听与发声（双向并行）。实现要点：把“听流”与“说流”都建模为时间对齐的 token 流，用单一模型同时预测双方的下一音频 token，并以时间步对齐+打断检测实现自然插话。",
+      "然后跑一个具体例子：你说到一半改口，系统检测到插话→停掉自己的声音→听你说完再答。",
+      "最后检查失败边界：双方同时说话：需优先级/能量判停一方。"
+    ],
+    "guidedExample": [
+      "第 1 步：你说到一半改口，系统检测到插话→停掉自己的声音→听你说完再答。",
+      "第 2 步：Moshi 同时输出“听 token”和“说 token”，时间步对齐。",
+      "边界检查：双方同时说话：需优先级/能量判停一方。",
+      "反向自检：误把半双工当全双工，体验像对讲机。"
+    ]
   },
   {
     "kind": "concept",
@@ -52452,9 +53643,9 @@ export const questions = [
     ],
     "beginnerSummary": "想象你边听边说：大脑里有一部分是“想说什么”（慢慢想、想得深），另一部分是“嘴巴怎么说”（快速发声）。Thinker-Talker 就是把这个拆开：Thinker 像“深思者”，负责理解对方、规划回答；Talker 像“说话者”，根据 Thinker 的想法快速把声音发出来。分开后，思考和发声可以并行，还能在对方插话时立刻停嘴重新想，非常适合实时对话。",
     "prerequisites": [
-      "实时对话要“边听边说”。",
-      "深度思考慢、发声要快。",
-      "把“想”和“说”解耦能降低延迟。"
+      "直观关系：实时对话要“边听边说”。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：深度思考慢、发声要快。 这条关系会在后面的机制和案例中具体展开。",
+      "直观关系：把“想”和“说”解耦能降低延迟。 这条关系会在后面的机制和案例中具体展开。"
     ],
     "workedExample": [
       "Thinker 听完问题出语义向量；Talker 据此流式吐出“我觉…得…可以”。",
@@ -52467,7 +53658,27 @@ export const questions = [
       "两者异步调度，支持流式与打断。"
     ],
     "diagram": "输入 ─▶ [Thinker 慢思考] ─▶ 语义向量 ─▶ [Talker 快说] ─▶ 语音\n            (重/少调用)              │条件        (轻/流式)\n                                     └──────────┘",
-    "order": 8
+    "order": 8,
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Thinker 是“慢思考”模块，基于音频/文本输入做语义理解、规划与决策（输出高层语义表示）；Talker 是“快说”模块，以 Thinker 的表示为条件自回归生成语音 unit/波形。两者解耦，使“想清楚”与“说流畅”分开优化，支持低延迟流式双工。",
+      "2 分钟展开·原理：Thinker 负责语义/规划，Talker 负责语音合成；解耦快慢路径。",
+      "2 分钟展开·实现：Thinker 是“慢思考”模块，基于音频/文本输入做语义理解、规划与决策；Talker 是“快说”模块，以 Thinker 的表示为条件自回归生成语音 unit/波形。两者解耦，支持低延迟流式双工。",
+      "2 分钟展开·边界：流式：Talker 需在 Thinker 未出完整结论前就开始发声（chunk 级）。 同时避免：Talker 脱离 Thinker 条件导致答非所问。"
+    ],
+    "conceptPath": [
+      "先识别问题：什么是 Thinker-Talker（思考者-说话者）结构？它解决了语音大模型什么痛点？",
+      "再抓核心机制：Thinker 是“慢思考”模块，基于音频/文本输入做语义理解、规划与决策；Talker 是“快说”模块，以 Thinker 的表示为条件自回归生成语音 unit/波形。两者解耦，支持低延迟流式双工。",
+      "然后跑一个具体例子：Thinker 听完问题出语义向量；Talker 据此流式吐出“我觉…得…可以”。",
+      "最后检查失败边界：流式：Talker 需在 Thinker 未出完整结论前就开始发声（chunk 级）。"
+    ],
+    "guidedExample": [
+      "第 1 步：Thinker 听完问题出语义向量；Talker 据此流式吐出“我觉…得…可以”。",
+      "第 2 步：用户打断时，Talker 停，Thinker 立刻重新规划。",
+      "边界检查：流式：Talker 需在 Thinker 未出完整结论前就开始发声（chunk 级）。",
+      "反向自检：Talker 脱离 Thinker 条件导致答非所问。"
+    ]
   },
   {
     "id": "slm-audio-encoder-adapter",
@@ -52496,8 +53707,8 @@ export const questions = [
       "适配器与 LLM 一起从头训导致编码器表征被破坏，应先冻编码器。"
     ],
     "prerequisites": [
-      "CNN / Transformer 音频编码器",
-      "投影层与表征对齐"
+      "CNN / Transformer 音频编码器：卷积擅长捕获相邻帧的局部声学模式；depthwise 卷积降低计算，pooling 或 stride 会缩短时间轴。",
+      "投影层与表征对齐：TTS 要知道每个音素对应多少声学帧；时长或对齐错误会直接产生漏读、重复和节奏异常。"
     ],
     "workedExample": [
       "Whisper encoder 输出 1500 帧 1280 维，经 4 倍下采样+线性投影成 375 个 4096 维 LLM 前缀 token。",
@@ -52525,7 +53736,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：音频编码器（如 Whisper/HuBERT）负责把波形抽取成帧级表征，适配器是把这些表征投影并压缩到 LLM 隐空间的桥梁模块，使音频能作为前缀 token 接入语言模型。",
     "approach": "在 encoder 后接投影/下采样/交叉注意力类适配器，做维度对齐与序列压缩，再作为软前缀拼入 LLM，从而以最小改动把听觉能力注入现成大模型。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：音频编码器（Whisper/HuBERT）先抽取帧级表征，再用适配器（如线性投影、Q-Former、或轻量 MLP）把变长序列压缩并投影到 LLM 隐空间，作为前缀软 token 接入。适配器还能缓解模态 gap 并降低序列长度。",
+      "2 分钟展开·原理：是什么：音频编码器（如 Whisper/HuBERT）负责把波形抽取成帧级表征，适配器是把这些表征投影并压缩到 LLM 隐空间的桥梁模块，使音频能作为前缀 token 接入语言模型。",
+      "2 分钟展开·实现：在 encoder 后接投影/下采样/交叉注意力类适配器，做维度对齐与序列压缩，再作为软前缀拼入 LLM，从而以最小改动把听觉能力注入现成大模型。",
+      "2 分钟展开·边界：长音频下采样后关键信息丢失，需自适应池化或注意力下采样。 同时避免：直接把 encoder 输出无下采样拼入 LLM，序列过长撑爆显存与上下文。"
+    ],
+    "conceptPath": [
+      "先识别问题：Whisper/HuBERT 这类音频编码器如何接入 LLM？适配器（adapter）的作用与常见结构是什么？",
+      "再抓核心机制：在 encoder 后接投影/下采样/交叉注意力类适配器，做维度对齐与序列压缩，再作为软前缀拼入 LLM，从而以最小改动把听觉能力注入现成大模型。",
+      "然后跑一个具体例子：Whisper encoder 输出 1500 帧 1280 维，经 4 倍下采样+线性投影成 375 个 4096 维 LLM 前缀 token。",
+      "最后检查失败边界：长音频下采样后关键信息丢失，需自适应池化或注意力下采样。"
+    ],
+    "guidedExample": [
+      "第 1 步：Whisper encoder 输出 1500 帧 1280 维，经 4 倍下采样+线性投影成 375 个 4096 维 LLM 前缀 token。",
+      "第 2 步：仅训 adapter 冻结 HuBERT，在语音问答上 zero-shot 达 72% 准确率。",
+      "边界检查：长音频下采样后关键信息丢失，需自适应池化或注意力下采样。",
+      "反向自检：直接把 encoder 输出无下采样拼入 LLM，序列过长撑爆显存与上下文。"
+    ]
   },
   {
     "id": "slm-continuous-discrete",
@@ -52554,8 +53785,8 @@ export const questions = [
       "只用语义离散 token 做 TTS，忽略声学细节导致音色丢失。"
     ],
     "prerequisites": [
-      "表征学习与降维",
-      "矢量量化与 codec"
+      "表征学习与降维：自监督模型从大量无标注音频学习声学表示；下游还需决定冻结、微调和如何压缩帧率。",
+      "矢量量化与 codec：向量量化把连续音频表示映射为有限编号；RVQ 用多层码本逐步编码残差，以更多 token 换取更高保真。"
     ],
     "workedExample": [
       "情感识别任务用连续 HuBERT 表征，比离散 token 高 3 个点。",
@@ -52583,7 +53814,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：连续语音表征是 encoder 输出的稠密向量，保真度高；离散语音 token 是经矢量量化得到的符号序列，可对齐 LLM 词表。两者在保真度与可学习性上互补。",
     "approach": "以任务目标选择：需保真与细粒度控制用连续表征，需复用自回归 LLM 训练范式用离散 token，必要时混合拼接两者以取长补短。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：连续表征保真度高、训练信号平滑但难直接接入自回归 LLM 词表且序列长；离散 token 可复用文本 LLM 训练范式、序列紧凑但量化有损。实践中常以离散为主、连续作辅助对齐。",
+      "2 分钟展开·原理：是什么：连续语音表征是 encoder 输出的稠密向量，保真度高；离散语音 token 是经矢量量化得到的符号序列，可对齐 LLM 词表。两者在保真度与可学习性上互补。",
+      "2 分钟展开·实现：以任务目标选择：需保真与细粒度控制用连续表征，需复用自回归 LLM 训练范式用离散 token，必要时混合拼接两者以取长补短。",
+      "2 分钟展开·边界：码本坍缩时离散表征多样性不足，需用码本重置或 kmeans 初始化。 同时避免：把连续向量当作词表 token 直接做 cross-entropy，维度与语义都不对。"
+    ],
+    "conceptPath": [
+      "先识别问题：在语音大模型里，连续表征和离散 token 各有什么优劣？什么场景该选哪种？",
+      "再抓核心机制：以任务目标选择：需保真与细粒度控制用连续表征，需复用自回归 LLM 训练范式用离散 token，必要时混合拼接两者以取长补短。",
+      "然后跑一个具体例子：情感识别任务用连续 HuBERT 表征，比离散 token 高 3 个点。",
+      "最后检查失败边界：码本坍缩时离散表征多样性不足，需用码本重置或 kmeans 初始化。"
+    ],
+    "guidedExample": [
+      "第 1 步：情感识别任务用连续 HuBERT 表征，比离散 token 高 3 个点。",
+      "第 2 步：对话生成任务用离散 token，可直接套用 LLM 下一 token 预测损失。",
+      "边界检查：码本坍缩时离散表征多样性不足，需用码本重置或 kmeans 初始化。",
+      "反向自检：把连续向量当作词表 token 直接做 cross-entropy，维度与语义都不对。"
+    ]
   },
   {
     "id": "slm-embodied-judge",
@@ -52612,8 +53863,8 @@ export const questions = [
       "四层权重随意设导致某一层主导，掩盖真实短板。"
     ],
     "prerequisites": [
-      "评测指标设计与加权融合",
-      "VAD 与对话状态管理（DDS）"
+      "评测指标设计与加权融合：消融要一次只改变一个因素并固定预算；多指标融合前要明确各指标的业务含义与权重。",
+      "VAD 与对话状态管理（DDS）：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。"
     ],
     "workedExample": [
       "指令'打开客厅灯'：生命周期层确认播报完整、解码层确认槽位正确，得 0.81。",
@@ -52641,7 +53892,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：具身短指令 Judge 是一个分层评测器，用于给语音大模型执行'具身短指令'（如开灯、播放）的质量打分，由音频生命周期、VAD、DDS、解码四层组成，加权 mean 从 0.6703 提升到 0.7648。",
     "approach": "把整体评分拆解为可诊断的四层独立打分并加权融合，既给出可解释的总分，又能定位失败环节，从而把评测 mean 从 0.6703 提升到 0.7648。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：该 Judge 把评测拆成四层：音频生命周期层校验指令是否被完整播放、VAD 层校验用户指令起止是否被正确检测、DDS 层校验对话状态/打断处理、解码层校验语义与动作是否正确。四层加权使 mean 评分从 0.6703 提升到 0.7648。",
+      "2 分钟展开·原理：是什么：具身短指令 Judge 是一个分层评测器，用于给语音大模型执行'具身短指令'（如开灯、播放）的质量打分，由音频生命周期、VAD、DDS、解码四层组成，加权 mean 从 0.6703 提升到 0.7648。",
+      "2 分钟展开·实现：把整体评分拆解为可诊断的四层独立打分并加权融合，既给出可解释的总分，又能定位失败环节，从而把评测 mean 从 0.6703 提升到 0.7648。",
+      "2 分钟展开·边界：指令被部分播放（生命周期层不完整）需判低分而非归零。 同时避免：只用整体 mean 评分，无法解释为何低分、无法针对性优化。"
+    ],
+    "conceptPath": [
+      "先识别问题：如何设计一个评测语音大模型'具身短指令'执行质量的 Judge？四层（音频生命周期 / VAD / DDS / 解码）分别起什么作用？",
+      "再抓核心机制：把整体评分拆解为可诊断的四层独立打分并加权融合，既给出可解释的总分，又能定位失败环节，从而把评测 mean 从 0.6703 提升到 0.7648。",
+      "然后跑一个具体例子：指令'打开客厅灯'：生命周期层确认播报完整、解码层确认槽位正确，得 0.81。",
+      "最后检查失败边界：指令被部分播放（生命周期层不完整）需判低分而非归零。"
+    ],
+    "guidedExample": [
+      "第 1 步：指令'打开客厅灯'：生命周期层确认播报完整、解码层确认槽位正确，得 0.81。",
+      "第 2 步：基线整体评分 mean=0.6703，引入四层 Judge 后对齐人工标注 mean 升至 0.7648。",
+      "边界检查：指令被部分播放（生命周期层不完整）需判低分而非归零。",
+      "反向自检：只用整体 mean 评分，无法解释为何低分、无法针对性优化。"
+    ]
   },
   {
     "id": "slm-pipeline",
@@ -52670,8 +53941,8 @@ export const questions = [
       "混淆连续表征与离散 token，直接把连续向量拼进 LLM 会破坏词表对齐。"
     ],
     "prerequisites": [
-      "Transformer 与自回归语言模型基础",
-      "音频特征（Mel 谱/codec）与矢量量化原理"
+      "Transformer 与自回归语言模型基础：注意力让每个位置按相关性读取上下文；自回归 decoder 还会把已经生成的 token 作为下一步条件。",
+      "音频特征（Mel 谱/codec）与矢量量化原理：向量量化把连续音频表示映射为有限编号；RVQ 用多层码本逐步编码残差，以更多 token 换取更高保真。"
     ],
     "workedExample": [
       "用户说'今天天气如何' → Whisper encoder 输出 50 帧特征 → 量化为 32 个语义 token。",
@@ -52699,7 +53970,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：语音大模型端到端 pipeline 指从原始音频输入到合成音频输出的一条统一链路，核心是 audio encoder 把声音编码为 token、LLM 负责语义推理、audio decoder 再把 token 还原成声音。",
     "approach": "核心思路是把音频和文本统一到离散 token 空间，使同一个自回归 LLM 既能理解语音又能生成语音，从而用一个模型覆盖听、想、说三个环节。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：语音 LLM 把音频经 encoder 抽取表征并离散化为 token，与文本 token 拼接进 LLM 做自回归推理，输出 token 再经 audio decoder 还原为波形。端到端让语义理解与语音生成在同一框架内完成。",
+      "2 分钟展开·原理：是什么：语音大模型端到端 pipeline 指从原始音频输入到合成音频输出的一条统一链路，核心是 audio encoder 把声音编码为 token、LLM 负责语义推理、audio decoder 再把 token 还原成声音。",
+      "2 分钟展开·实现：核心思路是把音频和文本统一到离散 token 空间，使同一个自回归 LLM 既能理解语音又能生成语音，从而用一个模型覆盖听、想、说三个环节。",
+      "2 分钟展开·边界：输入静音或极短音频时 encoder 输出为空，需补 <pad> 或 <silent> 特殊 token。 同时避免：把 audio decoder 当作普通 vocoder 直接接 LLM 输出，忽略 token 与声学帧率不匹配会导致节奏错乱。"
+    ],
+    "conceptPath": [
+      "先识别问题：请描述语音大模型（Speech LLM）的端到端 pipeline，并说明 audio encoder、token 化、LLM、audio decoder 各自的作用？",
+      "再抓核心机制：核心思路是把音频和文本统一到离散 token 空间，使同一个自回归 LLM 既能理解语音又能生成语音，从而用一个模型覆盖听、想、说三个环节。",
+      "然后跑一个具体例子：用户说'今天天气如何' → Whisper encoder 输出 50 帧特征 → 量化为 32 个语义 token。",
+      "最后检查失败边界：输入静音或极短音频时 encoder 输出为空，需补 <pad> 或 <silent> 特殊 token。"
+    ],
+    "guidedExample": [
+      "第 1 步：用户说'今天天气如何' → Whisper encoder 输出 50 帧特征 → 量化为 32 个语义 token。",
+      "第 2 步：LLM 生成回复 token 序列 → audio decoder 以 25Hz 帧率合成 1.8s 波形回答。",
+      "边界检查：输入静音或极短音频时 encoder 输出为空，需补 <pad> 或 <silent> 特殊 token。",
+      "反向自检：把 audio decoder 当作普通 vocoder 直接接 LLM 输出，忽略 token 与声学帧率不匹配会导致节奏错乱。"
+    ]
   },
   {
     "id": "slm-semantic-acoustic-token",
@@ -52728,8 +54019,8 @@ export const questions = [
       "用同一码本同时做语义与声学，忽略残差结构会使得高层语义被低层噪声污染。"
     ],
     "prerequisites": [
-      "矢量量化（VQ）与码本训练",
-      "自监督语音表征（HuBERT / wav2vec2）"
+      "矢量量化（VQ）与码本训练：向量量化把连续音频表示映射为有限编号；RVQ 用多层码本逐步编码残差，以更多 token 换取更高保真。",
+      "自监督语音表征（HuBERT / wav2vec2）：自监督模型从大量无标注音频学习声学表示；下游还需决定冻结、微调和如何压缩帧率。"
     ],
     "workedExample": [
       "同一句话不同人说：语义层 token 几乎一致，声学残差层 token 差异显著。",
@@ -52757,7 +54048,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：语义 token 编码'说了什么'的高层内容与语言信息，声学 token 编码'怎么说的'的音色、音高与韵律细节；RVQ 通过分层残差量化在同一码本体系中同时表达两者。",
     "approach": "用残差矢量量化的第 1 层逼近语义，后续层量化逐层残差逼近声学细节，从而在统一 token 空间里分离并重建内容与音色。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：语义 token（如 HuBERT 第 2 层聚类）承载内容与说话人无关的高层语义；声学 token（如 EnCodec/SoundStream 的 RVQ 多层残差）逐层补全音高、音色、韵律等细节。RVQ 第 1 层近似语义，后续层为声学残差。",
+      "2 分钟展开·原理：是什么：语义 token 编码'说了什么'的高层内容与语言信息，声学 token 编码'怎么说的'的音色、音高与韵律细节；RVQ 通过分层残差量化在同一码本体系中同时表达两者。",
+      "2 分钟展开·实现：用残差矢量量化的第 1 层逼近语义，后续层量化逐层残差逼近声学细节，从而在统一 token 空间里分离并重建内容与音色。",
+      "2 分钟展开·边界：第 1 层量化过粗会丢失重音与情绪，需要更高层补偿。 同时避免：把 EnCodec 全部层都当成语学 token 喂给 LLM，导致词表过大、训练发散。"
+    ],
+    "conceptPath": [
+      "先识别问题：语义 token 和声学 token 有什么区别？RVQ 残差矢量量化的层级结构如何同时表达两者？",
+      "再抓核心机制：用残差矢量量化的第 1 层逼近语义，后续层量化逐层残差逼近声学细节，从而在统一 token 空间里分离并重建内容与音色。",
+      "然后跑一个具体例子：同一句话不同人说：语义层 token 几乎一致，声学残差层 token 差异显著。",
+      "最后检查失败边界：第 1 层量化过粗会丢失重音与情绪，需要更高层补偿。"
+    ],
+    "guidedExample": [
+      "第 1 步：同一句话不同人说：语义层 token 几乎一致，声学残差层 token 差异显著。",
+      "第 2 步：只保留 RVQ 第 1 层重建语音可懂但音色中性，叠加 8 层后接近原音。",
+      "边界检查：第 1 层量化过粗会丢失重音与情绪，需要更高层补偿。",
+      "反向自检：把 EnCodec 全部层都当成语学 token 喂给 LLM，导致词表过大、训练发散。"
+    ]
   },
   {
     "id": "slm-streaming-duplex",
@@ -52786,8 +54097,8 @@ export const questions = [
       "流式分块过大导致首包延迟超标，过小则 encoder 上下文不足。"
     ],
     "prerequisites": [
-      "流式推理与 KV-cache 机制",
-      "VAD 与语音端点检测"
+      "流式推理与 KV-cache 机制：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "VAD 与语音端点检测：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。"
     ],
     "workedExample": [
       "用户问天气，模型播报中用户说'不用了' → barge-in 停止播放并清空缓冲。",
@@ -52815,7 +54126,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：流式全双工语音交互指系统以低延迟分块处理音频，且能在播放自身语音的同时监听并响应用户插话，实现像真人通话一样的双向自然对话。",
     "approach": "以流式分块 + 增量 KV-cache 保障低延迟，以 VAD/barge-in 检测打断并即时切换收发状态，从而兼顾'边听边说'与'随时打断'。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：全双工指模型可同时收听与发声、随时打断；流式指音频分块低延迟处理。核心是用流式 encoder、增量 KV-cache 与打断检测（barge-in）让用户可在模型说话时插话。",
+      "2 分钟展开·原理：是什么：流式全双工语音交互指系统以低延迟分块处理音频，且能在播放自身语音的同时监听并响应用户插话，实现像真人通话一样的双向自然对话。",
+      "2 分钟展开·实现：以流式分块 + 增量 KV-cache 保障低延迟，以 VAD/barge-in 检测打断并即时切换收发状态，从而兼顾'边听边说'与'随时打断'。",
+      "2 分钟展开·边界：用户咳嗽或环境噪声误触发打断，需要 VAD 阈值与去抖。 同时避免：忽略回声消除，模型把自身播放声当作用户输入造成自激。"
+    ],
+    "conceptPath": [
+      "先识别问题：什么是流式全双工语音交互架构？相比半双工轮次式对话它要解决哪些核心问题？",
+      "再抓核心机制：以流式分块 + 增量 KV-cache 保障低延迟，以 VAD/barge-in 检测打断并即时切换收发状态，从而兼顾'边听边说'与'随时打断'。",
+      "然后跑一个具体例子：用户问天气，模型播报中用户说'不用了' → barge-in 停止播放并清空缓冲。",
+      "最后检查失败边界：用户咳嗽或环境噪声误触发打断，需要 VAD 阈值与去抖。"
+    ],
+    "guidedExample": [
+      "第 1 步：用户问天气，模型播报中用户说'不用了' → barge-in 停止播放并清空缓冲。",
+      "第 2 步：200ms 分块 + 增量 KV-cache 使首包延迟控制在 400ms 内。",
+      "边界检查：用户咳嗽或环境噪声误触发打断，需要 VAD 阈值与去抖。",
+      "反向自检：忽略回声消除，模型把自身播放声当作用户输入造成自激。"
+    ]
   },
   {
     "id": "slm-thinker-talker",
@@ -52844,8 +54175,8 @@ export const questions = [
       "忽视双模型同步，Talker 等不到语义而空转浪费算力。"
     ],
     "prerequisites": [
-      "自回归生成与流式合成",
-      "模型解耦与模块接口设计"
+      "自回归生成与流式合成：流式系统把音频分块处理，并用 VAD、缓存和状态机管理开始、增量输出、打断、结束与资源回收。",
+      "模型解耦与模块接口设计：把理解、规划、发声等职责拆开并定义稳定接口，可独立优化延迟、质量与失败回退。"
     ],
     "workedExample": [
       "用户问'讲个笑话'，Thinker 先产出笑话文本语义 token，Talker 边接收边用不同语调合成。",
@@ -52873,7 +54204,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：Thinker-Talker 架构把语音模型拆成负责高层语义推理的 Thinker 与负责声学表达的 Talker 两个模型，语义与发音解耦、可并发执行。",
     "approach": "让 Thinker 先产出紧凑的语义 token/规划，Talker 流式消费并合成语音，从而实现'边思考边说话'，降低首包延迟并分别优化理解与表达。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：Thinker 专注高层语义推理产出语义 token/plan，Talker 专注把这些语义流畅地转成语音。两者解耦后推理与发音可独立优化、并发执行，降低延迟并提升自然度（如 Mini-Omni2、GLM-4-Voice 思路）。",
+      "2 分钟展开·原理：是什么：Thinker-Talker 架构把语音模型拆成负责高层语义推理的 Thinker 与负责声学表达的 Talker 两个模型，语义与发音解耦、可并发执行。",
+      "2 分钟展开·实现：让 Thinker 先产出紧凑的语义 token/规划，Talker 流式消费并合成语音，从而实现'边思考边说话'，降低首包延迟并分别优化理解与表达。",
+      "2 分钟展开·边界：Thinker 输出语义 token 为空（无内容）时 Talker 需生成静音或礼貌填充。 同时避免：让 Talker 直接吃 LLM 原始 logits 而非语义 token，接口耦合导致无法独立训练。"
+    ],
+    "conceptPath": [
+      "先识别问题：Thinker-Talker（思考-表达分离）架构的核心思想是什么？相比单模型它有什么优势？",
+      "再抓核心机制：让 Thinker 先产出紧凑的语义 token/规划，Talker 流式消费并合成语音，从而实现'边思考边说话'，降低首包延迟并分别优化理解与表达。",
+      "然后跑一个具体例子：用户问'讲个笑话'，Thinker 先产出笑话文本语义 token，Talker 边接收边用不同语调合成。",
+      "最后检查失败边界：Thinker 输出语义 token 为空（无内容）时 Talker 需生成静音或礼貌填充。"
+    ],
+    "guidedExample": [
+      "第 1 步：用户问'讲个笑话'，Thinker 先产出笑话文本语义 token，Talker 边接收边用不同语调合成。",
+      "第 2 步：Thinker 输出 10 个语义 token 后 Talker 已播完前 4 个，实现思考与表达并行。",
+      "边界检查：Thinker 输出语义 token 为空（无内容）时 Talker 需生成静音或礼貌填充。",
+      "反向自检：让 Talker 直接吃 LLM 原始 logits 而非语义 token，接口耦合导致无法独立训练。"
+    ]
   },
   {
     "id": "slm-training-stages",
@@ -52902,8 +54253,8 @@ export const questions = [
       "用纯文本数据做 STS 而忽略语音对齐，模型退化为文本 LLM。"
     ],
     "prerequisites": [
-      "多任务与迁移学习",
-      "ASR / TTS 基础管线"
+      "多任务与迁移学习：多个任务共享参数可互相帮助，也可能梯度方向相反；需要监控梯度、调权或做投影隔离。",
+      "ASR / TTS 基础管线：ASR 把音频变成文字；TTS 把文字前端、声学模型和声码器串起来生成波形，先知道每个模块的输入输出。"
     ],
     "workedExample": [
       "阶段1用 10k 小时 ASR 数据微调 encoder，WER 从 8% 降到 4%。",
@@ -52931,7 +54282,27 @@ export const questions = [
     ],
     "explanationFocus": "是什么：语音模型续训阶段指在一个基础模型上分阶段注入听、懂、说能力，典型为 ASR（听）、STS（语义理解与推理）、TTS（说）三阶段，逐段解冻相关模块。",
     "approach": "以'先对齐再生成'的顺序分阶段训练，每阶段只放开最相关的子模块并复用前阶段检查点，从而在稳定收敛的同时逐步获得完整语音对话能力。",
-    "kind": "concept"
+    "kind": "concept",
+    "speechTeachingV2": true,
+    "codeMode": "illustrative",
+    "interviewAnswer": [
+      "30 秒结论：典型三阶段：ASR 阶段学'听'（语音→文本），STS 阶段学'懂/想'（语音语义对齐与推理），TTS 阶段学'说'（文本/语义→语音）。逐阶段冻结与解冻，避免灾难性遗忘。",
+      "2 分钟展开·原理：是什么：语音模型续训阶段指在一个基础模型上分阶段注入听、懂、说能力，典型为 ASR（听）、STS（语义理解与推理）、TTS（说）三阶段，逐段解冻相关模块。",
+      "2 分钟展开·实现：以'先对齐再生成'的顺序分阶段训练，每阶段只放开最相关的子模块并复用前阶段检查点，从而在稳定收敛的同时逐步获得完整语音对话能力。",
+      "2 分钟展开·边界：ASR 数据不足导致 STS 阶段语义对齐差，需要数据配比平衡。 同时避免：所有阶段全参数同学习率训练，导致前期能力被后期覆盖（遗忘）。"
+    ],
+    "conceptPath": [
+      "先识别问题：语音大模型常见的续训（continual training）阶段有哪些？ASR、STS、TTS 各阶段分别让模型学到什么？",
+      "再抓核心机制：以'先对齐再生成'的顺序分阶段训练，每阶段只放开最相关的子模块并复用前阶段检查点，从而在稳定收敛的同时逐步获得完整语音对话能力。",
+      "然后跑一个具体例子：阶段1用 10k 小时 ASR 数据微调 encoder，WER 从 8% 降到 4%。",
+      "最后检查失败边界：ASR 数据不足导致 STS 阶段语义对齐差，需要数据配比平衡。"
+    ],
+    "guidedExample": [
+      "第 1 步：阶段1用 10k 小时 ASR 数据微调 encoder，WER 从 8% 降到 4%。",
+      "第 2 步：阶段3用 TTS 配对数据训 decoder，MOS 从 3.2 提升到 4.0。",
+      "边界检查：ASR 数据不足导致 STS 阶段语义对齐差，需要数据配比平衡。",
+      "反向自检：所有阶段全参数同学习率训练，导致前期能力被后期覆盖（遗忘）。"
+    ]
   },
   {
     "kind": "concept",

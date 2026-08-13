@@ -1,4 +1,5 @@
 import { explainResumePrerequisite } from './_resume-glossary.js';
+import { resumeGrounding } from './_resume-grounding.js';
 
 export function makeResumeCard({
   id,
@@ -19,6 +20,23 @@ export function makeResumeCard({
   difficulty = 'Hard',
   order,
 }) {
+  const grounding = resumeGrounding(id);
+  const direct = grounding.level === 'direct';
+  const evidenceChain = direct
+    ? [
+      `要证明的主张：${title}`,
+      `控制变量与实现：${implementation}`,
+      `第一份具体证据：${workedExample[0]}`,
+      `第二份对照证据：${workedExample[1]}`,
+      `上线或决策门槛：${evaluation}`,
+    ]
+    : [
+      `定位：这是“${grounding.label}”，不是新增的一段项目经历。`,
+      `和简历的关系：${grounding.source}`,
+      `需要理解的核心：${grounding.safeAnswer}`,
+      `用于理解的例子：${workedExample[0]}`,
+      `回答边界：${grounding.boundary}`,
+    ];
   return {
     id,
     category,
@@ -28,23 +46,22 @@ export function makeResumeCard({
     prompt,
     quickAnswer,
     resumeCard: true,
+    experienceLevel: grounding.level,
+    experienceLabel: grounding.label,
+    resumeSource: grounding.source,
+    safeAnswer: grounding.safeAnswer,
+    claimBoundary: grounding.boundary,
     explanationFocus: `这道题真正考察的不是名词记忆，而是你能否解释“${title}”背后的判断依据，并用可复核证据说明结论。${why}`,
     approach: implementation,
     complexity,
-    beginnerSummary: `这题不是让你背“${title}”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：${why}`,
+    beginnerSummary: `${grounding.label}。${grounding.safeAnswer}`,
     interviewAnswer: [
-      `30 秒回答：${quickAnswer}`,
-      `2 分钟展开·为什么：${why}`,
-      `2 分钟展开·怎么做：${implementation}`,
-      `2 分钟展开·取舍与结论：${tradeoffs} 最后用这些指标收口：${evaluation}`,
+      `先定范围：${grounding.label}。`,
+      `30 秒安全回答：${grounding.safeAnswer}`,
+      `简历依据：${grounding.source}`,
+      `被继续追问时：${grounding.boundary}`,
     ],
-    evidenceChain: [
-      `要证明的主张：${title}`,
-      `控制变量与实现：${implementation}`,
-      `第一份具体证据：${workedExample[0]}`,
-      `第二份对照证据：${workedExample[1]}`,
-      `上线或决策门槛：${evaluation}`,
-    ],
+    evidenceChain,
     derivation: [
       `为什么需要：${why}`,
       `怎么实现：${implementation}`,

@@ -7,6 +7,7 @@ import { readdirSync, writeFileSync, mkdirSync, existsSync, readFileSync } from 
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 import crypto from 'node:crypto';
+import { enrichSpeechTeachingCard } from '../cards/_speech-teaching.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '..');
@@ -85,7 +86,7 @@ async function readCards() {
     if (!mod.default || typeof mod.default !== 'object') {
       throw new Error(`${f} has no default object export`);
     }
-    cards.push(mod.default);
+    cards.push(enrichSpeechTeachingCard(mod.default));
   }
   // stable, grouped output: category → kind → order → id
   // `order` is an OPTIONAL per-card integer; when present it drives the

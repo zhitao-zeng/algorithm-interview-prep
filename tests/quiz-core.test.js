@@ -5,6 +5,8 @@ import { questions } from '../questions.js';
 import { detailSections, validateQuestionCard } from '../quiz-core.js';
 import { categoryThread, domains } from '../knowledge-map.js';
 import { resumeGlossarySize } from '../cards/_resume-glossary.js';
+import { resumeGroundingCounts } from '../cards/_resume-grounding.js';
+import { speechPrerequisiteExplanation, speechTeachingCategoryCount } from '../cards/_speech-teaching.js';
 import { readFileSync } from 'node:fs';
 
 const beginnerFixture = {
@@ -118,11 +120,16 @@ test('简历专项新增 40 道题并按五条主线完整分布', () => {
 test('40 道简历专项使用教学卡 V2，不再复制通用假代码与占位图', () => {
   const resumeCards = questions.filter((q) => /^(?:asr|tts|edge|perf|lead)-resume-/.test(q.id));
   assert.equal(resumeGlossarySize, 120);
+  assert.deepEqual(resumeGroundingCounts, { direct: 21, supporting: 10, general: 9 });
   assert.equal(resumeCards.length, 40);
   assert.equal(new Set(resumeCards.map((q) => JSON.stringify(q.evidenceChain))).size, 40);
 
   for (const card of resumeCards) {
     assert.equal(card.resumeCard, true, card.id);
+    assert.ok(['direct', 'supporting', 'general'].includes(card.experienceLevel), card.id);
+    assert.ok(card.resumeSource.length >= 20, card.id);
+    assert.ok(card.safeAnswer.length >= 20, card.id);
+    assert.ok(card.claimBoundary.length >= 20, card.id);
     assert.equal('code' in card, false, `${card.id} 不应展示与主题无关的通用 Python`);
     assert.equal('lineByLine' in card, false, `${card.id} 不应保留通用逐行说明`);
     assert.equal('diagram' in card, false, `${card.id} 不应保留重复占位图`);
@@ -132,9 +139,48 @@ test('40 道简历专项使用教学卡 V2，不再复制通用假代码与占�
     assert.ok(card.prerequisites.every((term) => term.includes('：') && term.length >= 24), card.id);
     assert.deepEqual(
       detailSections(card, 'deep').map((section) => section.key),
-      ['beginnerSummary', 'interviewAnswer', 'prerequisites', 'evidenceChain', 'derivation', 'workedExample', 'comparison', 'complexity', 'edgeCases', 'followUps', 'pitfalls'],
+      ['beginnerSummary', 'resumeSource', 'safeAnswer', 'claimBoundary', 'interviewAnswer', 'prerequisites', 'evidenceChain', 'derivation', 'workedExample', 'comparison', 'complexity', 'edgeCases', 'followUps', 'pitfalls'],
       card.id,
     );
+  }
+
+  const pseudoLabel = questions.find((q) => q.id === 'asr-resume-confidence-calibration');
+  assert.equal(pseudoLabel.experienceLevel, 'direct');
+  assert.match(pseudoLabel.title, /重标注结果怎么筛选和验证/);
+  assert.match(pseudoLabel.safeAnswer, /抽样复听/);
+  assert.doesNotMatch(JSON.stringify(pseudoLabel), /Platt|isotonic|ECE|coverage-risk|Brier/);
+});
+
+test('58 道语音主航道通用题升级为教学卡 V2，并诚实标注代码性质', () => {
+  const speechCategories = new Set(['ASR 专项', '语音合成', '语音大模型']);
+  const speechCards = questions.filter((q) => speechCategories.has(q.category) && !q.resumeCard);
+
+  assert.equal(speechTeachingCategoryCount, 3);
+  assert.deepEqual(
+    Object.fromEntries([...speechCategories].map((category) => [category, speechCards.filter((q) => q.category === category).length])),
+    { 'ASR 专项': 22, '语音合成': 20, '语音大模型': 16 },
+  );
+  assert.equal(speechCards.length, 58);
+  for (const card of speechCards) {
+    assert.equal(card.speechTeachingV2, true, card.id);
+    assert.equal(card.interviewAnswer.length, 4, card.id);
+    assert.equal(card.conceptPath.length, 4, card.id);
+    assert.ok(card.guidedExample.length >= 4, card.id);
+    assert.ok(card.prerequisites.every((term) => term.includes('：') && term.length >= 24), card.id);
+    assert.ok(card.prerequisites.every((term) => !term.includes('先明确这个概念')), card.id);
+    assert.equal(detailSections(card, 'quick').some((section) => section.key === 'code'), false, card.id);
+    assert.equal(validateQuestionCard(card, { beginner: true }).valid, true, card.id);
+  }
+
+  const executableCard = questions.find((q) => q.id === 'ctc-greedy');
+  const illustrativeCard = questions.find((q) => q.id === 'as-conformer');
+  assert.equal(executableCard.codeMode, 'executable');
+  assert.equal(illustrativeCard.codeMode, 'illustrative');
+  assert.equal(detailSections(executableCard, 'deep').find((section) => section.key === 'code').title, '可运行实现 / 核心代码');
+  assert.equal(detailSections(illustrativeCard, 'deep').find((section) => section.key === 'code').title, '实现草图（用于理解，不保证可直接运行）');
+
+  for (const term of ['正字法归一化', 'TTS 声学模型与声码器基础', '对话需要低延迟与可打断。']) {
+    assert.ok(speechPrerequisiteExplanation(term), term);
   }
 });
 
@@ -156,8 +202,8 @@ test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
 });
 
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
-  const codeCard = questions.find((q) => q.kind === 'code');
-  const conceptCard = questions.find((q) => q.kind === 'concept');
+  const codeCard = questions.find((q) => q.id === '206');
+  const conceptCard = questions.find((q) => q.kind === 'concept' && !q.resumeCard && !q.speechTeachingV2);
   const codeQuickKeys = detailSections(codeCard, 'quick').map((s) => s.key);
   const codeDeepKeys = detailSections(codeCard, 'deep').map((s) => s.key);
   const conceptQuickKeys = detailSections(conceptCard, 'quick').map((s) => s.key);
@@ -265,9 +311,10 @@ test('深入详情按分步学习顺序返回全部渲染类型', () => {
     sections.map((section) => Array.isArray(section.value)),
     [false, false, true, false, true, true, false, true, false, false, true, true, true],
   );
-  // 复习模式应默认展开完整初学者内容；该断言在实现前应先失败。
+  // 复习模式先给容易理解的快速层；模拟面试仍会自动进入深入层。
   const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
-  assert.match(appSource, /detailLevel:\s*'deep'/);
+  assert.match(appSource, /mode:\s*'review'[\s\S]*detailLevel:\s*'quick'/);
+  assert.match(appSource, /function startMock\(\)[\s\S]*state\.detailLevel = 'deep'/);
 });
 
 test('模拟模式切题入口统一重置揭晓进度', () => {

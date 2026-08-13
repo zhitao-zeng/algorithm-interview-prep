@@ -13,6 +13,11 @@
 /* ===== 知识脉络视图 ===== */
 .tag-row { flex-wrap: wrap; }
 .tag { white-space: nowrap; }
+.card-meta { flex-wrap: wrap; gap: 5px 8px; justify-content: flex-start; }
+.card-meta > :last-child { margin-left: auto; }
+.relation.direct { color: #16704d; background: #e5f6ed; }
+.relation.supporting { color: #785200; background: #fff4cf; }
+.relation.general { color: #8a3d28; background: #ffebe5; }
 .nav-lead { font-weight: 800; color: var(--navy); background: #eef2f6; border: 1px solid var(--line); margin-bottom: 2px; }
 .nav-lead.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .nav-lead + .nav-lead { margin-top: 2px; }

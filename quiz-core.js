@@ -30,25 +30,63 @@ export function formatRemaining(seconds) {
 
 export function detailSections(card, level = 'quick') {
   if (card?.resumeCard) {
+    const deepDiveTitle = card.experienceLevel === 'direct'
+      ? '项目深挖：为什么、怎么做、代价、评测'
+      : '延伸补课（不等于项目经历）';
+    const evidenceTitle = card.experienceLevel === 'direct' ? '本题证据链' : '与简历的关系';
     const quick = [
-      ['beginnerSummary', '先讲人话', 'text'],
-      ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
-      ['evidenceChain', '本题证据链', 'steps'],
+      ['beginnerSummary', '先确认：这是不是我做过的', 'text'],
+      ['resumeSource', '简历原文依据', 'text'],
+      ['safeAnswer', '我可以安全地这样回答', 'text'],
+      ['claimBoundary', '不要越界', 'text'],
       ['followUps', '常见追问', 'qa'],
       ['pitfalls', '容易说错的地方', 'list'],
     ];
     const deep = [
-      ['beginnerSummary', '先讲人话', 'text'],
-      ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
+      ['beginnerSummary', '先确认：这是不是我做过的', 'text'],
+      ['resumeSource', '简历原文依据', 'text'],
+      ['safeAnswer', '我可以安全地这样回答', 'text'],
+      ['claimBoundary', '不要越界', 'text'],
+      ['interviewAnswer', '被追问时的回答顺序', 'steps'],
       ['prerequisites', '术语拆解', 'concepts'],
-      ['evidenceChain', '本题证据链', 'steps'],
-      ['derivation', '为什么、怎么做、代价、评测', 'steps'],
+      ['evidenceChain', evidenceTitle, 'steps'],
+      ['derivation', deepDiveTitle, 'steps'],
       ['workedExample', '一步一步走完整案例', 'steps'],
       ['comparison', '弱回答与强回答', 'compare'],
       ['complexity', '成本与复杂度', 'text'],
       ['edgeCases', '失败边界', 'cards'],
       ['followUps', '常见追问', 'qa'],
       ['pitfalls', '容易说错的地方', 'list'],
+    ];
+    const fields = level === 'deep' ? deep : quick;
+    return fields.map(([key, title, type]) => ({ key, title, type, value: card?.[key] }));
+  }
+  if (card?.speechTeachingV2) {
+    const codeTitle = card.codeMode === 'executable'
+      ? '可运行实现 / 核心代码'
+      : '实现草图（用于理解，不保证可直接运行）';
+    const codeNotesTitle = card.codeMode === 'executable' ? '逐行讲解' : '草图说明';
+    const quick = [
+      ['beginnerSummary', '先讲人话', 'text'],
+      ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
+      ['conceptPath', '学习路径', 'steps'],
+      ['followUps', '常见追问', 'qa'],
+      ['pitfalls', '容易弄错的地方', 'list'],
+    ];
+    const deep = [
+      ['beginnerSummary', '先讲人话', 'text'],
+      ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
+      ['prerequisites', '术语拆解', 'concepts'],
+      ['conceptPath', '从问题到答案', 'steps'],
+      ['diagram', '结构图解', 'diagram'],
+      ['derivation', '为什么、怎么做、代价、评测', 'steps'],
+      ['guidedExample', '一步一步走完整案例', 'steps'],
+      ['code', codeTitle, 'code'],
+      ['lineByLine', codeNotesTitle, 'lineNotes'],
+      ['complexity', '成本与复杂度', 'text'],
+      ['edgeCases', '失败边界', 'cards'],
+      ['followUps', '常见追问', 'qa'],
+      ['pitfalls', '容易弄错的地方', 'list'],
     ];
     const fields = level === 'deep' ? deep : quick;
     return fields.map(([key, title, type]) => ({ key, title, type, value: card?.[key] }));
@@ -207,6 +245,10 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
   }
 
   if (card?.resumeCard) {
+    for (const field of ['experienceLevel', 'experienceLabel', 'resumeSource', 'safeAnswer', 'claimBoundary']) {
+      if (!isNonEmptyString(card?.[field])) addMissing(field);
+    }
+    if (!['direct', 'supporting', 'general'].includes(card.experienceLevel)) addMissing('experienceLevel');
     if (!hasNonEmptyStrings('interviewAnswer', 4)) addMissing('interviewAnswer');
     if (!hasNonEmptyStrings('evidenceChain', 5)) addMissing('evidenceChain');
     if (
@@ -214,6 +256,17 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
       || card.comparison.length < 2
       || card.comparison.some((row) => !isNonEmptyString(row?.a) || !isNonEmptyString(row?.b) || !isNonEmptyString(row?.note))
     ) addMissing('comparison');
+  }
+
+  if (card?.speechTeachingV2) {
+    if (!hasNonEmptyStrings('interviewAnswer', 4)) addMissing('interviewAnswer');
+    if (!hasNonEmptyStrings('conceptPath', 4)) addMissing('conceptPath');
+    if (!hasNonEmptyStrings('guidedExample', 4)) addMissing('guidedExample');
+    if (!['executable', 'illustrative', 'none'].includes(card.codeMode)) addMissing('codeMode');
+    if (
+      !hasNonEmptyStrings('prerequisites', 2)
+      || card.prerequisites.some((term) => !term.includes('：') || term.length < 24)
+    ) addMissing('prerequisites');
   }
 
   return { valid: missing.length === 0, missing };
