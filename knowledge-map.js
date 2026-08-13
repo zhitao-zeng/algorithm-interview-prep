@@ -46,7 +46,7 @@ export const domains = [
   },
   {
     id: 'D', name: '大模型推理与部署', heavy: true,
-    why: '岗位最硬核：怎么跑得快、跑得省',
+    why: '长期核心能力：把模型跑得快、跑得稳、跑得省',
     categories: [
       { name: '大模型推理原理', oneliner: 'prefill（compute-bound）vs decode（memory-bound）、arithmetic intensity、roofline、TTFT/TPOT/TPS、为什么慢。',
         steps: ['瓶颈认知（模型推理为什么慢）', '两阶段本质（Prefill vs Decode：compute vs memory bound）', '量化指标（Arithmetic Intensity / Roofline → TTFT/TPOT）', '工程优化（Chunked Prefill / PD 分离 / Speculative Decoding）', '架构呼应（MLA vs MHA/MQA/GQA、MoE Router）'] },
@@ -70,7 +70,7 @@ export const domains = [
   },
   {
     id: 'E', name: '多模态与语音', heavy: true,
-    why: '岗位特性：PGC/OGC 多模态 + 语音',
+    why: '个人主航道：语音、多模态理解与生成落地',
     categories: [
       { name: '多模态模型', oneliner: 'CLIP/Q-Former/ViT、特征对齐与融合、幻觉、视频 token 压缩、hi-res、benchmark、部署。',
         steps: ['编码器（ViT）', 'token 化（patch→token）', '对齐（CLIP）', '连接器（Q-Former）', '融合（主流架构 / M-RoPE / 音频接入）', '进阶（高分辨率 / 多图多轮 / 视频时序 Token Explosion）', '训练与评测（预训练 / 指令微调 / 幻觉 / benchmark）', '部署与系统设计（视觉编码器与 LLM 协同 / 短视频理解系统）'] },
@@ -109,27 +109,27 @@ export const domains = [
 ];
 
 export const learningPath = [
-  { stage: 1, domain: 'A. 算法与数据结构基础', why: '手撕是入场券，一二轮就考；先保 coding 不死，才有后面', invest: '持续每天 1 题边写边讲' },
-  { stage: 2, domain: 'B. Transformer 与序列建模核心', why: '所有大模型题的底座，不先吃透架构和位置编码，训练/推理都说不清', invest: '重点，配"底层深度自检"' },
-  { stage: 3, domain: 'C. 大模型训练体系', why: '理解模型怎么从数据变成权重，承接 B', invest: '重点' },
-  { stage: 4, domain: 'D. 大模型推理与部署【岗重】', why: '岗位最硬核、权重最高；且和 B/C 直接咬合', invest: '最大头，反复刷' },
-  { stage: 5, domain: 'E. 多模态与语音【岗重】', why: '岗位多模态+语音特性，建立在 B/D 之上', invest: '重点（按 JD 倾斜）' },
-  { stage: 6, domain: 'F. 应用层与系统设计', why: '搜推/Agent/RAG/系统设计，把硬核用进业务闭环，三轮面重点', invest: '重点，配策略文档第 1–2 节' },
-  { stage: 7, domain: 'G. 系统与底层', why: '查漏补缺、压底层原理，被追问到实现时的兜底', invest: '按需补漏' },
+  { stage: 1, domain: '简历证据与项目答辩', why: '先把已经做过的事讲深：指标口径、个人贡献、消融、失败与上线证据', invest: '面试前最高频，40 道简历专项滚动复盘' },
+  { stage: 2, domain: 'E. 语音与多模态主航道', why: 'ASR、TTS、语音大模型、OCR、深度和生成式 AI 是个人履历最强信号', invest: '长期主线，按真实项目串讲' },
+  { stage: 3, domain: 'D. 推理与端侧交付', why: '把模型从离线指标推进到 ONNX、TensorRT、MNN、sherpa-onnx 与线上稳定性', invest: '重点，必须能讲性能与回滚' },
+  { stage: 4, domain: 'B/C. 模型原理与训练体系', why: '为架构选型、微调、稳定性和新模型迁移补齐可推导的底座', invest: '按薄弱项系统补全' },
+  { stage: 5, domain: 'F. 系统设计与 Tech Lead', why: '把算法、端侧、产品、评测和团队协作连成可交付闭环', invest: '准备行为面与架构面案例' },
+  { stage: 6, domain: 'A/G. 手撕与计算机基础', why: '保持通用算法能力和底层实现解释力，不让岗位变化造成基础短板', invest: '持续练习，面试期提高频率' },
+  { stage: 7, domain: '模拟面试与复盘', why: '将知识转成现场表达、追问承压和取舍判断', invest: '每周至少一次 45 分钟模拟' },
 ];
 
 export const crossLines = [
-  { name: '推理全链路', line: '大模型推理原理 → KV Cache → Continuous Batching → PagedAttention → 量化推理 → 服务性能评测' },
-  { name: '训练全链路', line: 'Transformer 架构 → 训练与微调 → 分布式训练 → RL 后训练' },
-  { name: '多模态落地', line: '多模态模型 → 大模型推理原理 → 流式推理工程 → 系统设计' },
-  { name: 'Agent 生产化', line: 'Agent Workflow → 系统设计 → 服务性能评测' },
-  { name: '算法交付与领导', line: '服务性能评测 → Tech Lead 与项目答辩 → 系统设计' },
+  { name: '多语种 ASR 闭环', line: '模型横评 → 标签审计/伪标签 → 信道鲁棒 → 域适配 → CER/WER 门禁 → 端侧流式' },
+  { name: '中文 TTS 交付', line: '文本归一化 → G2P/韵律 → Matcha/VITS-Melo → 声码器 → sherpa-onnx → 主客观评测' },
+  { name: '端侧感知落地', line: 'OCR/单目深度 → Oracle 定位 → ONNX/TensorRT/MNN → 量化 → Buffer 复用 → 灰度回滚' },
+  { name: '多模态生成系统', line: 'Diffusion/Flow Matching → LoRA/人物一致性 → 音频驱动 → 约束生成 → 自动评测' },
+  { name: '算法交付与领导', line: '指标契约 → 模型选型 → 实验优先级 → 跨团队交付 → 事故复盘 → STAR-L 答辩' },
 ];
 
 export const priorities = [
-  { tier: 1, label: '第一梯队（必须滚瓜烂熟）', items: 'D 域全类（推理部署岗位直接匹配）、B 域（Transformer 与位置编码）、E 域（多模态与语音，岗位特性）' },
-  { tier: 2, label: '第二梯队（要能讲闭环）', items: 'C 域（训练体系）、F 域（搜推/Agent/系统设计，三轮面重点）' },
-  { tier: 3, label: '第三梯队（查漏补缺）', items: 'A 域（保手撕）、G 域（底层兜底）' },
+  { tier: 1, label: '个人核心（必须形成肌肉记忆）', items: '简历专项、ASR、TTS、语音大模型、端侧部署、实验评测与 Tech Lead 项目答辩' },
+  { tier: 2, label: '能力外延（要能讲完整闭环）', items: '多模态理解与生成、OCR/深度、LLM 约束生成、Agent、系统设计和模型训练推理' },
+  { tier: 3, label: '通用底座（长期保持）', items: '算法手撕、Transformer、分布式训练、计算机系统基础与其他目标岗位按需模块' },
 ];
 
 // 按分类名快速查「本类主线」，供 list 视图横幅使用。

@@ -114,6 +114,23 @@ test('简历专项新增 40 道题并按五条主线完整分布', () => {
   assert.ok(categoryThread['Tech Lead 与项目答辩'].steps.length >= 7);
 });
 
+test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
+  const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
+  const indexSource = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const mapSource = readFileSync(new URL('../knowledge-map.js', import.meta.url), 'utf8');
+
+  assert.match(indexSource, /曾志涛的面试准备系统/);
+  assert.match(indexSource, /PERSONAL INTERVIEW OS/);
+  assert.doesNotMatch(indexSource, /面向字节算法/);
+  assert.match(appSource, /mapTab:\s*'personal'/);
+  assert.match(appSource, /const personalTracks = \[/);
+  assert.match(appSource, /const resumeQuestions = questions\.filter\(isResumeQuestion\)/);
+  assert.match(appSource, /zeng-interview-mastered-ids/);
+  assert.match(appSource, /byte-interview-mastered-ids/);
+  assert.match(appSource, /◎ 简历专项/);
+  assert.doesNotMatch(mapSource, /岗位特性|【岗重】/);
+});
+
 test('detailSections 按 kind 返回不同板块（代码题捞回朴素做法/不变量，概念题捞回是什么/核心思路）', () => {
   const codeCard = questions.find((q) => q.kind === 'code');
   const conceptCard = questions.find((q) => q.kind === 'concept');
@@ -233,7 +250,7 @@ test('模拟模式切题入口统一重置揭晓进度', () => {
   const appSource = readFileSync(new URL('../app.js', import.meta.url), 'utf8');
   assert.match(appSource, /function selectQuestion\(id\)/);
   assert.match(appSource, /selectQuestion\(filterQuestions\(questions, category, state\.query(?:, state\.kind)?\)\[0\]\?\.id\)/);
-  assert.match(appSource, /selectQuestion\(filterQuestions\(questions, state\.category, state\.query(?:, state\.kind)?\)\[0\]\?\.id\)/);
+  assert.match(appSource, /selectQuestion\(activeQuestions\(\)\[0\]\?\.id\)/);
   assert.match(appSource, /state\.revealIndex = 0/);
 });
 

@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>算法面试题库 · BytePrep</title>
+  <title>曾志涛的面试准备系统 · Interview OS</title>
   <style>
 /* BYTEPREP_STANDALONE_STYLES */
 :root{--ink:#17202b;--muted:#647182;--line:#dfe5ea;--paper:#f5f7f8;--navy:#142b45;--blue:#1967d2;--mint:#c9f0df;--orange:#ff8a4c;--code:#101923}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Inter,"Microsoft YaHei",Arial,sans-serif}.topbar{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 28px;background:var(--navy);color:#fff}.brand{color:#fff;text-decoration:none;letter-spacing:1px;font-weight:800}.brand span{color:var(--mint)}.topbar-actions{display:flex;align-items:center;gap:10px}.timer{font:600 17px ui-monospace,Consolas;color:var(--mint);padding-right:8px}.button{border:0;border-radius:7px;padding:9px 14px;font-weight:700;cursor:pointer}.primary{background:var(--mint);color:#102636}.ghost{background:transparent;border:1px solid #6a7b8b;color:#fff}.app-shell{min-height:calc(100vh - 64px);display:grid;grid-template-columns:240px minmax(280px,.9fr) minmax(420px,1.4fr);max-width:1600px;margin:auto}.sidebar{padding:30px 20px;background:#fff;border-right:1px solid var(--line)}.eyebrow{margin:0 0 6px;color:var(--blue);font-size:11px;font-weight:800;letter-spacing:1.3px}.sidebar h1{font-size:28px;line-height:1.14;margin:0 0 14px}.sidebar h1 em{font-family:Georgia,serif;color:var(--orange);font-weight:400}.intro{font-size:13px;color:var(--muted);margin:0 0 22px}.search-label{display:block;font-size:12px;font-weight:700;margin-bottom:6px}input{width:100%;padding:10px;border:1px solid var(--line);border-radius:7px;font:inherit}.categories{display:grid;gap:4px;margin:20px 0}.category{width:100%;text-align:left;background:transparent;border:0;border-radius:6px;padding:8px;cursor:pointer;color:#405064;font:inherit}.category:hover,.category.active{background:#e8f0fe;color:var(--blue);font-weight:700}.progress-card{margin-top:22px;padding:13px;background:#f0f5f3;border-radius:8px}.progress-card p{margin:0;color:var(--muted);font-size:12px}.progress-card strong{font-size:21px}.progress-card small{display:block;color:var(--muted);font-size:11px;margin-top:7px}.progress-track{height:5px;background:#d6e0db;border-radius:999px}.progress-track i{display:block;height:100%;background:#27966a;border-radius:inherit;width:0}.question-pane{padding:30px 20px;border-right:1px solid var(--line);background:#fbfcfd}.pane-heading{display:flex;justify-content:space-between;align-items:end;margin-bottom:18px}.pane-heading h2{margin:0;font-size:23px}.count{color:var(--muted);font-size:13px}.question-list{display:grid;gap:9px}.question-card{background:#fff;border:1px solid var(--line);border-left:3px solid transparent;border-radius:8px;padding:13px;cursor:pointer;transition:.15s}.question-card:hover,.question-card.active{border-left-color:var(--blue);box-shadow:0 5px 14px #142b4510}.question-card.active{background:#f4f8ff}.card-meta{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}.badge{color:var(--blue);font-weight:800}.question-card h3{margin:5px 0 4px;font-size:16px}.question-card p{margin:0;color:var(--muted);font-size:13px}.detail-pane{padding:34px 38px;background:#fff;overflow:auto}.detail-head{border-bottom:1px solid var(--line);padding-bottom:17px;margin-bottom:22px}.detail-head h2{margin:7px 0;font-size:28px;line-height:1.2}.detail-head p{margin:0;color:var(--muted)}.tag-row{display:flex;gap:7px;align-items:center}.tag{border-radius:99px;padding:3px 8px;background:#eef3f8;color:#405064;font-size:11px;font-weight:700}.tag.difficulty{background:#fff0e8;color:#b55316}.detail-section{margin:23px 0}.detail-section h3{font-size:13px;letter-spacing:.7px;color:var(--blue);margin:0 0 8px}.detail-section p{margin:0}.code-wrap{position:relative;background:var(--code);border-radius:8px;overflow:auto}.code-wrap pre{margin:0;padding:17px;color:#eaf2fa;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}.detail-list{padding-left:19px;margin:0}.detail-list li{margin:5px 0}.answer-gate{margin:32px 0;padding:30px;border:1px dashed #a7b7c6;border-radius:10px;text-align:center;background:#f8fafc}.answer-gate p{color:var(--muted);margin:0 0 14px}.master-row{display:flex;gap:9px;align-items:center;margin-top:28px}.mastered{background:var(--mint);color:#123f31}.text-button{border:0;background:transparent;color:var(--blue);font-weight:700;cursor:pointer;padding:0}.empty-state{text-align:center;padding:60px 15px;color:var(--muted)}.mock-note{background:#fff5ea;border-left:3px solid var(--orange);border-radius:5px;padding:10px 12px;margin-bottom:12px;color:#864009;font-size:13px}@media(max-width:920px){.app-shell{display:block}.sidebar{border-right:0;border-bottom:1px solid var(--line)}.sidebar h1{font-size:24px}.categories{display:flex;overflow-x:auto;margin:14px -4px}.category{white-space:nowrap;width:auto}.progress-card{display:none}.question-pane{border-right:0}.detail-pane{padding:26px 20px}.topbar{padding:0 16px}}@media(max-width:500px){.topbar{height:58px}.app-shell{min-height:calc(100vh - 58px)}.primary,.ghost{padding:7px 10px}.brand{font-size:13px}.detail-head h2{font-size:24px}}.detail-level-switch{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--line);border-radius:9px;background:#f6f8fa;margin:-2px 0 4px}.detail-level-button{border:0;border-radius:6px;background:transparent;color:var(--muted);padding:7px 10px;font:700 13px/1.2 Inter,"Microsoft YaHei",Arial,sans-serif;cursor:pointer}.detail-level-button:hover{color:var(--blue);background:#e8f0fe}.detail-level-button.active{background:var(--navy);color:#fff;box-shadow:0 2px 5px #142b4530}.detail-level-button:focus-visible{outline:3px solid #8db9f5;outline-offset:2px}.derivation-list{counter-reset:derivation;list-style:none;padding:0;margin:0;display:grid;gap:9px}.derivation-list li{counter-increment:derivation;display:grid;grid-template-columns:28px 1fr;gap:9px;align-items:start;padding:10px 12px;background:#f5f8fc;border-left:3px solid var(--blue);border-radius:0 7px 7px 0}.derivation-list li::before{content:counter(derivation);display:grid;place-items:center;width:23px;height:23px;border-radius:50%;background:var(--blue);color:#fff;font-size:12px;font-weight:800}.edge-case-list{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.edge-case-list li{padding:10px 11px;border:1px solid #ffd4bf;border-radius:8px;background:#fff7f2;color:#77401e}.edge-case-list li::before{content:"边界";display:block;color:#b55316;font-size:10px;font-weight:800;letter-spacing:.6px;margin-bottom:3px}
@@ -25,13 +25,47 @@
 .nav-lead { font-weight: 800; color: var(--navy); background: #eef2f6; border: 1px solid var(--line); margin-bottom: 2px; }
 .nav-lead.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .nav-lead + .nav-lead { margin-top: 2px; }
+.nav-resume { background: #fff6ef; border-color: #ffd7c2; color: #9f481c; }
+.nav-resume:hover { background: #ffede2; border-color: var(--orange); color: #873b17; }
+.nav-resume.active { background: var(--orange); border-color: var(--orange); color: #fff; }
 
-.map-view { padding: 4px 2px 40px; }
+.map-mode .question-pane { grid-column: 2 / 4; border-right: 0; padding-inline: clamp(24px,4vw,58px); }
+.map-mode .detail-pane { display: none; }
+.map-view { max-width: 1120px; margin: 0 auto; padding: 4px 2px 40px; }
 .map-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 22px; }
 .map-tab { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 8px 16px; cursor: pointer; font: inherit; font-weight: 700; color: var(--muted); }
 .map-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
 
 .map-intro { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+
+/* 个人准备台 */
+.personal-dashboard { display: grid; gap: 22px; }
+.personal-hero { position: relative; isolation: isolate; overflow: hidden; display: grid; gap: 20px; min-height: 290px; padding: 24px; border-radius: 18px; background: radial-gradient(circle at 88% 12%, rgba(201,240,223,.22), transparent 32%), linear-gradient(145deg,#173754,#0d2237 72%); color: #fff; box-shadow: 0 16px 34px rgba(20,43,69,.16); }
+.personal-hero::after { content: ""; position: absolute; z-index: -1; right: -72px; bottom: -98px; width: 230px; height: 230px; border: 1px solid rgba(255,255,255,.12); border-radius: 50%; box-shadow: 0 0 0 24px rgba(255,255,255,.025), 0 0 0 54px rgba(255,255,255,.018); }
+.personal-hero-copy { align-self: end; }
+.personal-kicker { margin: 0 0 9px; color: var(--mint); font: 800 10px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: 1.5px; }
+.personal-hero h3 { max-width: 500px; margin: 0; font-size: clamp(25px,3vw,36px); line-height: 1.12; letter-spacing: -.6px; }
+.personal-hero-copy > p:last-child { max-width: 560px; margin: 14px 0 0; color: #c9d7e3; font-size: 14px; line-height: 1.72; }
+.personal-stats { align-self: end; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.personal-stats div { min-width: 0; padding: 11px 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; background: rgba(255,255,255,.055); backdrop-filter: blur(6px); }
+.personal-stats strong { display: block; color: var(--mint); font: 800 22px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.personal-stats span { display: block; margin-top: 6px; color: #c9d7e3; font-size: 10px; white-space: nowrap; }
+.personal-section-head span { color: var(--orange); font: 800 10px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace; letter-spacing: 1.3px; }
+.personal-section-head h3 { margin: 5px 0 4px; color: var(--navy); font-size: 22px; }
+.personal-section-head p { margin: 0; color: var(--muted); font-size: 13px; }
+.personal-track-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 12px; }
+.personal-track { position: relative; overflow: hidden; min-width: 0; padding: 18px; border: 1px solid var(--line); border-radius: 13px; background: #fff; box-shadow: 0 4px 14px rgba(20,43,69,.055); }
+.personal-track::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 3px; background: #b8cadb; }
+.personal-track.is-resume { border-color: #ffcbaa; background: linear-gradient(155deg,#fff,#fff8f3); }
+.personal-track.is-resume::before { width: 5px; background: var(--orange); }
+.personal-track-code { display: inline-grid; place-items: center; width: 30px; height: 25px; border-radius: 7px; background: #edf3f8; color: var(--blue); font: 800 11px/1 ui-monospace,SFMono-Regular,Consolas,monospace; }
+.personal-track.is-resume .personal-track-code { background: #ffe7d8; color: #a94718; }
+.personal-track h4 { margin: 11px 0 6px; color: var(--navy); font-size: 17px; }
+.personal-track > p { min-height: 62px; margin: 0 0 13px; color: var(--muted); font-size: 13px; line-height: 1.62; }
+.personal-track-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.personal-track-chips .cat-chip { padding: 5px 8px; font-size: 11px; }
+.personal-open { width: 100%; border: 0; border-radius: 8px; padding: 9px 12px; background: var(--orange); color: #fff; cursor: pointer; font: inherit; font-size: 13px; font-weight: 800; }
+.personal-open:hover { background: #e86e31; }
 
 /* 主题域卡片 */
 .domain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
@@ -76,6 +110,7 @@
 .thread-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
 .thread-tag { background: var(--blue); color: #fff; font-size: 12px; font-weight: 800; padding: 3px 9px; border-radius: 999px; letter-spacing: .5px; }
 .thread-banner.heavy .thread-tag { background: var(--orange); }
+.resume-thread .thread-steps { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .thread-head h3 { margin: 0; font-size: 18px; color: var(--navy); }
 .thread-oneliner { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
 .thread-steps { margin: 0; padding-left: 22px; display: grid; gap: 5px; }
@@ -90,6 +125,16 @@
 @media (max-width: 920px) {
   .domain-grid { grid-template-columns: 1fr; }
   .map-table { display: block; overflow-x: auto; }
+  .personal-track-grid { grid-template-columns: repeat(auto-fit,minmax(280px,1fr)); }
+}
+
+@media (max-width: 560px) {
+  .personal-hero { min-height: 0; padding: 20px; }
+  .personal-hero h3 { font-size: 26px; }
+  .personal-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .personal-track-grid { grid-template-columns: 1fr; }
+  .personal-track > p { min-height: 0; }
+  .resume-thread .thread-steps { grid-template-columns: 1fr; }
 }
 
 /* ===== 公式与图例：只增强展示，不改写题卡原文 ===== */
@@ -212,24 +257,24 @@ body.diagram-open { overflow: hidden; }
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#top" aria-label="BytePrep 首页"><span>BYTE</span>PREP</a>
+    <a class="brand" href="#top" aria-label="曾志涛面试准备系统首页"><span>ZENG</span> INTERVIEW OS</a>
     <div class="topbar-actions">
       <span id="timer" class="timer" aria-live="polite" hidden>45:00</span>
-      <button id="start-mock" class="button primary">开始模拟</button>
-      <button id="return-review" class="button ghost" hidden>返回复习</button>
+      <button id="start-mock" class="button primary">开始模拟面试</button>
+      <button id="return-review" class="button ghost" hidden>返回准备台</button>
     </div>
   </header>
   <main id="top" class="app-shell">
-    <aside class="sidebar" aria-label="题库导航">
-      <p class="eyebrow">INTERVIEW DRILL</p>
-      <h1>算法手撕<br><em>复习题库</em></h1>
-      <p class="intro">面向字节算法 / 大模型 / ASR 岗位的高频题与标准答题框架。</p>
-      <label class="search-label" for="search-input">搜索题目</label>
-      <input id="search-input" type="search" placeholder="例如：反转、Attention、CTC">
+    <aside class="sidebar" aria-label="个人面试准备导航">
+      <p class="eyebrow">PERSONAL INTERVIEW OS</p>
+      <h1>曾志涛的<br><em>面试准备系统</em></h1>
+      <p class="intro">围绕语音、多模态、端侧、生成式 AI 与 Tech Lead 的个人长期知识与答辩系统。</p>
+      <label class="search-label" for="search-input">搜索知识与题目</label>
+      <input id="search-input" type="search" placeholder="例如：Zipformer、TTS、端侧部署">
       <nav id="category-list" class="categories" aria-label="题型分类"></nav>
       <nav id="kind-list" class="detail-level-switch kind-switch" aria-label="题目类型"></nav>
-      <section class="progress-card" aria-label="学习进度">
-        <p>学习进度</p>
+      <section class="progress-card" aria-label="长期掌握进度">
+        <p>长期掌握</p>
         <strong id="progress-count">0 / 0</strong>
         <div class="progress-track"><i id="progress-bar"></i></div>
         <small>标记“已掌握”的题目会自动保存。</small>
@@ -237,7 +282,7 @@ body.diagram-open { overflow: hidden; }
     </aside>
     <section id="question-pane" class="question-pane" aria-label="题目列表">
       <div class="pane-heading">
-        <div><p id="mode-label" class="eyebrow">REVIEW MODE</p><h2 id="list-title">全部题目</h2></div>
+        <div><p id="mode-label" class="eyebrow">PERSONAL KNOWLEDGE BASE</p><h2 id="list-title">全部知识库</h2></div>
         <span id="result-count" class="count"></span>
       </div>
       <div id="mock-note" class="mock-note" hidden></div>
@@ -55454,7 +55499,7 @@ const domains = [
   },
   {
     id: 'D', name: '大模型推理与部署', heavy: true,
-    why: '岗位最硬核：怎么跑得快、跑得省',
+    why: '长期核心能力：把模型跑得快、跑得稳、跑得省',
     categories: [
       { name: '大模型推理原理', oneliner: 'prefill（compute-bound）vs decode（memory-bound）、arithmetic intensity、roofline、TTFT/TPOT/TPS、为什么慢。',
         steps: ['瓶颈认知（模型推理为什么慢）', '两阶段本质（Prefill vs Decode：compute vs memory bound）', '量化指标（Arithmetic Intensity / Roofline → TTFT/TPOT）', '工程优化（Chunked Prefill / PD 分离 / Speculative Decoding）', '架构呼应（MLA vs MHA/MQA/GQA、MoE Router）'] },
@@ -55478,7 +55523,7 @@ const domains = [
   },
   {
     id: 'E', name: '多模态与语音', heavy: true,
-    why: '岗位特性：PGC/OGC 多模态 + 语音',
+    why: '个人主航道：语音、多模态理解与生成落地',
     categories: [
       { name: '多模态模型', oneliner: 'CLIP/Q-Former/ViT、特征对齐与融合、幻觉、视频 token 压缩、hi-res、benchmark、部署。',
         steps: ['编码器（ViT）', 'token 化（patch→token）', '对齐（CLIP）', '连接器（Q-Former）', '融合（主流架构 / M-RoPE / 音频接入）', '进阶（高分辨率 / 多图多轮 / 视频时序 Token Explosion）', '训练与评测（预训练 / 指令微调 / 幻觉 / benchmark）', '部署与系统设计（视觉编码器与 LLM 协同 / 短视频理解系统）'] },
@@ -55517,27 +55562,27 @@ const domains = [
 ];
 
 const learningPath = [
-  { stage: 1, domain: 'A. 算法与数据结构基础', why: '手撕是入场券，一二轮就考；先保 coding 不死，才有后面', invest: '持续每天 1 题边写边讲' },
-  { stage: 2, domain: 'B. Transformer 与序列建模核心', why: '所有大模型题的底座，不先吃透架构和位置编码，训练/推理都说不清', invest: '重点，配"底层深度自检"' },
-  { stage: 3, domain: 'C. 大模型训练体系', why: '理解模型怎么从数据变成权重，承接 B', invest: '重点' },
-  { stage: 4, domain: 'D. 大模型推理与部署【岗重】', why: '岗位最硬核、权重最高；且和 B/C 直接咬合', invest: '最大头，反复刷' },
-  { stage: 5, domain: 'E. 多模态与语音【岗重】', why: '岗位多模态+语音特性，建立在 B/D 之上', invest: '重点（按 JD 倾斜）' },
-  { stage: 6, domain: 'F. 应用层与系统设计', why: '搜推/Agent/RAG/系统设计，把硬核用进业务闭环，三轮面重点', invest: '重点，配策略文档第 1–2 节' },
-  { stage: 7, domain: 'G. 系统与底层', why: '查漏补缺、压底层原理，被追问到实现时的兜底', invest: '按需补漏' },
+  { stage: 1, domain: '简历证据与项目答辩', why: '先把已经做过的事讲深：指标口径、个人贡献、消融、失败与上线证据', invest: '面试前最高频，40 道简历专项滚动复盘' },
+  { stage: 2, domain: 'E. 语音与多模态主航道', why: 'ASR、TTS、语音大模型、OCR、深度和生成式 AI 是个人履历最强信号', invest: '长期主线，按真实项目串讲' },
+  { stage: 3, domain: 'D. 推理与端侧交付', why: '把模型从离线指标推进到 ONNX、TensorRT、MNN、sherpa-onnx 与线上稳定性', invest: '重点，必须能讲性能与回滚' },
+  { stage: 4, domain: 'B/C. 模型原理与训练体系', why: '为架构选型、微调、稳定性和新模型迁移补齐可推导的底座', invest: '按薄弱项系统补全' },
+  { stage: 5, domain: 'F. 系统设计与 Tech Lead', why: '把算法、端侧、产品、评测和团队协作连成可交付闭环', invest: '准备行为面与架构面案例' },
+  { stage: 6, domain: 'A/G. 手撕与计算机基础', why: '保持通用算法能力和底层实现解释力，不让岗位变化造成基础短板', invest: '持续练习，面试期提高频率' },
+  { stage: 7, domain: '模拟面试与复盘', why: '将知识转成现场表达、追问承压和取舍判断', invest: '每周至少一次 45 分钟模拟' },
 ];
 
 const crossLines = [
-  { name: '推理全链路', line: '大模型推理原理 → KV Cache → Continuous Batching → PagedAttention → 量化推理 → 服务性能评测' },
-  { name: '训练全链路', line: 'Transformer 架构 → 训练与微调 → 分布式训练 → RL 后训练' },
-  { name: '多模态落地', line: '多模态模型 → 大模型推理原理 → 流式推理工程 → 系统设计' },
-  { name: 'Agent 生产化', line: 'Agent Workflow → 系统设计 → 服务性能评测' },
-  { name: '算法交付与领导', line: '服务性能评测 → Tech Lead 与项目答辩 → 系统设计' },
+  { name: '多语种 ASR 闭环', line: '模型横评 → 标签审计/伪标签 → 信道鲁棒 → 域适配 → CER/WER 门禁 → 端侧流式' },
+  { name: '中文 TTS 交付', line: '文本归一化 → G2P/韵律 → Matcha/VITS-Melo → 声码器 → sherpa-onnx → 主客观评测' },
+  { name: '端侧感知落地', line: 'OCR/单目深度 → Oracle 定位 → ONNX/TensorRT/MNN → 量化 → Buffer 复用 → 灰度回滚' },
+  { name: '多模态生成系统', line: 'Diffusion/Flow Matching → LoRA/人物一致性 → 音频驱动 → 约束生成 → 自动评测' },
+  { name: '算法交付与领导', line: '指标契约 → 模型选型 → 实验优先级 → 跨团队交付 → 事故复盘 → STAR-L 答辩' },
 ];
 
 const priorities = [
-  { tier: 1, label: '第一梯队（必须滚瓜烂熟）', items: 'D 域全类（推理部署岗位直接匹配）、B 域（Transformer 与位置编码）、E 域（多模态与语音，岗位特性）' },
-  { tier: 2, label: '第二梯队（要能讲闭环）', items: 'C 域（训练体系）、F 域（搜推/Agent/系统设计，三轮面重点）' },
-  { tier: 3, label: '第三梯队（查漏补缺）', items: 'A 域（保手撕）、G 域（底层兜底）' },
+  { tier: 1, label: '个人核心（必须形成肌肉记忆）', items: '简历专项、ASR、TTS、语音大模型、端侧部署、实验评测与 Tech Lead 项目答辩' },
+  { tier: 2, label: '能力外延（要能讲完整闭环）', items: '多模态理解与生成、OCR/深度、LLM 约束生成、Agent、系统设计和模型训练推理' },
+  { tier: 3, label: '通用底座（长期保持）', items: '算法手撕、Transformer、分布式训练、计算机系统基础与其他目标岗位按需模块' },
 ];
 
 // 按分类名快速查「本类主线」，供 list 视图横幅使用。
@@ -56309,7 +56354,8 @@ function diagramToVectorModel(value) {
 
 
 
-const storageKey = 'byte-interview-mastered-ids';
+const storageKey = 'zeng-interview-mastered-ids';
+const legacyStorageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
 const categoryLabels = new Map([
   ['语音合成', 'TTS 语音合成'],
@@ -56317,15 +56363,51 @@ const categoryLabels = new Map([
 
 function categoryLabel(category) { return categoryLabels.get(category) || category; }
 
+function isResumeQuestion(question) { return /^(?:asr|tts|edge|perf|lead)-resume-/.test(question.id); }
+const resumeQuestions = questions.filter(isResumeQuestion);
+const personalTracks = [
+  {
+    code: '01', title: '简历证据与项目答辩', resume: true,
+    summary: '把真实经历讲成完整证据链：背景、取舍、指标、贡献、失败与复盘。',
+  },
+  {
+    code: '02', title: '语音主航道', categories: ['ASR 专项', '语音合成', '语音大模型'],
+    summary: '从识别到合成，从离线模型到流式交互，形成可持续加深的专业纵深。',
+  },
+  {
+    code: '03', title: '端侧感知与部署', categories: ['ONNX/TensorRT', '推理芯片适配', 'OCR 文字检测与识别', '单目深度与障碍物感知'],
+    summary: '连接模型、芯片、性能与稳定性，回答“怎样真正交付到设备上”。',
+  },
+  {
+    code: '04', title: '多模态生成与智能系统', categories: ['生成式模型', '多模态模型', 'LLM 约束生成与自动评测', 'Agent Workflow', '系统设计'],
+    summary: '覆盖理解、生成、约束、评测与系统编排，承接更宽的目标岗位。',
+  },
+  {
+    code: '05', title: '评测、实验与 Tech Lead', categories: ['服务性能评测', '训练稳定性', 'Tech Lead 与项目答辩'],
+    summary: '用可信实验做决策，用工程机制交付结果，用复盘沉淀团队能力。',
+  },
+];
+
 const state = {
-  mode: 'review', view: 'map', mapTab: 'domains', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
+  mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   mockQuestions: [], revealIndex: 0, detailLevel: 'deep', masteredIds: loadMastered(),
   remaining: 2700, timerId: null,
 };
 
-function loadMastered() { try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); } catch { return new Set(); } }
+function loadMastered() {
+  try {
+    const current = localStorage.getItem(storageKey);
+    const saved = current ?? localStorage.getItem(legacyStorageKey) ?? '[]';
+    if (current == null && saved !== '[]') localStorage.setItem(storageKey, saved);
+    return new Set(JSON.parse(saved));
+  } catch { return new Set(); }
+}
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
-function activeQuestions() { return state.mode === 'mock' ? state.mockQuestions : filterQuestions(questions, state.category, state.query, state.kind); }
+function activeQuestions() {
+  if (state.mode === 'mock') return state.mockQuestions;
+  const source = state.view === 'resume' ? resumeQuestions : questions;
+  return filterQuestions(source, state.category, state.query, state.kind);
+}
 function selectedQuestion() { return activeQuestions().find((q) => q.id === state.selectedId) || activeQuestions()[0]; }
 function selectQuestion(id) {
   state.selectedId = id;
@@ -56348,9 +56430,13 @@ function navButton(label, active, onClick, extraClass = '') {
 function renderCategories() {
   const host = el('category-list');
   const buttons = [];
-  // 前置导航：知识脉络（地图视图）/ 全部题目
-  buttons.push(navButton('🗺 知识脉络', state.view === 'map', () => { state.view = 'map'; render(); }, 'nav-lead'));
-  buttons.push(navButton('全部题目', state.view === 'list' && state.category === '全部', () => {
+  // 前置导航：个人准备台 / 简历专项 / 全部知识库
+  buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
+  buttons.push(navButton(`◎ 简历专项 · ${resumeQuestions.length}`, state.view === 'resume', () => {
+    state.view = 'resume'; state.category = '全部';
+    selectQuestion(filterQuestions(resumeQuestions, '全部', state.query, state.kind)[0]?.id); render();
+  }, 'nav-lead nav-resume'));
+  buttons.push(navButton('全部知识库', state.view === 'list' && state.category === '全部', () => {
     state.view = 'list'; state.category = '全部';
     selectQuestion(filterQuestions(questions, '全部', state.query, state.kind)[0]?.id); render();
   }, 'nav-lead'));
@@ -56372,14 +56458,17 @@ function renderKindSwitch() {
     const button = document.createElement('button');
     button.className = `detail-level-button ${state.kind === value ? 'active' : ''}`;
     button.textContent = label;
-    button.addEventListener('click', () => { state.kind = value; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
+    button.addEventListener('click', () => { state.kind = value; selectQuestion(activeQuestions()[0]?.id); render(); });
     return button;
   }));
 }
 function renderList() {
   const items = activeQuestions(), empty = getEmptyState(items);
   el('question-list').hidden = empty.visible; el('empty-state').hidden = !empty.visible;
-  el('result-count').textContent = `${items.length} 题`; el('list-title').textContent = state.mode === 'mock' ? '本轮题目' : categoryLabel(state.category);
+  el('result-count').textContent = `${items.length} 题`;
+  el('list-title').textContent = state.mode === 'mock'
+    ? '本轮模拟'
+    : (state.view === 'resume' ? '简历专项' : (state.category === '全部' ? '全部知识库' : categoryLabel(state.category)));
   if (empty.visible) return;
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
@@ -56686,9 +56775,9 @@ function renderDetail() {
   if (state.view === 'map') {
     pane.replaceChildren();
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
-    const h = document.createElement('h2'); h.textContent = '知识脉络';
-    const p1 = document.createElement('p'); p1.textContent = '左侧选择一个分类，即可进入该分类刷题；进入后会先展示「本类主线」，按知识依赖顺序刷，而不是随机点题。';
-    const p2 = document.createElement('p'); p2.textContent = '顶部的「主题域」是全局地图，「学习路径 / 跨域交叉线 / 岗优先级」是配套复习策略。';
+    const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
+    const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
+    const p2 = document.createElement('p'); p2.textContent = `先用 ${resumeQuestions.length} 道简历专项打磨证据链，再按个人主线调用 ${questions.length} 道知识卡；面试变化时只需调整优先级，不必重建一套题库。`;
     tip.append(h, p1, p2);
     pane.append(tip);
     return;
@@ -56720,7 +56809,7 @@ function renderDetail() {
   btn.className = `button ${done ? 'mastered' : 'primary'}`; btn.textContent = done ? '✓ 已掌握（点击取消）' : '标记为已掌握';
   btn.addEventListener('click', () => { done ? state.masteredIds.delete(q.id) : state.masteredIds.add(q.id); saveMastered(); render(); }); row.append(btn); pane.append(row);
 }
-function renderMode() { const mock = state.mode === 'mock'; el('mode-label').textContent = mock ? 'MOCK INTERVIEW' : 'REVIEW MODE'; el('timer').hidden = !mock; el('start-mock').hidden = mock; el('return-review').hidden = !mock; el('mock-note').hidden = !mock; el('mock-note').textContent = mock ? `本轮共 ${state.mockQuestions.length} 题。答案默认隐藏；请先口述方案再揭晓。` : ''; }
+function renderMode() { const mock = state.mode === 'mock'; el('mode-label').textContent = mock ? 'MOCK INTERVIEW' : 'PERSONAL KNOWLEDGE BASE'; el('timer').hidden = !mock; el('start-mock').hidden = mock; el('return-review').hidden = !mock; el('mock-note').hidden = !mock; el('mock-note').textContent = mock ? `本轮共 ${state.mockQuestions.length} 题。答案默认隐藏；请先口述方案再揭晓。` : ''; }
 function tick() { state.remaining = Math.max(0, state.remaining - 1); el('timer').textContent = formatRemaining(state.remaining); if (!state.remaining) { clearInterval(state.timerId); state.timerId = null; el('mock-note').textContent = '时间到。本轮结束，复盘每道题的边界、复杂度和追问。'; } }
 function renderQuestionPane() {
   const pane = el('question-pane');
@@ -56758,6 +56847,24 @@ function renderQuestionPane() {
 
 function renderCategoryThread(pane, list) {
   const existing = el('category-thread'); if (existing) existing.remove();
+  if (state.view === 'resume') {
+    const banner = document.createElement('section');
+    banner.id = 'category-thread'; banner.className = 'thread-banner heavy resume-thread';
+    const head = document.createElement('div'); head.className = 'thread-head';
+    const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '个人证据链';
+    const title = document.createElement('h3'); title.textContent = `${resumeQuestions.length} 道简历专项`;
+    head.append(tag, title);
+    const oneliner = document.createElement('p'); oneliner.className = 'thread-oneliner';
+    oneliner.textContent = '不背抽象标准答案：用真实项目把问题、决策、数据、贡献、失败和复盘讲完整。';
+    const ol = document.createElement('ol'); ol.className = 'thread-steps';
+    ['多语种 ASR · 12 题', '中文 TTS · 8 题', '端侧感知与部署 · 8 题', '实验与统计可信度 · 5 题', 'Tech Lead 与项目答辩 · 7 题']
+      .forEach((step) => { const li = document.createElement('li'); li.textContent = step; ol.append(li); });
+    const hint = document.createElement('p'); hint.className = 'thread-hint';
+    hint.textContent = '每次回答都补一条可验证证据；无法验证的数字，明确口径与不确定性。';
+    banner.append(head, oneliner, ol, hint);
+    pane.insertBefore(banner, list);
+    return;
+  }
   if (state.category === '全部') return;
   const info = categoryThread[state.category];
   if (!info) return;
@@ -56778,17 +56885,78 @@ function renderCategoryThread(pane, list) {
 function renderMap(container) {
   container.replaceChildren();
   const tabs = document.createElement('div'); tabs.className = 'map-tabs';
-  [['domains', '主题域'], ['path', '学习路径'], ['cross', '跨域交叉线'], ['priority', '岗优先级']].forEach(([key, label]) => {
+  [['personal', '个人首页'], ['domains', '能力版图'], ['path', '准备主线'], ['cross', '项目串讲'], ['priority', '长期优先级']].forEach(([key, label]) => {
     const b = document.createElement('button');
     b.className = `map-tab ${state.mapTab === key ? 'active' : ''}`; b.textContent = label;
     b.addEventListener('click', () => { state.mapTab = key; renderMap(container); });
     tabs.append(b);
   });
   container.append(tabs);
-  if (state.mapTab === 'domains') container.append(renderMapDomains());
+  if (state.mapTab === 'personal') container.append(renderPersonalDashboard());
+  else if (state.mapTab === 'domains') container.append(renderMapDomains());
   else if (state.mapTab === 'path') container.append(renderMapPath());
   else if (state.mapTab === 'cross') container.append(renderMapCross());
   else container.append(renderMapPriority());
+}
+
+function openCollection(view, category = '全部') {
+  state.view = view; state.category = category; state.query = '';
+  const searchInput = el('search-input'); if (searchInput) searchInput.value = '';
+  selectQuestion(activeQuestions()[0]?.id); render();
+}
+
+function renderPersonalDashboard() {
+  const wrap = document.createElement('div'); wrap.className = 'personal-dashboard';
+  const hero = document.createElement('section'); hero.className = 'personal-hero';
+  const copy = document.createElement('div'); copy.className = 'personal-hero-copy';
+  const kicker = document.createElement('p'); kicker.className = 'personal-kicker'; kicker.textContent = 'ZENG ZHITAO · INTERVIEW OS';
+  const title = document.createElement('h3'); title.textContent = '把项目经验，内化成可迁移的面试能力';
+  const summary = document.createElement('p');
+  summary.textContent = '以语音、多模态、端侧部署和生成式 AI 为专业主线，以实验可信度、系统设计与 Tech Lead 为交付闭环。';
+  copy.append(kicker, title, summary);
+  const stats = document.createElement('div'); stats.className = 'personal-stats';
+  [
+    [questions.length, '全部题卡'], [resumeQuestions.length, '简历专项'], [domains.length, '能力主题'], [state.masteredIds.size, '已掌握'],
+  ].forEach(([value, label]) => {
+    const item = document.createElement('div');
+    const strong = document.createElement('strong'); strong.textContent = String(value);
+    const text = document.createElement('span'); text.textContent = label;
+    item.append(strong, text); stats.append(item);
+  });
+  hero.append(copy, stats); wrap.append(hero);
+
+  const heading = document.createElement('div'); heading.className = 'personal-section-head';
+  const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
+  const h = document.createElement('h3'); h.textContent = '我的五条准备主线';
+  const note = document.createElement('p'); note.textContent = '先把自己的经历讲透，再沿主航道加深，最后用通用知识库补齐短板。';
+  heading.append(eyebrow, h, note); wrap.append(heading);
+
+  const grid = document.createElement('div'); grid.className = 'personal-track-grid';
+  personalTracks.forEach((track) => {
+    const card = document.createElement('section'); card.className = `personal-track ${track.resume ? 'is-resume' : ''}`;
+    const code = document.createElement('span'); code.className = 'personal-track-code'; code.textContent = track.code;
+    const name = document.createElement('h4'); name.textContent = track.title;
+    const description = document.createElement('p'); description.textContent = track.summary;
+    card.append(code, name, description);
+    if (track.resume) {
+      const button = document.createElement('button'); button.className = 'personal-open'; button.textContent = `进入 ${resumeQuestions.length} 道专项题`;
+      button.addEventListener('click', () => openCollection('resume'));
+      card.append(button);
+    } else {
+      const chips = document.createElement('div'); chips.className = 'personal-track-chips';
+      track.categories.forEach((category) => {
+        const button = document.createElement('button'); button.className = 'cat-chip';
+        const count = filterQuestions(questions, category, '', '全部').length;
+        button.textContent = `${categoryLabel(category)} · ${count}`;
+        button.addEventListener('click', () => openCollection('list', category));
+        chips.append(button);
+      });
+      card.append(chips);
+    }
+    grid.append(card);
+  });
+  wrap.append(grid);
+  return wrap;
 }
 
 function renderMapDomains() {
@@ -56797,7 +56965,7 @@ function renderMapDomains() {
     const card = document.createElement('section'); card.className = `domain-card ${d.heavy ? 'heavy' : ''}`;
     const head = document.createElement('div'); head.className = 'domain-head';
     const badge = document.createElement('span'); badge.className = 'domain-badge'; badge.textContent = d.id;
-    const name = document.createElement('h3'); name.textContent = d.name + (d.heavy ? ' 【岗重】' : '');
+    const name = document.createElement('h3'); name.textContent = d.name + (d.heavy ? ' 【个人核心】' : '');
     head.append(badge, name);
     const why = document.createElement('p'); why.className = 'domain-why'; why.textContent = d.why;
     const chips = document.createElement('div'); chips.className = 'cat-chips';
@@ -56849,7 +57017,7 @@ function renderMapCross() {
 
 function renderMapPriority() {
   const wrap = document.createElement('div'); wrap.className = 'map-section';
-  const intro = document.createElement('p'); intro.className = 'map-intro'; intro.textContent = '针对「大模型算法 / 多模态」岗的复习权重建议（见 社招三轮面试策略补充.md）。';
+  const intro = document.createElement('p'); intro.className = 'map-intro'; intro.textContent = '优先级跟随个人经历与长期方向，而不是跟随某一份 JD；目标岗位变化时，只调整投入权重。';
   wrap.append(intro);
   const list = document.createElement('div'); list.className = 'priority-list';
   priorities.forEach((p) => {
@@ -56863,6 +57031,7 @@ function renderMapPriority() {
 }
 
 function render() {
+  document.body.classList.toggle('map-mode', state.view === 'map');
   renderMode();
   renderCategories();
   renderKindSwitch();
@@ -56872,9 +57041,9 @@ function render() {
   el('timer').textContent = formatRemaining(state.remaining);
 }
 function startMock() { state.mode = 'mock'; state.view = 'list'; state.mockQuestions = sampleQuestions(questions, 5); state.selectedId = state.mockQuestions[0]?.id; state.revealIndex = 0; state.detailLevel = 'deep'; state.remaining = 2700; clearInterval(state.timerId); state.timerId = setInterval(tick, 1000); render(); }
-function returnReview() { state.mode = 'review'; state.view = 'map'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
-el('search-input').addEventListener('input', (event) => { state.query = event.target.value; state.view = 'list'; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
-el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = 'list'; el('search-input').value = ''; selectQuestion(filterQuestions(questions, '全部', '', '全部')[0]?.id); render(); });
+function returnReview() { state.mode = 'review'; state.view = 'map'; state.mapTab = 'personal'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
+el('search-input').addEventListener('input', (event) => { state.query = event.target.value; if (state.view !== 'resume') state.view = 'list'; selectQuestion(activeQuestions()[0]?.id); render(); });
+el('clear-search').addEventListener('click', () => { const view = state.view === 'resume' ? 'resume' : 'list'; state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = view; el('search-input').value = ''; selectQuestion(activeQuestions()[0]?.id); render(); });
 el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview);
 document.addEventListener('keydown', (event) => {
   const card = document.querySelector('.diagram-card.is-expanded');

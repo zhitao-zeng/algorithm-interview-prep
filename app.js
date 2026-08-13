@@ -3,7 +3,8 @@ import { detailSections, filterQuestions, formatRemaining, getEmptyState, sample
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
 
-const storageKey = 'byte-interview-mastered-ids';
+const storageKey = 'zeng-interview-mastered-ids';
+const legacyStorageKey = 'byte-interview-mastered-ids';
 const el = (id) => document.getElementById(id);
 const categoryLabels = new Map([
   ['语音合成', 'TTS 语音合成'],
@@ -11,15 +12,51 @@ const categoryLabels = new Map([
 
 function categoryLabel(category) { return categoryLabels.get(category) || category; }
 
+function isResumeQuestion(question) { return /^(?:asr|tts|edge|perf|lead)-resume-/.test(question.id); }
+const resumeQuestions = questions.filter(isResumeQuestion);
+const personalTracks = [
+  {
+    code: '01', title: '简历证据与项目答辩', resume: true,
+    summary: '把真实经历讲成完整证据链：背景、取舍、指标、贡献、失败与复盘。',
+  },
+  {
+    code: '02', title: '语音主航道', categories: ['ASR 专项', '语音合成', '语音大模型'],
+    summary: '从识别到合成，从离线模型到流式交互，形成可持续加深的专业纵深。',
+  },
+  {
+    code: '03', title: '端侧感知与部署', categories: ['ONNX/TensorRT', '推理芯片适配', 'OCR 文字检测与识别', '单目深度与障碍物感知'],
+    summary: '连接模型、芯片、性能与稳定性，回答“怎样真正交付到设备上”。',
+  },
+  {
+    code: '04', title: '多模态生成与智能系统', categories: ['生成式模型', '多模态模型', 'LLM 约束生成与自动评测', 'Agent Workflow', '系统设计'],
+    summary: '覆盖理解、生成、约束、评测与系统编排，承接更宽的目标岗位。',
+  },
+  {
+    code: '05', title: '评测、实验与 Tech Lead', categories: ['服务性能评测', '训练稳定性', 'Tech Lead 与项目答辩'],
+    summary: '用可信实验做决策，用工程机制交付结果，用复盘沉淀团队能力。',
+  },
+];
+
 const state = {
-  mode: 'review', view: 'map', mapTab: 'domains', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
+  mode: 'review', view: 'map', mapTab: 'personal', category: '全部', query: '', kind: '全部', selectedId: questions[0].id,
   mockQuestions: [], revealIndex: 0, detailLevel: 'deep', masteredIds: loadMastered(),
   remaining: 2700, timerId: null,
 };
 
-function loadMastered() { try { return new Set(JSON.parse(localStorage.getItem(storageKey) || '[]')); } catch { return new Set(); } }
+function loadMastered() {
+  try {
+    const current = localStorage.getItem(storageKey);
+    const saved = current ?? localStorage.getItem(legacyStorageKey) ?? '[]';
+    if (current == null && saved !== '[]') localStorage.setItem(storageKey, saved);
+    return new Set(JSON.parse(saved));
+  } catch { return new Set(); }
+}
 function saveMastered() { try { localStorage.setItem(storageKey, JSON.stringify([...state.masteredIds])); } catch {} }
-function activeQuestions() { return state.mode === 'mock' ? state.mockQuestions : filterQuestions(questions, state.category, state.query, state.kind); }
+function activeQuestions() {
+  if (state.mode === 'mock') return state.mockQuestions;
+  const source = state.view === 'resume' ? resumeQuestions : questions;
+  return filterQuestions(source, state.category, state.query, state.kind);
+}
 function selectedQuestion() { return activeQuestions().find((q) => q.id === state.selectedId) || activeQuestions()[0]; }
 function selectQuestion(id) {
   state.selectedId = id;
@@ -42,9 +79,13 @@ function navButton(label, active, onClick, extraClass = '') {
 function renderCategories() {
   const host = el('category-list');
   const buttons = [];
-  // 前置导航：知识脉络（地图视图）/ 全部题目
-  buttons.push(navButton('🗺 知识脉络', state.view === 'map', () => { state.view = 'map'; render(); }, 'nav-lead'));
-  buttons.push(navButton('全部题目', state.view === 'list' && state.category === '全部', () => {
+  // 前置导航：个人准备台 / 简历专项 / 全部知识库
+  buttons.push(navButton('⌂ 我的准备台', state.view === 'map', () => { state.view = 'map'; state.mapTab = 'personal'; render(); }, 'nav-lead'));
+  buttons.push(navButton(`◎ 简历专项 · ${resumeQuestions.length}`, state.view === 'resume', () => {
+    state.view = 'resume'; state.category = '全部';
+    selectQuestion(filterQuestions(resumeQuestions, '全部', state.query, state.kind)[0]?.id); render();
+  }, 'nav-lead nav-resume'));
+  buttons.push(navButton('全部知识库', state.view === 'list' && state.category === '全部', () => {
     state.view = 'list'; state.category = '全部';
     selectQuestion(filterQuestions(questions, '全部', state.query, state.kind)[0]?.id); render();
   }, 'nav-lead'));
@@ -66,14 +107,17 @@ function renderKindSwitch() {
     const button = document.createElement('button');
     button.className = `detail-level-button ${state.kind === value ? 'active' : ''}`;
     button.textContent = label;
-    button.addEventListener('click', () => { state.kind = value; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
+    button.addEventListener('click', () => { state.kind = value; selectQuestion(activeQuestions()[0]?.id); render(); });
     return button;
   }));
 }
 function renderList() {
   const items = activeQuestions(), empty = getEmptyState(items);
   el('question-list').hidden = empty.visible; el('empty-state').hidden = !empty.visible;
-  el('result-count').textContent = `${items.length} 题`; el('list-title').textContent = state.mode === 'mock' ? '本轮题目' : categoryLabel(state.category);
+  el('result-count').textContent = `${items.length} 题`;
+  el('list-title').textContent = state.mode === 'mock'
+    ? '本轮模拟'
+    : (state.view === 'resume' ? '简历专项' : (state.category === '全部' ? '全部知识库' : categoryLabel(state.category)));
   if (empty.visible) return;
   el('question-list').replaceChildren(...items.map((q) => {
     const card = document.createElement('button'); card.className = `question-card ${q.id === selectedQuestion()?.id ? 'active' : ''}`;
@@ -380,9 +424,9 @@ function renderDetail() {
   if (state.view === 'map') {
     pane.replaceChildren();
     const tip = document.createElement('div'); tip.className = 'map-detail-tip';
-    const h = document.createElement('h2'); h.textContent = '知识脉络';
-    const p1 = document.createElement('p'); p1.textContent = '左侧选择一个分类，即可进入该分类刷题；进入后会先展示「本类主线」，按知识依赖顺序刷，而不是随机点题。';
-    const p2 = document.createElement('p'); p2.textContent = '顶部的「主题域」是全局地图，「学习路径 / 跨域交叉线 / 岗优先级」是配套复习策略。';
+    const h = document.createElement('h2'); h.textContent = '曾志涛的面试准备系统';
+    const p1 = document.createElement('p'); p1.textContent = '这里不是某一个岗位的一次性题库，而是围绕个人经历、目标方向和能力短板持续生长的长期准备台。';
+    const p2 = document.createElement('p'); p2.textContent = `先用 ${resumeQuestions.length} 道简历专项打磨证据链，再按个人主线调用 ${questions.length} 道知识卡；面试变化时只需调整优先级，不必重建一套题库。`;
     tip.append(h, p1, p2);
     pane.append(tip);
     return;
@@ -414,7 +458,7 @@ function renderDetail() {
   btn.className = `button ${done ? 'mastered' : 'primary'}`; btn.textContent = done ? '✓ 已掌握（点击取消）' : '标记为已掌握';
   btn.addEventListener('click', () => { done ? state.masteredIds.delete(q.id) : state.masteredIds.add(q.id); saveMastered(); render(); }); row.append(btn); pane.append(row);
 }
-function renderMode() { const mock = state.mode === 'mock'; el('mode-label').textContent = mock ? 'MOCK INTERVIEW' : 'REVIEW MODE'; el('timer').hidden = !mock; el('start-mock').hidden = mock; el('return-review').hidden = !mock; el('mock-note').hidden = !mock; el('mock-note').textContent = mock ? `本轮共 ${state.mockQuestions.length} 题。答案默认隐藏；请先口述方案再揭晓。` : ''; }
+function renderMode() { const mock = state.mode === 'mock'; el('mode-label').textContent = mock ? 'MOCK INTERVIEW' : 'PERSONAL KNOWLEDGE BASE'; el('timer').hidden = !mock; el('start-mock').hidden = mock; el('return-review').hidden = !mock; el('mock-note').hidden = !mock; el('mock-note').textContent = mock ? `本轮共 ${state.mockQuestions.length} 题。答案默认隐藏；请先口述方案再揭晓。` : ''; }
 function tick() { state.remaining = Math.max(0, state.remaining - 1); el('timer').textContent = formatRemaining(state.remaining); if (!state.remaining) { clearInterval(state.timerId); state.timerId = null; el('mock-note').textContent = '时间到。本轮结束，复盘每道题的边界、复杂度和追问。'; } }
 function renderQuestionPane() {
   const pane = el('question-pane');
@@ -452,6 +496,24 @@ function renderQuestionPane() {
 
 function renderCategoryThread(pane, list) {
   const existing = el('category-thread'); if (existing) existing.remove();
+  if (state.view === 'resume') {
+    const banner = document.createElement('section');
+    banner.id = 'category-thread'; banner.className = 'thread-banner heavy resume-thread';
+    const head = document.createElement('div'); head.className = 'thread-head';
+    const tag = document.createElement('span'); tag.className = 'thread-tag'; tag.textContent = '个人证据链';
+    const title = document.createElement('h3'); title.textContent = `${resumeQuestions.length} 道简历专项`;
+    head.append(tag, title);
+    const oneliner = document.createElement('p'); oneliner.className = 'thread-oneliner';
+    oneliner.textContent = '不背抽象标准答案：用真实项目把问题、决策、数据、贡献、失败和复盘讲完整。';
+    const ol = document.createElement('ol'); ol.className = 'thread-steps';
+    ['多语种 ASR · 12 题', '中文 TTS · 8 题', '端侧感知与部署 · 8 题', '实验与统计可信度 · 5 题', 'Tech Lead 与项目答辩 · 7 题']
+      .forEach((step) => { const li = document.createElement('li'); li.textContent = step; ol.append(li); });
+    const hint = document.createElement('p'); hint.className = 'thread-hint';
+    hint.textContent = '每次回答都补一条可验证证据；无法验证的数字，明确口径与不确定性。';
+    banner.append(head, oneliner, ol, hint);
+    pane.insertBefore(banner, list);
+    return;
+  }
   if (state.category === '全部') return;
   const info = categoryThread[state.category];
   if (!info) return;
@@ -472,17 +534,78 @@ function renderCategoryThread(pane, list) {
 function renderMap(container) {
   container.replaceChildren();
   const tabs = document.createElement('div'); tabs.className = 'map-tabs';
-  [['domains', '主题域'], ['path', '学习路径'], ['cross', '跨域交叉线'], ['priority', '岗优先级']].forEach(([key, label]) => {
+  [['personal', '个人首页'], ['domains', '能力版图'], ['path', '准备主线'], ['cross', '项目串讲'], ['priority', '长期优先级']].forEach(([key, label]) => {
     const b = document.createElement('button');
     b.className = `map-tab ${state.mapTab === key ? 'active' : ''}`; b.textContent = label;
     b.addEventListener('click', () => { state.mapTab = key; renderMap(container); });
     tabs.append(b);
   });
   container.append(tabs);
-  if (state.mapTab === 'domains') container.append(renderMapDomains());
+  if (state.mapTab === 'personal') container.append(renderPersonalDashboard());
+  else if (state.mapTab === 'domains') container.append(renderMapDomains());
   else if (state.mapTab === 'path') container.append(renderMapPath());
   else if (state.mapTab === 'cross') container.append(renderMapCross());
   else container.append(renderMapPriority());
+}
+
+function openCollection(view, category = '全部') {
+  state.view = view; state.category = category; state.query = '';
+  const searchInput = el('search-input'); if (searchInput) searchInput.value = '';
+  selectQuestion(activeQuestions()[0]?.id); render();
+}
+
+function renderPersonalDashboard() {
+  const wrap = document.createElement('div'); wrap.className = 'personal-dashboard';
+  const hero = document.createElement('section'); hero.className = 'personal-hero';
+  const copy = document.createElement('div'); copy.className = 'personal-hero-copy';
+  const kicker = document.createElement('p'); kicker.className = 'personal-kicker'; kicker.textContent = 'ZENG ZHITAO · INTERVIEW OS';
+  const title = document.createElement('h3'); title.textContent = '把项目经验，内化成可迁移的面试能力';
+  const summary = document.createElement('p');
+  summary.textContent = '以语音、多模态、端侧部署和生成式 AI 为专业主线，以实验可信度、系统设计与 Tech Lead 为交付闭环。';
+  copy.append(kicker, title, summary);
+  const stats = document.createElement('div'); stats.className = 'personal-stats';
+  [
+    [questions.length, '全部题卡'], [resumeQuestions.length, '简历专项'], [domains.length, '能力主题'], [state.masteredIds.size, '已掌握'],
+  ].forEach(([value, label]) => {
+    const item = document.createElement('div');
+    const strong = document.createElement('strong'); strong.textContent = String(value);
+    const text = document.createElement('span'); text.textContent = label;
+    item.append(strong, text); stats.append(item);
+  });
+  hero.append(copy, stats); wrap.append(hero);
+
+  const heading = document.createElement('div'); heading.className = 'personal-section-head';
+  const eyebrow = document.createElement('span'); eyebrow.textContent = 'LONG-TERM TRACKS';
+  const h = document.createElement('h3'); h.textContent = '我的五条准备主线';
+  const note = document.createElement('p'); note.textContent = '先把自己的经历讲透，再沿主航道加深，最后用通用知识库补齐短板。';
+  heading.append(eyebrow, h, note); wrap.append(heading);
+
+  const grid = document.createElement('div'); grid.className = 'personal-track-grid';
+  personalTracks.forEach((track) => {
+    const card = document.createElement('section'); card.className = `personal-track ${track.resume ? 'is-resume' : ''}`;
+    const code = document.createElement('span'); code.className = 'personal-track-code'; code.textContent = track.code;
+    const name = document.createElement('h4'); name.textContent = track.title;
+    const description = document.createElement('p'); description.textContent = track.summary;
+    card.append(code, name, description);
+    if (track.resume) {
+      const button = document.createElement('button'); button.className = 'personal-open'; button.textContent = `进入 ${resumeQuestions.length} 道专项题`;
+      button.addEventListener('click', () => openCollection('resume'));
+      card.append(button);
+    } else {
+      const chips = document.createElement('div'); chips.className = 'personal-track-chips';
+      track.categories.forEach((category) => {
+        const button = document.createElement('button'); button.className = 'cat-chip';
+        const count = filterQuestions(questions, category, '', '全部').length;
+        button.textContent = `${categoryLabel(category)} · ${count}`;
+        button.addEventListener('click', () => openCollection('list', category));
+        chips.append(button);
+      });
+      card.append(chips);
+    }
+    grid.append(card);
+  });
+  wrap.append(grid);
+  return wrap;
 }
 
 function renderMapDomains() {
@@ -491,7 +614,7 @@ function renderMapDomains() {
     const card = document.createElement('section'); card.className = `domain-card ${d.heavy ? 'heavy' : ''}`;
     const head = document.createElement('div'); head.className = 'domain-head';
     const badge = document.createElement('span'); badge.className = 'domain-badge'; badge.textContent = d.id;
-    const name = document.createElement('h3'); name.textContent = d.name + (d.heavy ? ' 【岗重】' : '');
+    const name = document.createElement('h3'); name.textContent = d.name + (d.heavy ? ' 【个人核心】' : '');
     head.append(badge, name);
     const why = document.createElement('p'); why.className = 'domain-why'; why.textContent = d.why;
     const chips = document.createElement('div'); chips.className = 'cat-chips';
@@ -543,7 +666,7 @@ function renderMapCross() {
 
 function renderMapPriority() {
   const wrap = document.createElement('div'); wrap.className = 'map-section';
-  const intro = document.createElement('p'); intro.className = 'map-intro'; intro.textContent = '针对「大模型算法 / 多模态」岗的复习权重建议（见 社招三轮面试策略补充.md）。';
+  const intro = document.createElement('p'); intro.className = 'map-intro'; intro.textContent = '优先级跟随个人经历与长期方向，而不是跟随某一份 JD；目标岗位变化时，只调整投入权重。';
   wrap.append(intro);
   const list = document.createElement('div'); list.className = 'priority-list';
   priorities.forEach((p) => {
@@ -557,6 +680,7 @@ function renderMapPriority() {
 }
 
 function render() {
+  document.body.classList.toggle('map-mode', state.view === 'map');
   renderMode();
   renderCategories();
   renderKindSwitch();
@@ -566,9 +690,9 @@ function render() {
   el('timer').textContent = formatRemaining(state.remaining);
 }
 function startMock() { state.mode = 'mock'; state.view = 'list'; state.mockQuestions = sampleQuestions(questions, 5); state.selectedId = state.mockQuestions[0]?.id; state.revealIndex = 0; state.detailLevel = 'deep'; state.remaining = 2700; clearInterval(state.timerId); state.timerId = setInterval(tick, 1000); render(); }
-function returnReview() { state.mode = 'review'; state.view = 'map'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
-el('search-input').addEventListener('input', (event) => { state.query = event.target.value; state.view = 'list'; selectQuestion(filterQuestions(questions, state.category, state.query, state.kind)[0]?.id); render(); });
-el('clear-search').addEventListener('click', () => { state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = 'list'; el('search-input').value = ''; selectQuestion(filterQuestions(questions, '全部', '', '全部')[0]?.id); render(); });
+function returnReview() { state.mode = 'review'; state.view = 'map'; state.mapTab = 'personal'; state.revealIndex = 0; state.detailLevel = 'deep'; clearInterval(state.timerId); state.timerId = null; state.selectedId = questions[0].id; render(); }
+el('search-input').addEventListener('input', (event) => { state.query = event.target.value; if (state.view !== 'resume') state.view = 'list'; selectQuestion(activeQuestions()[0]?.id); render(); });
+el('clear-search').addEventListener('click', () => { const view = state.view === 'resume' ? 'resume' : 'list'; state.query = ''; state.category = '全部'; state.kind = '全部'; state.view = view; el('search-input').value = ''; selectQuestion(activeQuestions()[0]?.id); render(); });
 el('start-mock').addEventListener('click', startMock); el('return-review').addEventListener('click', returnReview);
 document.addEventListener('keydown', (event) => {
   const card = document.querySelector('.diagram-card.is-expanded');
