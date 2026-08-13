@@ -11,6 +11,8 @@
 }
 
 /* ===== 知识脉络视图 ===== */
+.tag-row { flex-wrap: wrap; }
+.tag { white-space: nowrap; }
 .nav-lead { font-weight: 800; color: var(--navy); background: #eef2f6; border: 1px solid var(--line); margin-bottom: 2px; }
 .nav-lead.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .nav-lead + .nav-lead { margin-top: 2px; }

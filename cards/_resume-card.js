@@ -1,3 +1,5 @@
+import { explainResumePrerequisite } from './_resume-glossary.js';
+
 export function makeResumeCard({
   id,
   category,
@@ -25,24 +27,41 @@ export function makeResumeCard({
     title,
     prompt,
     quickAnswer,
-    explanationFocus: `是什么：${quickAnswer}`,
+    resumeCard: true,
+    explanationFocus: `这道题真正考察的不是名词记忆，而是你能否解释“${title}”背后的判断依据，并用可复核证据说明结论。${why}`,
     approach: implementation,
-    code: `def evidence_gate(primary_gain: float, guardrail_ok: bool, reproducible: bool) -> dict:\n    \"\"\"把简历主张变成可复核的上线证据，而不是只报一个最好数字。\"\"\"\n    release = primary_gain > 0 and guardrail_ok and reproducible\n    return {\"primary_gain\": primary_gain, \"guardrail_ok\": guardrail_ok,\n            \"reproducible\": reproducible, \"release\": release}`,
     complexity,
-    beginnerSummary: `面试时不要只背名词。先说清“${title}”解决什么问题，再给机制、对照实验、失败边界和上线守护。`,
-    diagram: '业务问题 → 技术机制 → 对照实验 → 失败切片 → 上线守护',
+    beginnerSummary: `这题不是让你背“${title}”的名词，而是要确认你能否把项目结论变成别人可以复查的证据。先抓住最关键的问题：${why}`,
+    interviewAnswer: [
+      `30 秒回答：${quickAnswer}`,
+      `2 分钟展开·为什么：${why}`,
+      `2 分钟展开·怎么做：${implementation}`,
+      `2 分钟展开·取舍与结论：${tradeoffs} 最后用这些指标收口：${evaluation}`,
+    ],
+    evidenceChain: [
+      `要证明的主张：${title}`,
+      `控制变量与实现：${implementation}`,
+      `第一份具体证据：${workedExample[0]}`,
+      `第二份对照证据：${workedExample[1]}`,
+      `上线或决策门槛：${evaluation}`,
+    ],
     derivation: [
       `为什么需要：${why}`,
       `怎么实现：${implementation}`,
       `有什么代价：${tradeoffs}`,
       `怎么评测：${evaluation}`,
     ],
-    prerequisites,
-    workedExample,
-    lineByLine: [
-      'evidence_gate 接收主指标增益、护栏是否通过、结果能否复现三类证据。',
-      'release 只有在主指标变好、旧域或线上护栏通过且多次实验可复现时才为真。',
-      '返回完整证据而非单个布尔值，便于答辩、评审、灰度与复盘。',
+    prerequisites: prerequisites.map(explainResumePrerequisite),
+    workedExample: [
+      `第 1 步：${workedExample[0]}`,
+      `第 2 步：${workedExample[1]}`,
+      `第 3 步：主动检查失败边界——${edgeCases[0]}。出现这种情况时，不能继续沿用正常样本的结论。`,
+      `第 4 步：说明取舍——${tradeoffs}`,
+      `第 5 步：按预先约定的口径收口——${evaluation}`,
+    ],
+    comparison: [
+      { a: '弱回答', b: '强回答', note: `弱回答只复述“${title}”的术语；强回答会给出控制变量、具体对照、失败切片和决策门槛。` },
+      { a: '最好数字', b: '可复核证据', note: `单个最好数字不能证明结论；需要把“${implementation}”与逐样本结果、回归护栏和复现条件一起说明。` },
     ],
     edgeCases,
     followUps,

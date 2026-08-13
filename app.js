@@ -1,4 +1,4 @@
-import { categories, questions } from './questions.js?v=a79547ea';
+import { categories, questions } from './questions.js?v=b075c089';
 import { detailSections, filterQuestions, formatRemaining, getEmptyState, sampleQuestions } from './quiz-core.js';
 import { domains, learningPath, crossLines, priorities, categoryThread } from './knowledge-map.js';
 import { complexityView, diagramHtml, diagramToVectorModel, parseFlowDiagram, splitRichText } from './render-utils.js';
@@ -435,7 +435,8 @@ function renderDetail() {
   if (!q) { pane.textContent = '请选择一道题目'; return; }
   const head = document.createElement('header'); head.className = 'detail-head';
   const tags = document.createElement('div'); tags.className = 'tag-row';
-  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [categoryLabel(q.category), 'tag'], [q.difficulty, 'tag difficulty'], [`LC ${q.id}`, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
+  const questionId = q.kind === 'code' && /^\d+$/.test(q.id) ? `LC ${q.id}` : `ID ${q.id}`;
+  [[q.kind === 'code' ? '代码题' : '概念题', 'tag'], [categoryLabel(q.category), 'tag'], [q.difficulty, 'tag difficulty'], [questionId, 'tag']].forEach(([value, className]) => { const tag = document.createElement('span'); tag.className = className; tag.textContent = value; tags.append(tag); });
   const title = appendRichText(document.createElement('h2'), q.title);
   const prompt = appendRichText(document.createElement('p'), q.prompt);
   head.append(tags, title, prompt); pane.append(head);

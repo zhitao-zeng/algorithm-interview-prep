@@ -29,6 +29,30 @@ export function formatRemaining(seconds) {
 }
 
 export function detailSections(card, level = 'quick') {
+  if (card?.resumeCard) {
+    const quick = [
+      ['beginnerSummary', '先讲人话', 'text'],
+      ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
+      ['evidenceChain', '本题证据链', 'steps'],
+      ['followUps', '常见追问', 'qa'],
+      ['pitfalls', '容易说错的地方', 'list'],
+    ];
+    const deep = [
+      ['beginnerSummary', '先讲人话', 'text'],
+      ['interviewAnswer', '面试回答：30 秒到 2 分钟', 'steps'],
+      ['prerequisites', '术语拆解', 'concepts'],
+      ['evidenceChain', '本题证据链', 'steps'],
+      ['derivation', '为什么、怎么做、代价、评测', 'steps'],
+      ['workedExample', '一步一步走完整案例', 'steps'],
+      ['comparison', '弱回答与强回答', 'compare'],
+      ['complexity', '成本与复杂度', 'text'],
+      ['edgeCases', '失败边界', 'cards'],
+      ['followUps', '常见追问', 'qa'],
+      ['pitfalls', '容易说错的地方', 'list'],
+    ];
+    const fields = level === 'deep' ? deep : quick;
+    return fields.map(([key, title, type]) => ({ key, title, type, value: card?.[key] }));
+  }
   const kind = card?.kind || 'concept';
   if (kind === 'code') {
     // 代码题：强调真实现、朴素做法、循环不变量、执行追踪与逐行讲解
@@ -111,13 +135,14 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
       )
     )
   );
+  const kind = card?.kind;
   const scalarFields = [
     'id',
     'prompt',
     'quickAnswer',
-    'code',
     'complexity',
   ];
+  if (kind === 'code') scalarFields.push('code');
   const arrayFields = [
     'derivation',
     'edgeCases',
@@ -157,9 +182,10 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
 
   if (beginner) {
     if (!isNonEmptyString(card?.beginnerSummary)) addMissing('beginnerSummary');
-    for (const field of ['prerequisites', 'workedExample', 'lineByLine']) {
+    for (const field of ['prerequisites', 'workedExample']) {
       if (!hasNonEmptyStrings(field, 2)) addMissing(field);
     }
+    if (kind === 'code' && !hasNonEmptyStrings('lineByLine', 2)) addMissing('lineByLine');
     if (
       !Array.isArray(card?.followUps)
       || card.followUps.length < 2
@@ -172,13 +198,22 @@ export function validateQuestionCard(card, { beginner = false } = {}) {
   }
 
   // kind 分支：仅对"已存在但非法形状"的字段报错，兼容旧卡（不强制缺失字段）
-  const kind = card?.kind;
   if (kind === 'code') {
     if ('invariant' in (card ?? {}) && !isNonEmptyString(card.invariant)) addMissing('invariant');
     if ('walkthrough' in (card ?? {}) && !isNonEmptyString(card.walkthrough)) addMissing('walkthrough');
   } else if (kind === 'concept') {
     if ('explanationFocus' in (card ?? {}) && !isNonEmptyString(card.explanationFocus)) addMissing('explanationFocus');
     if ('approach' in (card ?? {}) && !isNonEmptyString(card.approach)) addMissing('approach');
+  }
+
+  if (card?.resumeCard) {
+    if (!hasNonEmptyStrings('interviewAnswer', 4)) addMissing('interviewAnswer');
+    if (!hasNonEmptyStrings('evidenceChain', 5)) addMissing('evidenceChain');
+    if (
+      !Array.isArray(card?.comparison)
+      || card.comparison.length < 2
+      || card.comparison.some((row) => !isNonEmptyString(row?.a) || !isNonEmptyString(row?.b) || !isNonEmptyString(row?.note))
+    ) addMissing('comparison');
   }
 
   return { valid: missing.length === 0, missing };

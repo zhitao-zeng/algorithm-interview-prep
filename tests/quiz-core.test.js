@@ -4,6 +4,7 @@ import test from 'node:test';
 import { questions } from '../questions.js';
 import { detailSections, validateQuestionCard } from '../quiz-core.js';
 import { categoryThread, domains } from '../knowledge-map.js';
+import { resumeGlossarySize } from '../cards/_resume-glossary.js';
 import { readFileSync } from 'node:fs';
 
 const beginnerFixture = {
@@ -112,6 +113,29 @@ test('简历专项新增 40 道题并按五条主线完整分布', () => {
   }
   assert.deepEqual(groups.lead.map((card) => card.order), [1, 2, 3, 4, 5, 6, 7]);
   assert.ok(categoryThread['Tech Lead 与项目答辩'].steps.length >= 7);
+});
+
+test('40 道简历专项使用教学卡 V2，不再复制通用假代码与占位图', () => {
+  const resumeCards = questions.filter((q) => /^(?:asr|tts|edge|perf|lead)-resume-/.test(q.id));
+  assert.equal(resumeGlossarySize, 120);
+  assert.equal(resumeCards.length, 40);
+  assert.equal(new Set(resumeCards.map((q) => JSON.stringify(q.evidenceChain))).size, 40);
+
+  for (const card of resumeCards) {
+    assert.equal(card.resumeCard, true, card.id);
+    assert.equal('code' in card, false, `${card.id} 不应展示与主题无关的通用 Python`);
+    assert.equal('lineByLine' in card, false, `${card.id} 不应保留通用逐行说明`);
+    assert.equal('diagram' in card, false, `${card.id} 不应保留重复占位图`);
+    assert.equal(card.interviewAnswer.length, 4, card.id);
+    assert.equal(card.evidenceChain.length, 5, card.id);
+    assert.equal(card.workedExample.length, 5, card.id);
+    assert.ok(card.prerequisites.every((term) => term.includes('：') && term.length >= 24), card.id);
+    assert.deepEqual(
+      detailSections(card, 'deep').map((section) => section.key),
+      ['beginnerSummary', 'interviewAnswer', 'prerequisites', 'evidenceChain', 'derivation', 'workedExample', 'comparison', 'complexity', 'edgeCases', 'followUps', 'pitfalls'],
+      card.id,
+    );
+  }
 });
 
 test('站点定位为个人长期面试系统并保留旧进度迁移', () => {
